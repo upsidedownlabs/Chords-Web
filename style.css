@@ -1,0 +1,5 @@
+.connected {
+  background-color: green !important; /* Add !important to override other styles */
+  color: white; /* Change text color to white for better contrast */
+  border-color: green; /* Change border color to match background color */
+}
