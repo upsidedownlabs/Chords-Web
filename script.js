@@ -14,7 +14,7 @@ for (let i = 0; i < channels; i++) {
   canvasDiv.innerHTML = `
         <div class="mt-4 mb-4 bg-white text-white rounded position-relative">
             <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${i + 1}</span>
-            <canvas id="waveform${i}" width="1550" height="${height}" style="width: 100%;"></canvas>
+            <canvas id="waveform${i}" width="1550" height="${height}" style="width:100%;"></canvas>
         </div>`;
   chartsContainer.appendChild(canvasDiv);
 }
@@ -108,27 +108,26 @@ document.getElementById("heightRange").addEventListener("input", function () {
 // Update canvas height
 async function updateCanvasHeight(height) {
   const canvasDivs = document.querySelectorAll(".canvas-container");
-
+ 
   canvasDivs.forEach((canvasDiv, index) => {
     // Set the height for all canvas containers
     canvasDiv.style.height = `${height}px`;
     const canvas = canvasDiv.querySelector("canvas");
     canvas.height = height;
-
+ 
     // Redraw the chart to reflect the new canvas height
     smoothieCharts[index].resize();
-
+ 
     // Store the updated height value in local storage for each channel
     localStorage.setItem(`heightValue-${index + 1}`, height);
   });
-
+ 
   // Additionally, update the height of the first canvas separately
   const firstCanvas = document.getElementById("waveform0");
   firstCanvas.height = height;
   smoothieCharts[0].resize();
   localStorage.setItem("heightValue-0", height);
 }
-
 
 let port;
 let lineBuffer = "";
@@ -464,7 +463,7 @@ function updateSmoothieChartSpeed(speed) {
     case 3:
       // Set to fast refresh rate
       smoothieCharts.forEach((smoothie) => {
-        smoothie.options.millisPerPixel = 2;
+        smoothie.options.millisPerPixel = 1;
       });
       break;
     default:
