@@ -1,5 +1,2 @@
 # BioSignal-Recorder-Web
-
-Web Serial based BioSignal recorder applicaion.
-
-![](images/ui.png)
+Web Serial based BioSignal recorder applicaion
