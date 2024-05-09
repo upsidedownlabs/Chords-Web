@@ -1,16 +1,26 @@
+// Array to store SmoothieCharts instances
 const smoothieCharts = [];
+// Array to store TimeSeries instances for each channel
 const deviceData = [];
+// Number of channels, retrieved from local storage or default to 6
 let channels = parseInt(localStorage.getItem("channelsValue")) || 6;
+// Array to store heights of each waveform canvas
 let heights = [];
+// Flag indicating if streaming is active
 let isStreaming = false;
+// Flag indicating if recording is active
 let isRecording = false;
 
+// Container to hold waveform charts
 const chartsContainer = document.getElementById("chartsContainer");
+// Create waveform canvas elements for each channel
 for (let i = 0; i < channels; i++) {
   const canvasDiv = document.createElement("div");
   canvasDiv.classList.add("canvas-container");
+// Retrieve height for each channel from local storage or default to 200
   const height = parseInt(localStorage.getItem(`heightValue-${i}`)) || 200;
   heights.push(height);
+  // Populate canvas container HTML
   canvasDiv.innerHTML = `
         <div class="mt-4 mb-4 bg-white text-white rounded position-relative">
             <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${i + 1}</span>
@@ -21,7 +31,10 @@ for (let i = 0; i < channels; i++) {
 
 var smoothie = [];
 var timeSeries = [];
+
+// Initialize SmoothieCharts and TimeSeries for each channel
 for (let i = 0; i < channels; i++) {
+  
   smoothie[i] = new SmoothieChart({
     millisPerPixel: 2,
     grid: {
@@ -47,9 +60,12 @@ for (let i = 0; i < channels; i++) {
   smoothieCharts.push(smoothie[i]);
   deviceData.push(timeSeries[i]);
 
+// Associate SmoothieCharts with respective canvas elements
+
   smoothie[i].streamTo(document.getElementById(`waveform${i}`));
 }
 
+// Event listener for adjusting number of channels
 document.getElementById("channelsRange").addEventListener("input", function () {
   channels = parseInt(this.value);
   const channelsValueSpan = document.getElementById("channelsValue");
