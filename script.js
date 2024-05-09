@@ -1,156 +1,158 @@
-// Array to store SmoothieCharts instances
-const smoothieCharts = [];
-// Array to store TimeSeries instances for each channel
-const deviceData = [];
-// Number of channels, retrieved from local storage or default to 6
-let channels = parseInt(localStorage.getItem("channelsValue")) || 6;
-// Array to store heights of each waveform canvas
-let heights = [];
-// Flag indicating if streaming is active
-let isStreaming = false;
-// Flag indicating if recording is active
-let isRecording = false;
+// Event listeners for range inputs to update corresponding UI elements
+document.getElementById("speedRange").addEventListener("input", function () {
+  document.getElementById("speedValue").textContent = this.value;
+});
+document.getElementById("heightRange").addEventListener("input", function () {
+  document.getElementById("heightValue").textContent = this.value;
+});
+document.getElementById("channelsRange").addEventListener("input", function () {
+  document.getElementById("channelsValue").textContent = this.value;
+});
 
 // Container to hold waveform charts
 const chartsContainer = document.getElementById("chartsContainer");
-// Create waveform canvas elements for each channel
-for (let i = 0; i < channels; i++) {
-  const canvasDiv = document.createElement("div");
-  canvasDiv.classList.add("canvas-container");
-  // Retrieve height for each channel from local storage or default to 200
-  const height = parseInt(localStorage.getItem(`heightValue-${i}`)) || 200;
-  heights.push(height);
-  // Populate canvas container HTML
-  canvasDiv.innerHTML = `
-        <div class="mt-4 mb-4 bg-white text-white rounded position-relative">
-            <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${
-              i + 1
-            }</span>
-            <canvas id="waveform${i}" width="1550" height="${height}" style="width:100%;"></canvas>
-        </div>`;
-  chartsContainer.appendChild(canvasDiv);
-}
 
-var smoothie = [];
+// Array to store SmoothieCharts instances
+var smoothieCharts = [];
 var timeSeries = [];
 
-// Initialize SmoothieCharts and TimeSeries for each channel
-for (let i = 0; i < channels; i++) {
-  smoothie[i] = new SmoothieChart({
-    millisPerPixel: 2,
-    grid: {
-      strokeStyle: "rgba(0, 0, 0, 0.1)",
-      lineWidth: 1,
-      millisPerLine: 250,
-      verticalSections: 6,
-    },
-    labels: {
-      fillStyle: "white",
-      fontWeight: "bold",
-      showIntermediateLabels: true,
-    },
-    tooltipLine: { strokeStyle: "#ffffff" },
-  });
-
-  timeSeries[i] = new TimeSeries();
-  smoothie[i].addTimeSeries(timeSeries[i], {
-    strokeStyle: "rgb(255, 255, 255)",
-    lineWidth: 1,
-  });
-
-  smoothieCharts.push(smoothie[i]);
-  deviceData.push(timeSeries[i]);
-
-  // Associate SmoothieCharts with respective canvas elements
-
-  smoothie[i].streamTo(document.getElementById(`waveform${i}`));
-}
-
-// Event listener for adjusting number of channels
-document.getElementById("channelsRange").addEventListener("input", function () {
-  channels = parseInt(this.value);
-  const channelsValueSpan = document.getElementById("channelsValue");
-  channelsValueSpan.textContent =
-    this.value < 10 ? "0" + this.value : this.value;
-  localStorage.setItem("channelsValue", channels);
-  redrawCanvas();
-});
-
-function redrawCanvas() {
-  // Clear charts container
-  while (chartsContainer.firstChild) {
-    chartsContainer.removeChild(chartsContainer.firstChild);
-  }
-
-  // Recreate canvas elements
-  heights = [];
+function drawCharts(channels, height, speed) {
   for (let i = 0; i < channels; i++) {
-    const canvasDiv = document.createElement("div");
+    var canvasDiv = document.createElement("div");
     canvasDiv.classList.add("canvas-container");
-    const height = parseInt(localStorage.getItem(`heightValue-${i}`)) || 200; // Retrieve height for each channel from local storage
-    heights.push(height); // Store the height value
     canvasDiv.innerHTML = `
-            <div class="mt-4 mb-4 bg-black text-white rounded position-relative">
+            <div class="parent m-1 p-1 bg-black text-white rounded-2 position-relative" id="parent-${i}">
                 <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${
                   i + 1
                 }</span>
-                <canvas id="waveform${i}" width="1550" height="${height}" style="width: 100%;"></canvas>
+                <canvas class="child" id="waveform${i}" height="${height}"></canvas>
             </div>
         `;
     chartsContainer.appendChild(canvasDiv);
 
-    // Stream data to the new canvas
-    smoothieCharts[i].streamTo(document.getElementById(`waveform${i}`));
-
     // Set canvas height to fixed value
-    const canvas = canvasDiv.querySelector("canvas");
-    canvas.height = height;
+    var canvas = document.getElementById(`waveform${i}`);
+    // canvas.height = height;
+    canvas.width = document.getElementById(`parent-${i}`).offsetWidth - 10;
 
-    // Redraw the chart to reflect the new canvas height
-    smoothieCharts[i].resize();
+    smoothieCharts[i] = new SmoothieChart({
+      millisPerPixel: 2,
+      grid: {
+        strokeStyle: "rgba(0, 0, 0, 0.1)",
+        lineWidth: 1,
+        millisPerLine: 250,
+        verticalSections: 6,
+      },
+      labels: {
+        fillStyle: "white",
+        fontWeight: "bold",
+        showIntermediateLabels: true,
+      },
+      tooltipLine: { strokeStyle: "#ffffff" },
+    });
+
+    timeSeries[i] = new TimeSeries();
+    smoothieCharts[i].addTimeSeries(timeSeries[i], {
+      strokeStyle: "rgb(255, 255, 255)",
+      lineWidth: 1,
+    });
+    console.log(`waveform${i}`);
+    smoothieCharts[i].streamTo(document.getElementById(`waveform${i}`), 30);
   }
+  updateSpeed(speed);
 }
 
-// Event listener for the height range input to adjust canvas height
-document.getElementById("heightRange").addEventListener("input", function () {
-  const initialHeight = 200;
-  const increment = 40;
-  const value = parseInt(this.value);
+function updateSpeed(speed) {
+  // Log the received speed level to confirm
+  console.log("Received speed level:", speed);
 
-  const height = initialHeight + (value - 1) * increment;
-
-  document.getElementById("heightValue").textContent = height;
-
-  updateCanvasHeight(height);
-});
-
-// Update canvas height
-async function updateCanvasHeight(height) {
-  const canvasDivs = document.querySelectorAll(".canvas-container");
-
-  canvasDivs.forEach((canvasDiv, index) => {
-    // Set the height for all canvas containers
-    canvasDiv.style.height = `${height}px`;
-    const canvas = canvasDiv.querySelector("canvas");
-    canvas.height = height;
-
-    // Redraw the chart to reflect the new canvas height
-    smoothieCharts[index].resize();
-
-    // Store the updated height value in local storage for each channel
-    localStorage.setItem(`heightValue-${index + 1}`, height);
+  // Adjust the refresh rate of the SmoothieChart based on the speed level
+  switch (speed) {
+    case 1:
+      // Set to slow refresh rate
+      smoothieCharts.forEach((smoothie) => {
+        smoothie.options.millisPerPixel = 8;
+      });
+      break;
+    case 2:
+      // Set to medium refresh rate
+      smoothieCharts.forEach((smoothie) => {
+        smoothie.options.millisPerPixel = 4;
+      });
+      break;
+    case 3:
+      // Set to fast refresh rate
+      smoothieCharts.forEach((smoothie) => {
+        smoothie.options.millisPerPixel = 2;
+      });
+      break;
+    default:
+      break;
+  }
+  // Log the updated options for verification
+  smoothieCharts.forEach((smoothie, index) => {
+    console.log(`SmoothieChart ${index + 1} options:`, smoothie.options);
   });
-
-  // Additionally, update the height of the first canvas separately
-  const firstCanvas = document.getElementById("waveform0");
-  firstCanvas.height = height;
-  smoothieCharts[0].resize();
-  localStorage.setItem("heightValue-0", height);
 }
+function destroyCharts() {
+  // Clear charts container
+  while (chartsContainer.firstChild) {
+    chartsContainer.removeChild(chartsContainer.firstChild);
+  }
+  timeSeries = [];
+  smoothieCharts = [];
+}
+function getSettings() {
+  // Get settings
+  var height = parseInt(localStorage.getItem(`heightValue`)) || 200;
+  var channels = parseInt(localStorage.getItem("channelsValue")) || 6;
+  var speed = parseInt(localStorage.getItem("speedValue")) || 2;
+
+  const settings = { height: height, channels: channels, speed: speed };
+  return settings;
+}
+
+function saveSettings() {
+  localStorage.setItem(
+    "speedValue",
+    document.getElementById("speedRange").value
+  );
+  localStorage.setItem(
+    "heightValue",
+    document.getElementById("heightRange").value
+  );
+  localStorage.setItem(
+    "channelsValue",
+    document.getElementById("channelsRange").value
+  );
+
+  // Destroy existing charts
+  destroyCharts();
+  const settings = getSettings();
+  height = 200 + (settings.height - 1) * 40;
+  // Draw new charts
+  drawCharts(settings.channels, height, settings.speed);
+}
+// Event listener for the save changes button
+document.getElementById("saveChanges").addEventListener("click", saveSettings);
+window.addEventListener("load", function () {
+  const settings = getSettings();
+  document.getElementById("speedRange").value = settings.speed;
+  document.getElementById("heightRange").value = settings.height;
+  document.getElementById("channelsRange").value = settings.channels;
+
+  document.getElementById("speedValue").textContent = settings.speed;
+  document.getElementById("heightValue").textContent = settings.height;
+  document.getElementById("channelsValue").textContent = settings.channels;
+
+  saveSettings();
+});
 
 let port;
 let lineBuffer = "";
 let isConnected = false;
+let isStreaming = false;
+let isRecording = false;
 
 // Function to start streaming
 function startStreaming() {
@@ -350,7 +352,7 @@ const makeReadableStream = (db, store) => {
             ? IDBKeyRange.lowerBound(prevKey, true)
             : undefined;
 
-        const MIN_BATCH_SIZE = 150;
+        const MIN_BATCH_SIZE = 250;
         let batchCount = 0;
 
         let cursor = await db
@@ -417,7 +419,7 @@ const getNewFileHandle = async () => {
 var buffer_counter = 0;
 function processData() {
   let lines = lineBuffer.split("\r\n");
-  lineBuffer = lines.pop();
+  lineBuffer = "";
 
   for (let line of lines) {
     // array of integers
@@ -426,110 +428,30 @@ function processData() {
     let parsedData = dataArray.map((str) => parseInt(str));
 
     // Append the parsed data to recordedData array if recording is enabled
-    if (isRecording) {
-      buffer.push(parsedData);
 
-      if (buffer.length > 150) {
-        var secondaryBuffer = buffer;
+    buffer.push(parsedData);
+
+    if (buffer.length > 250) {
+      var secondaryBuffer = buffer;
+      if (isRecording) {
         dbstuff(secondaryBuffer);
-        buffer = [];
-        buffer_counter = buffer_counter + 1;
       }
+      buffer = [];
+      buffer_counter = buffer_counter + 1;
     }
 
     // Append the parsed data to the chart
-    for (let i = 2; i < parsedData.length && i < channels + 2; i++) {
-      const data = parsedData[i];
+    var channels = parseInt(localStorage.getItem("channelsValue")) || 6;
+    for (var i = 0; i < channels; i++) {
+      const data = parsedData[i + 2];
       if (!isNaN(data)) {
-        deviceData[i - 2].append(new Date().getTime(), data);
+        timeSeries[i].append(Date.now(), data);
       }
     }
   }
-}
-
-// Define speed levels
-const speedLevels = {
-  1: "Slow",
-  2: "Medium",
-  3: "Fast",
-};
-
-// Event listener for the speed range input to adjust speed
-document.getElementById("speedRange").addEventListener("input", function () {
-  const speed = parseInt(this.value);
-  const speedValueSpan = document.getElementById("speedValue");
-
-  // Update the displayed speed value in the modal
-  speedValueSpan.textContent = speedLevels[speed];
-
-  updateSmoothieChartSpeed(speed);
-});
-
-function updateSmoothieChartSpeed(speed) {
-  // Log the received speed level to confirm
-  console.log("Received speed level:", speed);
-
-  // Adjust the refresh rate of the SmoothieChart based on the speed level
-  switch (speed) {
-    case 1:
-      // Set to slow refresh rate
-      smoothieCharts.forEach((smoothie) => {
-        smoothie.options.millisPerPixel = 10;
-      });
-      break;
-    case 2:
-      // Set to medium refresh rate
-      smoothieCharts.forEach((smoothie) => {
-        smoothie.options.millisPerPixel = 5;
-      });
-      break;
-    case 3:
-      // Set to fast refresh rate
-      smoothieCharts.forEach((smoothie) => {
-        smoothie.options.millisPerPixel = 1;
-      });
-      break;
-    default:
-      break;
+  for (let i = 0; i < timeSeries.length; i++) {
+    if (timeSeries[i].length > 1000) {
+      timeSeries[i] = timeSeries[i].slice(-500);
+    }
   }
-
-  // Log the updated options for verification
-  smoothieCharts.forEach((smoothie, index) => {
-    console.log(`SmoothieChart ${index + 1} options:`, smoothie.options);
-  });
 }
-
-// Event listener for the save changes button
-document.getElementById("saveChanges").addEventListener("click", function () {
-  localStorage.setItem(
-    "speedValue",
-    document.getElementById("speedRange").value
-  );
-  localStorage.setItem(
-    "heightValue",
-    document.getElementById("heightRange").value
-  );
-});
-
-// Event listeners for range inputs to update corresponding UI elements
-document.getElementById("speedRange").addEventListener("input", function () {
-  document.getElementById("speedValue").textContent = this.value;
-});
-document.getElementById("heightRange").addEventListener("input", function () {
-  document.getElementById("heightValue").textContent = this.value;
-});
-
-// Retrieve values from local storage for settings
-document.getElementById("speedRange").value =
-  localStorage.getItem("speedValue") || 0;
-document.getElementById("heightRange").value =
-  localStorage.getItem("heightValue") || 0;
-
-document.getElementById("speedValue").textContent =
-  document.getElementById("speedRange").value;
-document.getElementById("heightValue").textContent =
-  document.getElementById("heightRange").value;
-
-document.getElementById("channelsValue").textContent =
-  channels < 10 ? "0" + channels : channels;
-document.getElementById("channelsRange").value = channels;
