@@ -28,7 +28,7 @@ This repository contains code for a BioSignal Recorder web application. The appl
 
 1. Connect the Arduino to your computer using a USB cable.
 2. Open the Arduino IDE and flash the provided firmware onto the Arduino.
-3. Open the `index.html` file in a web browser.
+3. Open the [BioSignal-Recorder-Web](https://docs.upsidedownlabs.tech/BioSignal-Recorder-Web/) in a web browser.
 4. Adjust the settings as desired (number of channels, waveform height, etc.).
 5. Click the "Connect" button to establish a connection with the Arduino.
 6. Once connected, click the "Start" button to begin streaming data.
