@@ -1,13 +1,11 @@
 # BioSignal-Recorder-Web
 
 Web Serial based BioSignal recorder applicaion.
-![Alt text](images/img1.png)
-![Alt text](images/img2.png)
-![Alt text](images/img3.png)
-![Alt text](images/img4.png)
-![Alt text](images/img5.png)
-
-# BioSignal Recorder
+![BioSingal Recorder UI](images/img1.png)
+![Selecting COM Port](images/img2.png)
+![Data Graph Plotting](images/img3.png)
+![Select Location to save file](images/img4.png)
+![Downloading In Progress](images/img5.png)
 
 This repository contains code for a BioSignal Recorder web application. The application allows users to connect to an Arduino, stream data from it, visualize the data in real-time using waveform charts, and record the data into a CSV file.
 
@@ -22,7 +20,6 @@ This repository contains code for a BioSignal Recorder web application. The appl
 
 - Google Chrome web browser
 - Access to an Arduino and Arduino IDE for flashing firmware
-- Bioamp EXG pill or similar sensor for data acquisition
 
 ## How to Use
 
