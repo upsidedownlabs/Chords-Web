@@ -39,6 +39,3 @@ This repository contains code for a BioSignal Recorder web application. The appl
 - [SmoothieCharts](http://smoothiecharts.org/): JavaScript library for real-time charting.
 - [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API): Browser-based database for storing recorded data.
 
-## Acknowledgments
-
-- Inspired by [SmoothieCharts](http://smoothiecharts.org/) and [Bootstrap](https://getbootstrap.com/).
