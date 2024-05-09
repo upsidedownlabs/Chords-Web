@@ -17,13 +17,15 @@ const chartsContainer = document.getElementById("chartsContainer");
 for (let i = 0; i < channels; i++) {
   const canvasDiv = document.createElement("div");
   canvasDiv.classList.add("canvas-container");
-// Retrieve height for each channel from local storage or default to 200
+  // Retrieve height for each channel from local storage or default to 200
   const height = parseInt(localStorage.getItem(`heightValue-${i}`)) || 200;
   heights.push(height);
   // Populate canvas container HTML
   canvasDiv.innerHTML = `
         <div class="mt-4 mb-4 bg-white text-white rounded position-relative">
-            <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${i + 1}</span>
+            <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${
+              i + 1
+            }</span>
             <canvas id="waveform${i}" width="1550" height="${height}" style="width:100%;"></canvas>
         </div>`;
   chartsContainer.appendChild(canvasDiv);
@@ -34,7 +36,6 @@ var timeSeries = [];
 
 // Initialize SmoothieCharts and TimeSeries for each channel
 for (let i = 0; i < channels; i++) {
-  
   smoothie[i] = new SmoothieChart({
     millisPerPixel: 2,
     grid: {
@@ -60,7 +61,7 @@ for (let i = 0; i < channels; i++) {
   smoothieCharts.push(smoothie[i]);
   deviceData.push(timeSeries[i]);
 
-// Associate SmoothieCharts with respective canvas elements
+  // Associate SmoothieCharts with respective canvas elements
 
   smoothie[i].streamTo(document.getElementById(`waveform${i}`));
 }
@@ -90,7 +91,9 @@ function redrawCanvas() {
     heights.push(height); // Store the height value
     canvasDiv.innerHTML = `
             <div class="mt-4 mb-4 bg-black text-white rounded position-relative">
-                <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${i + 1}</span>
+                <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${
+                  i + 1
+                }</span>
                 <canvas id="waveform${i}" width="1550" height="${height}" style="width: 100%;"></canvas>
             </div>
         `;
@@ -124,20 +127,20 @@ document.getElementById("heightRange").addEventListener("input", function () {
 // Update canvas height
 async function updateCanvasHeight(height) {
   const canvasDivs = document.querySelectorAll(".canvas-container");
- 
+
   canvasDivs.forEach((canvasDiv, index) => {
     // Set the height for all canvas containers
     canvasDiv.style.height = `${height}px`;
     const canvas = canvasDiv.querySelector("canvas");
     canvas.height = height;
- 
+
     // Redraw the chart to reflect the new canvas height
     smoothieCharts[index].resize();
- 
+
     // Store the updated height value in local storage for each channel
     localStorage.setItem(`heightValue-${index + 1}`, height);
   });
- 
+
   // Additionally, update the height of the first canvas separately
   const firstCanvas = document.getElementById("waveform0");
   firstCanvas.height = height;
@@ -335,9 +338,9 @@ async function dbstuff(data) {
   });
 }
 var current_packet = 0;
+var modal = new bootstrap.Modal(document.getElementById("myModal"));
 const makeReadableStream = (db, store) => {
-  $("#myModal").modal("show");
-
+  modal.show();
   let prevKey;
   return new ReadableStream(
     {
@@ -370,18 +373,22 @@ const makeReadableStream = (db, store) => {
         }
         current_packet = current_packet + 1;
         var width = (current_packet / buffer_counter) * 100;
-        console.log(width);
-        $("#dynamic").css("width", width + "%");
-        if (width == 100) {
-          $("#myModalLabel").text("Saving Complete!");
-          setTimeout(() => {
-            $("#myModal").modal("hide");
-          }, 1000);
-        }
+        document
+          .getElementById("dynamic")
+          .setAttribute("style", "width: " + width + "%");
 
         if (!cursor) {
           // No more data
           console.log(`Completely done. Processed ${batchCount} objects`);
+          document
+            .getElementById("dynamic")
+            .setAttribute("style", "width: 100%");
+
+          document.getElementById("myModalLabel").innerHTML =
+            "Saving Complete!";
+          setTimeout(() => {
+            modal.hide();
+          }, 1000);
           controller.close();
         }
       },
