@@ -7,7 +7,7 @@ Web Serial based BioSignal recorder applicaion.
 ![Alt text](images/img4.png)
 ![Alt text](images/img5.png)
 
-# BioSignal Recorder
+
 
 This repository contains code for a BioSignal Recorder web application. The application allows users to connect to an Arduino, stream data from it, visualize the data in real-time using waveform charts, and record the data into a CSV file.
 
