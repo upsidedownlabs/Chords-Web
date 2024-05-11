@@ -21,18 +21,18 @@ function drawCharts(channels, height, speed) {
     var canvasDiv = document.createElement("div");
     canvasDiv.classList.add("canvas-container");
     canvasDiv.innerHTML = `
-            <div class="parent m-1 p-1 bg-black text-white rounded-2 position-relative" id="parent-${i}">
+            <div class="parent m-4 p-1 bg-black text-white rounded-2 position-relative" id="parent-${i}">
                 <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${
                   i + 1
                 }</span>
-                <canvas class="child" id="waveform${i}" height="${height}"></canvas>
+                <canvas id="waveform${i}"></canvas>
             </div>
         `;
     chartsContainer.appendChild(canvasDiv);
-
+    document.getElementById(`parent-${i}`).style.height = `${height}px`;
     // Set canvas height to fixed value
     var canvas = document.getElementById(`waveform${i}`);
-    // canvas.height = height;
+    canvas.height = document.getElementById(`parent-${i}`).offsetHeight - 10;
     canvas.width = document.getElementById(`parent-${i}`).offsetWidth - 10;
 
     smoothieCharts[i] = new SmoothieChart({
@@ -59,6 +59,7 @@ function drawCharts(channels, height, speed) {
     console.log(`waveform${i}`);
     smoothieCharts[i].streamTo(document.getElementById(`waveform${i}`), 30);
   }
+
   updateSpeed(speed);
 }
 
@@ -96,6 +97,9 @@ function updateSpeed(speed) {
 }
 function destroyCharts() {
   // Clear charts container
+  for (var i = 0; i < smoothieCharts.length; i++) {
+    smoothieCharts[i].stop();
+  }
   while (chartsContainer.firstChild) {
     chartsContainer.removeChild(chartsContainer.firstChild);
   }
@@ -104,8 +108,8 @@ function destroyCharts() {
 }
 function getSettings() {
   // Get settings
-  var height = parseInt(localStorage.getItem(`heightValue`)) || 200;
-  var channels = parseInt(localStorage.getItem("channelsValue")) || 6;
+  var height = parseInt(localStorage.getItem(`heightValue`)) || 1;
+  var channels = parseInt(localStorage.getItem("channelsValue")) || 1;
   var speed = parseInt(localStorage.getItem("speedValue")) || 2;
 
   const settings = { height: height, channels: channels, speed: speed };
@@ -419,7 +423,7 @@ const getNewFileHandle = async () => {
 var buffer_counter = 0;
 function processData() {
   let lines = lineBuffer.split("\r\n");
-  lineBuffer = "";
+  lineBuffer = lines.pop();
 
   for (let line of lines) {
     // array of integers
@@ -428,7 +432,6 @@ function processData() {
     let parsedData = dataArray.map((str) => parseInt(str));
 
     // Append the parsed data to recordedData array if recording is enabled
-
     buffer.push(parsedData);
 
     if (buffer.length > 250) {
@@ -447,11 +450,6 @@ function processData() {
       if (!isNaN(data)) {
         timeSeries[i].append(Date.now(), data);
       }
-    }
-  }
-  for (let i = 0; i < timeSeries.length; i++) {
-    if (timeSeries[i].length > 1000) {
-      timeSeries[i] = timeSeries[i].slice(-500);
     }
   }
 }
