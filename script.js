@@ -220,26 +220,10 @@ async function connectToDevice() {
 }
 
 async function disconnectFromDevice() {
-  try {
-    if (port && port.readable) {
-      // Check if the port is open before attempting to close it
-      if (port.readable.locked) {
-        console.warn("Port is already locked to a reader.");
-        return;
-      }
-      const reader = port.readable.getReader();
-      await reader.cancel(); // Cancel any ongoing read operation
-      await port.close();
-      document.getElementById("connectButton").classList.remove("connected");
-      port = null;
-      console.log("Disconnected from device successfully.");
-    } else {
-      console.warn("No port to disconnect.");
-    }
-  } catch (error) {
-    console.error("Error disconnecting from device:", error);
-  }
+  alert("Some time you need to remove device then reattach before connect again.");
+  location.reload()
 }
+
 
 // Event listener for the "connect" button
 connectButton.addEventListener("click", async () => {
