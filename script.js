@@ -137,6 +137,11 @@ function saveSettings() {
 // Event listener for the save changes button
 document.getElementById("saveChanges").addEventListener("click", saveSettings);
 window.addEventListener("load", function () {
+  // Check if the browser is Chrome
+  if (!/Chrome/.test(navigator.userAgent) || !/Google Inc/.test(navigator.vendor)) {
+    alert("This application is optimized for Google Chrome. Please use Chrome for the best experience.");
+  }
+
   const settings = getSettings();
   document.getElementById("speedRange").value = settings.speed;
   document.getElementById("heightRange").value = settings.height;
