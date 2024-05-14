@@ -56,6 +56,7 @@ function drawCharts(channels, height, speed) {
       strokeStyle: "rgb(255, 255, 255)",
       lineWidth: 1,
     });
+    console.log(`waveform${i}`);
     smoothieCharts[i].streamTo(document.getElementById(`waveform${i}`), 30);
   }
 
@@ -90,7 +91,9 @@ function updateSpeed(speed) {
       break;
   }
   // Log the updated options for verification
-  smoothieCharts.forEach((smoothie, index) => {});
+  smoothieCharts.forEach((smoothie, index) => {
+    console.log(`SmoothieChart ${index + 1} options:`, smoothie.options);
+  });
 }
 function destroyCharts() {
   // Clear charts container
@@ -165,76 +168,78 @@ function stopStreaming() {
   isStreaming = false;
 }
 
+let initialConnectionAttempt = false;
+
 async function connectToDevice() {
-  // Show loading indicator
-  document.getElementById("connectButton").textContent = "Connecting...";
-  port = await navigator.serial
-    .requestPort({})
-    .then((port) => {
-      console.log("selected port");
-      return port;
-    })
-    .catch((e) => {
-      alert("Please Select a Port");
-      isConnected = false;
-      document.getElementById("connectButton").textContent = "Connect";
-      startButton.textContent = "Start";
-      startButton.disabled = true;
-      isStreaming = false;
-      throw e;
-    });
-  await port.open({ baudRate: 115200 });
-
-  // Set the color of the connect button to green
-  document.getElementById("connectButton").classList.add("connected");
-  document.getElementById("connectButton").textContent = "Disconnect";
-  startButton.disabled = false;
-
-  isConnected = true;
-  const reader = port.readable.getReader();
-  const decoder = new TextDecoder();
   try {
-    while (isConnected) {
-      const { value, done } = await reader.read();
-      if (done) {
-        // Allow the serial port to be closed later.
-        console.log("Done reading data.");
-        break;
-      }
-      lineBuffer += decoder.decode(value);
-      if (isStreaming) {
-        processData();
-      }
+    if (port && port.readable) {
+      await port.close();
+      console.log("Closed existing port.");
     }
+
+    // Show loading indicator
+    document.getElementById("connectButton").textContent = "Connecting...";
+    document.getElementById("connectButton").disabled = true;
+
+    port = await navigator.serial.requestPort({});
+    await port.open({ baudRate: 115200 });
+
+    // Set the color of the connect button to green
+    document.getElementById("connectButton").classList.add("connected");
+
+    const appendStream = new WritableStream({
+      write(chunk) {
+        lineBuffer += chunk;
+        if (isStreaming) {
+          processData();
+        }
+      },
+    });
+    port.readable.pipeThrough(new TextDecoderStream()).pipeTo(appendStream);
+
+    console.log("Connected to device successfully.");
+
+    // Update the initial connection attempt flag
+    initialConnectionAttempt = true;
   } catch (error) {
-    // Handle |error|...
     console.error("Error connecting to device:", error);
+
     // Show alert only if it's not the initial connection attempt
-    alert(
-      "Error connecting to device: Please remove the device and insert it again."
-    );
+    if (initialConnectionAttempt && isConnected) {
+      alert(
+        "Error connecting to device: Please remove the device and insert it again."
+      );
+    }
+
+    document.getElementById("connectButton").classList.add("failed");
   } finally {
-    console.log("Closing releasing lock");
-    reader.releaseLock();
-    port.close();
-    port = undefined;
-    document.getElementById("connectButton").classList.remove("connected");
+    // Hide loading indicator and enable the button
+    document.getElementById("connectButton").textContent = "Start";
+    document.getElementById("connectButton").disabled = false;
   }
 }
 
+async function disconnectFromDevice() {
+  alert("Some time you need to remove device then reattach before connect again.");
+  location.reload()
+}
+
+
 // Event listener for the "connect" button
 connectButton.addEventListener("click", async () => {
-  if (port) {
-    isConnected = false;
-    document.getElementById("connectButton").textContent = "Connect";
-    startButton.textContent = "Start";
-    startButton.disabled = true;
-    isStreaming = false;
-    isRecording = false;
-    recordButton.disabled = true;
-    recordButton.textContent = "Record";
-  } else {
+  if (!isConnected) {
     await connectToDevice();
+    isConnected = true;
+    if (isConnected) {
+      connectButton.textContent = "Disconnect"; // Change text to "Stop" when connected
+      startButton.disabled = false;
+    }
+  } else {
+    await disconnectFromDevice();
+    isConnected = false;
+    startButton.disabled = true;
+    isRecording = false;
+    isStreaming = false;
   }
 });
 
@@ -409,6 +414,7 @@ function processData() {
     let lineData = line;
     let dataArray = lineData.split(",");
     let parsedData = dataArray.map((str) => parseInt(str));
+
     // Append the parsed data to recordedData array if recording is enabled
     buffer.push(parsedData);
 
