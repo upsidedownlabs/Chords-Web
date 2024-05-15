@@ -35,6 +35,5 @@ This repository contains code for a BioSignal Recorder web application. The appl
 ## Libraries Used
 
 - [Bootstrap](https://getbootstrap.com/): CSS framework for styling the UI.
-- [jQuery](https://jquery.com/): JavaScript library for DOM manipulation.
 - [SmoothieCharts](http://smoothiecharts.org/): JavaScript library for real-time charting.
 - [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API): Browser-based database for storing recorded data.
