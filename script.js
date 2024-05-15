@@ -138,8 +138,10 @@ function saveSettings() {
 document.getElementById("saveChanges").addEventListener("click", saveSettings);
 window.addEventListener("load", function () {
   // Check if the browser is Chrome
-  if (!/Chrome/.test(navigator.userAgent) || !/Google Inc/.test(navigator.vendor)) {
-    alert("This application is optimized for Google Chrome. Please use Chrome for the best experience.");
+  if (!/Chrome/.test(navigator.userAgent)) {
+    alert("This application is for Google Chrome.");
+    document.body.style.display = "none"; // Hide the entire body content
+    return; // Exit the function to prevent further execution
   }
 
   const settings = getSettings();
@@ -153,6 +155,7 @@ window.addEventListener("load", function () {
 
   saveSettings();
 });
+
 
 let port;
 let lineBuffer = "";
