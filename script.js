@@ -139,8 +139,10 @@ document.getElementById("saveChanges").addEventListener("click", saveSettings);
 window.addEventListener("load", function () {
   // Check if the browser is Chrome
   if (!/Chrome/.test(navigator.userAgent)) {
-    alert("This application is for Google Chrome.");
-    document.body.style.display = "none"; // Hide the entire body content
+    // Display the Chrome message
+    document.getElementById("chromeMessage").style.display = "block";
+    // Hide the navbar
+    document.querySelector("nav").style.display = "none";
     return; // Exit the function to prevent further execution
   }
 
@@ -155,6 +157,7 @@ window.addEventListener("load", function () {
 
   saveSettings();
 });
+
 
 
 let port;
