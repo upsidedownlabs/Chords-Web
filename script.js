@@ -138,8 +138,12 @@ function saveSettings() {
 document.getElementById("saveChanges").addEventListener("click", saveSettings);
 window.addEventListener("load", function () {
   // Check if the browser is Chrome
-  if (!/Chrome/.test(navigator.userAgent) || !/Google Inc/.test(navigator.vendor)) {
-    alert("This application is optimized for Google Chrome. Please use Chrome for the best experience.");
+  if (!/Chrome/.test(navigator.userAgent)) {
+    // Display the Chrome message
+    document.getElementById("chromeMessage").style.display = "block";
+    // Hide the navbar
+    document.querySelector("nav").style.display = "none";
+    return; // Exit the function to prevent further execution
   }
 
   const settings = getSettings();
@@ -153,6 +157,8 @@ window.addEventListener("load", function () {
 
   saveSettings();
 });
+
+
 
 let port;
 let lineBuffer = "";
