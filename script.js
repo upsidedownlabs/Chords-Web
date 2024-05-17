@@ -21,13 +21,13 @@ function drawCharts(channels, height, speed) {
     var canvasDiv = document.createElement("div");
     canvasDiv.classList.add("canvas-container");
     canvasDiv.innerHTML = `
-            <div class="parent m-4 p-1 bg-black text-white rounded-2 position-relative" id="parent-${i}">
-                <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">CH${
-                  i + 1
-                }</span>
-                <canvas id="waveform${i}"></canvas>
-            </div>
-        `;
+      <div class="parent m-4 p-1 bg-black text-white rounded-2 position-relative" id="parent-${i}">
+          <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">
+          ${isConnected ? `CH${i + 1}` : 'No device connected!'}
+          </span>
+          <canvas id="waveform${i}"></canvas>
+      </div>
+    `;
     chartsContainer.appendChild(canvasDiv);
     document.getElementById(`parent-${i}`).style.height = `${height}px`;
     // Set canvas height to fixed value
@@ -61,6 +61,7 @@ function drawCharts(channels, height, speed) {
 
   updateSpeed(speed);
 }
+
 
 function updateSpeed(speed) {
   // Log the received speed level to confirm
@@ -133,7 +134,13 @@ function saveSettings() {
   height = 200 + (settings.height - 1) * 40;
   // Draw new charts
   drawCharts(settings.channels, height, settings.speed);
+
+  // Update chart labels if connected
+  if (isConnected) {
+    updateChartLabels();
+  }
 }
+
 // Event listener for the save changes button
 document.getElementById("saveChanges").addEventListener("click", saveSettings);
 window.addEventListener("load", function () {
@@ -202,6 +209,8 @@ async function connectToDevice() {
   startButton.disabled = false;
 
   isConnected = true;
+  updateChartLabels();
+
   const reader = port.readable.getReader();
   const decoder = new TextDecoder();
   try {
@@ -218,36 +227,60 @@ async function connectToDevice() {
       }
     }
   } catch (error) {
-    // Handle |error|...
     console.error("Error connecting to device:", error);
-    // Show alert only if it's not the initial connection attempt
-    alert(
-      "Error connecting to device: Please remove the device and insert it again."
-    );
+    alert("Error connecting to device: Please remove the device and insert it again.");
   } finally {
     console.log("Closing releasing lock");
     reader.releaseLock();
-    port.close();
+    await port.close();
     port = undefined;
+    isConnected = false;
     document.getElementById("connectButton").classList.remove("connected");
+    document.getElementById("connectButton").textContent = "Connect";
+    startButton.disabled = true;
+    updateChartLabels("No device connected!"); // Reset badge text
   }
 }
 
-// Event listener for the "connect" button
-connectButton.addEventListener("click", async () => {
-  if (port) {
+
+function updateChartLabels(status = null) {
+  const channels = parseInt(localStorage.getItem("channelsValue")) || 1;
+  for (let i = 0; i < channels; i++) {
+    const badge = document.querySelector(`#parent-${i} .badge`);
+    if (badge) {
+      badge.textContent = status || `CH${i + 1}`;
+    }
+  }
+}
+
+
+
+document.getElementById("connectButton").addEventListener("click", async () => {
+  if (isConnected) {
     isConnected = false;
+    if (port) {
+      const reader = port.readable.getReader();
+      reader.cancel();
+      reader.releaseLock();
+      await port.close();
+      port = undefined;
+    }
     document.getElementById("connectButton").textContent = "Connect";
+    document.getElementById("connectButton").classList.remove("connected");
     startButton.textContent = "Start";
     startButton.disabled = true;
     isStreaming = false;
     isRecording = false;
     recordButton.disabled = true;
     recordButton.textContent = "Record";
+    updateChartLabels("No device connected!"); // Update badge text
   } else {
     await connectToDevice();
   }
 });
+
+
+
 
 document.getElementById("startButton").addEventListener("click", () => {
   if (!isStreaming) {
