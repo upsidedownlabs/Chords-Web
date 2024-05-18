@@ -6,7 +6,7 @@
 canvas {
   width: 100%;
 }
-.chrome-message {
+.compatibility-message {
   display: none;
   position: fixed;
   top: 50%;
