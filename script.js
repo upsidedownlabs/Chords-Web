@@ -23,7 +23,7 @@ function drawCharts(channels, height, speed) {
     canvasDiv.innerHTML = `
       <div class="parent m-4 p-1 bg-black text-white rounded-2 position-relative" id="parent-${i}">
           <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">
-          ${isConnected ? `CH${i + 1}` : 'No device connected!'}
+          ${isConnected ? `CH${i + 1}` : "No device connected!"}
           </span>
           <canvas id="waveform${i}"></canvas>
       </div>
@@ -61,7 +61,6 @@ function drawCharts(channels, height, speed) {
 
   updateSpeed(speed);
 }
-
 
 function updateSpeed(speed) {
   // Log the received speed level to confirm
@@ -144,10 +143,10 @@ function saveSettings() {
 // Event listener for the save changes button
 document.getElementById("saveChanges").addEventListener("click", saveSettings);
 window.addEventListener("load", function () {
-  // Check if the browser is Chrome
-  if (!/Chrome/.test(navigator.userAgent)) {
-    // Display the Chrome message
-    document.getElementById("chromeMessage").style.display = "block";
+  // Check if the browser is compatible with the Web Serial API
+  if ((!navigator.serial)) {
+    // Display the compatibility message
+    document.getElementById("compatibilityMessage").style.display = "block";
     // Hide the navbar
     document.querySelector("nav").style.display = "none";
     return; // Exit the function to prevent further execution
@@ -164,8 +163,6 @@ window.addEventListener("load", function () {
 
   saveSettings();
 });
-
-
 
 let port;
 let lineBuffer = "";
@@ -228,7 +225,9 @@ async function connectToDevice() {
     }
   } catch (error) {
     console.error("Error connecting to device:", error);
-    alert("Error connecting to device: Please remove the device and insert it again.");
+    alert(
+      "Error connecting to device: Please remove the device and insert it again."
+    );
   } finally {
     console.log("Closing releasing lock");
     reader.releaseLock();
@@ -242,7 +241,6 @@ async function connectToDevice() {
   }
 }
 
-
 function updateChartLabels(status = null) {
   const channels = parseInt(localStorage.getItem("channelsValue")) || 1;
   for (let i = 0; i < channels; i++) {
@@ -252,8 +250,6 @@ function updateChartLabels(status = null) {
     }
   }
 }
-
-
 
 document.getElementById("connectButton").addEventListener("click", async () => {
   if (isConnected) {
@@ -278,9 +274,6 @@ document.getElementById("connectButton").addEventListener("click", async () => {
     await connectToDevice();
   }
 });
-
-
-
 
 document.getElementById("startButton").addEventListener("click", () => {
   if (!isStreaming) {
