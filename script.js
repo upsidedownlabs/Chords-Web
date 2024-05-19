@@ -144,7 +144,7 @@ function saveSettings() {
 document.getElementById("saveChanges").addEventListener("click", saveSettings);
 window.addEventListener("load", function () {
   // Check if the browser is compatible with the Web Serial API
-  if ((!navigator.serial)) {
+  if (!navigator.serial) {
     // Display the compatibility message
     document.getElementById("compatibilityMessage").style.display = "block";
     // Hide the navbar
@@ -173,11 +173,15 @@ let isRecording = false;
 // Function to start streaming
 function startStreaming() {
   isStreaming = true;
+  document.getElementById("startButton").textContent = "Stop";
+  document.getElementById("recordButton").disabled = false;
 }
 
 // Function to stop streaming
 function stopStreaming() {
   isStreaming = false;
+  document.getElementById("startButton").textContent = "Start";
+  document.getElementById("recordButton").disabled = true;
 }
 
 async function connectToDevice() {
@@ -278,25 +282,29 @@ document.getElementById("connectButton").addEventListener("click", async () => {
 document.getElementById("startButton").addEventListener("click", () => {
   if (!isStreaming) {
     startStreaming();
-    document.getElementById("startButton").textContent = "Stop";
-    document.getElementById("recordButton").disabled = false;
   } else {
     stopStreaming();
-    document.getElementById("startButton").textContent = "Start";
-    document.getElementById("recordButton").disabled = true;
-    isRecording = false;
   }
 });
 document.getElementById("recordButton").addEventListener("click", () => {
-  isRecording = !isRecording;
-  document.getElementById("recordButton").textContent = isRecording
-    ? "Pause"
-    : "Record";
-  document.getElementById("saveButton").disabled = isRecording;
+  if (!isRecording) {
+    isRecording = true;
+    document.getElementById("recordButton").textContent = "Pause";
+    document.getElementById("startButton").disabled = true;
+    document.getElementById("saveButton").disabled = true;
+  } else if (isRecording) {
+    isRecording = false;
+    document.getElementById("recordButton").textContent = "Record";
+    document.getElementById("startButton").disabled = false;
+    document.getElementById("saveButton").disabled = false;
+  }
 });
 
 document.getElementById("saveButton").addEventListener("click", async () => {
+  startButton.disabled = true;
+  stopStreaming();
   await save_csv();
+  startButton.disabled = false;
 });
 
 // Download CSV file return db;
