@@ -286,6 +286,7 @@ document.getElementById("startButton").addEventListener("click", () => {
     stopStreaming();
   }
 });
+fileBreak = false;
 document.getElementById("recordButton").addEventListener("click", () => {
   if (!isRecording) {
     isRecording = true;
@@ -297,6 +298,7 @@ document.getElementById("recordButton").addEventListener("click", () => {
     document.getElementById("recordButton").textContent = "Record";
     document.getElementById("startButton").disabled = false;
     document.getElementById("saveButton").disabled = false;
+    fileBreak = true;
   }
 });
 
@@ -311,6 +313,18 @@ document.getElementById("saveButton").addEventListener("click", async () => {
 async function save_csv() {
   const fileHandle = await getNewFileHandle();
   const writableStream = await fileHandle.createWritable();
+  const columnNames = [
+    "Counter",
+    "Time",
+    "Channel 1",
+    "Channel 2",
+    "Channel 3",
+    "Channel 4",
+    "Channel 5",
+    "Channel 6",
+  ];
+  const headerRow = columnNames.join(",") + "\n";
+  await writableStream.write(headerRow);
 
   const db = await idb.openDB("adcReadings", 1);
   const readableStream = makeReadableStream(db, "adcReadings");
@@ -361,6 +375,19 @@ async function dbstuff(data) {
       channel_6: data[i][7],
     });
   }
+  if (fileBreak) {
+    store.add({
+      counter: -1,
+      time: -1,
+      channel_1: -1,
+      channel_2: -1,
+      channel_3: -1,
+      channel_4: -1,
+      channel_5: -1,
+      channel_6: -1,
+    });
+    fileBreak = false;
+  }
   // Wait for the transaction to complete
   await new Promise((resolve, reject) => {
     tx.oncomplete = resolve;
@@ -369,6 +396,7 @@ async function dbstuff(data) {
 }
 var current_packet = 0;
 var modal = new bootstrap.Modal(document.getElementById("myModal"));
+const queuingStrategy = new CountQueuingStrategy({ highWaterMark: 250 });
 const makeReadableStream = (db, store) => {
   modal.show();
   let prevKey;
@@ -380,7 +408,7 @@ const makeReadableStream = (db, store) => {
             ? IDBKeyRange.lowerBound(prevKey, true)
             : undefined;
 
-        const MIN_BATCH_SIZE = 250;
+        const MIN_BATCH_SIZE = 1000;
         let batchCount = 0;
 
         let cursor = await db
@@ -390,7 +418,7 @@ const makeReadableStream = (db, store) => {
 
         while (cursor) {
           const data = cursor.value;
-          const csvRow = `${data.time},${data.channel_1},${data.channel_2},${data.channel_3},${data.channel_4},${data.channel_5},${data.channel_6}\n`;
+          const csvRow = `${data.counter},${data.time},${data.channel_1},${data.channel_2},${data.channel_3},${data.channel_4},${data.channel_5},${data.channel_6}\n`;
           controller.enqueue(csvRow);
           prevKey = cursor.key;
           batchCount += 1;
@@ -402,7 +430,11 @@ const makeReadableStream = (db, store) => {
           }
         }
         current_packet = current_packet + 1;
-        var width = (current_packet / buffer_counter) * 100;
+        console.log(buffer_counter);
+        console.log(
+          `Processed ${batchCount} objects, packet number ${current_packet}`
+        );
+        var width = ((current_packet * 4) / buffer_counter) * 100;
         document
           .getElementById("dynamic")
           .setAttribute("style", "width: " + width + "%");
@@ -424,7 +456,7 @@ const makeReadableStream = (db, store) => {
       },
     },
     {
-      highWaterMark: 250,
+      queuingStrategy,
     }
   );
 };
