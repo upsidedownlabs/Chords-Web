@@ -1,8 +1,15 @@
 "use client";
 import { Pause, Play } from "lucide-react";
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import { SmoothieChart, TimeSeries } from "smoothie";
 import { Button } from "./ui/button";
+import throttle from "lodash/throttle";
 
 const Canvas = ({ data }: { data: string }) => {
   const channels = useMemo(() => [true, true, true, true, false, false], []);
@@ -12,6 +19,34 @@ const Canvas = ({ data }: { data: string }) => {
   const chartRef = useRef<SmoothieChart[]>([]);
   const seriesRef = useRef<(TimeSeries | null)[]>([]);
   const [isChartInitialized, setIsChartInitialized] = useState(false);
+
+  const handleDataUpdate = useCallback(
+    (line: string) => {
+      if (line.trim() !== "") {
+        const sensorValues = line.split(",").map(Number).slice(2);
+        channels.forEach((channel, index) => {
+          if (channel && !isPaused[index]) {
+            const canvas = document.getElementById(
+              `smoothie-chart-${index + 1}`
+            );
+            if (canvas) {
+              const data = sensorValues[index];
+              if (!isNaN(data)) {
+                const series = seriesRef.current[index];
+                series?.append(Date.now(), data);
+              }
+            }
+          }
+        });
+      }
+    },
+    [channels, isPaused]
+  );
+
+  const throttledHandleDataUpdate = useMemo(
+    () => throttle(handleDataUpdate, 100),
+    [handleDataUpdate]
+  );
 
   useEffect(() => {
     if (!isChartInitialized) {
@@ -29,7 +64,7 @@ const Canvas = ({ data }: { data: string }) => {
 
           if (canvas) {
             const chart = new SmoothieChart({
-              millisPerPixel: 10,
+              millisPerPixel: 12,
               interpolation: "bezier",
               grid: {
                 borderVisible: true,
@@ -68,27 +103,11 @@ const Canvas = ({ data }: { data: string }) => {
   useEffect(() => {
     if (isChartInitialized) {
       const lines = String(data).split("\n");
-      for (const line of lines) {
-        if (line.trim() !== "") {
-          const sensorValues = line.split(",").map(Number).slice(2);
-          channels.forEach((channel, index) => {
-            if (channel) {
-              const canvas = document.getElementById(
-                `smoothie-chart-${index + 1}`
-              );
-              if (canvas) {
-                const data = sensorValues[index];
-                if (!isNaN(data)) {
-                  const series = seriesRef.current[index];
-                  series?.append(Date.now(), data);
-                }
-              }
-            }
-          });
-        }
-      }
+      lines.forEach((line) => {
+        throttledHandleDataUpdate(line);
+      });
     }
-  }, [data, isChartInitialized, channels]);
+  }, [data, isChartInitialized, throttledHandleDataUpdate]);
 
   const handlePauseClick = (index: number) => {
     setIsPaused((prevIsPaused) => {
