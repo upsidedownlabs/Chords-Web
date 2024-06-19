@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BioSignal Recorder</title>
+    <!-- Import bootstrap -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+    <!-- Import idb -->
+    <script src="https://cdn.jsdelivr.net/npm/idb@8/build/umd.js"></script>
+    <!-- Import smoothie.js -->
+    <script src="smoothie.js"></script>
+  </head>
+  <body class="bg-secondary">
+    <nav class="navbar navbar-expand bg-black justify-content-center">
+      <div class="container-fluid">
+        <a
+          class="navbar-brand text-light btn btn-outline-light bg-dark m-1"
+          id="refreshButton"
+          href="javascript:void(0);"
+          >BioSignal Recorder</a
+        >
+
+        <script>
+          document
+            .getElementById("refreshButton")
+            .addEventListener("click", function () {
+              window.location.reload();
+            });
+        </script>
+
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarScroll"
+          aria-controls="navbarScroll"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <form class="d-flex">
+          <ul
+            class="navbar-nav navbar-nav-scroll d-flex flex-row justify-content-center"
+          >
+            <li class="nav-item m-1">
+              <button type="button" class="btn btn-success" id="connectButton">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  class="bi bi-usb-symbol"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    d="m7.792.312-1.533 2.3A.25.25 0 0 0 6.467 3H7.5v7.319a2.5 2.5 0 0 0-.515-.298L5.909 9.56A1.5 1.5 0 0 1 5 8.18v-.266a1.5 1.5 0 1 0-1 0v.266a2.5 2.5 0 0 0 1.515 2.298l1.076.461a1.5 1.5 0 0 1 .888 1.129 2.001 2.001 0 1 0 1.021-.006v-.902a1.5 1.5 0 0 1 .756-1.303l1.484-.848A2.5 2.5 0 0 0 11.995 7h.755a.25.25 0 0 0 .25-.25v-2.5a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h.741a1.5 1.5 0 0 1-.747 1.142L8.76 8.99a3 3 0 0 0-.26.17V3h1.033a.25.25 0 0 0 .208-.389L8.208.312a.25.25 0 0 0-.416 0"
+                  />
+                </svg>
+              </button>
+            </li>
+
+            <li class="nav-item m-1">
+              <button
+                type="button"
+                class="btn btn-outline-light"
+                id="startButton"
+                disabled
+              >
+                <!-- Start -->
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  class="bi bi-caret-right-fill"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"
+                  />
+                </svg>
+              </button>
+            </li>
+            <li class="nav-item m-1">
+              <button
+                type="button"
+                class="btn btn-outline-light record"
+                id="recordButton"
+                disabled
+              >
+                <!-- Record -->
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="red"
+                  class="bi bi-record"
+                  viewBox="0 0 16 16"
+                >
+                  <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
+                </svg>
+              </button>
+            </li>
+            <li class="nav-item m-1">
+              <!-- Save -->
+              <button
+                type="button"
+                class="btn btn-outline-light"
+                id="saveButton"
+                disabled
+                data-toggle="modal"
+                data-bs-target="#myModal"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  fill="currentColor"
+                  class="bi bi-download"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"
+                  />
+                  <path
+                    d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"
+                  />
+                </svg>
+              </button>
+
+              <div
+                class="modal fade"
+                id="myModal"
+                tabindex="-1"
+                role="dialog"
+                aria-labelledby="myModalLabel"
+                aria-hidden="true"
+              >
+                <div class="modal-dialog" role="">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h4 class="modal-title in" id="myModalLabel">
+                        Saving file, please Wait!
+                      </h4>
+                    </div>
+                    <div class="modal-body center-block">
+                      <div class="progress">
+                        <div
+                          id="dynamic"
+                          class="progress-bar progress-bar-success progress-bar-striped active"
+                          role="progressbar"
+                          aria-valuenow="0"
+                          aria-valuemin="0"
+                          aria-valuemax="100"
+                          style="width: 0%"
+                        >
+                          <span id="current-progress"></span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="modal-footer">
+                      <button
+                        type="button"
+                        class="btn btn-default hide"
+                        data-dismiss="modal"
+                        id="btnClose"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+          </ul>
+
+          <button
+            type="button"
+            class="btn btn-outline-light m-1"
+            data-bs-toggle="modal"
+            data-bs-target="#exampleModal"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-gear-fill"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"
+              />
+            </svg>
+          </button>
+        </form>
+      </div>
+    </nav>
+
+    <!-- Modal -->
+    <div
+      class="modal fade"
+      id="exampleModal"
+      tabindex="-1"
+      aria-labelledby="exampleModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-md">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="exampleModalLabel">
+              BioSignal-Recorder Setting
+            </h1>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="container-fluid">
+              <div class="row">
+                <div class="btn-group btn-lg m-2 p-2" role="group">
+                  <span class="btn text-light bg-dark active col-1">Speed</span>
+                  <span class="btn text-light bg-dark active d-flex col-3">
+                    <input
+                      type="range"
+                      class="form-range"
+                      min="1"
+                      max="3"
+                      id="speedRange"
+                    />
+                  </span>
+                  <span
+                    class="btn text-light bg-dark active col-1"
+                    id="speedValue"
+                  ></span>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="btn-group m-2 p-2" role="group">
+                  <span class="btn text-light bg-dark active col-1"
+                    >Height</span
+                  >
+                  <span class="btn text-light bg-dark active d-flex col-3"
+                    ><input
+                      type="range"
+                      class="form-range"
+                      min="1"
+                      max="10"
+                      id="heightRange"
+                  /></span>
+                  <span
+                    class="btn text-light bg-dark active col-1"
+                    id="heightValue"
+                  ></span>
+                </div>
+              </div>
+              <div class="row">
+                <div class="btn-group m-2 p-2" role="group">
+                  <span class="btn text-light bg-dark active col-1"
+                    >Channels</span
+                  >
+                  <span class="btn text-light bg-dark active d-flex col-3">
+                    <input
+                      type="range"
+                      class="form-range"
+                      min="1"
+                      max="6"
+                      id="channelsRange"
+                    />
+                  </span>
+                  <span
+                    class="btn text-light bg-dark active col-1"
+                    id="channelsValue"
+                  ></span>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                data-bs-dismiss="modal"
+                id="saveChanges"
+              >
+                Save changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chartsContainer" class="container-fluid p-1"></div>
+    <div id="compatibilityMessage" class="compatibility-message">
+      <p>
+        This application does not work on your current browser. See
+        <a
+          href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API#browser_compatibility"
+          >broswer compatibility of Web Serial</a
+        >
+        for more information.
+      </p>
+    </div>
+  </body>
+  <script src="script.js"></script>
+</html>
