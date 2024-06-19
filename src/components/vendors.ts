@@ -1,4 +1,4 @@
-// List created by https://stackblitz.com/edit/typescript-web-serial?file=vendors.ts [Willgm] - https://github.com/willgm
+// List created by [Willgm] - https://github.com/willgm available at https://stackblitz.com/edit/typescript-web-serial?file=vendors.ts
 
 export const vendorsList = Object.freeze([
   {

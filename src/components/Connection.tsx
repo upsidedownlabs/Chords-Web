@@ -18,7 +18,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "./ui/tooltip";
 
 const Connection = ({
   LineData,
@@ -227,9 +227,9 @@ const Connection = ({
             </>
           )}
         </Button>
-        <Button className="bg-primary" onClick={() => writeData("c")}>
+        {/* <Button className="bg-primary" onClick={() => writeData("c")}>
           Write
-        </Button>
+        </Button> */}
         {isConnected ? (
           <TooltipProvider>
             <Tooltip>
