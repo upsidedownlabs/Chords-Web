@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+<p align="center">
+  <img src="https://github.com/akadeepesh/biosignal-recorder-web-private/assets/100466756/95cad4a8-8fbb-4662-afb6-414be104f69d"><br>
+   <h1 align="center">BioSignal Web Recorder</h1><hr>
+</p>
 
-## Getting Started
+BioSignal Web Recorder is an application based on Web Serial connection, you can connect boards like Arduino Uno, Arduino Nano after uploading the ArduinoFirmware.ino code to it, you'll recieve data signals from the board which can be visualized on web using BioSignal Web Recorder. Users can visualize ECG and EMG signals.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Connection**: Experience a smooth connection/disconnection with board in single click.
+- **Real-time Visualization**: Visualize incoming data without any jitter from the board in real-time on SmoothieCharts.
+- **Recording**: Record the signals data in csv files, multiple instances can be recorded and downloaded as zip of csv's.
+- **Bi Directional Communication**: We can also write data in the board, the table below shows what we recieve if sent data is:
+<div>
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Sent Data | Data Received | Value                 |
+| :-------: | ------------- | --------------------- |
+|    'c'    | Channel Count | 6                     |
+|    'n'    | Board Name    | "Arduino"             |
+|    's'    | Sampling Rate | {125, 250, 500, 1000} |
+|    'r'    | Resolution    | 10                    |
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+</div>
 
-## Learn More
+## Compatible Browsers
 
-To learn more about Next.js, take a look at the following resources:
+| Feature | Chrome | Edge | Firefox | Opera | Safari | Chrome Android | Firefox for Android | Safari iOS | Samsung Internet | WebView Android |
+| ------- | ------ | ---- | ------- | ----- | ------ | -------------- | ------------------- | ---------- | ---------------- | --------------- |
+| ✅      | ✅     | ✅   | ❌      | ✅    | ❌     | ❌             | ❌                  | ❌         | ❌               | ❌              |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## How to use
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+1. Connect the Arduino to your computer using a USB cable.
+2. Open the Arduino IDE and flash the provided firmware onto the Arduino.
+3. Open the BioSignal-Recorder-Web in a web browser.
+4. Click the "Connect" button to establish a connection with the Arduino and stream.
+5. Click the "Record" button to record data. Record multiple data and download as zip, or single recording as csv.
+6. To download the recorded data, click the "download" button.
 
-## Deploy on Vercel
+## Technologies Used
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [Next js](https://nextjs.org/): A framework build on top of React.js.
+- [TypeScript](https://www.typescriptlang.org/): Statically typed superset of JavaScript.
+- [Tailwind CSS](https://tailwindcss.com/): Utility-first CSS framework.
+- [Shadcn UI](https://tailwindcss.com/): Provides Reusable and customizable components, built with radix UI.
+- [Lodash](https://lodash.com/): Utility library for data manipulation, used for data throttling.
+- [JSZip](https://stuk.github.io/jszip/): Library for creating and manipulating ZIP files, used for save recordings as ZIP.
+- [Smoothie Js](http://smoothiecharts.org/): Real time charting library.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## Resources
+
+- [Vendors](https://github.com/akadeepesh/biosignal-recorder-web-private/blob/master/src/components/vendors.ts) list for board name and there vendor id are taken from [Stackblitz](https://stackblitz.com/edit/typescript-web-serial?file=vendors.ts) created by [William Grasel](https://github.com/willgm)
