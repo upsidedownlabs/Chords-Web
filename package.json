@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.1.5",
     "esc-pos-encoder": "^2.0.1",
+    "fft.js": "^4.0.4",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
     "lodash": "^4.17.21",

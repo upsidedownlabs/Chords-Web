@@ -19,6 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import { isAndroid, isIOS, isDesktop } from "@/utils/detectPlatform";
 
 const Connection = ({
   LineData,
@@ -70,6 +71,21 @@ const Connection = ({
   }
 
   const connectToDevice = async () => {
+    const isChromium = /Chrom(e|ium)/i.test(navigator.userAgent);
+    if (isAndroid()) {
+      return toast(
+        "This Application is yet not available for Android devices."
+      );
+    }
+
+    if (isIOS()) {
+      return toast("This Application is yet not available for iOS devices.");
+    }
+
+    if (isDesktop() && !isChromium) {
+      return toast("This Application is yet not available for your browser.");
+    }
+
     try {
       const port = await navigator.serial.requestPort();
       await port.open({ baudRate: 115200 });

@@ -1,13 +1,13 @@
 /* eslint-disable @next/next/no-img-element */
 import * as React from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "./ui/card";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui/carousel";
+} from "./ui/carousel";
 import {
   Table,
   TableBody,
@@ -16,11 +16,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
+} from "./ui/table";
+import { Separator } from "./ui/separator";
 import { MoveRight } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "./ui/badge";
 
 const Steps = () => {
   const ImageLinks = [
@@ -30,7 +30,7 @@ const Steps = () => {
   ];
 
   return (
-    <div className="flex justify-center items-center gap-4 flex-col h-[85%]">
+    <div className="flex justify-center items-center gap-4 flex-col md:h-[85%] h-[78%]">
       <div className="flex items-center justify-center text-xl">
         <span className="flex flex-row gap-2">
           Click{" "}
