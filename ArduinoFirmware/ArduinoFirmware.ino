@@ -30,13 +30,15 @@
 
 const int samplingRange[] = {125, 250, 500, 1000};
 
-void setup() {
+void setup()
+{
   // Serial connection begin
   Serial.begin(BAUD_RATE);
-  //  analogReadResolution(14);
+  //    analogReadResolution(14);
 }
 
-void loop() {
+void loop()
+{
   static unsigned long past = 0;
   unsigned long present = micros();
   unsigned long interval = present - past;
@@ -44,42 +46,44 @@ void loop() {
   static long timer = 0;
   timer -= interval;
   static bool data = 0;
-  static long counter = 0;
+  static uint8_t counter = 0;
 
   // Check if data is available to read
-  if (Serial.available() > 0) {
+  if (Serial.available() > 0)
+  {
     char receivedChar = Serial.read();
-    switch (receivedChar) {
-      case 'c':
-        Serial.println(Channel_Count);
-        break;
-      case 's':
-        for (int i = 0; i < 4; i++) {
-          Serial.print("s");
-          Serial.print(i);
-          Serial.print(": ");
-          Serial.println(samplingRange[i]);
-        }
-        break;
-      case 'r':
-        Serial.println(Resolution);
-        break;
+    switch (receivedChar)
+    {
+    case 'c':
+      Serial.println(Channel_Count);
+      break;
+    case 's':
+      for (int i = 0; i < 4; i++)
+      {
+        Serial.print("s");
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.println(samplingRange[i]);
+      }
+      break;
+    case 'r':
+      Serial.println(Resolution);
+      break;
 
-      case 'n':
-        Serial.println("Arduino");
-        break;
+    case 'n':
+      Serial.println("Arduino");
+      break;
     }
   }
 
   // Sample
-  if (timer < 0) {
+  if (timer < 0)
+  {
     data = !data;
     timer += 1000000 / SAMPLE_RATE;
     Serial.print(counter);
     Serial.print(',');
     counter++;
-    Serial.print(millis());
-    Serial.print(',');
     int sensor0 = analogRead(A0);
     Serial.print(sensor0);
     Serial.print(',');

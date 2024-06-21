@@ -449,7 +449,7 @@ class SmoothieChartManager {
       if (line.trim() !== "") {
         const dataArray = line.split(",");
         const parsedData = dataArray.map(Number);
-        const sensorValues = parsedData.slice(2);
+        const sensorValues = parsedData.slice(1);
         this.buffer.push(parsedData);
 
         if (this.buffer.length > 250) {
@@ -465,7 +465,7 @@ class SmoothieChartManager {
           for (let i = 0; i < channels; i++) {
             const data = sensorValues[i];
             if (!isNaN(data)) {
-              const data = parsedData[i + 2];
+              const data = parsedData[i + 1];
               if (!isNaN(data)) {
                 this.timeSeries[i].append(Date.now(), data);
               }
