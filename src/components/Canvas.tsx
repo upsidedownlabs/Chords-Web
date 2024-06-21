@@ -23,7 +23,7 @@ const Canvas = ({ data }: { data: string }) => {
   const handleDataUpdate = useCallback(
     (line: string) => {
       if (line.trim() !== "") {
-        const sensorValues = line.split(",").map(Number).slice(2);
+        const sensorValues = line.split(",").map(Number).slice(1);
         channels.forEach((channel, index) => {
           if (channel && !isPaused[index]) {
             const canvas = document.getElementById(
