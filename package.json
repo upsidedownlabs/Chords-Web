@@ -38,6 +38,7 @@
     "next-themes": "^0.3.0",
     "p5": "^1.9.4",
     "react": "^18",
+    "react-chartjs-2": "^5.2.0",
     "react-dom": "^18",
     "react-p5-wrapper": "^4.1.2",
     "smoothie": "^1.36.1",

@@ -1,27 +1,53 @@
 import React, { useEffect, useRef, useState } from "react";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend,
+  ChartOptions,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface FFTGraphProps {
   data: string[] | string;
 }
 
 const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [dataArray, setDataArray] = useState<number[]>([]);
+  const [fftData, setFftData] = useState<number[]>([]);
   const fftSize = 128;
-  const samplingRate = 1000; // Adjust based on your actual sampling rate
+  const samplingRate = 250;
   const fftBufferRef = useRef<number[]>([]);
 
   useEffect(() => {
-    if (data) {
-      processData(data);
-    }
-  }, [data]);
+    let animationFrameId: number;
 
-  useEffect(() => {
-    if (dataArray.length > 0) {
-      plotData();
-    }
-  }, [dataArray]);
+    const processAndPlot = () => {
+      if (data) {
+        processData(data);
+      }
+      animationFrameId = requestAnimationFrame(processAndPlot);
+    };
+
+    processAndPlot();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [data]);
 
   const fft = (signal: number[]): { re: number; im: number }[] => {
     const n = signal.length;
@@ -52,118 +78,87 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
     return a;
   };
 
-  const processData = (input: string[] | string) => {
+  const processData = (input: string[] | string | number[]) => {
     let values: number[];
 
     if (Array.isArray(input)) {
-      // If input is an array of strings
       values = input.map(Number);
     } else {
-      // If input is a comma-separated string
-      values = input.split(",").map(Number);
+      return;
     }
 
-    // Remove any NaN values (like '\r' at the end)
-    values = values.filter((value) => !isNaN(value));
-
-    if (values.length > 0) {
-      // Use the last value in the array
-      const sensorValue = values[values.length - 1];
-
-      fftBufferRef.current.push(sensorValue);
-      if (fftBufferRef.current.length > fftSize) {
-        fftBufferRef.current.shift(); // Remove oldest value if buffer is full
+    if (values && values.length >= 2) {
+      let sensorValue = values[1];
+      if (!isNaN(sensorValue)) {
+        fftBufferRef.current.push(sensorValue);
+        if (fftBufferRef.current.length >= fftSize) {
+          let fftResult = fft(fftBufferRef.current);
+          const newFftData = fftResult
+            .slice(0, fftSize / 2)
+            .map((c) => Math.sqrt(c.re * c.re + c.im * c.im));
+          setFftData(newFftData);
+          fftBufferRef.current = [];
+        }
       }
-
-      if (fftBufferRef.current.length === fftSize) {
-        const fftResult = fft(fftBufferRef.current);
-        const newDataArray = fftResult
-          .slice(0, fftSize / 2)
-          .map((c) => Math.sqrt(c.re * c.re + c.im * c.im));
-        setDataArray(newDataArray);
-      }
-    } else {
-      console.warn("No valid values in input");
     }
   };
 
-  const plotData = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const chartData = {
+    labels: Array.from(
+      { length: fftSize / 2 },
+      (_, i) => ((i * samplingRate) / fftSize).toFixed(0) // Correct frequency labels calculation
+    ),
+    datasets: [
+      {
+        label: "FFT Magnitude",
+        data: fftData,
+        borderColor: "rgb(75, 192, 192)",
+        tension: 0.1,
+      },
+    ],
+  };
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const width = canvas.width;
-    const height = canvas.height;
-
-    ctx.clearRect(0, 0, width, height);
-
-    // Set up scales for x and y axes
-    const xScale = (width - 30) / dataArray.length;
-    const yMax = Math.max(...dataArray);
-    const yScale = yMax > 0 ? (height - 40) / yMax : 1;
-
-    // Draw axes
-    ctx.beginPath();
-    ctx.moveTo(30, 0);
-    ctx.lineTo(30, height - 30);
-    ctx.lineTo(width, height - 30);
-    ctx.stroke();
-
-    // Plot the data
-    ctx.beginPath();
-    ctx.strokeStyle = "blue";
-    dataArray.forEach((value, index) => {
-      const x = 30 + index * xScale;
-      const y = height - 30 - value * yScale;
-      if (index === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-
-    // Add labels
-    ctx.fillStyle = "black";
-    ctx.font = "12px Arial";
-
-    // Y-axis labels
-    for (let i = 0; i <= 5; i++) {
-      const labelY = height - 30 - (i / 5) * (height - 40);
-      ctx.fillText(((yMax * i) / 5).toFixed(1), 0, labelY);
-      ctx.beginPath();
-      ctx.moveTo(25, labelY);
-      ctx.lineTo(35, labelY);
-      ctx.stroke();
-    }
-
-    // X-axis labels
-    const freqStep = samplingRate / (2 * dataArray.length);
-    for (
-      let i = 0;
-      i < dataArray.length;
-      i += Math.floor(dataArray.length / 5)
-    ) {
-      const labelX = 30 + i * xScale;
-      const freq = (i * freqStep).toFixed(0);
-      ctx.fillText(freq, labelX, height - 10);
-      ctx.beginPath();
-      ctx.moveTo(labelX, height - 35);
-      ctx.lineTo(labelX, height - 25);
-      ctx.stroke();
-    }
-
-    // Add axis titles
-    ctx.font = "14px Arial";
-    ctx.fillText("Frequency (Hz)", width / 2, height - 5);
-    ctx.save();
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText("Magnitude", -height / 2, 15);
-    ctx.restore();
+  const chartOptions: ChartOptions<"line"> = {
+    responsive: true,
+    animation: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      title: {
+        display: true,
+        text: "Real-time FFT Graph",
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: "Magnitude",
+        },
+      },
+      x: {
+        title: {
+          display: true,
+          text: "Frequency (Hz)",
+        },
+        // min: 0,
+        // max: samplingRate / 2,
+        // ticks: {
+        //   stepSize: 10,
+        //   callback: function (value) {
+        //     const numValue = Number(value);
+        //     return numValue % 10 === 0 ? numValue.toString() : "";
+        //   },
+        // },
+      },
+    },
   };
 
   return (
-    <div>
-      <canvas ref={canvasRef} width={800} height={400} />
+    <div style={{ width: "800px", height: "400px" }}>
+      <Line key={fftData.join(",")} data={chartData} options={chartOptions} />
     </div>
   );
 };
