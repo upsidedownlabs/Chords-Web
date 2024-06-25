@@ -10,6 +10,7 @@ import React, {
 import { SmoothieChart, TimeSeries } from "smoothie";
 import { Button } from "./ui/button";
 import throttle from "lodash/throttle";
+import FFTCanvas from "./FFTCanvas";
 
 const Canvas = ({ data }: { data: string }) => {
   const channels = useMemo(() => [true, true, true, true, false, false], []);
@@ -125,32 +126,35 @@ const Canvas = ({ data }: { data: string }) => {
   };
 
   return (
-    <div className="flex justify-center items-center flex-col h-[85%] w-screen">
-      {channels.map((channel, index) => {
-        if (channel) {
-          return (
-            <div key={index} className="flex flex-row gap-5 max-w-7xl w-full">
-              <div className="border border-secondary-foreground mb-4 h-28 w-full">
-                <canvas
-                  id={`smoothie-chart-${index + 1}`}
-                  className="max-w-7xl w-full max-h-28"
-                />
+    <div className="flex justify-center items-center flex-row h-[85%] w-screen">
+      <div className="flex justify-center items-center flex-col h-[85%] w-screen">
+        {channels.map((channel, index) => {
+          if (channel) {
+            return (
+              <div key={index} className="flex flex-row gap-5 max-w-7xl w-full">
+                <div className="border border-secondary-foreground mb-4 h-28 w-full">
+                  <canvas
+                    id={`smoothie-chart-${index + 1}`}
+                    className="max-w-7xl w-full max-h-28"
+                  />
+                </div>
+                <div className="flex items-center mb-2">
+                  <Button
+                    variant={"outline"}
+                    className=" border-primary"
+                    onClick={() => handlePauseClick(index)}
+                    size={"sm"}
+                  >
+                    {isPaused[index] ? <Play size={16} /> : <Pause size={16} />}
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center mb-2">
-                <Button
-                  variant={"outline"}
-                  className=" border-primary"
-                  onClick={() => handlePauseClick(index)}
-                  size={"sm"}
-                >
-                  {isPaused[index] ? <Play size={16} /> : <Pause size={16} />}
-                </Button>
-              </div>
-            </div>
-          );
-        }
-        return null;
-      })}
+            );
+          }
+          return null;
+        })}
+      </div>
+      <FFTCanvas data={data} />
     </div>
   );
 };

@@ -41,6 +41,7 @@
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18",
     "react-p5-wrapper": "^4.1.2",
+    "recharts": "^2.12.7",
     "smoothie": "^1.36.1",
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.3.0",

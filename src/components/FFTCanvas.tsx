@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 
 interface FFTGraphProps {
   data: string[] | string | number[];
@@ -6,10 +7,12 @@ interface FFTGraphProps {
 
 const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [fftData, setFftData] = useState<number[]>([]);
   const fftSize = 128;
-  const samplingRate = 250; // Make sure this matches your Arduino's sampling rate
+  const samplingRate = 250;
   const fftBufferRef = useRef<number[]>([]);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (data) {
@@ -21,7 +24,21 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
     if (fftData.length > 0) {
       plotData();
     }
-  }, [fftData]);
+  }, [fftData, theme]);
+
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(() => {
+      if (fftData.length > 0) {
+        plotData();
+      }
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, [fftData.length]);
 
   const fft = (signal: number[]): { re: number; im: number }[] => {
     const n = signal.length;
@@ -73,7 +90,7 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
     }
 
     if (values && values.length >= 2) {
-      let sensorValue = values[1]; // Using the second value (A0 reading)
+      let sensorValue = values[1];
       if (!isNaN(sensorValue)) {
         fftBufferRef.current.push(sensorValue);
         if (fftBufferRef.current.length >= fftSize) {
@@ -95,78 +112,87 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
 
   const plotData = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // Set canvas size to match container
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
 
     const width = canvas.width;
     const height = canvas.height;
 
     ctx.clearRect(0, 0, width, height);
 
-    // Set up scales for x and y axes
-    const xScale = (width - 30) / (fftData.length - 1);
+    const xScale = (width - 60) / (fftData.length - 1);
     const yMax = Math.max(...fftData);
-    const yScale = yMax > 0 ? (height - 40) / yMax : 1;
+    const yScale = yMax > 0 ? (height - 60) / yMax : 1;
+
+    // Set colors based on theme
+    const axisColor = theme === "dark" ? "white" : "black";
+    const graphColor = "green";
 
     // Draw axes
     ctx.beginPath();
-    ctx.moveTo(30, 0);
-    ctx.lineTo(30, height - 30);
-    ctx.lineTo(width, height - 30);
+    ctx.moveTo(50, 10);
+    ctx.lineTo(50, height - 50);
+    ctx.lineTo(width - 10, height - 50);
+    ctx.strokeStyle = axisColor;
     ctx.stroke();
 
     // Plot the data
     ctx.beginPath();
-    ctx.strokeStyle = "blue";
+    ctx.strokeStyle = graphColor;
     fftData.forEach((value, index) => {
-      const x = 30 + index * xScale;
-      const y = height - 30 - value * yScale;
+      const x = 50 + index * xScale;
+      const y = height - 50 - value * yScale;
       if (index === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
     ctx.stroke();
 
     // Add labels
-    ctx.fillStyle = "black";
+    ctx.fillStyle = axisColor;
     ctx.font = "12px Arial";
 
     // Y-axis labels
     for (let i = 0; i <= 5; i++) {
-      const labelY = height - 30 - (i / 5) * (height - 40);
-      ctx.fillText(((yMax * i) / 5).toFixed(1), 0, labelY);
+      const labelY = height - 50 - (i / 5) * (height - 60);
+      ctx.fillText(((yMax * i) / 5).toFixed(1), 5, labelY);
       ctx.beginPath();
-      ctx.moveTo(25, labelY);
-      ctx.lineTo(35, labelY);
+      ctx.moveTo(45, labelY);
+      ctx.lineTo(55, labelY);
       ctx.stroke();
     }
 
     // X-axis labels
     const freqStep = samplingRate / (2 * fftData.length);
-    const numLabels = Math.floor(samplingRate / 2 / 10);
+    const numLabels = Math.min(12, Math.floor(samplingRate / 2 / 10));
     for (let i = 0; i <= numLabels; i++) {
       const freq = i * 10;
-      const labelX = 30 + (freq / freqStep) * xScale;
-      ctx.fillText(freq.toString(), labelX, height - 10);
+      const labelX = 50 + (freq / freqStep) * xScale;
+      ctx.fillText(freq.toString(), labelX, height - 30);
       ctx.beginPath();
-      ctx.moveTo(labelX, height - 35);
-      ctx.lineTo(labelX, height - 25);
+      ctx.moveTo(labelX, height - 55);
+      ctx.lineTo(labelX, height - 45);
       ctx.stroke();
     }
 
     // Add axis titles
     ctx.font = "14px Arial";
-    ctx.fillText("Frequency (Hz)", width / 2, height - 5);
+    ctx.fillText("Frequency (Hz)", width / 2, height - 10);
     ctx.save();
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText("Magnitude", -height / 2, 15);
+    ctx.fillText("Magnitude", -height / 2, 30);
     ctx.restore();
   };
 
   return (
-    <div style={{ width: "800px", height: "400px" }}>
-      <canvas ref={canvasRef} width={800} height={400} />
+    <div ref={containerRef} className="w-full  h-[400px] max-w-[700px]">
+      <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
     </div>
   );
 };
