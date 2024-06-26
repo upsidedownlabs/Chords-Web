@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 
 interface FFTGraphProps {
   data: string[] | string | number[];
+  maxFreq?: number;
 }
-
-const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
+const FFTGraph: React.FC<FFTGraphProps> = ({ data, maxFreq = 100 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [fftData, setFftData] = useState<number[]>([]);
@@ -14,33 +14,7 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
   const fftBufferRef = useRef<number[]>([]);
   const { theme } = useTheme();
 
-  useEffect(() => {
-    if (data) {
-      processData(data);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    if (fftData.length > 0) {
-      plotData();
-    }
-  }, [fftData, theme]);
-
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver(() => {
-      if (fftData.length > 0) {
-        plotData();
-      }
-    });
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-
-    return () => resizeObserver.disconnect();
-  }, [fftData.length]);
-
-  const fft = (signal: number[]): { re: number; im: number }[] => {
+  const fft = useCallback((signal: number[]): { re: number; im: number }[] => {
     const n = signal.length;
     if (n <= 1) return signal.map((x) => ({ re: x, im: 0 }));
 
@@ -67,7 +41,7 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
       };
     }
     return a;
-  };
+  }, []);
 
   const applyHannWindow = (buffer: number[]): number[] => {
     return buffer.map(
@@ -77,40 +51,43 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
     );
   };
 
-  const processData = (input: string[] | string | number[]) => {
-    let values: number[];
+  const processData = useCallback(
+    (input: string[] | string | number[]) => {
+      let values: number[];
 
-    if (typeof input === "string") {
-      values = input.trim().split(",").map(Number);
-    } else if (Array.isArray(input)) {
-      values = input.map(Number);
-    } else {
-      console.warn("Unexpected input type:", typeof input);
-      return;
-    }
+      if (typeof input === "string") {
+        values = input.trim().split(",").map(Number);
+      } else if (Array.isArray(input)) {
+        values = input.map(Number);
+      } else {
+        console.warn("Unexpected input type:", typeof input);
+        return;
+      }
 
-    if (values && values.length >= 2) {
-      let sensorValue = values[1];
-      if (!isNaN(sensorValue)) {
-        fftBufferRef.current.push(sensorValue);
-        if (fftBufferRef.current.length >= fftSize) {
-          const windowedBuffer = applyHannWindow(fftBufferRef.current);
-          let fftResult = fft(windowedBuffer);
-          const newFftData = fftResult
-            .slice(0, fftSize / 2)
-            .map((c) => Math.sqrt(c.re * c.re + c.im * c.im));
-          setFftData(newFftData);
-          fftBufferRef.current = [];
+      if (values && values.length >= 2) {
+        let sensorValue = values[1];
+        if (!isNaN(sensorValue)) {
+          fftBufferRef.current.push(sensorValue);
+          if (fftBufferRef.current.length >= fftSize) {
+            const windowedBuffer = applyHannWindow(fftBufferRef.current);
+            let fftResult = fft(windowedBuffer);
+            const newFftData = fftResult
+              .slice(0, fftSize / 2)
+              .map((c) => Math.sqrt(c.re * c.re + c.im * c.im));
+            setFftData(newFftData);
+            fftBufferRef.current = [];
+          }
+        } else {
+          console.warn("Invalid sensor value:", sensorValue);
         }
       } else {
-        console.warn("Invalid sensor value:", sensorValue);
+        console.warn("Unexpected number of values:", values.length);
       }
-    } else {
-      console.warn("Unexpected number of values:", values.length);
-    }
-  };
+    },
+    [fftSize, fft, setFftData, fftBufferRef]
+  );
 
-  const plotData = () => {
+  const plotData = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
@@ -118,7 +95,6 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size to match container
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
 
@@ -139,7 +115,7 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
     ctx.beginPath();
     ctx.moveTo(50, 10);
     ctx.lineTo(50, height - 50);
-    ctx.lineTo(width - 10, height - 50);
+    ctx.lineTo(width - 20, height - 50);
     ctx.strokeStyle = axisColor;
     ctx.stroke();
 
@@ -154,7 +130,6 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
     });
     ctx.stroke();
 
-    // Add labels
     ctx.fillStyle = axisColor;
     ctx.font = "12px Arial";
 
@@ -170,7 +145,7 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
 
     // X-axis labels
     const freqStep = samplingRate / (2 * fftData.length);
-    const numLabels = Math.min(12, Math.floor(samplingRate / 2 / 10));
+    const numLabels = Math.min(maxFreq / 10, Math.floor(samplingRate / 2 / 10));
     for (let i = 0; i <= numLabels; i++) {
       const freq = i * 10;
       const labelX = 50 + (freq / freqStep) * xScale;
@@ -181,14 +156,39 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data }) => {
       ctx.stroke();
     }
 
-    // Add axis titles
     ctx.font = "14px Arial";
     ctx.fillText("Frequency (Hz)", width / 2, height - 10);
     ctx.save();
     ctx.rotate(-Math.PI / 2);
     ctx.fillText("Magnitude", -height / 2, 30);
     ctx.restore();
-  };
+  }, [fftData, theme, maxFreq]);
+
+  useEffect(() => {
+    if (data) {
+      processData(data);
+    }
+  }, [data, plotData, processData]);
+
+  useEffect(() => {
+    if (fftData.length > 0) {
+      plotData();
+    }
+  }, [fftData, theme, plotData]);
+
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(() => {
+      if (fftData.length > 0) {
+        plotData();
+      }
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, [fftData.length, plotData]);
 
   return (
     <div ref={containerRef} className="w-full  h-[400px] max-w-[700px]">

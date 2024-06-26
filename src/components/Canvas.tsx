@@ -11,8 +11,11 @@ import { SmoothieChart, TimeSeries } from "smoothie";
 import { Button } from "./ui/button";
 import throttle from "lodash/throttle";
 import FFTCanvas from "./FFTCanvas";
+import { useTheme } from "next-themes";
 
 const Canvas = ({ data }: { data: string }) => {
+  const { theme } = useTheme();
+
   const channels = useMemo(() => [true, true, true, true, false, false], []);
 
   const [isPaused, setIsPaused] = useState(Array(channels.length).fill(false));
@@ -20,6 +23,57 @@ const Canvas = ({ data }: { data: string }) => {
   const chartRef = useRef<SmoothieChart[]>([]);
   const seriesRef = useRef<(TimeSeries | null)[]>([]);
   const [isChartInitialized, setIsChartInitialized] = useState(false);
+
+  const getThemeColors = useCallback(() => {
+    return theme === "dark"
+      ? {
+          background: "rgba(2, 8, 23)",
+          line: "rgba(0, 255, 0, 0.8)",
+          text: "#ffffff",
+          grid: "#333333",
+        }
+      : {
+          background: "rgba(255, 255, 255)",
+          line: "rgba(0, 100, 0, 0.8)",
+          text: "#000000",
+          grid: "#cccccc",
+        };
+  }, [theme]);
+
+  const updateChartColors = useCallback(() => {
+    const colors = getThemeColors();
+    chartRef.current.forEach((chart, index) => {
+      if (chart) {
+        chart.options.grid = {
+          ...chart.options.grid,
+          fillStyle: colors.background,
+          strokeStyle: colors.grid,
+        };
+
+        if (chart.options.labels && chart.options.title) {
+          chart.options.labels.fillStyle = colors.text;
+          chart.options.title.fillStyle = colors.text;
+        }
+
+        const series = seriesRef.current[index];
+        if (series) {
+          chart.removeTimeSeries(series);
+          chart.addTimeSeries(series, {
+            strokeStyle: colors.line,
+            lineWidth: 1,
+          });
+        }
+
+        // Restream the chart to apply changes
+        chart.streamTo(
+          document.getElementById(
+            `smoothie-chart-${index + 1}`
+          ) as HTMLCanvasElement,
+          500
+        );
+      }
+    });
+  }, [getThemeColors]);
 
   const handleDataUpdate = useCallback(
     (line: string) => {
@@ -51,6 +105,7 @@ const Canvas = ({ data }: { data: string }) => {
 
   useEffect(() => {
     if (!isChartInitialized) {
+      const colors = getThemeColors();
       channels.forEach((channel, index) => {
         if (channel) {
           const canvas = document.getElementById(
@@ -69,22 +124,26 @@ const Canvas = ({ data }: { data: string }) => {
               millisPerPixel: 12,
               interpolation: "bezier",
               grid: {
+                fillStyle: colors.background,
+                strokeStyle: colors.grid,
                 borderVisible: true,
                 millisPerLine: 250,
                 lineWidth: 1,
-                fillStyle: "rgba(2, 8, 23)",
+              },
+              labels: {
+                fillStyle: colors.text,
               },
               title: {
                 text: `Channel ${index + 1}`,
                 fontSize: 16,
-                fillStyle: "#ffffff",
+                fillStyle: colors.text,
                 verticalAlign: "bottom",
               },
             });
             const series = new TimeSeries();
 
             chart.addTimeSeries(series, {
-              strokeStyle: "rgba(0, 255, 0, 0.8)",
+              strokeStyle: colors.line,
               lineWidth: 1,
             });
 
@@ -100,16 +159,23 @@ const Canvas = ({ data }: { data: string }) => {
 
       setIsChartInitialized(true);
     }
-  }, [isChartInitialized, channels]);
+  }, [isChartInitialized, channels, getThemeColors]);
 
   useEffect(() => {
     if (isChartInitialized) {
+      updateChartColors();
       const lines = String(data).split("\n");
       lines.forEach((line) => {
         throttledHandleDataUpdate(line);
       });
     }
-  }, [data, isChartInitialized, throttledHandleDataUpdate]);
+  }, [
+    data,
+    isChartInitialized,
+    throttledHandleDataUpdate,
+    theme,
+    updateChartColors,
+  ]);
 
   const handlePauseClick = (index: number) => {
     setIsPaused((prevIsPaused) => {
@@ -126,26 +192,26 @@ const Canvas = ({ data }: { data: string }) => {
   };
 
   return (
-    <div className="flex justify-center items-center flex-row h-[85%] w-screen">
-      <div className="flex justify-center items-center flex-col h-[85%] w-screen">
+    <div className="flex justify-center items-center flex-row h-[85%] w-screen px-4 gap-4">
+      <div className="flex justify-center items-center flex-col h-[85%] w-3/4">
         {channels.map((channel, index) => {
           if (channel) {
             return (
-              <div key={index} className="flex flex-row gap-5 max-w-7xl w-full">
-                <div className="border border-secondary-foreground mb-4 h-28 w-full">
+              <div key={index} className="flex flex-col w-full mb-6 relative">
+                <div className="border border-secondary-foreground h-28 w-full">
                   <canvas
                     id={`smoothie-chart-${index + 1}`}
-                    className="max-w-7xl w-full max-h-28"
+                    className="w-full h-full"
                   />
                 </div>
-                <div className="flex items-center mb-2">
+                <div className="absolute top-0 right-0 -mr-4 -mt-4 z-10">
                   <Button
                     variant={"outline"}
-                    className=" border-primary"
+                    className="border-primary rounded-full w-8 h-8 p-0 flex items-center justify-center"
                     onClick={() => handlePauseClick(index)}
                     size={"sm"}
                   >
-                    {isPaused[index] ? <Play size={16} /> : <Pause size={16} />}
+                    {isPaused[index] ? <Play size={14} /> : <Pause size={14} />}
                   </Button>
                 </div>
               </div>
@@ -154,7 +220,9 @@ const Canvas = ({ data }: { data: string }) => {
           return null;
         })}
       </div>
-      <FFTCanvas data={data} />
+      <div className="w-1/4">
+        <FFTCanvas data={data} maxFreq={100} />
+      </div>
     </div>
   );
 };
