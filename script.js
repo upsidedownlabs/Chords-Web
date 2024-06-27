@@ -182,6 +182,7 @@ class SmoothieChartManager {
       document.getElementById("startButton").disabled = false;
 
       this.isConnected = true;
+      this.startStreaming();
       this.updateChartLabels();
 
       this.reader = this.port.readable.getReader();
