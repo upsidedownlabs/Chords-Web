@@ -43,6 +43,54 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data, maxFreq = 100 }) => {
     return a;
   }, []);
 
+  const drawPlaceholderGraph = useCallback(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const axisColor = theme === "dark" ? "white" : "black";
+
+    // Draw axes
+    ctx.beginPath();
+    ctx.moveTo(50, 10);
+    ctx.lineTo(50, height - 50);
+    ctx.lineTo(width - 20, height - 50);
+    ctx.strokeStyle = axisColor;
+    ctx.stroke();
+
+    ctx.fillStyle = axisColor;
+    ctx.font = "12px Arial";
+
+    // Y-axis labels
+    for (let i = 0; i <= 5; i++) {
+      const labelY = height - 50 - (i / 5) * (height - 60);
+      ctx.fillText((i * 20).toString(), 5, labelY);
+    }
+
+    // X-axis labels
+    for (let freq = 0; freq <= 100; freq += 20) {
+      const labelX = 50 + (freq / 100) * (width - 70);
+      ctx.fillText(freq.toString(), labelX, height - 30);
+    }
+
+    ctx.font = "14px Arial";
+    ctx.fillText("Frequency (Hz)", width / 2, height - 10);
+    ctx.save();
+    ctx.rotate(-Math.PI / 2);
+    ctx.restore();
+  }, [theme]);
+
   const applyHannWindow = (buffer: number[]): number[] => {
     return buffer.map(
       (value, index) =>
@@ -60,7 +108,6 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data, maxFreq = 100 }) => {
       } else if (Array.isArray(input)) {
         values = input.map(Number);
       } else {
-        console.warn("Unexpected input type:", typeof input);
         return;
       }
 
@@ -77,11 +124,7 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data, maxFreq = 100 }) => {
             setFftData(newFftData);
             fftBufferRef.current = [];
           }
-        } else {
-          console.warn("Invalid sensor value:", sensorValue);
         }
-      } else {
-        console.warn("Unexpected number of values:", values.length);
       }
     },
     [fftSize, fft, setFftData, fftBufferRef]
@@ -103,8 +146,15 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data, maxFreq = 100 }) => {
 
     ctx.clearRect(0, 0, width, height);
 
-    const xScale = (width - 60) / (fftData.length - 1);
-    const yMax = Math.max(...fftData);
+    // Calculate the number of data points to display based on maxFreq
+    const freqStep = samplingRate / (2 * fftData.length);
+    const displayPoints = Math.min(
+      Math.ceil(maxFreq / freqStep),
+      fftData.length
+    );
+
+    const xScale = (width - 90) / displayPoints;
+    const yMax = Math.max(...fftData.slice(0, displayPoints));
     const yScale = yMax > 0 ? (height - 60) / yMax : 1;
 
     // Set colors based on theme
@@ -122,12 +172,12 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data, maxFreq = 100 }) => {
     // Plot the data
     ctx.beginPath();
     ctx.strokeStyle = graphColor;
-    fftData.forEach((value, index) => {
-      const x = 50 + index * xScale;
-      const y = height - 50 - value * yScale;
-      if (index === 0) ctx.moveTo(x, y);
+    for (let i = 0; i < displayPoints; i++) {
+      const x = 50 + i * xScale;
+      const y = height - 50 - fftData[i] * yScale;
+      if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
-    });
+    }
     ctx.stroke();
 
     ctx.fillStyle = axisColor;
@@ -144,7 +194,6 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data, maxFreq = 100 }) => {
     }
 
     // X-axis labels
-    const freqStep = samplingRate / (2 * fftData.length);
     const numLabels = Math.min(maxFreq / 10, Math.floor(samplingRate / 2 / 10));
     for (let i = 0; i <= numLabels; i++) {
       const freq = i * 10;
@@ -160,9 +209,12 @@ const FFTGraph: React.FC<FFTGraphProps> = ({ data, maxFreq = 100 }) => {
     ctx.fillText("Frequency (Hz)", width / 2, height - 10);
     ctx.save();
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText("Magnitude", -height / 2, 30);
     ctx.restore();
-  }, [fftData, theme, maxFreq]);
+  }, [fftData, theme, maxFreq, samplingRate]);
+
+  useEffect(() => {
+    drawPlaceholderGraph();
+  }, [drawPlaceholderGraph]);
 
   useEffect(() => {
     if (data) {

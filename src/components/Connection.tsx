@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import {
   Cable,
+  Circle,
   CircleStop,
   CircleX,
   FileArchive,
@@ -81,26 +82,33 @@ const Connection = ({
       readerRef.current = reader;
       readData();
     } catch (error) {
+      disconnectDevice();
+      isConnectedRef.current = false;
+      setIsConnected(false);
+      portRef.current = null;
       console.error("Error connecting to device:", error);
     }
   };
 
   const disconnectDevice = async () => {
     try {
-      if (readerRef.current && portRef.current) {
+      if (readerRef.current) {
         await readerRef.current.cancel();
-        await portRef.current.close();
         readerRef.current.releaseLock();
+        readerRef.current = null;
       }
+      if (portRef.current) {
+        await portRef.current.close();
+        portRef.current = null;
+      }
+    } catch (error) {
+      console.error("Error during disconnection:", error);
+    } finally {
       setIsConnected(false);
       Connection(false);
       isConnectedRef.current = false;
       setIsRecording(false);
       isRecordingRef.current = false;
-      portRef.current = null;
-      readerRef.current = null;
-    } catch (error) {
-      console.error("Error disconnecting from device:", error);
     }
   };
 
@@ -108,34 +116,42 @@ const Connection = ({
     const decoder = new TextDecoder();
     let lineBuffer = "";
     while (isConnectedRef.current) {
-      const StreamData = await readerRef.current?.read();
-      if (StreamData?.done) {
-        console.log("Thank you for using the app!");
-        break;
-      }
-      const receivedData = decoder.decode(StreamData?.value, { stream: true });
-      const lines = (lineBuffer + receivedData).split("\n");
-      lineBuffer = lines.pop() ?? "";
-      for (const line of lines) {
-        const dataValues = line.split(",");
-        if (dataValues.length === 1) {
-          toast(`Received Data: ${line}`);
-        } else {
-          LineData(dataValues);
-          if (isRecordingRef.current) {
-            setBuffer((prevBuffer) => {
-              const newBuffer = [...prevBuffer, dataValues];
-              return newBuffer;
-            });
+      try {
+        const StreamData = await readerRef.current?.read();
+        if (StreamData?.done) {
+          console.log("Stream closed");
+          break;
+        }
+        const receivedData = decoder.decode(StreamData?.value, {
+          stream: true,
+        });
+        const lines = (lineBuffer + receivedData).split("\n");
+        lineBuffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const dataValues = line.split(",");
+          if (dataValues.length === 1) {
+            toast(`Received Data: ${line}`);
+          } else {
+            LineData(dataValues);
+            if (isRecordingRef.current) {
+              setBuffer((prevBuffer) => {
+                const newBuffer = [...prevBuffer, dataValues];
+                return newBuffer;
+              });
+            }
           }
         }
+      } catch (error) {
+        toast("Error reading from device");
+        console.error("Error reading from device:", error);
+        break;
       }
     }
+    await disconnectDevice();
   };
 
   const columnNames = [
     "Counter",
-    "Time",
     "Channel 1",
     "Channel 2",
     "Channel 3",
@@ -240,7 +256,7 @@ const Connection = ({
                 } `}
               >
                 <TooltipTrigger asChild>
-                  {isRecording ? <CircleStop /> : <Video />}
+                  {isRecording ? <CircleStop /> : <Circle />}
                 </TooltipTrigger>
               </Button>
               <TooltipContent>

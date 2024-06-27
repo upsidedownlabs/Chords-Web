@@ -12,6 +12,20 @@ import { Button } from "./ui/button";
 import throttle from "lodash/throttle";
 import FFTCanvas from "./FFTCanvas";
 import { useTheme } from "next-themes";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Canvas = ({ data }: { data: string }) => {
   const { theme } = useTheme();
@@ -133,12 +147,6 @@ const Canvas = ({ data }: { data: string }) => {
               labels: {
                 fillStyle: colors.text,
               },
-              title: {
-                text: `Channel ${index + 1}`,
-                fontSize: 16,
-                fillStyle: colors.text,
-                verticalAlign: "bottom",
-              },
             });
             const series = new TimeSeries();
 
@@ -192,27 +200,49 @@ const Canvas = ({ data }: { data: string }) => {
   };
 
   return (
-    <div className="flex justify-center items-center flex-row h-[85%] w-screen px-4 gap-4">
+    <div className="flex justify-center items-center flex-row h-[85%] w-screen px-4 gap-10">
+      <div className="absolute right-1/3 top-28">
+        <Select>
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder="Select bits" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ten">10 bits</SelectItem>
+            <SelectItem value="twelve">12 bits</SelectItem>
+            <SelectItem value="fourteen">14 bits</SelectItem>
+            <SelectItem value="auto">Auto Scale</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div className="flex justify-center items-center flex-col h-[85%] w-3/4">
         {channels.map((channel, index) => {
           if (channel) {
             return (
-              <div key={index} className="flex flex-col w-full mb-6 relative">
+              <div key={index} className="flex flex-col w-full mb-1 relative">
                 <div className="border border-secondary-foreground h-28 w-full">
                   <canvas
                     id={`smoothie-chart-${index + 1}`}
                     className="w-full h-full"
                   />
                 </div>
-                <div className="absolute top-0 right-0 -mr-4 -mt-4 z-10">
-                  <Button
-                    variant={"outline"}
-                    className="border-primary rounded-full w-8 h-8 p-0 flex items-center justify-center"
-                    onClick={() => handlePauseClick(index)}
-                    size={"sm"}
-                  >
-                    {isPaused[index] ? <Play size={14} /> : <Pause size={14} />}
-                  </Button>
+                <div className="absolute top-1/2 right-0 -mr-5 -mt-7 z-10">
+                  <Card className="bg-secondary rounded-2xl">
+                    <CardContent className="flex flex-col p-1 items-center justify-center gap-2">
+                      <Button
+                        variant={"outline"}
+                        className="border-primary hover:bg-destructive w-7 h-7 p-0 rounded-full"
+                        onClick={() => handlePauseClick(index)}
+                        size={"sm"}
+                      >
+                        {isPaused[index] ? (
+                          <Play size={14} />
+                        ) : (
+                          <Pause size={14} />
+                        )}
+                      </Button>
+                      <p className=" text-sm">{`Ch-${index + 1}`}</p>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             );
@@ -220,7 +250,7 @@ const Canvas = ({ data }: { data: string }) => {
           return null;
         })}
       </div>
-      <div className="w-1/4">
+      <div className="w-1/3">
         <FFTCanvas data={data} maxFreq={100} />
       </div>
     </div>
