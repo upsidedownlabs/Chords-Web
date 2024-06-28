@@ -1,7 +1,7 @@
 .connected {
-  background-color: rgba(107, 107, 107, 0.3);
+  background-color: rgba(0, 250, 0, 0.5);
   color: white;
-  border-color: white;
+  border-color: green;
 }
 .connected:hover {
   background-color: #aa2b00;

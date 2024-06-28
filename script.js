@@ -547,6 +547,7 @@ class SmoothieChartManager {
       // Show compatibility message if not supported
       document.getElementById("compatibilityMessage").style.display = "block";
       document.querySelector("nav").style.display = "none";
+      document.getElementById("exampleModal").style.display = "none";
       return;
     }
 
