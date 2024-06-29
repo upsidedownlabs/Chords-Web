@@ -21,85 +21,99 @@
 // SOFTWARE.
 // Samples per second
 #define SAMPLE_RATE 250
-// Make sure to set the same baud rate on your Serial Monitor/Plotter
 #define BAUD_RATE 115200
-// Change if not using A0 analog pin
-#define INPUT_PIN A0
-#define Channel_Count 6
-#define Resolution 10
+#define BUFFER_SIZE 100
+#define CHANNEL_COUNT 6
+#define RESOLUTION 10
 
-const int samplingRange[] = {125, 250, 500, 1000};
+const uint16_t samplingRange[] = {125, 250, 500, 1000};
+volatile uint8_t head = 0;
+volatile uint8_t tail = 0;
+volatile bool dataReady = false;
+uint16_t buffer[BUFFER_SIZE][CHANNEL_COUNT];
 
 void setup()
 {
-  // Serial connection begin
-  Serial.begin(BAUD_RATE);
-  //    analogReadResolution(14);
+    Serial.begin(BAUD_RATE);
+
+    // Set ADC prescaler to 16 for faster reads
+    ADCSRA = (ADCSRA & ~0x07) | 0x04;
+
+    // Set ADC reference to AVCC
+    ADMUX = (1 << REFS0);
+
+    // Set up timer interrupt for sampling
+    cli();
+    TCCR1A = 0;
+    TCCR1B = 0;
+    TCNT1 = 0;
+    OCR1A = 16000000 / (8 * SAMPLE_RATE) - 1;
+    TCCR1B |= (1 << WGM12) | (1 << CS11);
+    TIMSK1 |= (1 << OCIE1A);
+    sei();
 }
 
-void loop()
+ISR(TIMER1_COMPA_vect)
 {
-  static unsigned long past = 0;
-  unsigned long present = micros();
-  unsigned long interval = present - past;
-  past = present;
-  static long timer = 0;
-  timer -= interval;
-  static bool data = 0;
-  static uint8_t counter = 0;
+    static uint8_t channel = 0;
 
-  // Check if data is available to read
-  if (Serial.available() > 0)
-  {
-    char receivedChar = Serial.read();
-    switch (receivedChar)
+    if (channel == 0)
     {
-    case 'c':
-      Serial.println(Channel_Count);
-      break;
-    case 's':
-      for (int i = 0; i < 4; i++)
-      {
-        Serial.print("s");
-        Serial.print(i);
-        Serial.print(": ");
-        Serial.println(samplingRange[i]);
-      }
-      break;
-    case 'r':
-      Serial.println(Resolution);
-      break;
+        if (((head + 1) & (BUFFER_SIZE - 1)) == tail)
+        {
+            tail = (tail + 1) & (BUFFER_SIZE - 1);
+        }
+    }
 
-    case 'n':
-      Serial.println("Arduino");
-      break;
+    // Start conversion for next channel
+    ADMUX = (ADMUX & 0xF0) | (channel & 0x07);
+    ADCSRA |= (1 << ADSC);
+
+    // Wait for conversion to complete
+    while (ADCSRA & (1 << ADSC))
+        ;
+
+    // Read ADC value
+    buffer[head][channel] = ADC;
+
+    channel = (channel + 1) % CHANNEL_COUNT;
+
+    if (channel == 0)
+    {
+        head = (head + 1) & (BUFFER_SIZE - 1);
+        dataReady = true;
+    }
+}
+
+void loop() {
+  if (dataReady) {
+    dataReady = false;
+    static uint8_t counter = 0;
+    while (head != tail) {
+      Serial.print(counter++);  // This will automatically wrap around to 0 after 255
+      for (int i = 0; i < CHANNEL_COUNT; i++) {
+        Serial.print(',');
+        Serial.print(buffer[tail][i]);
+      }
+      Serial.println();
+      tail = (tail + 1) & (BUFFER_SIZE - 1);
     }
   }
-
-  // Sample
-  if (timer < 0)
-  {
-    data = !data;
-    timer += 1000000 / SAMPLE_RATE;
-    Serial.print(counter);
-    Serial.print(',');
-    counter++;
-    int sensor0 = analogRead(A0);
-    Serial.print(sensor0);
-    Serial.print(',');
-    int sensor1 = analogRead(A1);
-    Serial.print(sensor1);
-    Serial.print(',');
-    int sensor2 = analogRead(A2);
-    Serial.print(sensor2);
-    Serial.print(',');
-    int sensor3 = analogRead(A3);
-    Serial.print(sensor3);
-    Serial.print(',');
-    int sensor4 = analogRead(A4);
-    Serial.print(sensor4);
-    Serial.print(',');
-    int sensor5 = analogRead(A5);
-    Serial.println(sensor5);
+  
+  if (Serial.available() > 0) {
+    char receivedChar = Serial.read();
+    switch (receivedChar) {
+      case 'c': Serial.println(CHANNEL_COUNT); break;
+      case 's':
+        for (int i = 0; i < 4; i++) {
+          Serial.print("s");
+          Serial.print(i);
+          Serial.print(": ");
+          Serial.println(samplingRange[i]);
+        }
+        break;
+      case 'r': Serial.println(RESOLUTION); break;
+      case 'n': Serial.println(F("Arduino")); break;
+    }
   }
 }
