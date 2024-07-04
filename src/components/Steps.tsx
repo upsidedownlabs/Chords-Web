@@ -27,6 +27,7 @@ const Steps = () => {
     "https://docs.upsidedownlabs.tech/_images/connections-with-arduino.png",
     "https://docs.upsidedownlabs.tech/_images/connection-with-cable.png",
     "https://docs.upsidedownlabs.tech/_images/emg.png",
+    "https://docs.upsidedownlabs.tech/_images/ecg.png",
   ];
 
   return (
@@ -58,7 +59,7 @@ const Steps = () => {
         className="w-full max-w-7xl"
       >
         <CarouselContent>
-          {Array.from({ length: 6 }).map((_, index) => (
+          {Array.from({ length: 8 }).map((_, index) => (
             <CarouselItem
               key={index}
               className="md:basis-1/2 lg:basis-1/3 select-none"
@@ -154,6 +155,31 @@ const Steps = () => {
                                     the ulnar nerve & REF (reference) at the
                                     back of your hand as shown in the connection
                                     diagram.
+                                  </li>
+                                </ol>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {index === 6 && (
+                          <div className="flex mb-14 flex-col">
+                            <span className="text-xl font-semibold mb-14">
+                              Electrodes placement for ECG
+                              <Separator className="bg-primary" />
+                            </span>
+                            <div className="flex justify-center items-center">
+                              <div className="w-2/3">
+                                <ol className="list-decimal">
+                                  <li>
+                                    Connect the BioAmp cable to gel electrodes.
+                                  </li>
+                                  <li>
+                                    Peel the plastic backing from electrodes.
+                                  </li>
+                                  <li>
+                                    Place the IN- cable on the left side, IN+ in
+                                    the middle and REF (reference) on the far
+                                    right side as shown in the diagram.
                                   </li>
                                 </ol>
                               </div>

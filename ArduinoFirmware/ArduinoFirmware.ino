@@ -21,41 +21,54 @@
 // SOFTWARE.
 // Samples per second
 #define SAMPLE_RATE 250
-// Make sure to set the same baud rate on your Serial Monitor/Plotter
 #define BAUD_RATE 115200
-// Change if not using A0 analog pin
-#define INPUT_PIN A0
-#define Channel_Count 6
-#define Resolution 10
+#define CHANNEL_COUNT 6
+#define RESOLUTION 10
 
-const int samplingRange[] = {125, 250, 500, 1000};
+const uint16_t samplingRange[] = {125, 250, 500, 1000};
+const uint8_t inputPins[CHANNEL_COUNT] = {A0, A1, A2, A3, A4, A5};
 
 void setup()
 {
-    // Serial connection begin
     Serial.begin(BAUD_RATE);
-    //    analogReadResolution(14);
+
+    // Set ADC prescaler to 16 for faster reads
+    ADCSRA = (ADCSRA & ~0x07) | 0x04;
+
+    // Set up timer interrupt for precise sampling
+    cli(); // Disable interrupts
+    TCCR1A = 0;
+    TCCR1B = 0;
+    TCNT1 = 0;
+    OCR1A = 16000000 / (SAMPLE_RATE * 8) - 1; // Set compare match register for 250Hz sampling
+    TCCR1B |= (1 << WGM12);                   // CTC mode
+    TCCR1B |= (1 << CS11);                    // 8 prescaler
+    TIMSK1 |= (1 << OCIE1A);                  // Enable timer compare interrupt
+    sei();                                    // Enable interrupts
+}
+
+ISR(TIMER1_COMPA_vect)
+{
+    static uint8_t counter = 0;
+
+    Serial.print(counter++);
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        Serial.print(',');
+        Serial.print(analogRead(inputPins[i]));
+    }
+    Serial.println();
 }
 
 void loop()
 {
-    static unsigned long past = 0;
-    unsigned long present = micros();
-    unsigned long interval = present - past;
-    past = present;
-    static long timer = 0;
-    timer -= interval;
-    static bool data = 0;
-    static long counter = 0;
-
-    // Check if data is available to read
     if (Serial.available() > 0)
     {
         char receivedChar = Serial.read();
         switch (receivedChar)
         {
         case 'c':
-            Serial.println(Channel_Count);
+            Serial.println(CHANNEL_COUNT);
             break;
         case 's':
             for (int i = 0; i < 4; i++)
@@ -67,41 +80,11 @@ void loop()
             }
             break;
         case 'r':
-            Serial.println(Resolution);
+            Serial.println(RESOLUTION);
             break;
-
         case 'n':
-            Serial.println("Arduino");
+            Serial.println(F("Arduino"));
             break;
         }
-    }
-
-    // Sample
-    if (timer < 0)
-    {
-        data = !data;
-        timer += 1000000 / SAMPLE_RATE;
-        Serial.print(counter);
-        Serial.print(',');
-        counter++;
-        Serial.print(millis());
-        Serial.print(',');
-        int sensor0 = analogRead(A0);
-        Serial.print(sensor0);
-        Serial.print(',');
-        int sensor1 = analogRead(A1);
-        Serial.print(sensor1);
-        Serial.print(',');
-        int sensor2 = analogRead(A2);
-        Serial.print(sensor2);
-        Serial.print(',');
-        int sensor3 = analogRead(A3);
-        Serial.print(sensor3);
-        Serial.print(',');
-        int sensor4 = analogRead(A4);
-        Serial.print(sensor4);
-        Serial.print(',');
-        int sensor5 = analogRead(A5);
-        Serial.println(sensor5);
     }
 }

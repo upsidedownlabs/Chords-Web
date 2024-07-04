@@ -12,9 +12,12 @@ const Navbar = () => {
     <div>
       <div className="top-0 md:left-0 md:right-0 flex backdrop-blur-sm justify-center py-[10px] border-b items-center font-bold z-50">
         <div className="flex w-full max-w-screen mx-4 md:mx-16 justify-between items-center">
-          <a className="text-primary font-medium text-xl" href="/">
+          <div
+            className="text-primary font-medium text-xl hover:cursor-pointer"
+            onClick={() => window.location.reload()}
+          >
             BioSignal Recorder
-          </a>
+          </div>
           <div className="flex gap-0 md:gap-2 items-center">
             <ModeToggle />
             <Link href="https://github.com/upsidedownlabs" target="__blank">

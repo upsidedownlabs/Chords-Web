@@ -8,7 +8,6 @@ import {
   CircleX,
   FileArchive,
   FileDown,
-  Video,
 } from "lucide-react";
 import { vendorsList } from "./vendors";
 import { toast } from "sonner";
@@ -20,13 +19,27 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { BitSelection } from "./DataPass";
 
-const Connection = ({
+interface ConnectionProps {
+  LineData: Function;
+  Connection: (isConnected: boolean) => void;
+  selectedBits: BitSelection;
+  setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
+}
+
+const Connection: React.FC<ConnectionProps> = ({
   LineData,
   Connection,
-}: {
-  LineData: Function;
-  Connection: Function;
+  selectedBits,
+  setSelectedBits,
 }) => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const isConnectedRef = useRef<boolean>(false);
@@ -35,10 +48,18 @@ const Connection = ({
   const [buffer, setBuffer] = useState<string[][]>([]);
   const [datasets, setDatasets] = useState<string[][][]>([]);
 
+  const [missedDataCount, setMissedDataCount] = useState<number>(0);
+  const lastCounterRef = useRef<number>(-1);
+  const dataRateWindowRef = useRef<number[]>([]);
+
   const portRef = useRef<SerialPort | null>(null);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null);
+
+  const handleBitSelection = (value: string) => {
+    setSelectedBits(value as BitSelection);
+  };
 
   useEffect(() => {
     if (isConnected && portRef.current?.getInfo()) {
@@ -69,6 +90,49 @@ const Connection = ({
         ?.name ?? "Unknown Vendor";
     return `${vendorName} - Product ID: ${info.usbProductId}`;
   }
+
+  const processData = (dataValues: string[]) => {
+    const now = Date.now();
+    const [counter, ...sensorValues] = dataValues.map(Number);
+
+    // Sequence number analysis
+    if (
+      lastCounterRef.current !== -1 &&
+      counter !== (lastCounterRef.current + 1) % 256
+    ) {
+      console.log(
+        `Non-sequential counter: expected ${
+          (lastCounterRef.current + 1) % 256
+        }, got ${counter}`
+      );
+      setMissedDataCount((prev) => prev + 1);
+    }
+    lastCounterRef.current = counter;
+
+    // Data rate monitoring
+    dataRateWindowRef.current.push(now);
+    if (dataRateWindowRef.current.length > 250) {
+      const oldestTimestamp = dataRateWindowRef.current.shift()!;
+      const dataRate = 250000 / (now - oldestTimestamp);
+      if (dataRate < 235) {
+        // Allow for small fluctuations
+        console.log(`Data rate too low: ${dataRate.toFixed(2)} samples/second`);
+        setMissedDataCount((prev) => prev + 1);
+      }
+    }
+
+    // Buffer underrun detection is not applicable here as we're not using a buffer in the same way
+
+    LineData(dataValues);
+    if (isRecordingRef.current) {
+      setBuffer((prevBuffer) => [...prevBuffer, dataValues]);
+    }
+
+    if (missedDataCount > 0) {
+      console.log(`Missed data events in the last second: ${missedDataCount}`);
+      setMissedDataCount(0);
+    }
+  };
 
   const connectToDevice = async () => {
     try {
@@ -119,7 +183,7 @@ const Connection = ({
       try {
         const StreamData = await readerRef.current?.read();
         if (StreamData?.done) {
-          console.log("Stream closed");
+          console.log("Thank you for using our app!");
           break;
         }
         const receivedData = decoder.decode(StreamData?.value, {
@@ -132,7 +196,8 @@ const Connection = ({
           if (dataValues.length === 1) {
             toast(`Received Data: ${line}`);
           } else {
-            LineData(dataValues);
+            // LineData(dataValues);
+            processData(dataValues);
             if (isRecordingRef.current) {
               setBuffer((prevBuffer) => {
                 const newBuffer = [...prevBuffer, dataValues];
@@ -142,7 +207,6 @@ const Connection = ({
           }
         }
       } catch (error) {
-        toast("Error reading from device");
         console.error("Error reading from device:", error);
         break;
       }
@@ -247,16 +311,29 @@ const Connection = ({
           Write
         </Button> */}
         {isConnected ? (
+          <div className="">
+            <Select
+              onValueChange={(value) => handleBitSelection(value)}
+              value={selectedBits}
+            >
+              <SelectTrigger className="w-32 text-background bg-primary">
+                <SelectValue placeholder="Select bits" />
+              </SelectTrigger>
+              <SelectContent side="top">
+                <SelectItem value="ten">10 bits</SelectItem>
+                <SelectItem value="twelve">12 bits</SelectItem>
+                <SelectItem value="fourteen">14 bits</SelectItem>
+                <SelectItem value="auto">Auto Scale</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+        {isConnected ? (
           <TooltipProvider>
             <Tooltip>
-              <Button
-                onClick={handleRecord}
-                className={`${
-                  !isRecording ? "hover:bg-red-600" : "bg-primary"
-                } `}
-              >
+              <Button onClick={handleRecord}>
                 <TooltipTrigger asChild>
-                  {isRecording ? <CircleStop /> : <Circle />}
+                  {isRecording ? <CircleStop /> : <Circle fill="red" />}
                 </TooltipTrigger>
               </Button>
               <TooltipContent>

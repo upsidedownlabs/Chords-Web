@@ -9,25 +9,17 @@ import React, {
 } from "react";
 import { SmoothieChart, TimeSeries } from "smoothie";
 import { Button } from "./ui/button";
-import throttle from "lodash/throttle";
 import FFTCanvas from "./FFTCanvas";
 import { useTheme } from "next-themes";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Card, CardContent } from "./ui/card";
+import { BitSelection } from "./DataPass";
 
-const Canvas = ({ data }: { data: string }) => {
+interface CanvasProps {
+  data: string;
+  selectedBits: BitSelection;
+}
+
+const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
   const { theme } = useTheme();
 
   const channels = useMemo(() => [true, true, true, true, false, false], []);
@@ -37,6 +29,11 @@ const Canvas = ({ data }: { data: string }) => {
   const chartRef = useRef<SmoothieChart[]>([]);
   const seriesRef = useRef<(TimeSeries | null)[]>([]);
   const [isChartInitialized, setIsChartInitialized] = useState(false);
+
+  const getChannelColor = useCallback((index: number) => {
+    const colors = ["red", "green", "blue", "purple"];
+    return colors[index] || colors[colors.length - 1];
+  }, []);
 
   const getThemeColors = useCallback(() => {
     return theme === "dark"
@@ -54,6 +51,23 @@ const Canvas = ({ data }: { data: string }) => {
         };
   }, [theme]);
 
+  const getMaxValue = useCallback((bits: BitSelection): number => {
+    switch (bits) {
+      case "ten":
+        return 1024;
+      case "twelve":
+        return 4096;
+      case "fourteen":
+        return 16384;
+      default:
+        return Infinity;
+    }
+  }, []);
+
+  const shouldAutoScale = useCallback((bits: BitSelection): boolean => {
+    return bits === "auto";
+  }, []);
+
   const updateChartColors = useCallback(() => {
     const colors = getThemeColors();
     chartRef.current.forEach((chart, index) => {
@@ -69,11 +83,19 @@ const Canvas = ({ data }: { data: string }) => {
           chart.options.title.fillStyle = colors.text;
         }
 
+        if (shouldAutoScale(selectedBits)) {
+          chart.options.maxValue = undefined;
+          chart.options.minValue = undefined;
+        } else {
+          chart.options.maxValue = getMaxValue(selectedBits);
+          chart.options.minValue = 0;
+        }
+
         const series = seriesRef.current[index];
         if (series) {
           chart.removeTimeSeries(series);
           chart.addTimeSeries(series, {
-            strokeStyle: colors.line,
+            strokeStyle: getChannelColor(index),
             lineWidth: 1,
           });
         }
@@ -87,7 +109,13 @@ const Canvas = ({ data }: { data: string }) => {
         );
       }
     });
-  }, [getThemeColors]);
+  }, [
+    getThemeColors,
+    selectedBits,
+    getMaxValue,
+    shouldAutoScale,
+    getChannelColor,
+  ]);
 
   const handleDataUpdate = useCallback(
     (line: string) => {
@@ -112,11 +140,6 @@ const Canvas = ({ data }: { data: string }) => {
     [channels, isPaused]
   );
 
-  const throttledHandleDataUpdate = useMemo(
-    () => throttle(handleDataUpdate, 100),
-    [handleDataUpdate]
-  );
-
   useEffect(() => {
     if (!isChartInitialized) {
       const colors = getThemeColors();
@@ -137,6 +160,7 @@ const Canvas = ({ data }: { data: string }) => {
               responsive: true,
               millisPerPixel: 12,
               interpolation: "bezier",
+              // limitFPS: 30, // Limit the frame rate for performance
               grid: {
                 fillStyle: colors.background,
                 strokeStyle: colors.grid,
@@ -147,11 +171,15 @@ const Canvas = ({ data }: { data: string }) => {
               labels: {
                 fillStyle: colors.text,
               },
+              minValue: shouldAutoScale(selectedBits) ? undefined : 0,
+              maxValue: shouldAutoScale(selectedBits)
+                ? undefined
+                : getMaxValue(selectedBits),
             });
             const series = new TimeSeries();
 
             chart.addTimeSeries(series, {
-              strokeStyle: colors.line,
+              strokeStyle: getChannelColor(index),
               lineWidth: 1,
             });
 
@@ -167,23 +195,46 @@ const Canvas = ({ data }: { data: string }) => {
 
       setIsChartInitialized(true);
     }
-  }, [isChartInitialized, channels, getThemeColors]);
+  }, [
+    isChartInitialized,
+    channels,
+    getThemeColors,
+    selectedBits,
+    getMaxValue,
+    shouldAutoScale,
+    getChannelColor,
+  ]);
+
+  useEffect(() => {
+    if (isChartInitialized) {
+      chartRef.current.forEach((chart) => {
+        if (chart) {
+          if (shouldAutoScale(selectedBits)) {
+            chart.options.maxValue = undefined;
+            chart.options.minValue = undefined;
+          } else {
+            chart.options.maxValue = getMaxValue(selectedBits);
+            chart.options.minValue = 0;
+          }
+        }
+      });
+    }
+  }, [selectedBits, isChartInitialized, getMaxValue, shouldAutoScale]);
+
+  useEffect(() => {
+    if (isChartInitialized) {
+      const lines = String(data).split("\n");
+      lines.forEach((line) => {
+        handleDataUpdate(line);
+      });
+    }
+  }, [data, isChartInitialized, handleDataUpdate, theme]);
 
   useEffect(() => {
     if (isChartInitialized) {
       updateChartColors();
-      const lines = String(data).split("\n");
-      lines.forEach((line) => {
-        throttledHandleDataUpdate(line);
-      });
     }
-  }, [
-    data,
-    isChartInitialized,
-    throttledHandleDataUpdate,
-    theme,
-    updateChartColors,
-  ]);
+  }, [theme, isChartInitialized, updateChartColors]);
 
   const handlePauseClick = (index: number) => {
     setIsPaused((prevIsPaused) => {
@@ -201,19 +252,6 @@ const Canvas = ({ data }: { data: string }) => {
 
   return (
     <div className="flex justify-center items-center flex-row h-[85%] w-screen px-4 gap-10">
-      <div className="absolute right-1/3 top-28">
-        <Select>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Select bits" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ten">10 bits</SelectItem>
-            <SelectItem value="twelve">12 bits</SelectItem>
-            <SelectItem value="fourteen">14 bits</SelectItem>
-            <SelectItem value="auto">Auto Scale</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
       <div className="flex justify-center items-center flex-col h-[85%] w-3/4">
         {channels.map((channel, index) => {
           if (channel) {
@@ -226,11 +264,11 @@ const Canvas = ({ data }: { data: string }) => {
                   />
                 </div>
                 <div className="absolute top-1/2 right-0 -mr-5 -mt-7 z-10">
-                  <Card className="bg-secondary rounded-2xl">
+                  <Card className="bg-secondary border-primary rounded-2xl">
                     <CardContent className="flex flex-col p-1 items-center justify-center gap-2">
                       <Button
                         variant={"outline"}
-                        className="border-primary hover:bg-destructive w-7 h-7 p-0 rounded-full"
+                        className="border-muted-foreground hover:bg-destructive w-7 h-7 p-0 rounded-full"
                         onClick={() => handlePauseClick(index)}
                         size={"sm"}
                       >
@@ -240,7 +278,7 @@ const Canvas = ({ data }: { data: string }) => {
                           <Pause size={14} />
                         )}
                       </Button>
-                      <p className=" text-sm">{`Ch-${index + 1}`}</p>
+                      <p className="text-[10px]">{`CH${index + 1}`}</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -250,7 +288,7 @@ const Canvas = ({ data }: { data: string }) => {
           return null;
         })}
       </div>
-      <div className="w-1/3">
+      <div className="flex justify-center items-center w-1/3">
         <FFTCanvas data={data} maxFreq={100} />
       </div>
     </div>

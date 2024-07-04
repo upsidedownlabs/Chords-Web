@@ -38,7 +38,7 @@ const Contributors = () => {
               <Separator className="bg-primary" />
             </CardHeader>
             <CardContent className="flex justify-center items-center gap-5">
-              <Link href={"https://github.com/akadeepesh"}>
+              <Link href={"https://github.com/AleksaZCodes"}>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -106,7 +106,7 @@ const Contributors = () => {
                   </Tooltip>
                 </TooltipProvider>
               </Link>
-              <Link href={"https://github.com/AleksaZCodes"}>
+              <Link href={"https://github.com/Ritika8081"}>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
