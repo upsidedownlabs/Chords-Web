@@ -2,7 +2,9 @@ name: Deploy BioSignal Recorder Web
 
 on:
   push:
-    branches: ["main", "version1.0"]
+    branches:
+      - main
+      - version1.0
   workflow_dispatch:
 
 permissions:
@@ -17,6 +19,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +31,6 @@ jobs:
             echo "type=nextjs" >> $GITHUB_OUTPUT
           else
             echo "type=static" >> $GITHUB_OUTPUT
-          fi
 
       - name: Detect package manager
         id: detect-package-manager
@@ -42,11 +44,12 @@ jobs:
             echo "command=ci" >> $GITHUB_OUTPUT
             echo "runner=npx --no-install" >> $GITHUB_OUTPUT
           else
-            echo "Unable to determine package manager"
-            exit 1
-          fi
+            echo "manager=none" >> $GITHUB_OUTPUT
+            echo "command=none" >> $GITHUB_OUTPUT
+            echo "runner=none" >> $GITHUB_OUTPUT
 
       - name: Setup Node
+        if: steps.detect-project.outputs.type == 'nextjs'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -57,24 +60,15 @@ jobs:
         with:
           static_site_generator: ${{ steps.detect-project.outputs.type == 'nextjs' && 'next' || 'static' }}
 
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            .next/cache
-          key: ${{ runner.os }}-${{ steps.detect-project.outputs.type }}-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.detect-project.outputs.type }}-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
-
       - name: Install dependencies
+        if: steps.detect-package-manager.outputs.manager != 'none'
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
       - name: Build project
         run: |
           if [ "${{ steps.detect-project.outputs.type }}" = "nextjs" ]; then
             ${{ steps.detect-package-manager.outputs.runner }} next build
-          else
-            ${{ steps.detect-package-manager.outputs.runner }} run build
+            ${{ steps.detect-package-manager.outputs.runner }} next export
           fi
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ format('/BioSignal-Recorder-Web{0}', github.ref == 'refs/heads/main' && '' || format('/{0}', github.ref_name)) }}
@@ -82,7 +76,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ steps.detect-project.outputs.type == 'nextjs' && './out' || './build' }}
+          path: ${{ steps.detect-project.outputs.type == 'nextjs' && './out' || '.' }}
 
   deploy:
     environment:
