@@ -27,7 +27,7 @@ jobs:
       - name: Detect project type
         id: detect-project
         run: |
-          if [ -f "${{ github.workspace }}/next.config.mjs" ]; then
+          if [ -f "${{ github.workspace }}/next.config.js" ]; then
             echo "type=nextjs" >> $GITHUB_OUTPUT
           else
             echo "type=static" >> $GITHUB_OUTPUT
@@ -48,6 +48,7 @@ jobs:
             echo "manager=none" >> $GITHUB_OUTPUT
             echo "command=none" >> $GITHUB_OUTPUT
             echo "runner=none" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup Node
         if: steps.detect-project.outputs.type == 'nextjs'
