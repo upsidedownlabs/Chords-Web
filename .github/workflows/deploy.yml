@@ -27,10 +27,11 @@ jobs:
       - name: Detect project type
         id: detect-project
         run: |
-          if [ -f "${{ github.workspace }}/next.config.js" ]; then
+          if [ -f "${{ github.workspace }}/next.config.mjs" ]; then
             echo "type=nextjs" >> $GITHUB_OUTPUT
           else
             echo "type=static" >> $GITHUB_OUTPUT
+          fi
 
       - name: Detect package manager
         id: detect-package-manager
