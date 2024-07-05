@@ -21,6 +21,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect project type
+        id: detect-project
+        run: |
+          if [ -f "${{ github.workspace }}/next.config.js" ]; then
+            echo "type=nextjs" >> $GITHUB_OUTPUT
+          else
+            echo "type=static" >> $GITHUB_OUTPUT
+          fi
+
       - name: Detect package manager
         id: detect-package-manager
         run: |
@@ -40,40 +49,40 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20.11.1"
+          node-version: "20"
           cache: ${{ steps.detect-package-manager.outputs.manager }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
-          static_site_generator: next
+          static_site_generator: ${{ steps.detect-project.outputs.type == 'nextjs' && 'next' || 'static' }}
 
       - name: Restore cache
         uses: actions/cache@v4
         with:
           path: |
             .next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
+          key: ${{ runner.os }}-${{ steps.detect-project.outputs.type }}-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
           restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
+            ${{ runner.os }}-${{ steps.detect-project.outputs.type }}-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
 
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
       - name: Build project
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          if [ "${{ steps.detect-project.outputs.type }}" = "nextjs" ]; then
             ${{ steps.detect-package-manager.outputs.runner }} next build
           else
             ${{ steps.detect-package-manager.outputs.runner }} run build
           fi
         env:
-          NEXT_PUBLIC_BASE_PATH: ${{ github.ref == 'refs/heads/main' && '/BioSignal-Recorder-Web' || '/BioSignal-Recorder-Web/version1.0' }}
+          NEXT_PUBLIC_BASE_PATH: ${{ format('/BioSignal-Recorder-Web{0}', github.ref == 'refs/heads/main' && '' || format('/{0}', github.ref_name)) }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ github.ref == 'refs/heads/main' && './out' || './build' }}
+          path: ${{ steps.detect-project.outputs.type == 'nextjs' && './out' || './build' }}
 
   deploy:
     environment:
