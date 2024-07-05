@@ -13,6 +13,7 @@ import FFTCanvas from "./FFTCanvas";
 import { useTheme } from "next-themes";
 import { Card, CardContent } from "./ui/card";
 import { BitSelection } from "./DataPass";
+import { throttle } from "lodash";
 
 interface CanvasProps {
   data: string;
@@ -140,6 +141,11 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
     [channels, isPaused]
   );
 
+  const throttledHandleDataUpdate = useMemo(
+    () => throttle(handleDataUpdate, 15),
+    [handleDataUpdate]
+  );
+
   useEffect(() => {
     if (!isChartInitialized) {
       const colors = getThemeColors();
@@ -225,10 +231,16 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
     if (isChartInitialized) {
       const lines = String(data).split("\n");
       lines.forEach((line) => {
-        handleDataUpdate(line);
+        throttledHandleDataUpdate(line);
       });
     }
-  }, [data, isChartInitialized, handleDataUpdate, theme]);
+  }, [data, isChartInitialized, throttledHandleDataUpdate]);
+
+  useEffect(() => {
+    return () => {
+      throttledHandleDataUpdate.cancel();
+    };
+  }, [throttledHandleDataUpdate]);
 
   useEffect(() => {
     if (isChartInitialized) {

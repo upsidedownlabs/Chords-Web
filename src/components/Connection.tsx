@@ -91,49 +91,6 @@ const Connection: React.FC<ConnectionProps> = ({
     return `${vendorName} - Product ID: ${info.usbProductId}`;
   }
 
-  const processData = (dataValues: string[]) => {
-    const now = Date.now();
-    const [counter, ...sensorValues] = dataValues.map(Number);
-
-    // Sequence number analysis
-    if (
-      lastCounterRef.current !== -1 &&
-      counter !== (lastCounterRef.current + 1) % 256
-    ) {
-      console.log(
-        `Non-sequential counter: expected ${
-          (lastCounterRef.current + 1) % 256
-        }, got ${counter}`
-      );
-      setMissedDataCount((prev) => prev + 1);
-    }
-    lastCounterRef.current = counter;
-
-    // Data rate monitoring
-    dataRateWindowRef.current.push(now);
-    if (dataRateWindowRef.current.length > 250) {
-      const oldestTimestamp = dataRateWindowRef.current.shift()!;
-      const dataRate = 250000 / (now - oldestTimestamp);
-      if (dataRate < 235) {
-        // Allow for small fluctuations
-        console.log(`Data rate too low: ${dataRate.toFixed(2)} samples/second`);
-        setMissedDataCount((prev) => prev + 1);
-      }
-    }
-
-    // Buffer underrun detection is not applicable here as we're not using a buffer in the same way
-
-    LineData(dataValues);
-    if (isRecordingRef.current) {
-      setBuffer((prevBuffer) => [...prevBuffer, dataValues]);
-    }
-
-    if (missedDataCount > 0) {
-      console.log(`Missed data events in the last second: ${missedDataCount}`);
-      setMissedDataCount(0);
-    }
-  };
-
   const connectToDevice = async () => {
     try {
       const port = await navigator.serial.requestPort();
@@ -145,6 +102,7 @@ const Connection: React.FC<ConnectionProps> = ({
       const reader = port.readable?.getReader();
       readerRef.current = reader;
       readData();
+      const wakeLock = await navigator.wakeLock.request("screen");
     } catch (error) {
       disconnectDevice();
       isConnectedRef.current = false;
@@ -196,8 +154,7 @@ const Connection: React.FC<ConnectionProps> = ({
           if (dataValues.length === 1) {
             toast(`Received Data: ${line}`);
           } else {
-            // LineData(dataValues);
-            processData(dataValues);
+            LineData(dataValues);
             if (isRecordingRef.current) {
               setBuffer((prevBuffer) => {
                 const newBuffer = [...prevBuffer, dataValues];

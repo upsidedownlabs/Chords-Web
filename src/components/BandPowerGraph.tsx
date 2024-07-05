@@ -18,6 +18,7 @@ const BandPowerGraph: React.FC<BandPowerGraphProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isAllZeros, setIsAllZeros] = useState(true);
   const [bandPowerData, setBandPowerData] = useState<number[]>(
     Array(5).fill(0)
   );
@@ -76,16 +77,30 @@ const BandPowerGraph: React.FC<BandPowerGraphProps> = ({
   useEffect(() => {
     if (fftData.length > 0 && fftData[0].length > 0) {
       const channelData = fftData[0]; // Use the first channel
-      const newBandPowerData = calculateBandPower(channelData);
-      setBandPowerData(newBandPowerData);
+
+      // Check if the data is all zeros
+      const currentIsAllZeros = channelData.every((val) => val === 0);
+
+      // If transitioning from all zeros to some non-zero values, or vice versa
+      if (currentIsAllZeros !== isAllZeros || !isAllZeros) {
+        const newBandPowerData = calculateBandPower(channelData);
+        setBandPowerData(newBandPowerData);
+        prevBandPowerData.current = newBandPowerData; // Initialize prevBandPowerData
+        setIsAllZeros(currentIsAllZeros);
+      }
     }
-  }, [fftData, calculateBandPower]);
+  }, [fftData, calculateBandPower, isAllZeros]);
 
   const drawGraph = useCallback(
     (currentBandPowerData: number[]) => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (!canvas || !container) return;
+
+      if (currentBandPowerData.some(isNaN)) {
+        console.error("NaN values detected in band power data");
+        return;
+      }
 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -156,10 +171,10 @@ const BandPowerGraph: React.FC<BandPowerGraphProps> = ({
   );
 
   const animateGraph = useCallback(() => {
-    const currentValues = prevBandPowerData.current.map((prev, i) => {
-      const target = bandPowerData[i];
+    const currentValues = bandPowerData.map((target, i) => {
+      const prev = prevBandPowerData.current[i] || 0; // Use 0 if prev is undefined
       const diff = target - prev;
-      return prev + diff * 0.1; // Adjust this value to control animation speed
+      return isNaN(prev) || isNaN(diff) ? target : prev + diff * 0.1;
     });
 
     drawGraph(currentValues);
