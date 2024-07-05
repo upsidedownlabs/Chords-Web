@@ -32,7 +32,7 @@ jobs:
           else
             echo "type=static" >> $GITHUB_OUTPUT
           fi
-          
+
       - name: Detect package manager
         id: detect-package-manager
         run: |
@@ -73,7 +73,7 @@ jobs:
             ${{ steps.detect-package-manager.outputs.runner }} next export
           else
             mkdir -p ./build/${{ github.ref_name }}
-            cp -r ./* ./build/${{ github.ref_name }}
+            find . -maxdepth 1 ! -name . ! -name build ! -name .git -exec cp -r {} ./build/${{ github.ref_name }} \;
           fi
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ format('/BioSignal-Recorder-Web{0}', github.ref == 'refs/heads/main' && '' || format('/{0}', github.ref_name)) }}
