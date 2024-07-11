@@ -208,11 +208,14 @@ class SmoothieChartManager {
         }
       }
     } catch (error) {
+      if (this.isRecording) {
+        this.saveCsv();
+      }
+      this.disconnectDevice();
       alert(
         "Error connecting to device: Please remove the device and insert it again."
       );
       console.error("Error connecting to device:", error);
-      this.disconnectDevice();
     }
   }
 
