@@ -20,3 +20,10 @@
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
   z-index: 9999;
 }
+
+#recordingTimer {
+  display: flex;
+  position: absolute;
+  color: red;
+  margin-left: 30px;
+}

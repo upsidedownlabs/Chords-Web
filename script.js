@@ -13,6 +13,9 @@ class SmoothieChartManager {
     this.fileBreak = false; // Flag for file break during recording
     this.currentPacket = 0; // Counter for the current data packet
     this.bufferCounter = 0; // Counter for buffer
+    this.recordingStartTime = null; // Start time of recording
+    this.timerInterval = null; // Interval for recording timer
+    this.recordingDuration = 0; // Duration of recording
   }
 
   // Initialize the chart manager
@@ -208,9 +211,6 @@ class SmoothieChartManager {
         }
       }
     } catch (error) {
-      if (this.isRecording) {
-        this.saveCsv();
-      }
       this.disconnectDevice();
       alert(
         "Error connecting to device: Please remove the device and insert it again."
@@ -233,6 +233,10 @@ class SmoothieChartManager {
     } catch (error) {
       console.error("Error disconnecting from device:", error);
     }
+    if (this.isRecording) {
+      this.saveCsv(); // Save data to CSV file if recording is in progress
+      this.stopTimer(); // Stop the timer if recording is in progress
+    }
     this.isConnected = false;
     this.isStreaming = false;
     this.isRecording = false;
@@ -242,20 +246,20 @@ class SmoothieChartManager {
   // Update UI elements for the disconnected state
   updateUIForDisconnectedState() {
     document.getElementById("connectButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-usb-symbol" viewBox="0 0 16 16">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-usb-symbol mb-1" viewBox="0 0 16 16">
         <path d="m7.792.312-1.533 2.3A.25.25 0 0 0 6.467 3H7.5v7.319a2.5 2.5 0 0 0-.515-.298L5.909 9.56A1.5 1.5 0 0 1 5 8.18v-.266a1.5 1.5 0 1 0-1 0v.266a2.5 2.5 0 0 0 1.515 2.298l1.076.461a1.5 1.5 0 0 1 .888 1.129 2.001 2.001 0 1 0 1.021-.006v-.902a1.5 1.5 0 0 1 .756-1.303l1.484-.848A2.5 2.5 0 0 0 11.995 7h.755a.25.25 0 0 0 .25-.25v-2.5a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h.741a1.5 1.5 0 0 1-.747 1.142L8.76 8.99a3 3 0 0 0-.26.17V3h1.033a.25.25 0 0 0 .208-.389L8.208.312a.25.25 0 0 0-.416 0"/>
       </svg>
     `;
     document.getElementById("connectButton").classList.remove("connected");
     document.getElementById("startButton").disabled = true;
     document.getElementById("startButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-right-fill" viewBox="0 0 16 16">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-right-fill mb-1" viewBox="0 0 16 16">
         <path d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"/>
       </svg>
     `;
     document.getElementById("recordButton").disabled = true;
     document.getElementById("recordButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="red" class="bi bi-record" viewBox="0 0 16 16">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="red" class="bi bi-record mb-1" viewBox="0 0 16 16">
         <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
       </svg>
     `;
@@ -286,7 +290,7 @@ class SmoothieChartManager {
   startStreaming() {
     this.isStreaming = true;
     document.getElementById("startButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause" viewBox="0 0 16 16">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause mb-1" viewBox="0 0 16 16">
         <path d="M6 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5m4 0a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5"/>
       </svg>
     `;
@@ -298,12 +302,51 @@ class SmoothieChartManager {
   stopStreaming() {
     this.isStreaming = false;
     document.getElementById("startButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-right-fill" viewBox="0 0 16 16">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-right-fill mb-1" viewBox="0 0 16 16">
         <path d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"/>
       </svg>
     `;
     document.getElementById("recordButton").disabled = true;
     this.smoothieCharts.forEach((chart) => chart.stop()); // Stop all charts
+  }
+
+  startTimer() {
+    this.recordingStartTime = Date.now();
+    this.updateTimer();
+    this.timerInterval = setInterval(() => this.updateTimer(), 1000);
+  }
+
+  stopTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+    if (this.recordingStartTime) {
+      this.recordingDuration = (Date.now() - this.recordingStartTime) / 1000;
+      console.log(
+        `Recording duration: ${this.recordingDuration.toFixed(2)} seconds`
+      );
+      document.getElementById(
+        "recordingTimer"
+      ).textContent = `${this.formatTime(this.recordingDuration)}`;
+      this.recordingStartTime = null;
+    }
+  }
+
+  updateTimer() {
+    if (this.recordingStartTime) {
+      const elapsed = (Date.now() - this.recordingStartTime) / 1000;
+      document.getElementById("recordingTimer").textContent =
+        this.formatTime(elapsed);
+    }
+  }
+
+  formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
+      .toString()
+      .padStart(2, "0")}`;
   }
 
   // Toggle recording of data
@@ -319,31 +362,32 @@ class SmoothieChartManager {
   startRecording() {
     this.isRecording = true;
     document.getElementById("recordButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-stop-circle" viewBox="0 0 16 16">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-stop-circle mb-1" viewBox="0 0 16 16">
         <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
         <path d="M5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5z"/>
       </svg>
     `;
     document.getElementById("startButton").disabled = true;
     document.getElementById("saveButton").disabled = true;
+    this.startTimer();
   }
 
   // Stop recording data
   stopRecording() {
     this.isRecording = false;
     document.getElementById("recordButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="red" class="bi bi-record" viewBox="0 0 16 16">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="red" class="bi bi-record mb-1" viewBox="0 0 16 16">
         <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
       </svg>
     `;
     document.getElementById("startButton").disabled = false;
     document.getElementById("saveButton").disabled = false;
-    this.fileBreak = true; // Indicate a break in the recording file
+    this.fileBreak = true;
+    this.stopTimer();
   }
 
   // Save the recorded data to a CSV file
   async saveCsv() {
-    console.log("first");
     const fileHandle = await this.getNewFileHandle();
     const writableStream = await fileHandle.createWritable();
     const columnNames = [

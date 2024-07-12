@@ -72,7 +72,7 @@
                   width="16"
                   height="16"
                   fill="currentColor"
-                  class="bi bi-usb-symbol"
+                  class="bi bi-usb-symbol mb-1"
                   viewBox="0 0 16 16"
                 >
                   <path
@@ -95,7 +95,7 @@
                   width="16"
                   height="16"
                   fill="currentColor"
-                  class="bi bi-caret-right-fill"
+                  class="bi bi-caret-right-fill mb-1"
                   viewBox="0 0 16 16"
                 >
                   <path
@@ -117,12 +117,13 @@
                   width="16"
                   height="16"
                   fill="red"
-                  class="bi bi-record"
+                  class="bi bi-record mb-1"
                   viewBox="0 0 16 16"
                 >
                   <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
                 </svg>
               </button>
+              <!-- <span id="recordingTimer" class="text-light ml-2"></span> -->
             </li>
             <li class="nav-item m-1">
               <!-- Save -->
@@ -139,7 +140,7 @@
                   width="12"
                   height="12"
                   fill="currentColor"
-                  class="bi bi-download"
+                  class="bi bi-download mb-1"
                   viewBox="0 0 16 16"
                 >
                   <path
@@ -208,7 +209,7 @@
               width="16"
               height="16"
               fill="currentColor"
-              class="bi bi-gear-fill"
+              class="bi bi-gear-fill mb-1"
               viewBox="0 0 16 16"
             >
               <path
@@ -226,6 +227,7 @@
               width="16"
               height="16"
               fill="currentColor"
+              class="mb-1"
               xmlns="http://www.w3.org/2000/svg"
               xmlns:xlink="http://www.w3.org/1999/xlink"
               viewBox="0 0 202.978 202.978"
@@ -357,7 +359,7 @@
 
     <script>
       (function () {
-        $('[data-toggle="tooltip"]').tooltip();
+        '[data-toggle="tooltip"]'.tooltip();
       });
     </script>
 
@@ -465,6 +467,7 @@
       </div>
     </div>
 
+    <span id="recordingTimer"></span>
     <div id="chartsContainer" class="container-fluid p-1"></div>
     <div id="compatibilityMessage" class="compatibility-message">
       <p>
