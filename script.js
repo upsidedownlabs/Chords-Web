@@ -187,6 +187,7 @@ class SmoothieChartManager {
       this.isConnected = true;
       this.startStreaming();
       this.updateChartLabels();
+      await navigator.wakeLock.request("screen");
 
       this.reader = this.port.readable.getReader();
       const decoder = new TextDecoder();
@@ -259,7 +260,7 @@ class SmoothieChartManager {
     `;
     document.getElementById("recordButton").disabled = true;
     document.getElementById("recordButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="red" class="bi bi-record mb-1" viewBox="0 0 16 16">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="red" class="bi bi-record" viewBox="0 0 16 16">
         <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
       </svg>
     `;
@@ -361,10 +362,11 @@ class SmoothieChartManager {
   // Start recording data
   startRecording() {
     this.isRecording = true;
-    document.getElementById("recordButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-stop-circle mb-1" viewBox="0 0 16 16">
-        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-        <path d="M5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5z"/>
+    const recordButton = document.getElementById("recordButton");
+    recordButton.classList.add("recording");
+    recordButton.querySelector(".record-icon-container").innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-stop-fill" viewBox="0 0 16 16">
+        <path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5"/>
       </svg>
     `;
     document.getElementById("startButton").disabled = true;
@@ -372,11 +374,12 @@ class SmoothieChartManager {
     this.startTimer();
   }
 
-  // Stop recording data
   stopRecording() {
     this.isRecording = false;
-    document.getElementById("recordButton").innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="red" class="bi bi-record mb-1" viewBox="0 0 16 16">
+    const recordButton = document.getElementById("recordButton");
+    recordButton.classList.remove("recording");
+    recordButton.querySelector(".record-icon-container").innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="red" class="bi bi-record" viewBox="0 0 16 16">
         <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
       </svg>
     `;

@@ -21,9 +21,43 @@
   z-index: 9999;
 }
 
-#recordingTimer {
+#recordButton {
   display: flex;
-  position: absolute;
-  color: red;
-  margin-left: 30px;
+  align-items: center;
+  justify-content: center;
+  height: 38px; /* Match the height of other buttons */
+  padding: 0 10px;
+  min-width: 38px; /* Ensure minimum width when not recording */
+}
+
+.record-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.record-timer-separator {
+  display: none;
+  margin: 0 5px;
+  font-size: 14px;
+}
+
+#recordingTimer {
+  display: none;
+  font-size: 12px;
+}
+
+#recordButton.recording {
+  width: auto; /* Allow button to expand when recording */
+}
+
+#recordButton.recording .record-timer-separator,
+#recordButton.recording #recordingTimer {
+  display: inline-block;
+}
+
+#recordButton.recording .record-icon-container svg {
+  fill: currentColor; /* Change to stop icon color */
 }

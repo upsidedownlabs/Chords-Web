@@ -111,19 +111,21 @@
                 id="recordButton"
                 disabled
               >
-                <!-- Record -->
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  fill="red"
-                  class="bi bi-record mb-1"
-                  viewBox="0 0 16 16"
-                >
-                  <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
-                </svg>
+                <span class="record-icon-container">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="red"
+                    class="bi bi-record"
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
+                  </svg>
+                </span>
+                <span class="record-timer-separator">|</span>
+                <span id="recordingTimer" class="record-timer"></span>
               </button>
-              <!-- <span id="recordingTimer" class="text-light ml-2"></span> -->
             </li>
             <li class="nav-item m-1">
               <!-- Save -->
@@ -467,7 +469,6 @@
       </div>
     </div>
 
-    <span id="recordingTimer"></span>
     <div id="chartsContainer" class="container-fluid p-1"></div>
     <div id="compatibilityMessage" class="compatibility-message">
       <p>
