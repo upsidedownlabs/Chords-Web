@@ -3,6 +3,7 @@
   color: white;
   border-color: green;
 }
+
 .connected:hover {
   background-color: #aa2b00;
   border-color: #cc3300;
