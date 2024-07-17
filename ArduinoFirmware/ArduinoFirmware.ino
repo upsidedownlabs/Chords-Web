@@ -31,8 +31,14 @@
 // Make sure to set the same baud rate on your Serial Monitor/Plotter
 #define BAUD_RATE 115200
 
-// Number of channels from which we reading data
+#define BUFFER_SIZE 100
+
 #define CHANNEL_COUNT 6
+
+volatile uint8_t head = 0;
+volatile uint8_t tail = 0;
+volatile bool dataReady = false;
+uint16_t buffer[BUFFER_SIZE][CHANNEL_COUNT];
 
 void setup()
 {
@@ -41,27 +47,68 @@ void setup()
   // Set ADC prescaler to 16 for faster reads
   ADCSRA = (ADCSRA & ~0x07) | 0x04;
 
-  // Set up timer interrupt for precise sampling
-  cli(); // Disable interrupts
+  // Set ADC reference to AVCC
+  ADMUX = (1 << REFS0);
+
+  // Set up timer interrupt for sampling
+  cli();
   TCCR1A = 0;
   TCCR1B = 0;
   TCNT1 = 0;
-  OCR1A = 16000000 / (SAMPLE_RATE * 8) - 1; // Set compare match register for 250Hz sampling
-  TCCR1B |= (1 << WGM12);                   // CTC mode
-  TCCR1B |= (1 << CS11);                    // 8 prescaler
-  TIMSK1 |= (1 << OCIE1A);                  // Enable timer compare interrupt
-  sei();                                    // Enable interrupts
+  OCR1A = 16000000 / (8 * SAMPLE_RATE) - 1;
+  TCCR1B |= (1 << WGM12) | (1 << CS11);
+  TIMSK1 |= (1 << OCIE1A);
+  sei();
 }
 
 ISR(TIMER1_COMPA_vect)
 {
-  static uint8_t counter = 0;
+  static uint8_t channel = 0;
 
-  Serial.print(counter++);
-  for (int i = 0; i < CHANNEL_COUNT; i++)
+  if (channel == 0)
   {
-    Serial.print(',');
-    Serial.print(analogRead(inputPins[i]));
+    if (((head + 1) & (BUFFER_SIZE - 1)) == tail)
+    {
+      tail = (tail + 1) & (BUFFER_SIZE - 1);
+    }
   }
-  Serial.println();
+
+  // Start conversion for next channel
+  ADMUX = (ADMUX & 0xF0) | (channel & 0x07);
+  ADCSRA |= (1 << ADSC);
+
+  // Wait for conversion to complete
+  while (ADCSRA & (1 << ADSC))
+    ;
+
+  // Read ADC value
+  buffer[head][channel] = ADC;
+
+  channel = (channel + 1) % CHANNEL_COUNT;
+
+  if (channel == 0)
+  {
+    head = (head + 1) & (BUFFER_SIZE - 1);
+    dataReady = true;
+  }
+}
+
+void loop()
+{
+  if (dataReady)
+  {
+    dataReady = false;
+    static uint8_t counter = 0;
+    while (head != tail)
+    {
+      Serial.print(counter++); // This will automatically wrap around to 0 after 255
+      for (int i = 0; i < CHANNEL_COUNT; i++)
+      {
+        Serial.print(',');
+        Serial.print(buffer[tail][i]);
+      }
+      Serial.println();
+      tail = (tail + 1) & (BUFFER_SIZE - 1);
+    }
+  }
 }
