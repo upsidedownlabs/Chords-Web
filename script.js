@@ -598,6 +598,7 @@ class SmoothieChartManager {
       document.getElementById("compatibilityMessage").style.display = "block";
       document.querySelector("nav").style.display = "none";
       document.getElementById("exampleModal").style.display = "none";
+      document.getElementById("chartsContainer").style.display = "none";
       return;
     }
 
