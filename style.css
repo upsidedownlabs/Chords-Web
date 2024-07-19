@@ -59,6 +59,109 @@
   display: inline-block;
 }
 
+.speed-toggle.high-speed {
+  background-color: white;
+  color: black;
+}
+
+.speed-toggle.low-speed {
+  background-color: black;
+  color: white;
+}
+
+.speed-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.autoscale {
+  background-color: white;
+  color: black;
+}
+
+.fixed {
+  background-color: black;
+  color: white;
+}
+
+.speed-separator {
+  margin: 0 5px;
+}
+
+#speedIcon {
+  display: flex;
+  align-items: center;
+}
+
 #recordButton.recording .record-icon-container svg {
   fill: currentColor; /* Change to stop icon color */
+}
+
+.charts-wrapper {
+  margin-top: 20px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Gap between rows */
+}
+
+.chart-row {
+  display: flex;
+  width: 100%;
+  gap: 20px; /* Gap between charts in a row */
+}
+
+.canvas-container {
+  flex: 1;
+  min-width: 0; /* Allows flex items to shrink below content size */
+}
+
+.parent {
+  width: 100%;
+  height: 100%;
+}
+
+.TitleLogo {
+  justify-content: space-between;
+  width: 57%;
+}
+
+.title {
+  height: min-content;
+}
+
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 768px) {
+  .chart-row {
+    flex-direction: column;
+  }
+  .main {
+    flex-direction: column;
+  }
+  .TitleLogo {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .title {
+    font-size: medium;
+    height: min-content;
+  }
+  .logo {
+    width: 200px;
+    height: auto;
+  }
+}
+
+@media (max-width: 408px) {
+  .logo {
+    width: 150px;
+    height: auto;
+  }
+  .title {
+    font-size: small;
+  }
 }

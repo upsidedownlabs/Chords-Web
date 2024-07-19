@@ -16,13 +16,14 @@ class SmoothieChartManager {
     this.recordingStartTime = null; // Start time of recording
     this.timerInterval = null; // Interval for recording timer
     this.recordingDuration = 0; // Duration of recording
+    this.isHighSpeed = false; // Property to track speed state
+    this.autoscale = true; // Property to track autoscale state
+    this.maxValue = undefined; // Property to track the maximum value of smoothie chart
   }
 
   // Initialize the chart manager
   init() {
     this.initEventListeners(); // Set up event listeners
-    this.loadSettings(); // Load settings from localStorage
-    this.saveSettings(); // Save settings to localStorage
   }
 
   // Set up event listeners for UI elements
@@ -38,12 +39,42 @@ class SmoothieChartManager {
     addInputListener("heightRange", "heightValue");
     addInputListener("channelsRange", "channelsValue");
 
+    const speedToggleButton = document.getElementById("speedToggleButton");
+    speedToggleButton.classList.add(
+      this.isHighSpeed ? "high-speed" : "low-speed"
+    );
+
+    speedToggleButton.addEventListener("click", () => {
+      // Toggle the speed state
+      this.isHighSpeed = !this.isHighSpeed;
+
+      // Update button style
+      speedToggleButton.classList.toggle("high-speed");
+      speedToggleButton.classList.toggle("low-speed");
+
+      // Update the charts
+      this.destroyCharts();
+      this.drawCharts(4, 280, this.isHighSpeed ? 2 : 1);
+    });
+
+    const autoscaleToggleButton = document.getElementById("autoScale");
+    autoscaleToggleButton.classList.add(this.autoscale ? "autoscale" : "fixed");
+
+    autoscaleToggleButton.addEventListener("click", () => {
+      this.sendData();
+      // Toggle the autoscale state
+      this.autoscale = !this.autoscale;
+
+      // Update button style
+      autoscaleToggleButton.classList.toggle("autoscale");
+      autoscaleToggleButton.classList.toggle("fixed");
+    });
+
     // Helper function to add button listeners
     const addButtonListener = (buttonId, action) => {
       document.getElementById(buttonId).addEventListener("click", action); // Call the action function when the button is clicked
     };
 
-    addButtonListener("saveChanges", () => this.saveSettings());
     addButtonListener("connectButton", () => this.toggleConnection());
     addButtonListener("startButton", () => this.toggleStreaming());
     addButtonListener("recordButton", () => this.toggleRecording());
@@ -55,104 +86,79 @@ class SmoothieChartManager {
     window.addEventListener("load", () => this.checkBrowserCompatibility()); // Check browser compatibility on load
   }
 
-  // Load settings from localStorage and update UI
-  loadSettings() {
-    const settings = this.getSettings();
-    // Update range inputs and their corresponding value displays
-    ["speed", "height", "channels"].forEach((setting) => {
-      document.getElementById(`${setting}Range`).value = settings[setting];
-      document.getElementById(`${setting}Value`).textContent =
-        settings[setting];
-    });
-  }
-
-  // Retrieve settings from localStorage with default values
-  getSettings() {
-    return {
-      height: parseInt(localStorage.getItem("heightValue")) || 1,
-      channels: parseInt(localStorage.getItem("channelsValue")) || 1,
-      speed: parseInt(localStorage.getItem("speedValue")) || 2,
-    };
-  }
-
-  // Save current settings to localStorage and update charts
-  saveSettings() {
-    ["speed", "height", "channels"].forEach((setting) => {
-      localStorage.setItem(
-        `${setting}Value`,
-        document.getElementById(`${setting}Range`).value
-      );
-    });
-
-    this.destroyCharts(); // Remove existing charts
-    const settings = this.getSettings();
-    const height = 200 + (settings.height - 1) * 40; // Calculate chart height based on settings
-    this.drawCharts(settings.channels, height, settings.speed); // Draw new charts
-
-    if (this.isConnected) {
-      this.updateChartLabels(); // Update chart labels if connected
-    }
-  }
-
   // Create and display the charts
-  drawCharts(channels, height, speed) {
-    for (let i = 0; i < channels; i++) {
-      const canvasDiv = document.createElement("div");
-      canvasDiv.classList.add("canvas-container");
-      canvasDiv.innerHTML = `
-        <div class="parent m-4 p-1 bg-black text-white rounded-2 position-relative" id="parent-${i}">
+  drawCharts(channels = 4, height = 280, speed) {
+    const wrapperDiv = document.createElement("div");
+    wrapperDiv.classList.add("charts-wrapper");
+    this.chartsContainer.appendChild(wrapperDiv);
+
+    for (let i = 0; i < channels; i += 2) {
+      const rowDiv = document.createElement("div");
+      rowDiv.classList.add("chart-row");
+      wrapperDiv.appendChild(rowDiv);
+
+      for (let j = i; j < Math.min(i + 2, channels); j++) {
+        const canvasDiv = document.createElement("div");
+        canvasDiv.classList.add("canvas-container");
+        canvasDiv.innerHTML = `
+          <div class="parent bg-black text-white rounded-2 position-relative" id="parent-${j}">
             <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-light text-dark fs-6">
-            ${this.isConnected ? `CH${i + 1}` : "No device connected!"}
+              ${this.isConnected ? `CH${j + 1}` : "No device connected!"}
             </span>
-            <canvas id="waveform${i}"></canvas>
-        </div>
-      `;
-      this.chartsContainer.appendChild(canvasDiv); // Append the chart container to the main container
-      document.getElementById(`parent-${i}`).style.height = `${height}px`; // Set the height of the chart container
+            <canvas id="waveform${j}"></canvas>
+          </div>
+        `;
+        rowDiv.appendChild(canvasDiv);
 
-      const canvas = document.getElementById(`waveform${i}`);
-      canvas.height = document.getElementById(`parent-${i}`).offsetHeight - 10;
-      canvas.width = document.getElementById(`parent-${i}`).offsetWidth - 10;
+        const parentDiv = canvasDiv.querySelector(`#parent-${j}`);
+        parentDiv.style.height = `${height}px`;
 
-      const smoothieChart = new SmoothieChart({
-        millisPerPixel: 2,
-        grid: {
-          strokeStyle: "rgba(0, 0, 0, 0.1)",
+        const canvas = document.getElementById(`waveform${j}`);
+        canvas.height = height - 10;
+        canvas.width = parentDiv.offsetWidth - 10;
+
+        const smoothieChart = new SmoothieChart({
+          millisPerPixel: 20,
+          grid: {
+            strokeStyle: "rgba(0, 0, 0, 0.1)",
+            lineWidth: 1,
+            millisPerLine: 250,
+            verticalSections: 6,
+          },
+          labels: {
+            fillStyle: "white",
+            fontWeight: "bold",
+            showIntermediateLabels: true,
+          },
+          tooltipLine: { strokeStyle: "#ffffff" },
+          maxValue: this.maxValue,
+          responsive: true,
+          millisPerLine: 1000,
+        });
+
+        const timeSeries = new TimeSeries();
+        smoothieChart.addTimeSeries(timeSeries, {
+          strokeStyle: "rgb(255, 255, 255)",
           lineWidth: 1,
-          millisPerLine: 250,
-          verticalSections: 6,
-        },
-        labels: {
-          fillStyle: "white",
-          fontWeight: "bold",
-          showIntermediateLabels: true,
-        },
-        tooltipLine: { strokeStyle: "#ffffff" },
-      });
+        });
+        smoothieChart.streamTo(canvas, 30);
 
-      const timeSeries = new TimeSeries();
-      smoothieChart.addTimeSeries(timeSeries, {
-        strokeStyle: "rgb(255, 255, 255)",
-        lineWidth: 1,
-      });
-      smoothieChart.streamTo(canvas, 30);
-
-      this.smoothieCharts.push(smoothieChart); // Add the chart to the list of charts
-      this.timeSeries.push(timeSeries); // Add the time series to the list of time series
+        this.smoothieCharts.push(smoothieChart);
+        this.timeSeries.push(timeSeries);
+      }
     }
 
-    this.updateSpeed(speed); // Set the speed of the charts
+    this.updateSpeed(speed);
   }
 
   // Update the speed of the charts based on user settings
   updateSpeed(speed) {
     const speeds = {
-      1: 8,
-      2: 4,
-      3: 2,
+      1: 20,
+      2: 10,
     };
     this.smoothieCharts.forEach((smoothie) => {
-      smoothie.options.millisPerPixel = speeds[speed] || 4; // Default to 4 if speed is not 1, 2, or 3
+      smoothie.options.millisPerPixel = speeds[speed] || 20; // Default to 20 if speed is not 1, 2, or 3
     });
   }
 
@@ -164,6 +170,22 @@ class SmoothieChartManager {
     }
     this.timeSeries = [];
     this.smoothieCharts = [];
+  }
+
+  async sendData() {
+    if (this.isConnected) {
+      const textEncoder = new TextEncoderStream();
+      const writableStreamClosed = textEncoder.readable.pipeTo(
+        this.port.writable
+      );
+
+      const writer = textEncoder.writable.getWriter();
+
+      await writer.write("b\n");
+      writer.close();
+    } else {
+      alert("No device connected!");
+    }
   }
 
   // Toggle connection to the device
@@ -183,6 +205,8 @@ class SmoothieChartManager {
 
       document.getElementById("connectButton").classList.add("connected");
       document.getElementById("startButton").disabled = false;
+      document.getElementById("speedToggleButton").disabled = false;
+      document.getElementById("autoScale").disabled = false;
 
       this.isConnected = true;
       this.startStreaming();
@@ -207,7 +231,13 @@ class SmoothieChartManager {
           if (dataValues.length > 1) {
             this.processData(dataValues);
           } else {
-            console.log(`Received Data: ${line}`);
+            this.maxValue = line.trim();
+            this.smoothieCharts.forEach((chart) => {
+              chart.options.maxValue = this.autoscale
+                ? undefined
+                : this.maxValue;
+            });
+            console.log(this.maxValue, this.autoscale);
           }
         }
       }
@@ -269,7 +299,7 @@ class SmoothieChartManager {
 
   // Update the chart labels based on connection status
   updateChartLabels(status = null) {
-    const channels = parseInt(localStorage.getItem("channelsValue")) || 1;
+    const channels = 4;
     for (let i = 0; i < channels; i++) {
       const badge = document.querySelector(`#parent-${i} .badge`);
       if (badge) {
@@ -515,15 +545,11 @@ class SmoothieChartManager {
           this.bufferCounter += 1; // Increment the buffer counter
         }
         if (this.isStreaming) {
-          // If streaming, update the chart
-          const channels = parseInt(localStorage.getItem("channelsValue")) || 6;
+          const channels = 4;
           for (let i = 0; i < channels; i++) {
             const data = sensorValues[i];
             if (!isNaN(data)) {
-              const data = parsedData[i + 1];
-              if (!isNaN(data)) {
-                this.timeSeries[i].append(Date.now(), data); // Update chart data
-              }
+              this.timeSeries[i].append(Date.now(), data);
             }
           }
         }
@@ -597,14 +623,10 @@ class SmoothieChartManager {
       // Show compatibility message if not supported
       document.getElementById("compatibilityMessage").style.display = "block";
       document.querySelector("nav").style.display = "none";
-      document.getElementById("exampleModal").style.display = "none";
       document.getElementById("chartsContainer").style.display = "none";
       return;
     }
-
-    // Load and save settings if supported
-    this.loadSettings();
-    this.saveSettings();
+    this.drawCharts(4, 280, this.isHighSpeed ? 2 : 1); // Create and display the charts with default speed
   }
 }
 
