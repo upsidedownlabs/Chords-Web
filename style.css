@@ -98,9 +98,11 @@
 }
 
 .charts-wrapper {
-  margin-top: 20px;
   width: 100%;
   display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 86vh;
   flex-direction: column;
   gap: 20px; /* Gap between rows */
 }
