@@ -44,7 +44,7 @@ class SmoothieChartManager {
       this.isHighSpeed ? "high-speed" : "low-speed"
     );
 
-    document.getElementById("upArrowIcon").style.display = "none";  
+    document.getElementById("upArrowIcon").style.display = "none";
     speedToggleButton.addEventListener("click", () => {
       // Toggle the speed state
       this.isHighSpeed = !this.isHighSpeed;
@@ -56,8 +56,7 @@ class SmoothieChartManager {
       if (this.isHighSpeed) {
         document.getElementById("upArrowIcon").style.display = "inline";
         document.getElementById("downArrowIcon").style.display = "none";
-      }
-      else {
+      } else {
         document.getElementById("upArrowIcon").style.display = "none";
         document.getElementById("downArrowIcon").style.display = "inline";
       }
@@ -101,7 +100,7 @@ class SmoothieChartManager {
     const wrapperDiv = document.createElement("div");
     wrapperDiv.classList.add("charts-wrapper");
     this.chartsContainer.appendChild(wrapperDiv);
-const color=["#FF4985", "#79E6F3", "#00FFC1", "yellow"];
+    const color = ["#FF4985", "#79E6F3", "#00FFC1", "yellow"];
     for (let i = 0; i < channels; i += 2) {
       const rowDiv = document.createElement("div");
       rowDiv.classList.add("chart-row");
@@ -142,6 +141,7 @@ const color=["#FF4985", "#79E6F3", "#00FFC1", "yellow"];
           },
           tooltipLine: { strokeStyle: "#ffffff" },
           maxValue: this.maxValue,
+          minValue: this.autoscale ? undefined : 0,
           responsive: true,
           millisPerLine: 1000,
         });
@@ -246,8 +246,8 @@ const color=["#FF4985", "#79E6F3", "#00FFC1", "yellow"];
               chart.options.maxValue = this.autoscale
                 ? undefined
                 : this.maxValue;
+              chart.options.minValue = this.autoscale ? undefined : 0;
             });
-            console.log(this.maxValue, this.autoscale);
           }
         }
       }
