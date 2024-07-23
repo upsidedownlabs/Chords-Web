@@ -22,30 +22,34 @@
     <!-- Import smoothie.js -->
     <script src="smoothie.js"></script>
   </head>
-  <body class="bg-secondary">
-    <nav class="navbar navbar-expand bg-black justify-content-center">
-      <div class="container-fluid">
-        <a
-          class="navbar-brand text-light btn btn-outline-light bg-dark m-1"
-          href="#"
-          >BioSignal Recorder</a
-        >
-        <button
-          class="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarScroll"
-          aria-controls="navbarScroll"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span class="navbar-toggler-icon"></span>
-        </button>
+  <body>
+    <nav class="navbar navbar-expand bg-black">
+      <div class="container-fluid main">
+        <div class="d-flex TitleLogo">
+          <a
+            class="navbar-brand title text-light btn btn-outline-light bg-dark m-1"
+            id="refreshButton"
+            href="javascript:void(0);"
+            >BioSignal Recorder</a
+          >
 
-        <form class="d-flex">
+          <script>
+            document
+              .getElementById("refreshButton")
+              .addEventListener("click", function () {
+                window.location.reload();
+              });
+          </script>
+          <img
+            class="logo"
+            src="https://docs.upsidedownlabs.tech/_static/logo_white_hr_nbg.svg"
+            alt="Upside Down Labs"
+          />
+        </div>
+
+        <form class="formItems">
           <ul
-            class="navbar-nav navbar-nav-scroll"
-            style="--bs-scroll-height: 100px"
+            class="navbar-nav navbar-nav-scroll d-flex flex-row justify-content-center"
           >
             <li class="nav-item m-1">
               <button
@@ -58,7 +62,7 @@
                   width="16"
                   height="16"
                   fill="currentColor"
-                  class="bi bi-usb-symbol"
+                  class="bi bi-usb-symbol mb-1"
                   viewBox="0 0 16 16"
                 >
                   <path
@@ -75,12 +79,13 @@
                 id="startButton"
                 disabled
               >
+                <!-- Start -->
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
                   height="16"
                   fill="currentColor"
-                  class="bi bi-caret-right-fill"
+                  class="bi bi-caret-right-fill mb-1"
                   viewBox="0 0 16 16"
                 >
                   <path
@@ -96,19 +101,24 @@
                 id="recordButton"
                 disabled
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  fill="red"
-                  class="bi bi-record"
-                  viewBox="0 0 16 16"
-                >
-                  <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
-                </svg>
+                <span class="record-icon-container">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="red"
+                    class="bi bi-record"
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
+                  </svg>
+                </span>
+                <span class="record-timer-separator">|</span>
+                <span id="recordingTimer" class="record-timer"></span>
               </button>
             </li>
             <li class="nav-item m-1">
+              <!-- Save -->
               <button
                 type="button"
                 class="btn btn-outline-light"
@@ -119,10 +129,10 @@
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
+                  width="12"
+                  height="12"
                   fill="currentColor"
-                  class="bi bi-download"
+                  class="bi bi-download mb-1"
                   viewBox="0 0 16 16"
                 >
                   <path
@@ -178,30 +188,207 @@
                 </div>
               </div>
             </li>
-          </ul>
 
-          <button
-            type="button"
-            class="btn btn-outline-light m-1"
-            data-bs-toggle="modal"
-            data-bs-target="#exampleModal"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              fill="currentColor"
-              class="bi bi-gear-fill"
-              viewBox="0 0 16 16"
+            <li class="nav-item m-1">
+              <button
+                type="button"
+                class="btn btn-outline-light speed-toggle"
+                id="speedToggleButton"
+              >
+                <span>Speed</span>
+                <span class="speed-separator">|</span>
+                <span id="speedIcon">
+                  <!-- Up Arrow Icon (Visible when high speed) -->
+                  <svg
+                    id="upArrowIcon"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    class="bi bi-arrow-up"
+                    viewBox="0 0 16 16"
+                  >
+                    >
+                    <path
+                      fill-rule="evenodd"
+                      d="M8 12a.5.5 0 0 0 .5-.5V3.707l2.646 2.647a.5.5 0 0 0 .708-.708l-3.5-3.5a.5.5 0 0 0-.708 0l-3.5 3.5a.5.5 0 0 0 .708.708L7.5 3.707V11.5a.5.5 0 0 0 .5.5z"
+                    />
+                  </svg>
+                  <!-- Down Arrow Icon (Visible when low speed) -->
+                  <svg
+                    id="downArrowIcon"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    class="bi bi-arrow-down"
+                    viewBox="0 0 16 16"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M8 4a.5.5 0 0 1 .5.5v7.793l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 12.293V4.5A.5.5 0 0 1 8 4z"
+                    />
+                  </svg>
+                </span>
+              </button>
+            </li>
+
+            <li class="nav-item m-1">
+              <button
+                type="button"
+                class="btn btn-outline-light scale-toggle"
+                id="autoScale"
+                disabled
+              >
+                AutoScale
+              </button>
+            </li>
+            <button
+              type="button"
+              class="btn btn-outline-light m-1"
+              data-bs-toggle="modal"
+              data-bs-target="#contributors"
             >
-              <path
-                d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"
-              />
-            </svg>
-          </button>
+              <svg
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="mb-1"
+                xmlns="http://www.w3.org/2000/svg"
+                xmlns:xlink="http://www.w3.org/1999/xlink"
+                viewBox="0 0 202.978 202.978"
+                xml:space="preserve"
+              >
+                <g>
+                  <g>
+                    <g>
+                      <g>
+                        <path
+                          d="M100.942,0.001C44.9,0.304-0.297,45.98,0.006,102.031
+					c0.293,56.051,45.998,101.238,102.02,100.945c56.081-0.303,101.248-45.978,100.945-102.02
+					C202.659,44.886,157.013-0.292,100.942,0.001z M101.948,186.436c-46.916,0.234-85.108-37.576-85.372-84.492
+					c-0.244-46.907,37.537-85.157,84.453-85.411c46.926-0.254,85.167,37.596,85.421,84.483
+					C186.695,147.951,148.855,186.182,101.948,186.436z M116.984,145.899l-0.42-75.865l-39.149,0.254l0.078,16.6l10.63-0.059
+					l0.313,59.237l-11.275,0.039l0.088,15.857l49.134-0.264l-0.098-15.847L116.984,145.899z M102.065,58.837
+					c9.575-0.039,15.349-6.448,15.3-14.323c-0.254-8.07-5.882-14.225-15.095-14.186c-9.184,0.059-15.173,6.292-15.134,14.362
+					C87.185,52.555,93.028,58.906,102.065,58.837z"
+                        />
+                      </g>
+                    </g>
+                  </g>
+                </g>
+              </svg>
+            </button>
+          </ul>
         </form>
       </div>
     </nav>
+
+    <!-- Contributos Modal -->
+    <div
+      class="modal fade"
+      id="contributors"
+      tabindex="-1"
+      aria-labelledby="contributorsLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-md">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="contributorsLabel">Contributors</h5>
+          </div>
+          <div class="modal-body">
+            <div class="d-flex justify-content-center flex-wrap gap-3">
+              <a
+                href="https://github.com/lorforlinux"
+                target="_blank"
+                data-toggle="tooltip"
+                title="Deepak Khatri"
+                class="btn btn-outline-light"
+              >
+                <img
+                  src="https://avatars.githubusercontent.com/u/20015794?v=4"
+                  class="rounded-circle"
+                  width="50"
+                  height="50"
+                  alt="Deepak"
+                />
+              </a>
+              <a
+                href="https://github.com/akadeepesh"
+                target="_blank"
+                data-toggle="tooltip"
+                title="Deepesh Kumar"
+                class="btn btn-outline-light"
+              >
+                <img
+                  src="https://avatars.githubusercontent.com/u/100466756?v=4"
+                  class="rounded-circle"
+                  width="50"
+                  height="50"
+                  alt="Deepesh"
+                />
+              </a>
+              <a
+                href="https://github.com/Asc91"
+                target="_blank"
+                data-toggle="tooltip"
+                title="Mahesh Tupe"
+                class="btn btn-outline-light"
+              >
+                <img
+                  src="https://avatars.githubusercontent.com/u/55803500?v=4"
+                  class="rounded-circle"
+                  width="50"
+                  height="50"
+                  alt="Mahesh"
+                />
+              </a>
+              <a
+                href="https://github.com/Ritika8081"
+                target="_blank"
+                data-toggle="tooltip"
+                title="Ritika Mishra"
+                class="btn btn-outline-light"
+              >
+                <img
+                  src="https://avatars.githubusercontent.com/u/103934960?v=4"
+                  class="rounded-circle"
+                  width="50"
+                  height="50"
+                  alt="Ritika"
+                />
+              </a>
+            </div>
+          </div>
+          <div class="modal-footer justify-content-between">
+            <div class="d-flex gap-3">
+              <a href="https://store.upsidedownlabs.tech/" target="_blank"
+                ><button type="button" class="btn btn-primary">Store</button></a
+              >
+              <a href="https://docs.upsidedownlabs.tech/" target="_blank"
+                ><button type="button" class="btn btn-primary">
+                  Documentation
+                </button></a
+              >
+            </div>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        '[data-toggle="tooltip"]'.tooltip();
+      });
+    </script>
 
     <!-- Modal -->
     <div
@@ -211,7 +398,7 @@
       aria-labelledby="exampleModalLabel"
       aria-hidden="true"
     >
-      <div class="modal-dialog modal-xl">
+      <div class="modal-dialog modal-md">
         <div class="modal-content">
           <div class="modal-header">
             <h1 class="modal-title fs-5" id="exampleModalLabel">
@@ -229,7 +416,7 @@
               <div class="row">
                 <div class="btn-group btn-lg m-2 p-2" role="group">
                   <span class="btn text-light bg-dark active col-1">Speed</span>
-                  <span class="btn text-light bg-dark active d-flex col-9">
+                  <span class="btn text-light bg-dark active d-flex col-3">
                     <input
                       type="range"
                       class="form-range"
@@ -250,7 +437,7 @@
                   <span class="btn text-light bg-dark active col-1"
                     >Height</span
                   >
-                  <span class="btn text-light bg-dark active d-flex col-9"
+                  <span class="btn text-light bg-dark active d-flex col-3"
                     ><input
                       type="range"
                       class="form-range"
@@ -269,14 +456,15 @@
                   <span class="btn text-light bg-dark active col-1"
                     >Channels</span
                   >
-                  <span class="btn text-light bg-dark active d-flex col-9"
-                    ><input
+                  <span class="btn text-light bg-dark active d-flex col-3">
+                    <input
                       type="range"
                       class="form-range"
                       min="1"
                       max="6"
                       id="channelsRange"
-                  /></span>
+                    />
+                  </span>
                   <span
                     class="btn text-light bg-dark active col-1"
                     id="channelsValue"
@@ -306,7 +494,7 @@
       </div>
     </div>
 
-    <div id="chartsContainer" class="container-fluid p-1"></div>
+    <div id="chartsContainer" class="container-fluid p-3"></div>
     <div id="compatibilityMessage" class="compatibility-message">
       <p>
         This application does not work on your current browser. See

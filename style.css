@@ -1,11 +1,17 @@
+body {
+  background-color: #14171d;
+}
 .connected {
-  background-color: green !important; /* Add !important to override other styles */
-  color: white; /* Change text color to white for better contrast */
-  border-color: green; /* Change border color to match background color */
+  background-color: rgba(0, 250, 0, 0.5);
+  color: white;
+  border-color: green;
 }
-canvas {
-  width: 100%;
+
+.connected:hover {
+  background-color: #aa2b00;
+  border-color: #cc3300;
 }
+
 .compatibility-message {
   display: none;
   position: fixed;
@@ -17,4 +23,150 @@ canvas {
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
   z-index: 9999;
+}
+
+#recordButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px; /* Match the height of other buttons */
+  padding: 0 10px;
+  min-width: 38px; /* Ensure minimum width when not recording */
+}
+
+.record-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.record-timer-separator {
+  display: none;
+  margin: 0 5px;
+  font-size: 14px;
+}
+
+#recordingTimer {
+  display: none;
+  font-size: 12px;
+}
+
+#recordButton.recording {
+  width: auto; /* Allow button to expand when recording */
+}
+
+#recordButton.recording .record-timer-separator,
+#recordButton.recording #recordingTimer {
+  display: inline-block;
+}
+
+.speed-toggle.high-speed {
+  background-color: white;
+  color: black;
+}
+
+.speed-toggle.low-speed {
+  background-color: black;
+  color: white;
+}
+
+.speed-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.autoscale {
+  background-color: white;
+  color: black;
+}
+
+.fixed {
+  background-color: black;
+  color: white;
+}
+
+.speed-separator {
+  margin: 0 5px;
+}
+
+#speedIcon {
+  display: flex;
+  align-items: center;
+}
+
+#recordButton.recording .record-icon-container svg {
+  fill: currentColor; /* Change to stop icon color */
+}
+
+.charts-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  flex-direction: column;
+  gap: 20px; /*Gap between rows*/
+}
+
+.chart-row {
+  display: flex;
+  width: 100%;
+  gap: 20px; /* Gap between charts in a row */
+}
+
+.canvas-container {
+  flex: 1;
+  min-width: 0; /* Allows flex items to shrink below content size */
+}
+
+.parent {
+  width: 100%;
+  height: 100%;
+}
+
+.TitleLogo {
+  justify-content: space-between;
+  width: 57%;
+}
+
+.title {
+  height: min-content;
+}
+
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 768px) {
+  .chart-row {
+    flex-direction: column;
+  }
+  .main {
+    flex-direction: column;
+  }
+  .TitleLogo {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .title {
+    font-size: medium;
+    height: min-content;
+  }
+  .logo {
+    width: 200px;
+    height: auto;
+  }
+}
+
+@media (max-width: 408px) {
+  .logo {
+    width: 150px;
+    height: auto;
+  }
+  .title {
+    font-size: small;
+  }
 }

@@ -25,62 +25,102 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
 // Samples per second
 #define SAMPLE_RATE 250
 
 // Make sure to set the same baud rate on your Serial Monitor/Plotter
 #define BAUD_RATE 115200
 
-// Change if not using A0 analog pin
-#define INPUT_PIN A0
+#define BUFFER_SIZE 100
 
+#define CHANNEL_COUNT 6
 
-void setup() {
-	// Serial connection begin
-	Serial.begin(BAUD_RATE);
-  analogReadResolution(14);
+#define MaxValue 1024 // Sending maximum value of 10 bit arduino, to update chart limits
+
+volatile uint8_t head = 0;
+volatile uint8_t tail = 0;
+volatile bool dataReady = false;
+uint16_t buffer[BUFFER_SIZE][CHANNEL_COUNT];
+
+void setup()
+{
+  Serial.begin(BAUD_RATE);
+
+  // Set ADC prescaler to 16 for faster reads
+  ADCSRA = (ADCSRA & ~0x07) | 0x04;
+
+  // Set ADC reference to AVCC
+  ADMUX = (1 << REFS0);
+
+  // Set up timer interrupt for sampling
+  cli();
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCNT1 = 0;
+  OCR1A = 16000000 / (8 * SAMPLE_RATE) - 1;
+  TCCR1B |= (1 << WGM12) | (1 << CS11);
+  TIMSK1 |= (1 << OCIE1A);
+  sei();
 }
 
-void loop() {
-	// Calculate elapsed time
-	static unsigned long past = 0;
-	unsigned long present = micros();
-	unsigned long interval = present - past;
-	past = present;
+ISR(TIMER1_COMPA_vect)
+{
+  static uint8_t channel = 0;
 
-	// Run timer
-	static long timer = 0;
-	timer -= interval;
+  if (channel == 0)
+  {
+    if (((head + 1) & (BUFFER_SIZE - 1)) == tail)
+    {
+      tail = (tail + 1) & (BUFFER_SIZE - 1);
+    }
+  }
 
-  static bool data = 0;
-  static long counter = 0;
+  // Start conversion for next channel
+  ADMUX = (ADMUX & 0xF0) | (channel & 0x07);
+  ADCSRA |= (1 << ADSC);
 
-	// Sample
-	if(timer < 0){
-    data = !data;
-		timer += 1000000 / SAMPLE_RATE;
-    Serial.print(counter);
-    Serial.print(',');
-    counter++;
-    Serial.print(millis());
-    Serial.print(',');
-		int sensor0 = analogRead(A0);
-    Serial.print(sensor0);
-    Serial.print(',');
-    int sensor1 = analogRead(A1);
-    Serial.print(sensor1);
-    Serial.print(',');
-    int sensor2 = analogRead(A2);
-    Serial.print(sensor2);
-    Serial.print(',');
-    int sensor3 = analogRead(A3);
-    Serial.print(sensor3);
-    Serial.print(',');
-    int sensor4 = analogRead(A4);
-    Serial.print(sensor4);
-    Serial.print(',');
-    int sensor5 = analogRead(A5);
-    Serial.println(sensor5);
-	}
+  // Wait for conversion to complete
+  while (ADCSRA & (1 << ADSC))
+    ;
+
+  // Read ADC value
+  buffer[head][channel] = ADC;
+
+  channel = (channel + 1) % CHANNEL_COUNT;
+
+  if (channel == 0)
+  {
+    head = (head + 1) & (BUFFER_SIZE - 1);
+    dataReady = true;
+  }
+}
+
+void loop()
+{
+  if (dataReady)
+  {
+    dataReady = false;
+    static uint8_t counter = 0;
+    while (head != tail)
+    {
+      Serial.print(counter++); // This will automatically wrap around to 0 after 255
+      for (int i = 0; i < CHANNEL_COUNT; i++)
+      {
+        Serial.print(',');
+        Serial.print(buffer[tail][i]);
+      }
+      Serial.println();
+      tail = (tail + 1) & (BUFFER_SIZE - 1);
+    }
+  }
+  if (Serial.available() > 0)
+  {
+    char receivedChar = Serial.read();
+    switch (receivedChar)
+    {
+    case 'b':
+      Serial.println(MaxValue);
+      break;
+    }
+  }
 }
