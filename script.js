@@ -44,6 +44,7 @@ class SmoothieChartManager {
       this.isHighSpeed ? "high-speed" : "low-speed"
     );
 
+    document.getElementById("upArrowIcon").style.display = "none";  
     speedToggleButton.addEventListener("click", () => {
       // Toggle the speed state
       this.isHighSpeed = !this.isHighSpeed;
@@ -52,9 +53,18 @@ class SmoothieChartManager {
       speedToggleButton.classList.toggle("high-speed");
       speedToggleButton.classList.toggle("low-speed");
 
+      if (this.isHighSpeed) {
+        document.getElementById("upArrowIcon").style.display = "inline";
+        document.getElementById("downArrowIcon").style.display = "none";
+      }
+      else {
+        document.getElementById("upArrowIcon").style.display = "none";
+        document.getElementById("downArrowIcon").style.display = "inline";
+      }
+
       // Update the charts
       this.destroyCharts();
-      this.drawCharts(4, 280, this.isHighSpeed ? 2 : 1);
+      this.drawCharts(4, 37, this.isHighSpeed ? 2 : 1);
     });
 
     const autoscaleToggleButton = document.getElementById("autoScale");
@@ -87,11 +97,11 @@ class SmoothieChartManager {
   }
 
   // Create and display the charts
-  drawCharts(channels = 4, height = 280, speed) {
+  drawCharts(channels = 4, height = 37, speed) {
     const wrapperDiv = document.createElement("div");
     wrapperDiv.classList.add("charts-wrapper");
     this.chartsContainer.appendChild(wrapperDiv);
-
+const color=["#FF4985", "#79E6F3", "#00FFC1", "yellow"];
     for (let i = 0; i < channels; i += 2) {
       const rowDiv = document.createElement("div");
       rowDiv.classList.add("chart-row");
@@ -111,11 +121,11 @@ class SmoothieChartManager {
         rowDiv.appendChild(canvasDiv);
 
         const parentDiv = canvasDiv.querySelector(`#parent-${j}`);
-        parentDiv.style.height = `${height}px`;
+        parentDiv.style.height = `${height}vh`;
 
         const canvas = document.getElementById(`waveform${j}`);
-        canvas.height = height - 10;
-        canvas.width = parentDiv.offsetWidth - 10;
+        canvas.height = height - 2;
+        canvas.width = parentDiv.offsetWidth - 2;
 
         const smoothieChart = new SmoothieChart({
           millisPerPixel: 20,
@@ -138,7 +148,7 @@ class SmoothieChartManager {
 
         const timeSeries = new TimeSeries();
         smoothieChart.addTimeSeries(timeSeries, {
-          strokeStyle: "rgb(255, 255, 255)",
+          strokeStyle: color[j],
           lineWidth: 1,
         });
         smoothieChart.streamTo(canvas, 30);
@@ -626,7 +636,7 @@ class SmoothieChartManager {
       document.getElementById("chartsContainer").style.display = "none";
       return;
     }
-    this.drawCharts(4, 280, this.isHighSpeed ? 2 : 1); // Create and display the charts with default speed
+    this.drawCharts(4, 37, this.isHighSpeed ? 2 : 1); // Create and display the charts with default speed
   }
 }
 

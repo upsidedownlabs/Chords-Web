@@ -1,3 +1,6 @@
+body {
+  background-color: #14171d;
+}
 .connected {
   background-color: rgba(0, 250, 0, 0.5);
   color: white;
@@ -102,9 +105,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 86vh;
+  margin-top: 20px;
   flex-direction: column;
-  gap: 20px; /* Gap between rows */
+  gap: 20px; /*Gap between rows*/
 }
 
 .chart-row {

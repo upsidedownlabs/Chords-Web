@@ -22,7 +22,7 @@
     <!-- Import smoothie.js -->
     <script src="smoothie.js"></script>
   </head>
-  <body class="bg-secondary">
+  <body>
     <nav class="navbar navbar-expand bg-black">
       <div class="container-fluid main">
         <div class="d-flex TitleLogo">
@@ -194,26 +194,45 @@
                 type="button"
                 class="btn btn-outline-light speed-toggle"
                 id="speedToggleButton"
-                disabled
               >
                 <span>Speed</span>
                 <span class="speed-separator">|</span>
                 <span id="speedIcon">
+                  <!-- Up Arrow Icon (Visible when high speed) -->
                   <svg
+                    id="upArrowIcon"
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
                     height="16"
                     fill="currentColor"
-                    class="bi bi-lightning-fill"
+                    class="bi bi-arrow-up"
+                    viewBox="0 0 16 16"
+                  >
+                    >
+                    <path
+                      fill-rule="evenodd"
+                      d="M8 12a.5.5 0 0 0 .5-.5V3.707l2.646 2.647a.5.5 0 0 0 .708-.708l-3.5-3.5a.5.5 0 0 0-.708 0l-3.5 3.5a.5.5 0 0 0 .708.708L7.5 3.707V11.5a.5.5 0 0 0 .5.5z"
+                    />
+                  </svg>
+                  <!-- Down Arrow Icon (Visible when low speed) -->
+                  <svg
+                    id="downArrowIcon"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    class="bi bi-arrow-down"
                     viewBox="0 0 16 16"
                   >
                     <path
-                      d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"
+                      fill-rule="evenodd"
+                      d="M8 4a.5.5 0 0 1 .5.5v7.793l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 12.293V4.5A.5.5 0 0 1 8 4z"
                     />
                   </svg>
                 </span>
               </button>
             </li>
+
             <li class="nav-item m-1">
               <button
                 type="button"
