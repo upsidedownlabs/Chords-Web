@@ -1,36 +1,49 @@
-# BioSignal-Recorder-Web
+<p align="center">
+   <h1 align="center">BioAmp Visualizer</h1><hr/>
+</p>
 
-Web Serial based BioSignal recorder applicaion.
-![BioSingal Recorder UI](images/img1.png)
-![Selecting COM Port](images/img2.png)
-![Data Graph Plotting](images/img3.png)
-![Select Location to save file](images/img4.png)
-![Downloading In Progress](images/img5.png)
+The <i>BioAmp Visualizer</i> is a web application designed for real-time signal visualization, particularly tailored for <i>bio-potential signals</i>. This tool serves as an advanced alternative to the standard Arduino serial plotter, offering enhanced functionality for researchers and enthusiasts working with BioAmp hardware. The application provides a user-friendly interface for displaying <i>time-series data streams</i>, with features including <i>adjustable graph speed</i>, and the <i>ability to pause, resume, and record data to CSV format</i>. By combining these capabilities, the BioAmp Visualizer aims to streamline the process of analyzing and interpreting bio-potential signals.<hr/>
 
-This repository contains code for a BioSignal Recorder web application. The application allows users to connect to an Arduino, stream data from it, visualize the data in real-time using waveform charts, and record the data into a CSV file.
+<p align= "center">
+  <img src="https://github.com/user-attachments/assets/f07fad1f-e19e-424e-b2f2-817d9c84fecf"/><br/>
+  <h4 align="center">Default UI of BioAmp Visualizer</h4>
+  <br/>
+  <img src="https://github.com/user-attachments/assets/cb8580d1-bdc2-4974-8d1f-41208139648f"/>
+  <h4 align="center">Selecting COM port</h4>
+  <br/>
+  <img src="https://github.com/user-attachments/assets/049c0849-cbaa-4c09-a4bc-aebfe48ad16a"/>
+  <h4 align="center">Data Plotting</h4>
+  <br/>
+  <img src="https://github.com/user-attachments/assets/c2c92800-a1c5-46e0-bdc8-e60a61ab8391"/>
+  <h4 align="center">Data Recording</h4>
+  <br/>
+  <img src="https://github.com/user-attachments/assets/ac74eba9-fd83-43e5-9a6d-cf9f97a30d64"/>
+  <h4 align="center">Saving Modal</h4>
+  <br/>
+  <img src="https://github.com/user-attachments/assets/0e328aae-d5fc-47a1-8fb1-6c472e5bdef5"/>
+  <h4 align="center">Saving Progress</h4>
+</p>
 
 ## Features
 
-- **Real-time Visualization:** Visualize incoming data from the Arduino in real-time using SmoothieCharts.
-- **Adjustable Settings:** Users can adjust settings such as the number of channels, waveform height, and streaming speed.
-- **Connect and Disconnect:** Users can connect and disconnect from the Arduino easily.
-- **Recording:** Users can record the incoming data into a CSV file.
+- **Signal Visualization:** Real-time display of Arduino four channel time series data using SmoothieCharts library.
+- **Speed Adjustment:** Users can adjust speed of graph, speed can be toggled by provided speed button.
+- **Data Management:** Signals data can be recorded and exported as CSV file.
+- **Visualization Control:** Pause/Resume functionality for stream analysis.
 
 ## Prerequisites
 
-- Google Chrome web browser
-- Access to an Arduino and Arduino IDE for flashing firmware
+- Chromium based web browser
+- Access to an Arduino and Arduino IDE for flashing firmware.
 
 ## How to Use
 
 1. Connect the Arduino to your computer using a USB cable.
 2. Open the Arduino IDE and flash the provided firmware onto the Arduino.
-3. Open the [BioSignal-Recorder-Web](https://docs.upsidedownlabs.tech/BioSignal-Recorder-Web/) in a web browser.
-4. Adjust the settings as desired (number of channels, waveform height, etc.).
-5. Click the "Connect" button to establish a connection with the Arduino.
-6. Once connected, click the "Start" button to begin streaming data.
-7. Click the "Record" button to start recording data into a CSV file.
-8. To save the recorded data, click the "Save" button.
+3. Open the [BioAmp Visualizer](https://docs.upsidedownlabs.tech/BioSignal-Recorder-Web/) in a web browser.
+4. Click the Connect button to establish a connection with the port on which Arduino is connected.
+5. Click the Record button to start recording data into a CSV file.
+6. To save the recorded data, click the Download button.
 
 ## Libraries Used
 
