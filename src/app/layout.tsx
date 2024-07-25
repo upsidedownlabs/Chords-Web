@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/Theming/theme-provider";
-import { Inter } from "next/font/google";
+import { Inter, Lobster_Two } from "next/font/google";
+import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "BioSignal Recorder",
+  title: "plot it",
   description: "Web Serial based BioSignal recorder applicaion.",
 };
+
+const lobsterTwo = Lobster_Two({
+  subsets: ["latin"],
+  variable: "--font-lobster_two",
+  weight: "400",
+});
 
 export default function RootLayout({
   children,
@@ -18,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={cn(lobsterTwo.variable, inter.className)}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -26,7 +33,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
-          <Toaster />
+          <Toaster richColors />
         </ThemeProvider>
       </body>
     </html>
