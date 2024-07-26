@@ -1,8 +1,9 @@
+import React from "react";
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/Theming/theme-provider";
-import { Inter, Lobster_Two } from "next/font/google";
-import { cn } from "@/lib/utils";
-import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "../components/Theming/theme-provider";
+import { Inter, Lobster_Two, Yanone_Kaffeesatz } from "next/font/google";
+import { cn } from "../lib/utils";
+import { Toaster } from "../components/ui/sonner";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -18,6 +19,12 @@ const lobsterTwo = Lobster_Two({
   weight: "400",
 });
 
+const yanoneKaffeesatz = Yanone_Kaffeesatz({
+  subsets: ["latin"],
+  variable: "--font-yanone_kaffeesatz",
+  weight: "400",
+});
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,7 +32,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn(lobsterTwo.variable, inter.className)}>
+      <body
+        className={cn(
+          lobsterTwo.variable,
+          inter.className,
+          yanoneKaffeesatz.variable
+        )}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

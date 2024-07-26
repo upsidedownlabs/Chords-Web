@@ -20,6 +20,7 @@ const config = {
     extend: {
       fontFamily: {
         lobster: ["var(--font-lobster_two)"],
+        yanone: ["var(--font-yanone_kaffeesatz)"],
       },
       colors: {
         border: "hsl(var(--border))",

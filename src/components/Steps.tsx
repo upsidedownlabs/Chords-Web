@@ -21,6 +21,7 @@ import { Separator } from "./ui/separator";
 import { MoveRight } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "./ui/badge";
+import Image from "next/image";
 
 const Steps = () => {
   const ImageLinks = [
@@ -189,8 +190,10 @@ const Steps = () => {
                         )}
                       </div>
                     ) : (
-                      <img
+                      <Image
                         alt={`Step ${index + 1}`}
+                        width={500}
+                        height={500}
                         src={ImageLinks[Math.floor(index / 2)]}
                         className="rounded-xl max-h-full max-w-full object-contain"
                       />

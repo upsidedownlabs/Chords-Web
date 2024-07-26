@@ -1,12 +1,12 @@
 import React from "react";
 import Navbar from "../components/Navbar";
-import DataPass from "../components/DataPass";
+import SerialCheck from "../components/SerialCheck";
 
 const Page = () => {
   return (
     <div className="h-screen">
       <Navbar />
-      <DataPass />
+      <SerialCheck />
     </div>
   );
 };
