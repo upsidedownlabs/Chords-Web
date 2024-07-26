@@ -35,7 +35,6 @@ jobs:
       - name: Build Next.js
         run: |
           npm run build
-          npm run export
         env:
           NEXT_PUBLIC_BASE_PATH: /BioSignal-Recorder-Web
 
