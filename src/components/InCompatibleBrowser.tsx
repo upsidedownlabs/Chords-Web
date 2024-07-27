@@ -25,46 +25,35 @@ const InCompatibleBrowser = () => {
       image:
         "https://img.icons8.com/?size=100&id=63646&format=png&color=000000",
     },
-    {
-      name: "Brave",
-      image:
-        "https://img.icons8.com/?size=100&id=63785&format=png&color=000000",
-    },
   ];
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl w-full mt-14">
+    <div className="container mx-auto px-4 py-8 max-w-3xl w-full">
       <div className="flex flex-col gap-10 justify-center items-center">
-        <Image
-          src="/android-chrome-192x192.png"
-          width={200}
-          height={200}
-          alt="Browser"
-        />
-        <h1 className="text-6xl font-bold text-center mb-8 flex items-center justify-center gap-2 font-yanone">
-          <span className="text-destructive">!</span> Browser Not Supported
+        <h1 className="text-6xl text-destructive font-bold text-center mb-8 flex items-center justify-center gap-0 lg:gap-2 font-yanone">
+          ! Browser Not Supported
         </h1>
       </div>
 
-      <Separator className="my-8" />
-      <div className="text-xl text-center mb-8">
-        Only the browser listed below are supported by this application.
+      <Separator className="my-7" />
+      <div className="text-4xl font-semibold text-center mb-8">
+        Supported Browsers
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-12">
         {browsers.map((browser) => (
           <Card key={browser.name} className="p-6 flex flex-col items-center">
             <Image
               width={70}
               height={70}
               src={browser.image}
-              alt="Google Chrome"
+              alt="Supported Browser"
             />
             <p className="text-center font-medium">{browser.name}</p>
           </Card>
         ))}
       </div>
 
-      <Separator className="my-8" />
+      <Separator className=" my-7" />
       <h2 className="text-4xl font-semibold text-center mb-8">
         Frequently Asked Questions
       </h2>
@@ -83,8 +72,8 @@ const InCompatibleBrowser = () => {
           <AccordionTrigger>How can I access the application?</AccordionTrigger>
           <AccordionContent>
             To access the application, please use a Chromium-based browser such
-            as Google Chrome, Microsoft Edge, Opera, or Brave. These browsers
-            support the Web Serial API required for this application to function
+            as Google Chrome, Microsoft Edge or Opera. These browsers support
+            the Web Serial API required for this application to function
             properly. You can download one of these browsers from their official
             websites.
           </AccordionContent>

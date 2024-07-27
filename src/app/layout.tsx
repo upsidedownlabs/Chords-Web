@@ -1,7 +1,12 @@
 import React from "react";
 import type { Metadata } from "next";
 import { ThemeProvider } from "../components/Theming/theme-provider";
-import { Inter, Lobster_Two, Yanone_Kaffeesatz } from "next/font/google";
+import {
+  Inter,
+  Lobster_Two,
+  Yanone_Kaffeesatz,
+  Poppins,
+} from "next/font/google";
 import { cn } from "../lib/utils";
 import { Toaster } from "../components/ui/sonner";
 import "./globals.css";
@@ -16,6 +21,12 @@ export const metadata: Metadata = {
 const lobsterTwo = Lobster_Two({
   subsets: ["latin"],
   variable: "--font-lobster_two",
+  weight: "400",
+});
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  variable: "--font-poppins",
   weight: "400",
 });
 
@@ -36,7 +47,8 @@ export default function RootLayout({
         className={cn(
           lobsterTwo.variable,
           inter.className,
-          yanoneKaffeesatz.variable
+          yanoneKaffeesatz.variable,
+          poppins.variable
         )}
       >
         <ThemeProvider
