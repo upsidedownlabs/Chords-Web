@@ -24,7 +24,7 @@ export function Features() {
     {
       title: "AutoScale & Board Detection",
       description:
-        "Automatically detect the board (ADC) and scale the graph accordingly. No need to manually set the scale.",
+        "Automatically detects ADC of developement board to scale the graph accordingly. No need to manually set the scale.",
       image: "/assets/Arduino.png",
     },
     {
@@ -53,7 +53,7 @@ export function Features() {
               key={index}
               className="flex flex-col items-center lg:md:sm:justify-center justify-normal space-y-2 p-3 min-h-52 shadow-none hover:border hover:shadow hover:shadow-muted-foreground"
             >
-              <div className="flex justify-center items-center flex-col">
+              <div className="flex justify-center gap-2 items-center flex-col">
                 <div className="flex items-center justify-center w-16 h-16 p-4 text-background bg-primary rounded-full">
                   <Image
                     src={feature.image}

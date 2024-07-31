@@ -21,7 +21,7 @@ const TechStack = dynamic(() => import("../components/LandingComp/TechStack"), {
 });
 
 const SkeletonUI = () => (
-  <div className="container max-w-6xl mx-auto p-4 space-y-16">
+  <div className="container max-w-6xl mx-auto p-4 mt-24 space-y-8">
     <div className="flex flex-col gap-4">
       <Skeleton className="h-24 w-3/4 mx-auto" />
       <Skeleton className="h-12 w-2/3 mx-auto" />

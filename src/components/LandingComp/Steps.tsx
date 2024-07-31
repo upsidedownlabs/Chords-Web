@@ -49,19 +49,19 @@ const Steps = () => {
             {
               title: "Gather Hardware",
               description:
-                "Take a compatible board, BioAmp cable, jumper and electrodes. Make connections.",
+                "Take a developement board, BioAmp hardware, cables & electrodes. Make the connections.",
               image: "/steps/connections.png",
             },
             {
-              title: "Flash Code to Board",
+              title: "Upload The Code",
               description:
-                "Upload the provided code to your board using Arduino IDE.",
+                "Upload the provided code to your developement board using Arduino IDE.",
               image: "/steps/UploadCode.jpg",
             },
             {
               title: "Start Visualizing",
               description:
-                "Open plot it, click connect, choose port and start visualizing the signals.",
+                "Open plot it, click connect, choose COM port and start visualizing the signals.",
               image: "/steps/plotIt.jpg",
             },
           ].map((step, index) => (

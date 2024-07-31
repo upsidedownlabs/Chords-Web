@@ -68,14 +68,11 @@ const Steps = () => {
                 <CardContent className="flex aspect-square items-center justify-center p-2 sm:p-4 lg:p-6">
                   <div className="flex justify-center items-center flex-col gap-4 text-xs sm:text-sm h-full">
                     <p className=" text-lg font-semibold">
-                      Connect your BioAmp Pill to your MCU/ADC as per the
+                      Connect your BioAmp hardware to your MCU/ADC as per the
                       connection table shown below:
                     </p>
                     <div className="w-full max-w-[200px] sm:max-w-none">
                       <Table className="w-full">
-                        <TableCaption>
-                          BioAmp to MCU/ADC connection.
-                        </TableCaption>
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-1/2">BioAmp</TableHead>
@@ -132,11 +129,11 @@ const Steps = () => {
                 <CardContent className="flex flex-col aspect-square items-center justify-between p-2 sm:p-4 lg:p-6">
                   <div className="text-xs sm:text-sm lg:text-base mb-4">
                     <h3 className="text-base sm:text-xl font-semibold mb-2">
-                      Electrode cable & preparing electrodes
+                      BioAmp Cable Connections
                     </h3>
                     <ol className="list-decimal pl-4">
                       <li>
-                        Connect the BioAmp cable to BioAmp EXG Pill by inserting
+                        Connect the BioAmp cable to BioAmp hardware by inserting
                         the cable end in the JST PH connector.
                       </li>
                       <li>Connect the BioAmp cable to gel electrodes.</li>

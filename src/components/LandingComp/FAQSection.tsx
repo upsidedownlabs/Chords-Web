@@ -14,7 +14,7 @@ const FAQSection = () => {
       question: `What is the purpose of plot it?`,
       answer: (
         <>
-          <PlotIt /> is made to plot bio potential signals like ECG, EMG or EOG
+          <PlotIt /> is made to plot biopotential signals like ECG, EMG or EOG
           in real time. It is made for educational & research purposes.
         </>
       ),
@@ -23,8 +23,9 @@ const FAQSection = () => {
       question: `What kind of data plot it collects?`,
       answer: (
         <>
-          It does not collect any private data from the user. It only collects
-          the signal data from the device connected to the serial port.
+          It collects the biopotential data from the device connected to the
+          serial port. It does not collect any private data or cookies from the
+          user.
         </>
       ),
     },
@@ -93,7 +94,7 @@ const FAQSection = () => {
           >
             IndexedDB API
           </Link>
-          , which allows to store upto 60% of the disk space of your device(PC).
+          , which allows to store upto 80% of the disk space of your laptop.
           <br />
         </>
       ),
@@ -129,7 +130,7 @@ const FAQSection = () => {
     },
     {
       question:
-        "Can I port the communication software to new microcontrollers?",
+        "Can I use any microcontroller other than the ones mentioned above?",
       answer: (
         <>
           Yes, you just have to make sure that microcontroller is providing a
@@ -139,22 +140,22 @@ const FAQSection = () => {
       ),
     },
     {
-      question: "How to check if I have dropped samples",
+      question: "How to check if I have dropped samples/data?",
       answer: (
         <>
           There are two checks for dropped samples, first is the counter value,
           if it is not incrementing by 1 then there are dropped samples. Second
           if data rate is below 245 samples per second. In both cases you can
-          find how much data you loosed in console.
+          find how much data you lost in console.
         </>
       ),
     },
     {
-      question: "How to check the drift of my recorded data",
+      question: "How to check the drift of my recorded data?",
       answer: (
         <>
           The default sampling rate we are using is 250 samples/second. The
-          number of samples which was expected in the given time and the number
+          number of samples which were expected in the given time and the number
           of samples which were actually recorded can be used to calculate the
           drift in data. For example for 10 mintues of recording we should have
           250*60*10 = 150000 samples. If we have less than 150000 samples then

@@ -64,7 +64,7 @@ const Stack = () => {
       <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
         <div className="space-y-3">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-            <PlotIt /> is open-sourced, and free to use.
+            <PlotIt /> is open-source, and free to use.
           </h2>
           <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
             It is powered by the following technologies, that makes it super
@@ -72,7 +72,7 @@ const Stack = () => {
           </p>
         </div>
         <div className="max-w-3xl mx-auto">
-          <div className="grid gap-4 mt-8 lg:md:sm:grid-cols-3 grid-cols-2">
+          <div className="grid gap-6 mt-8 lg:md:sm:grid-cols-3 grid-cols-2">
             {stack.map((item, index) => (
               <Link
                 key={index}

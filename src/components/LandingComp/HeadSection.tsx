@@ -11,20 +11,18 @@ const HeadSection = () => {
   const { theme } = useTheme();
   return (
     <>
-      <section className="w-full pt-12">
+      <section className="w-full pt-24">
         <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
           <div className="flex flex-col justify-center items-center">
             <div>
               <h1 className="lg:leading-tighter text-[1.90rem] font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] text-center">
-                BioPotential Signals Plotter for the web.
-                <br />
-                Smooth & Reliable
+                Biopotential Signals Plotter for the web.
               </h1>
             </div>
             <div className="flex flex-col items-center space-y-4 text-center mt-4">
               <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                <PlotIt /> is a free and open-source plotter for BioAmp signals.
-                It is designed to be simple, fast, and accessable.
+                <PlotIt /> is a free and open-source plotter for biopotential
+                signals. It is designed to be simple, fast, and accessible.
               </p>
               <div className="space-x-4 flex">
                 <Link href="/stream">
