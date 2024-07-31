@@ -3,7 +3,10 @@ import Navbar from "../components/Navbar";
 import { Skeleton } from "../components/ui/skeleton";
 import dynamic from "next/dynamic";
 import Steps from "../components//LandingComp/Steps";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "../components/ui/separator";
+import { Features } from "../components/LandingComp/Features";
+import FAQSection from "../components/LandingComp/FAQSection";
+import Footer from "../components/LandingComp/Footer";
 
 const HeadSection = dynamic(
   () => import("../components/LandingComp/HeadSection"),
@@ -12,6 +15,10 @@ const HeadSection = dynamic(
     ssr: false,
   }
 );
+
+const TechStack = dynamic(() => import("../components/LandingComp/TechStack"), {
+  ssr: false,
+});
 
 const SkeletonUI = () => (
   <div className="container max-w-6xl mx-auto p-4 space-y-16">
@@ -36,6 +43,13 @@ const page = () => {
         <HeadSection />
         <Separator className="mt-20" />
         <Steps />
+        <Separator className="mt-20" />
+        <Features />
+        <Separator className="mt-20" />
+        <TechStack />
+        <Separator className="mt-20" />
+        <FAQSection />
+        <Footer />
       </div>
     </>
   );

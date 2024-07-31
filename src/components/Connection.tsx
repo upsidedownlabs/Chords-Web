@@ -32,6 +32,7 @@ import {
 import { BitSelection } from "./DataPass";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 import { Separator } from "./ui/separator";
+import { Switch } from "../components/ui/switch";
 
 interface ConnectionProps {
   LineData: Function;
@@ -50,13 +51,10 @@ const Connection: React.FC<ConnectionProps> = ({
   const isConnectedRef = useRef<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const isRecordingRef = useRef<boolean>(false);
-  const [buffer, setBuffer] = useState<string[][]>([]);
+  const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null);
   const [datasets, setDatasets] = useState<string[][][]>([]);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [startTimeString, setStartTimeString] = useState<string>("");
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [endTime, setEndTime] = useState<number | null>(null);
   const [customTime, setCustomTime] = useState<string>("");
   const endTimeRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -77,7 +75,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const handleTimeSelection = (minutes: number | null) => {
     if (minutes === null) {
-      setEndTime(null);
       endTimeRef.current = null;
       toast.success("Recording set to no time limit");
     } else {
@@ -85,7 +82,6 @@ const Connection: React.FC<ConnectionProps> = ({
       if (newEndTimeSeconds <= elapsedTime) {
         toast.error("End time must be greater than the current elapsed time");
       } else {
-        setEndTime(newEndTimeSeconds);
         endTimeRef.current = newEndTimeSeconds;
         toast.success(`Recording end time set to ${minutes} minutes`);
       }
@@ -118,9 +114,12 @@ const Connection: React.FC<ConnectionProps> = ({
         (b) => parseInt(b.field_pid) === info.usbProductId
       );
       if (board) {
+        setDetectedBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
         return `${board.name} | Product ID: ${info.usbProductId}`;
       }
+
+      setDetectedBits(null);
 
       // If not found in BoardsList, fall back to the vendor check
       const vendorName =
@@ -218,10 +217,6 @@ const Connection: React.FC<ConnectionProps> = ({
             // processData(dataValues);
             if (isRecordingRef.current) {
               bufferRef.current.push(dataValues);
-              setBuffer((prevBuffer) => {
-                const newBuffer = [...prevBuffer, dataValues];
-                return newBuffer;
-              });
             }
           }
         }
@@ -303,9 +298,7 @@ const Connection: React.FC<ConnectionProps> = ({
         isRecordingRef.current = true;
         const now = new Date();
         const nowTime = now.getTime();
-        setStartTime(nowTime);
         startTimeRef.current = nowTime;
-        setStartTimeString(now.toLocaleTimeString());
         setElapsedTime(0);
         timerIntervalRef.current = setInterval(checkRecordingTime, 1000);
       }
@@ -378,10 +371,7 @@ const Connection: React.FC<ConnectionProps> = ({
     setIsRecording(false);
     isRecordingRef.current = false;
 
-    setStartTime(null);
     startTimeRef.current = null;
-    setStartTimeString("");
-    setEndTime(null);
     endTimeRef.current = null;
     setElapsedTime(0);
   };
@@ -441,13 +431,13 @@ const Connection: React.FC<ConnectionProps> = ({
               <HoverCard>
                 <HoverCardTrigger asChild>
                   <Button
-                    className="text-lg w-16 h-9 font-medium p-2 bg-[#00FFC1] hover:bg-[#00FFC1]"
-                    variant="outline"
+                    className="text-lg w-16 h-9 font-medium p-2"
+                    variant="destructive"
                   >
                     {endTimeRef.current === null ? (
-                      <Infinity className="h-5 w-5 text-destructive" />
+                      <Infinity className="h-5 w-5 text-primary" />
                     ) : (
-                      <div className="text-sm text-destructive font-medium">
+                      <div className="text-sm text-primary font-medium">
                         {formatTime(endTimeRef.current)}
                       </div>
                     )}
@@ -514,21 +504,42 @@ const Connection: React.FC<ConnectionProps> = ({
           )}
         </Button>
         {isConnected && (
-          <div className="">
-            <Select
-              onValueChange={(value) => handleBitSelection(value)}
-              value={selectedBits}
-            >
-              <SelectTrigger className="w-32 text-background bg-primary">
-                <SelectValue placeholder="Select bits" />
-              </SelectTrigger>
-              <SelectContent side="top">
-                <SelectItem value="ten">10 bits</SelectItem>
-                <SelectItem value="twelve">12 bits</SelectItem>
-                <SelectItem value="fourteen">14 bits</SelectItem>
-                <SelectItem value="auto">Auto Scale</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center space-x-2">
+            {detectedBits ? (
+              <Button
+                variant="outline"
+                className=" w-36 gap-2 flex justify-between items-center overflow-hidden"
+                onClick={() =>
+                  setSelectedBits(
+                    selectedBits === "auto" ? detectedBits : "auto"
+                  )
+                }
+              >
+                <span className="">Autoscale</span>
+                <Switch
+                  checked={selectedBits === "auto"}
+                  onCheckedChange={() => {}}
+                  className="mr-1 pointer-events-none"
+                />
+              </Button>
+            ) : (
+              <Select
+                onValueChange={(value) =>
+                  setSelectedBits(value as BitSelection)
+                }
+                value={selectedBits}
+              >
+                <SelectTrigger className="w-32 text-background bg-primary">
+                  <SelectValue placeholder="Select bits" />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  <SelectItem value="ten">10 bits</SelectItem>
+                  <SelectItem value="twelve">12 bits</SelectItem>
+                  <SelectItem value="fourteen">14 bits</SelectItem>
+                  <SelectItem value="auto">Auto Scale</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         )}
         {isConnected && (

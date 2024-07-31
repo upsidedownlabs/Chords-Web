@@ -44,7 +44,7 @@ const Steps = () => {
             </ol>
           </div>
         </div>
-        <div className="grid w-full max-w-6xl gap-6 sm:grid-cols-3 lg:grid-cols-3">
+        <div className="grid w-full max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[
             {
               title: "Gather Hardware",
@@ -65,39 +65,40 @@ const Steps = () => {
               image: "/steps/plotIt.jpg",
             },
           ].map((step, index) => (
-            <div key={index} className="flex flex-col items-center gap-4">
-              <HoverCard>
-                <HoverCardTrigger>
-                  <Card className="min-h-44">
-                    <CardContent className="space-y-2 flex flex-col h-full justify-center">
+            <Card key={index} className="flex flex-col h-full">
+              <CardContent className="flex-grow p-6 flex flex-col justify-between">
+                <div>
+                  <HoverCard>
+                    <HoverCardTrigger>
                       <Image
                         src={step.image}
                         alt={`Step ${index + 1}`}
-                        width={64}
-                        height={64}
-                        className="w-full rounded-md my-5"
+                        width={320}
+                        height={180}
+                        className="w-full h-auto rounded-md mb-4 cursor-pointer object-cover"
                       />
-                      <h3 className="text-lg font-semibold">{step.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {step.description}
-                      </p>
-                    </CardContent>
-                    <CardFooter className="text-xs text-muted-foreground gap-1 md:flex-row items-center text-plot hidden md:flex">
-                      <CircleAlert size={18} /> Hover to preview image
-                    </CardFooter>
-                  </Card>
-                </HoverCardTrigger>
-                <HoverCardContent className="max-w-3xl w-full">
-                  <Image
-                    src={step.image}
-                    alt={`Step ${index + 1}`}
-                    width={320}
-                    height={320}
-                    className="w-full h-auto rounded-md"
-                  />
-                </HoverCardContent>
-              </HoverCard>
-            </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="max-w-2xl w-full">
+                      <Image
+                        src={step.image}
+                        alt={`Step ${index + 1}`}
+                        width={320}
+                        height={320}
+                        className="w-full h-auto rounded-md"
+                      />
+                    </HoverCardContent>
+                  </HoverCard>
+                  <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {step.description}
+                  </p>
+                </div>
+              </CardContent>
+              <CardFooter className="p-4 text-xs text-plot hidden md:flex items-center justify-center">
+                <CircleAlert size={16} className="mr-1" /> Hover over image to
+                preview
+              </CardFooter>
+            </Card>
           ))}
         </div>
         <div className="flex justify-center pt-8">

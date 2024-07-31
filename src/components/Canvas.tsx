@@ -195,7 +195,6 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
               responsive: true,
               millisPerPixel: 8,
               interpolation: "bezier",
-              // limitFPS: 30, // Limit the frame rate for performance
               grid: {
                 fillStyle: colors.background,
                 strokeStyle: colors.grid,
@@ -289,7 +288,7 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
                     className="w-full h-full"
                   />
                 </div>
-                <div className="absolute top-1/2 right-0 -mr-5 -mt-7 z-10">
+                {/* <div className="absolute top-1/2 right-0 -mr-5 -mt-7 z-10">
                   <Card className="bg-secondary border-primary rounded-2xl">
                     <CardContent className="flex flex-col p-1 items-center justify-center gap-2">
                       <Button
@@ -307,7 +306,7 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
                       <p className="text-[10px]">{`CH${index + 1}`}</p>
                     </CardContent>
                   </Card>
-                </div>
+                </div> */}
               </div>
             );
           }

@@ -5,6 +5,7 @@ import { Button } from "../../components/ui/button";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import PlotIt from "./PlotIt";
 
 const HeadSection = () => {
   const { theme } = useTheme();
@@ -15,18 +16,15 @@ const HeadSection = () => {
           <div className="flex flex-col justify-center items-center">
             <div>
               <h1 className="lg:leading-tighter text-[1.90rem] font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] text-center">
-                BioAmp Signals Plotter for the web.
+                BioPotential Signals Plotter for the web.
                 <br />
                 Smooth & Reliable
               </h1>
             </div>
             <div className="flex flex-col items-center space-y-4 text-center mt-4">
               <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                <span className="text-plot font-lobster cursor-default tracking-wide hover:tracking-widest duration-300 transition-all">
-                  plot it
-                </span>{" "}
-                is a free and open-source plotter for BioAmp signals. It is
-                designed to be simple, fast, and reliable.
+                <PlotIt /> is a free and open-source plotter for BioAmp signals.
+                It is designed to be simple, fast, and accessable.
               </p>
               <div className="space-x-4 flex">
                 <Link href="/stream">

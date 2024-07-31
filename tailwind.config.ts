@@ -21,8 +21,10 @@ const config = {
       fontFamily: {
         lobster: ["var(--font-lobster_two)"],
         yanone: ["var(--font-yanone_kaffeesatz)"],
+        poppins: ["var(--font-poppins)"],
       },
       colors: {
+        plot: "#21bbdc",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
