@@ -13,17 +13,14 @@ const HeadSection = () => {
     <>
       <section className="w-full pt-24">
         <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
-          <div className="flex flex-col justify-center items-center">
+          <div className="flex flex-col justify-center gap-8 items-center">
             <div>
               <h1 className="lg:leading-tighter text-[1.90rem] font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] text-center">
-                Biopotential Signals Plotter for the web.
+                <span className="text-7xl">We Got Your Signal!</span>
+                <br /> Let&apos;s <PlotIt />
               </h1>
             </div>
             <div className="flex flex-col items-center space-y-4 text-center mt-4">
-              <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                <PlotIt /> is a free and open-source plotter for biopotential
-                signals. It is designed to be simple, fast, and accessible.
-              </p>
               <div className="space-x-4 flex">
                 <Link href="/stream">
                   <Button>

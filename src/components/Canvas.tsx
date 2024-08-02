@@ -35,10 +35,16 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
     []
   );
 
-  const getChannelColor = useCallback((index: number) => {
-    const colors = ["#FF4985", "#79E6F3", "#00FFC1", "#ccc"];
-    return colors[index] || colors[colors.length - 1];
-  }, []);
+  const getChannelColor = useCallback(
+    (index: number) => {
+      const colorsDark = ["#FF4985", "#79E6F3", "#00FFC1", "#ccc"];
+      const colorsLight = ["#D10054", "#007A8C", "#008060", "#555555"];
+      return theme === "dark"
+        ? colorsDark[index] || colorsDark[colorsDark.length - 1]
+        : colorsLight[index] || colorsLight[colorsLight.length - 1];
+    },
+    [theme]
+  );
 
   const getThemeColors = useCallback(() => {
     return theme === "dark"
@@ -288,7 +294,7 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
                     className="w-full h-full"
                   />
                 </div>
-                {/* <div className="absolute top-1/2 right-0 -mr-5 -mt-7 z-10">
+                <div className="absolute top-1/2 right-0 -mr-5 -mt-7 z-10">
                   <Card className="bg-secondary border-primary rounded-2xl">
                     <CardContent className="flex flex-col p-1 items-center justify-center gap-2">
                       <Button
@@ -306,7 +312,7 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
                       <p className="text-[10px]">{`CH${index + 1}`}</p>
                     </CardContent>
                   </Card>
-                </div> */}
+                </div>
               </div>
             );
           }
