@@ -47,49 +47,49 @@ const Connection: React.FC<ConnectionProps> = ({
   selectedBits,
   setSelectedBits,
 }) => {
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const isConnectedRef = useRef<boolean>(false);
-  // const [isRecording, setIsRecording] = useState<boolean>(false);
-  const isRecordingRef = useRef<boolean>(false);
-  const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null);
-  const [datasets, setDatasets] = useState<string[][][]>([]);
-  const [elapsedTime, setElapsedTime] = useState<number>(0);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [customTime, setCustomTime] = useState<string>("");
-  const endTimeRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const bufferRef = useRef<string[][]>([]);
+  const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
+  const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
+  const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
+  const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
+  const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
+  const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to store the timer interval
+  const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
+  const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
+  const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
+  const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
 
-  // const [missedDataCount, setMissedDataCount] = useState<number>(0);
-  // const lastCounterRef = useRef<number>(-1);
-  // const dataRateWindowRef = useRef<number[]>([]);
-
-  const portRef = useRef<SerialPort | null>(null);
+  const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
-  >(null);
+  >(null); // Ref to store the reader for the serial port
 
   const handleTimeSelection = (minutes: number | null) => {
+    // Function to handle the time selection
     if (minutes === null) {
       endTimeRef.current = null;
       toast.success("Recording set to no time limit");
     } else {
+      // If the time is not null, set the end time
       const newEndTimeSeconds = minutes * 60;
       if (newEndTimeSeconds <= elapsedTime) {
+        // Check if the end time is greater than the current elapsed time
         toast.error("End time must be greater than the current elapsed time");
       } else {
-        endTimeRef.current = newEndTimeSeconds;
+        endTimeRef.current = newEndTimeSeconds; // Set the end time
         toast.success(`Recording end time set to ${minutes} minutes`);
       }
     }
   };
 
   const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Function to handle the custom time input change
     const value = e.target.value.replace(/[^0-9]/g, "");
     setCustomTime(value);
   };
 
   const handleCustomTimeSet = () => {
+    // Function to handle the custom time input set
     const time = parseInt(customTime);
     if (!isNaN(time) && time > 0) {
       handleTimeSelection(time);
@@ -100,6 +100,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const formatPortInfo = useCallback(
+    // Function to format the port info, which includes the board name and product ID in toast message
     (info: SerialPortInfo) => {
       if (!info || !info.usbVendorId) {
         return "Port with no info";
@@ -110,9 +111,9 @@ const Connection: React.FC<ConnectionProps> = ({
         (b) => parseInt(b.field_pid) === info.usbProductId
       );
       if (board) {
-        setDetectedBits(board.bits as BitSelection);
-        setSelectedBits(board.bits as BitSelection);
-        return `${board.name} | Product ID: ${info.usbProductId}`;
+        setDetectedBits(board.bits as BitSelection); // Set the detected bits
+        setSelectedBits(board.bits as BitSelection); // Set the selected bits
+        return `${board.name} | Product ID: ${info.usbProductId}`; // Return the board name and product ID
       }
 
       setDetectedBits(null);
@@ -127,6 +128,7 @@ const Connection: React.FC<ConnectionProps> = ({
   );
 
   const handleClick = () => {
+    // Function to handle toggle for connect/disconnect button
     if (isConnected) {
       disconnectDevice();
     } else {
@@ -135,10 +137,11 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const connectToDevice = async () => {
+    // Function to connect to the device
     try {
-      const port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 115200 });
-      Connection(true);
+      const port = await navigator.serial.requestPort(); // Request the serial port
+      await port.open({ baudRate: 115200 }); // Open the port with baud rate 115200
+      Connection(true); // Set the connection state to true, which will enable the data visualization as it is getting used is DataPaas
       setIsConnected(true);
       isConnectedRef.current = true;
       portRef.current = port;
@@ -152,9 +155,10 @@ const Connection: React.FC<ConnectionProps> = ({
       });
       const reader = port.readable?.getReader();
       readerRef.current = reader;
-      readData();
-      await navigator.wakeLock.request("screen");
+      readData(); // Start reading the data from the device
+      await navigator.wakeLock.request("screen"); // Request the wake lock to keep the screen on
     } catch (error) {
+      // If there is an error during connection, disconnect the device
       disconnectDevice();
       isConnectedRef.current = false;
       setIsConnected(false);
@@ -163,11 +167,13 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const disconnectDevice = async (): Promise<void> => {
+    // Function to disconnect the device
     try {
       if (portRef.current && portRef.current.readable) {
+        // Check if the port is available and readable
         if (readerRef.current) {
-          await readerRef.current.cancel();
-          readerRef.current.releaseLock();
+          await readerRef.current.cancel(); // Cancel the reader
+          readerRef.current.releaseLock(); // Release the reader lock
         }
         await portRef.current.close();
         portRef.current = null;
@@ -189,11 +195,13 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const readData = async (): Promise<void> => {
-    const decoder = new TextDecoder();
-    let lineBuffer = "";
+    // Function to read the data from the device
+    const decoder = new TextDecoder(); // Create a new text decoder
+    let lineBuffer = ""; // Initialize the line buffer
     while (isConnectedRef.current) {
+      // Loop until the device is connected
       try {
-        const StreamData = await readerRef.current?.read();
+        const StreamData = await readerRef.current?.read(); // Read the data from the device
         if (StreamData?.done) {
           console.log("Thank you for using our app!");
           break;
@@ -201,17 +209,16 @@ const Connection: React.FC<ConnectionProps> = ({
         const receivedData = decoder.decode(StreamData?.value, {
           stream: true,
         });
-        const lines = (lineBuffer + receivedData).split("\n");
-        lineBuffer = lines.pop() ?? "";
+        const lines = (lineBuffer + receivedData).split("\n"); // Split the data by new line
+        lineBuffer = lines.pop() ?? ""; // Get the last line
         for (const line of lines) {
+          // Loop through the lines
           const dataValues = line.split(",");
           if (dataValues.length === 1) {
-            // toast(`Received Data: ${line}`);
           } else {
-            LineData(dataValues);
-            // processData(dataValues);
+            LineData(dataValues); // Pass the data values to the LineData function which will be used by DataPass to pass to the Canvas component
             if (isRecordingRef.current) {
-              bufferRef.current.push(dataValues);
+              bufferRef.current.push(dataValues); // Push the data values to the buffer if recording is on
             }
           }
         }
@@ -223,50 +230,6 @@ const Connection: React.FC<ConnectionProps> = ({
     await disconnectDevice();
   };
 
-  // const processData = useCallback(
-  //   (dataValues: string[]) => {
-  //     const now = Date.now();
-  //     const [counter, ...sensorValues] = dataValues.map(Number);
-
-  //     // Sequence number analysis
-  //     if (
-  //       lastCounterRef.current !== -1 &&
-  //       counter !== (lastCounterRef.current + 1) % 256
-  //     ) {
-  //       console.log(
-  //         `Non-sequential counter: expected ${
-  //           (lastCounterRef.current + 1) % 256
-  //         }, got ${counter}`
-  //       );
-  //       setMissedDataCount((prev) => prev + 1);
-  //     }
-  //     lastCounterRef.current = counter;
-
-  //     // Data rate monitoring
-  //     dataRateWindowRef.current.push(now);
-  //     if (dataRateWindowRef.current.length > 250) {
-  //       const oldestTimestamp = dataRateWindowRef.current.shift()!;
-  //       const dataRate = 250000 / (now - oldestTimestamp);
-  //       if (dataRate < 248) {
-  //         // Allow for small fluctuations
-  //         console.log(
-  //           `Data rate too low: ${dataRate.toFixed(2)} samples/second`
-  //         );
-  //         setMissedDataCount((prev) => prev + 1);
-  //       }
-  //     }
-
-  //     LineData(dataValues);
-  //     if (missedDataCount > 0) {
-  //       console.log(
-  //         `Missed data events in the last second: ${missedDataCount}`
-  //       );
-  //       setMissedDataCount(0);
-  //     }
-  //   },
-  //   [LineData, missedDataCount]
-  // );
-
   const columnNames = [
     "Counter",
     "Channel 1",
@@ -276,6 +239,7 @@ const Connection: React.FC<ConnectionProps> = ({
   ];
 
   const convertToCSV = (buffer: string[][]): string => {
+    // Function to convert the buffer data to CSV
     const headerRow = columnNames.join(",");
     const rows = buffer.map((row) => row.map(Number).join(","));
     const csvData = [headerRow, ...rows].join("\n");
@@ -285,9 +249,9 @@ const Connection: React.FC<ConnectionProps> = ({
   const handleRecord = () => {
     if (isConnected) {
       if (isRecordingRef.current) {
-        stopRecording();
+        stopRecording(); // Stop the recording if it is already on
       } else {
-        isRecordingRef.current = true;
+        isRecordingRef.current = true; // Set the recording state to true
         const now = new Date();
         const nowTime = now.getTime();
         startTimeRef.current = nowTime;
@@ -301,7 +265,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const checkRecordingTime = () => {
     setElapsedTime((prev) => {
-      const newElapsedTime = prev + 1;
+      const newElapsedTime = prev + 1; // Increment the elapsed time by 1 second every second
       if (endTimeRef.current !== null && newElapsedTime >= endTimeRef.current) {
         stopRecording();
         return endTimeRef.current;
@@ -311,7 +275,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const formatDuration = (durationInSeconds: number): string => {
-    const minutes = Math.floor(durationInSeconds / 60);
+    const minutes = Math.floor(durationInSeconds / 60); // Get the minutes
     const seconds = durationInSeconds % 60;
     if (minutes === 0) {
       return `${seconds} second${seconds !== 1 ? "s" : ""}`;
@@ -323,11 +287,13 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const stopRecording = () => {
     if (timerIntervalRef.current) {
+      // Clear the timer interval if it is set
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
 
     if (startTimeRef.current === null) {
+      // Check if the start time is set properly
       toast.error("Start time was not set properly.");
       return;
     }
@@ -392,22 +358,6 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("No data available to download.");
     }
   };
-
-  // const writeData = async (data: string) => {
-  //   try {
-  //     if (isConnected && portRef.current && portRef.current.writable) {
-  //       const writer = portRef.current.writable.getWriter();
-  //       const encoder = new TextEncoder();
-  //       const dataToSend = encoder.encode(`${data}\n`);
-  //       await writer.write(dataToSend);
-  //       writer.releaseLock();
-  //     } else {
-  //       toast.error("No device is connected");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error writing data to device:", error);
-  //   }
-  // };
 
   return (
     <div className="flex h-14 items-center justify-between px-4">

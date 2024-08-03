@@ -13,6 +13,29 @@ import { CircleAlert } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
 
+const contributors = [
+  {
+    name: "Deepak Khatri",
+    github: "lorforlinux",
+    avatar: "https://avatars.githubusercontent.com/u/20015794?v=4",
+  },
+  {
+    name: "Deepesh Kumar",
+    github: "akadeepesh",
+    avatar: "https://avatars.githubusercontent.com/u/100466756?v=4",
+  },
+  {
+    name: "Mahesh Tupe",
+    github: "Asc91",
+    avatar: "https://avatars.githubusercontent.com/u/55803500?v=4",
+  },
+  {
+    name: "Ritika Mishra",
+    github: "Ritika8081",
+    avatar: "https://avatars.githubusercontent.com/u/103934960?v=4",
+  },
+];
+
 const Contributors = () => {
   return (
     <div>
@@ -26,7 +49,7 @@ const Contributors = () => {
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Contibutors</p>
+                <p>Contributors</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -38,74 +61,31 @@ const Contributors = () => {
               <Separator className="bg-primary" />
             </CardHeader>
             <CardContent className="flex justify-center items-center gap-5">
-              <Link href={"https://github.com/lorforlinux"} target="__blank">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant={"ghost"} size={"sm"}>
-                        <Avatar>
-                          <AvatarImage src="https://avatars.githubusercontent.com/u/20015794?v=4" />
-                          <AvatarFallback>Deepak Khatri</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Deepak Khatri</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </Link>
-              <Link href={"https://github.com/akadeepesh"} target="_blank">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant={"ghost"} size={"sm"}>
-                        <Avatar>
-                          <AvatarImage src="https://avatars.githubusercontent.com/u/100466756?v=4" />
-                          <AvatarFallback>Deepesh</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Deepesh Kumar</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </Link>
-              <Link href={"https://github.com/Asc91"}>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant={"ghost"} size={"sm"}>
-                        <Avatar>
-                          <AvatarImage src="https://avatars.githubusercontent.com/u/55803500?v=4" />
-                          <AvatarFallback>Mahesh</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Mahesh Tupe</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </Link>
-              <Link href={"https://github.com/Ritika8081"}>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant={"ghost"} size={"sm"}>
-                        <Avatar>
-                          <AvatarImage src="https://avatars.githubusercontent.com/u/103934960?v=4" />
-                          <AvatarFallback>Ritika</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Ritika Mishra</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </Link>
+              {contributors.map((contributor) => (
+                <Link
+                  key={contributor.github}
+                  href={`https://github.com/${contributor.github}`}
+                  target="_blank"
+                >
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant={"ghost"} size={"sm"}>
+                          <Avatar>
+                            <AvatarImage src={contributor.avatar} />
+                            <AvatarFallback>
+                              {contributor.name.split(" ")[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{contributor.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Link>
+              ))}
             </CardContent>
           </Card>
         </DialogContent>
