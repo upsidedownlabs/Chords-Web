@@ -38,23 +38,6 @@ const Contributors = () => {
               <Separator className="bg-primary" />
             </CardHeader>
             <CardContent className="flex justify-center items-center gap-5">
-              <Link href={"https://github.com/AleksaZCodes"}>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant={"ghost"} size={"sm"}>
-                        <Avatar>
-                          <AvatarImage src="https://avatars.githubusercontent.com/u/108585048?v=4" />
-                          <AvatarFallback>Aleksa</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Aleksa Zdravković</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </Link>
               <Link href={"https://github.com/lorforlinux"} target="__blank">
                 <TooltipProvider>
                   <Tooltip>
@@ -72,7 +55,7 @@ const Contributors = () => {
                   </Tooltip>
                 </TooltipProvider>
               </Link>
-              <Link href={"https://github.com/akadeepesh"}>
+              <Link href={"https://github.com/akadeepesh"} target="_blank">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>

@@ -22,7 +22,7 @@
 // Samples per second
 #define SAMPLE_RATE 250
 #define BAUD_RATE 115200
-#define CHANNEL_COUNT 6
+#define CHANNEL_COUNT 4
 #define RESOLUTION 10
 
 const uint16_t samplingRange[] = {125, 250, 500, 1000};

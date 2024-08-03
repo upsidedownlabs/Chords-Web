@@ -201,11 +201,12 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
               responsive: true,
               millisPerPixel: 8,
               interpolation: "bezier",
+              timestampFormatter: SmoothieChart.timeFormatter,
               grid: {
                 fillStyle: colors.background,
                 strokeStyle: colors.grid,
                 borderVisible: true,
-                millisPerLine: 250,
+                millisPerLine: 2000,
                 lineWidth: 1,
               },
               labels: {

@@ -49,7 +49,7 @@ const Connection: React.FC<ConnectionProps> = ({
 }) => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const isConnectedRef = useRef<boolean>(false);
-  const [isRecording, setIsRecording] = useState<boolean>(false);
+  // const [isRecording, setIsRecording] = useState<boolean>(false);
   const isRecordingRef = useRef<boolean>(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null);
   const [datasets, setDatasets] = useState<string[][][]>([]);
@@ -68,10 +68,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null);
-
-  const handleBitSelection = (value: string) => {
-    setSelectedBits(value as BitSelection);
-  };
 
   const handleTimeSelection = (minutes: number | null) => {
     if (minutes === null) {
@@ -188,7 +184,6 @@ const Connection: React.FC<ConnectionProps> = ({
       setIsConnected(false);
       Connection(false);
       isConnectedRef.current = false;
-      setIsRecording(false);
       isRecordingRef.current = false;
     }
   };
@@ -278,8 +273,6 @@ const Connection: React.FC<ConnectionProps> = ({
     "Channel 2",
     "Channel 3",
     "Channel 4",
-    "Channel 5",
-    "Channel 6",
   ];
 
   const convertToCSV = (buffer: string[][]): string => {
@@ -291,10 +284,9 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const handleRecord = () => {
     if (isConnected) {
-      if (isRecording) {
+      if (isRecordingRef.current) {
         stopRecording();
       } else {
-        setIsRecording(true);
         isRecordingRef.current = true;
         const now = new Date();
         const nowTime = now.getTime();
@@ -368,7 +360,6 @@ const Connection: React.FC<ConnectionProps> = ({
       ),
     });
 
-    setIsRecording(false);
     isRecordingRef.current = false;
 
     startTimeRef.current = null;
@@ -402,26 +393,26 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const writeData = async (data: string) => {
-    try {
-      if (isConnected && portRef.current && portRef.current.writable) {
-        const writer = portRef.current.writable.getWriter();
-        const encoder = new TextEncoder();
-        const dataToSend = encoder.encode(`${data}\n`);
-        await writer.write(dataToSend);
-        writer.releaseLock();
-      } else {
-        toast.error("No device is connected");
-      }
-    } catch (error) {
-      console.error("Error writing data to device:", error);
-    }
-  };
+  // const writeData = async (data: string) => {
+  //   try {
+  //     if (isConnected && portRef.current && portRef.current.writable) {
+  //       const writer = portRef.current.writable.getWriter();
+  //       const encoder = new TextEncoder();
+  //       const dataToSend = encoder.encode(`${data}\n`);
+  //       await writer.write(dataToSend);
+  //       writer.releaseLock();
+  //     } else {
+  //       toast.error("No device is connected");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error writing data to device:", error);
+  //   }
+  // };
 
   return (
     <div className="flex h-14 items-center justify-between px-4">
       <div className="flex-1">
-        {isRecording && (
+        {isRecordingRef.current && (
           <div className="flex justify-center items-center space-x-1 w-min">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
@@ -547,11 +538,19 @@ const Connection: React.FC<ConnectionProps> = ({
             <Tooltip>
               <Button onClick={handleRecord}>
                 <TooltipTrigger asChild>
-                  {isRecording ? <CircleStop /> : <Circle fill="red" />}
+                  {isRecordingRef.current ? (
+                    <CircleStop />
+                  ) : (
+                    <Circle fill="red" />
+                  )}
                 </TooltipTrigger>
               </Button>
               <TooltipContent>
-                <p>{!isRecording ? "Start Recording" : "Stop Recording"}</p>
+                <p>
+                  {!isRecordingRef.current
+                    ? "Start Recording"
+                    : "Stop Recording"}
+                </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
