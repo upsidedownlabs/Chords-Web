@@ -374,63 +374,66 @@ const Connection: React.FC<ConnectionProps> = ({
             </div>
             <Separator orientation="vertical" className="bg-primary h-9" />
             <div className="">
-            <Popover open={isEndTimePopoverOpen} onOpenChange={setIsEndTimePopoverOpen}>
-  <PopoverTrigger asChild>
-    <Button
-      className="text-lg w-16 h-9 font-medium p-2"
-      variant="destructive"
-    >
-      {endTimeRef.current === null ? (
-        <Infinity className="h-5 w-5 text-primary" />
-      ) : (
-        <div className="text-sm text-primary font-medium">
-          {formatTime(endTimeRef.current)}
-        </div>
-      )}
-    </Button>
-  </PopoverTrigger>
-  <PopoverContent className="w-64 p-4" side="right">
-    <div className="flex flex-col space-y-4">
-      <div className="text-sm font-medium">
-        Set End Time (minutes)
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        {[1, 10, 20, 30].map((time) => (
-          <Button
-            key={time}
-            variant="outline"
-            size="sm"
-            onClick={() => handleTimeSelection(time)}
-          >
-            {time}
-          </Button>
-        ))}
-      </div>
-      <div className="flex space-x-2 items-center">
-        <Input
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          placeholder="Custom"
-          value={customTime}
-          onBlur={handleCustomTimeSet}
-          onKeyDown={(e) =>
-            e.key === "Enter" && handleCustomTimeSet()
-          }
-          onChange={handleCustomTimeChange}
-          className="w-20"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleTimeSelection(null)}
-        >
-          <Infinity className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  </PopoverContent>
-</Popover>
+              <Popover
+                open={isEndTimePopoverOpen}
+                onOpenChange={setIsEndTimePopoverOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    className="text-lg w-16 h-9 font-medium p-2"
+                    variant="destructive"
+                  >
+                    {endTimeRef.current === null ? (
+                      <Infinity className="h-5 w-5 text-primary" />
+                    ) : (
+                      <div className="text-sm text-primary font-medium">
+                        {formatTime(endTimeRef.current)}
+                      </div>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-4" side="right">
+                  <div className="flex flex-col space-y-4">
+                    <div className="text-sm font-medium">
+                      Set End Time (minutes)
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[1, 10, 20, 30].map((time) => (
+                        <Button
+                          key={time}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTimeSelection(time)}
+                        >
+                          {time}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="flex space-x-2 items-center">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Custom"
+                        value={customTime}
+                        onBlur={handleCustomTimeSet}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleCustomTimeSet()
+                        }
+                        onChange={handleCustomTimeChange}
+                        className="w-20"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTimeSelection(null)}
+                      >
+                        <Infinity className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         )}
