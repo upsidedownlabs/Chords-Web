@@ -19,6 +19,8 @@ class SmoothieChartManager {
     this.isHighSpeed = false; // Property to track speed state
     this.autoscale = true; // Property to track autoscale state
     this.maxValue = undefined; // Property to track the maximum value of smoothie chart
+    this.localBuffer = [];
+    this.lastSaveTime = null;
   }
 
   // Initialize the chart manager
@@ -28,6 +30,14 @@ class SmoothieChartManager {
 
   // Set up event listeners for UI elements
   initEventListeners() {
+    this.initIndexedDB()
+      .then(() => {
+        console.log("IndexedDB initialized");
+      })
+      .catch((error) => {
+        console.error("Failed to initialize IndexedDB:", error);
+      });
+
     // Helper function to add input listeners
     const addInputListener = (rangeId, valueId) => {
       document.getElementById(rangeId).addEventListener("input", (e) => {
@@ -425,6 +435,7 @@ class SmoothieChartManager {
     `;
     document.getElementById("startButton").disabled = false;
     document.getElementById("saveButton").disabled = false;
+    this.saveBufferToIndexedDB();
     this.fileBreak = true;
     this.stopTimer();
   }
@@ -543,17 +554,26 @@ class SmoothieChartManager {
         const dataArray = line.split(",");
         const parsedData = dataArray.map(Number);
         const sensorValues = parsedData.slice(1); // Extract sensor values
-        this.buffer.push(parsedData); // Add parsed data to the buffer
+        // this.buffer.push(parsedData); // Add parsed data to the buffer
 
-        // If buffer exceeds 250 items, process the data
-        if (this.buffer.length > 250) {
-          const secondaryBuffer = [...this.buffer];
-          if (this.isRecording) {
-            this.dbstuff(secondaryBuffer); // Save data to IndexedDB
+        // // If buffer exceeds 250 items, process the data
+        // if (this.buffer.length > 250) {
+        //   const secondaryBuffer = [...this.buffer];
+        //   if (this.isRecording) {
+        //     this.dbstuff(secondaryBuffer); // Save data to IndexedDB
+        //   }
+        //   this.buffer = []; // Clear the buffer
+        //   this.bufferCounter += 1; // Increment the buffer counter
+        // }
+
+        if (this.isRecording) {
+          this.localBuffer.push(parsedData);
+          const currentTime = Date.now();
+          if (!this.lastSaveTime || currentTime - this.lastSaveTime >= 10000) {
+            this.saveBufferToIndexedDB();
           }
-          this.buffer = []; // Clear the buffer
-          this.bufferCounter += 1; // Increment the buffer counter
         }
+
         if (this.isStreaming) {
           const channels = 4;
           for (let i = 0; i < channels; i++) {
@@ -565,6 +585,54 @@ class SmoothieChartManager {
         }
       }
     }
+  }
+
+  saveBufferToIndexedDB() {
+    if (this.localBuffer.length === 0) return;
+
+    const tx = this.db.transaction(["adcReadings"], "readwrite");
+    const store = tx.objectStore("adcReadings");
+
+    for (let data of this.localBuffer) {
+      store.add({
+        counter: data[0],
+        channel_1: data[1],
+        channel_2: data[2],
+        channel_3: data[3],
+        channel_4: data[4],
+        channel_5: data[5],
+        channel_6: data[6],
+      });
+    }
+
+    this.localBuffer = [];
+    this.lastSaveTime = Date.now();
+  }
+
+  async initIndexedDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("adcReadings", 1);
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains("adcReadings")) {
+          db.createObjectStore("adcReadings", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+        }
+      };
+
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve();
+      };
+
+      request.onerror = () => {
+        console.error("Error opening IndexedDB:", request.error);
+        reject(request.error);
+      };
+    });
   }
 
   async dbstuff(data) {
