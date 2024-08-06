@@ -392,7 +392,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-4" side="right">
+                <PopoverContent className="w-64 p-4" >
                   <div className="flex flex-col space-y-4">
                     <div className="text-sm font-medium">
                       Set End Time (minutes)
