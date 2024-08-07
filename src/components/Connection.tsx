@@ -148,7 +148,6 @@ const deleteindividualfiles=(index: number)=>{
     // Function to handle toggle for connect/disconnect button
     if (isConnected) {
       disconnectDevice();
-      deletedata();
     } else {
       connectToDevice();
     }
@@ -573,7 +572,7 @@ const deleteindividualfiles=(index: number)=>{
                             key={index}
                             className="flex justify-between items-center"
                           >
-                            <span>file{index}.csv</span>
+                            <span>file{dataset.originalIndex}.csv</span>
                             <div className="space-x-2">
                               <Button size="sm" variant="outline" onClick={()=>savedataindividual(index)}>
                                 <Download size={16} />
