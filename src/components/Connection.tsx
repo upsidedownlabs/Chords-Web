@@ -148,6 +148,7 @@ const deleteindividualfiles=(index: number)=>{
     // Function to handle toggle for connect/disconnect button
     if (isConnected) {
       disconnectDevice();
+      deletedata();
     } else {
       connectToDevice();
     }
