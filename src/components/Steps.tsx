@@ -56,7 +56,7 @@ const Steps: React.FC = () => {
               </TableRow>
             </TableBody>
           </Table>
-          <p className="text-red-500 mt-4 text-sm font-semibold">
+          <p className="text-destructive mt-4 text-sm font-semibold">
              Warning: If power pins are swapped, your BioAmp hardware will be
                fried and become unusable (DIE).
           </p>
