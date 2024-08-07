@@ -455,44 +455,43 @@ const Connection: React.FC<ConnectionProps> = ({
           )}
         </Button>
         {isConnected && (
-          <div className="flex items-center space-x-2">
-            {detectedBits ? (
-              <Button
-                variant="outline"
-                className=" w-36 gap-2 flex justify-between items-center overflow-hidden"
-                onClick={() =>
-                  setSelectedBits(
-                    selectedBits === "auto" ? detectedBits : "auto"
-                  )
-                }
-              >
-                <span className="">Autoscale</span>
-                <Switch
-                  checked={selectedBits === "auto"}
-                  onCheckedChange={() => {}}
-                  className="mr-1 pointer-events-none"
-                />
-              </Button>
-            ) : (
-              <Select
-                onValueChange={(value) =>
-                  setSelectedBits(value as BitSelection)
-                }
-                value={selectedBits}
-              >
-                <SelectTrigger className="w-32 text-background bg-primary">
-                  <SelectValue placeholder="Select bits" />
-                </SelectTrigger>
-                <SelectContent side="top">
-                  <SelectItem value="ten">10 bits</SelectItem>
-                  <SelectItem value="twelve">12 bits</SelectItem>
-                  <SelectItem value="fourteen">14 bits</SelectItem>
-                  <SelectItem value="auto">Auto Scale</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        )}
+  <div className="flex items-center space-x-2">
+    {detectedBits ? (
+      <Button
+        variant="outline"
+        className={`w-36 flex justify-center items-center overflow-hidden ${
+          selectedBits === "auto" 
+            ? "bg-dark text-light" 
+            : "bg-white text-black"
+        }`}
+        onClick={() =>
+          setSelectedBits(
+            selectedBits === "auto" ? detectedBits : "auto"
+          )
+        }
+      >
+        Autoscale
+      </Button>
+    ) : (
+      <Select
+        onValueChange={(value) =>
+          setSelectedBits(value as BitSelection)
+        }
+        value={selectedBits}
+      >
+        <SelectTrigger className="w-32 text-background bg-primary">
+          <SelectValue placeholder="Select bits" />
+        </SelectTrigger>
+        <SelectContent side="top">
+          <SelectItem value="ten">10 bits</SelectItem>
+          <SelectItem value="twelve">12 bits</SelectItem>
+          <SelectItem value="fourteen">14 bits</SelectItem>
+          <SelectItem value="auto">Auto Scale</SelectItem>
+        </SelectContent>
+      </Select>
+    )}
+  </div>
+)}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
