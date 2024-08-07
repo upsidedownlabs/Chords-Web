@@ -60,6 +60,8 @@ const Connection: React.FC<ConnectionProps> = ({
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
+  const [indexTracker,setIndexTracker]=useState<number[]>([]);//keep track of indexes of files
+  const [counter,setCounter]=useState<number>(0);
   const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
   const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to store the timer interval
@@ -67,7 +69,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
   const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
-
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
@@ -104,6 +105,9 @@ const Connection: React.FC<ConnectionProps> = ({
 const deleteindividualfiles=(index: number)=>{
   const newDatasets = datasets.filter((item, i) => i !== index);
   setDatasets(newDatasets);
+  const newRemovedIndexes = indexTracker.filter((item, i) => i !== index);
+  // setRemovedIndexes((prevIndexes) => [...prevIndexes, index]);
+  setIndexTracker(newRemovedIndexes);
 }
   const handleCustomTimeSet = () => {
     // Function to handle the custom time input set
@@ -321,15 +325,16 @@ const deleteindividualfiles=(index: number)=>{
     const durationInSeconds = Math.round(
       (endTime.getTime() - startTimeRef.current) / 1000
     );
-
     if (bufferRef.current.length > 0) {
       const data = [...bufferRef.current]; // Create a copy of the current buffer
       setDatasets((prevDatasets) => {
         const newDatasets = [...prevDatasets, data];
         return newDatasets;
       });
-
-      bufferRef.current = []; // Clear the buffer ref
+      bufferRef.current = [];
+      setIndexTracker((prevIndexes) => [...prevIndexes, counter]); // Clear the buffer ref
+      let newCounter=counter+1;
+      setCounter(newCounter);
     }
 
     toast.success("Recording completed Successfully", {
@@ -572,7 +577,7 @@ const deleteindividualfiles=(index: number)=>{
                             key={index}
                             className="flex justify-between items-center"
                           >
-                            <span>file{index}.csv</span>
+                            <span>file{indexTracker[index]}.csv</span>
                             <div className="space-x-2">
                               <Button size="sm" variant="outline" onClick={()=>savedataindividual(index)}>
                                 <Download size={16} />
@@ -587,7 +592,6 @@ const deleteindividualfiles=(index: number)=>{
                     </PopoverContent>
                   </Popover>
                   </>
-                  
                 )}
               </div>
               <TooltipContent>
