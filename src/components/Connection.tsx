@@ -10,6 +10,9 @@ import {
   FileArchive,
   FileDown,
   Infinity,
+  ArrowUp,
+  Trash2,
+  Download
 } from "lucide-react";
 import { vendorsList } from "./vendors";
 import { BoardsList } from "./UDL_Boards";
@@ -38,7 +41,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ArrowUp, Trash2, Download } from "lucide-react";
+
 interface ConnectionProps {
   LineData: Function;
   Connection: (isConnected: boolean) => void;
@@ -52,7 +55,7 @@ const Connection: React.FC<ConnectionProps> = ({
   selectedBits,
   setSelectedBits,
 }) => {
-  const [open,setOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
@@ -394,7 +397,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-4" >
+                <PopoverContent className="w-64 p-4">
                   <div className="flex flex-col space-y-4">
                     <div className="text-sm font-medium">
                       Set End Time (minutes)
@@ -455,43 +458,43 @@ const Connection: React.FC<ConnectionProps> = ({
           )}
         </Button>
         {isConnected && (
-  <div className="flex items-center space-x-2">
-    {detectedBits ? (
-      <Button
-        variant="outline"
-        className={`w-36 flex justify-center items-center overflow-hidden ${
-          selectedBits === "auto" 
-            ? "bg-dark text-light" 
-            : "bg-white text-black"
-        }`}
-        onClick={() =>
-          setSelectedBits(
-            selectedBits === "auto" ? detectedBits : "auto"
-          )
-        }
-      >
-        Autoscale
-      </Button>
-    ) : (
-      <Select
-        onValueChange={(value) =>
-          setSelectedBits(value as BitSelection)
-        }
-        value={selectedBits}
-      >
-        <SelectTrigger className="w-32 text-background bg-primary">
-          <SelectValue placeholder="Select bits" />
-        </SelectTrigger>
-        <SelectContent side="top">
-          <SelectItem value="ten">10 bits</SelectItem>
-          <SelectItem value="twelve">12 bits</SelectItem>
-          <SelectItem value="fourteen">14 bits</SelectItem>
-          <SelectItem value="auto">Auto Scale</SelectItem>
-        </SelectContent>
-      </Select>
-    )}
-  </div>
-)}
+          <div className="flex items-center space-x-2">
+            {detectedBits ? (
+              <Button
+                variant="outline"
+                className={`w-36 flex justify-center items-center overflow-hidden ${
+                  selectedBits === "auto"
+                    ? "bg-dark text-light"
+                    : "bg-white text-black"
+                }`}
+                onClick={() =>
+                  setSelectedBits(
+                    selectedBits === "auto" ? detectedBits : "auto"
+                  )
+                }
+              >
+                Autoscale
+              </Button>
+            ) : (
+              <Select
+                onValueChange={(value) =>
+                  setSelectedBits(value as BitSelection)
+                }
+                value={selectedBits}
+              >
+                <SelectTrigger className="w-32 text-background bg-primary">
+                  <SelectValue placeholder="Select bits" />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  <SelectItem value="ten">10 bits</SelectItem>
+                  <SelectItem value="twelve">12 bits</SelectItem>
+                  <SelectItem value="fourteen">14 bits</SelectItem>
+                  <SelectItem value="auto">Auto Scale</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
@@ -514,7 +517,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-       {datasets.length > 0 && (
+        {datasets.length > 0 && (
           <TooltipProvider>
             <Tooltip>
               <div className="flex">
