@@ -572,7 +572,7 @@ const deleteindividualfiles=(index: number)=>{
                             key={index}
                             className="flex justify-between items-center"
                           >
-                            <span>file{dataset.originalIndex}.csv</span>
+                            <span>file{index}.csv</span>
                             <div className="space-x-2">
                               <Button size="sm" variant="outline" onClick={()=>savedataindividual(index)}>
                                 <Download size={16} />
