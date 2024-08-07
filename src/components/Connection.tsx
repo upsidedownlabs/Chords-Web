@@ -10,6 +10,9 @@ import {
   FileArchive,
   FileDown,
   Infinity,
+  ArrowUp,
+  Trash2,
+  Download
 } from "lucide-react";
 import { vendorsList } from "./vendors";
 import { BoardsList } from "./UDL_Boards";
@@ -30,9 +33,14 @@ import {
   SelectValue,
 } from "./ui/select";
 import { BitSelection } from "./DataPass";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
+
 import { Separator } from "./ui/separator";
 import { Switch } from "../components/ui/switch";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface ConnectionProps {
   LineData: Function;
@@ -47,9 +55,11 @@ const Connection: React.FC<ConnectionProps> = ({
   selectedBits,
   setSelectedBits,
 }) => {
+  const [open, setOpen] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
+  const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
   const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
   const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
@@ -369,8 +379,11 @@ const Connection: React.FC<ConnectionProps> = ({
             </div>
             <Separator orientation="vertical" className="bg-primary h-9" />
             <div className="">
-              <HoverCard>
-                <HoverCardTrigger asChild>
+              <Popover
+                open={isEndTimePopoverOpen}
+                onOpenChange={setIsEndTimePopoverOpen}
+              >
+                <PopoverTrigger asChild>
                   <Button
                     className="text-lg w-16 h-9 font-medium p-2"
                     variant="destructive"
@@ -383,8 +396,8 @@ const Connection: React.FC<ConnectionProps> = ({
                       </div>
                     )}
                   </Button>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-64 p-4" side="right">
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-4">
                   <div className="flex flex-col space-y-4">
                     <div className="text-sm font-medium">
                       Set End Time (minutes)
@@ -424,8 +437,8 @@ const Connection: React.FC<ConnectionProps> = ({
                       </Button>
                     </div>
                   </div>
-                </HoverCardContent>
-              </HoverCard>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         )}
@@ -449,19 +462,18 @@ const Connection: React.FC<ConnectionProps> = ({
             {detectedBits ? (
               <Button
                 variant="outline"
-                className=" w-36 gap-2 flex justify-between items-center overflow-hidden"
+                className={`w-36 flex justify-center items-center overflow-hidden ${
+                  selectedBits === "auto"
+                    ? "bg-dark text-light"
+                    : "bg-white text-black"
+                }`}
                 onClick={() =>
                   setSelectedBits(
                     selectedBits === "auto" ? detectedBits : "auto"
                   )
                 }
               >
-                <span className="">Autoscale</span>
-                <Switch
-                  checked={selectedBits === "auto"}
-                  onCheckedChange={() => {}}
-                  className="mr-1 pointer-events-none"
-                />
+                Autoscale
               </Button>
             ) : (
               <Select
@@ -508,18 +520,54 @@ const Connection: React.FC<ConnectionProps> = ({
         {datasets.length > 0 && (
           <TooltipProvider>
             <Tooltip>
-              <Button onClick={saveData}>
-                <TooltipTrigger asChild>
-                  {datasets.length === 1 ? (
-                    <FileDown />
-                  ) : (
-                    <span className="flex flex-row justify-center items-center">
-                      <FileArchive />
-                      <p className=" text-lg">{`(${datasets.length})`}</p>
-                    </span>
-                  )}
-                </TooltipTrigger>
-              </Button>
+              <div className="flex">
+                <Button onClick={saveData} className="rounded-r-none">
+                  <TooltipTrigger asChild>
+                    {datasets.length === 1 ? (
+                      <FileDown className="mr-2" />
+                    ) : (
+                      <span className="flex flex-row justify-center items-center">
+                        <FileArchive className="mr-2" />
+                        <p className="text-lg">{datasets.length}</p>
+                      </span>
+                    )}
+                  </TooltipTrigger>
+                </Button>
+                <Separator orientation="vertical" className="h-full" />
+                {datasets.length === 1 ? (
+                  <Button className="rounded-l-none">
+                    <Trash2 size={20} />
+                  </Button>
+                ) : (
+                  <Popover open={open} onOpenChange={setOpen}>
+                    <PopoverTrigger asChild>
+                      <Button className="rounded-l-none">
+                        <ArrowUp size={20} />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-4">
+                        {datasets.map((dataset, index) => (
+                          <div
+                            key={index}
+                            className="flex justify-between items-center"
+                          >
+                            <span>File</span>
+                            <div className="space-x-2">
+                              <Button size="sm" variant="outline">
+                                <Download size={16} />
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                <Trash2 size={16} />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
               <TooltipContent>
                 {datasets.length === 1 ? (
                   <p>Save As CSV</p>
