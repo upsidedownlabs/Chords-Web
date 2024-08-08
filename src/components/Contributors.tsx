@@ -34,6 +34,11 @@ const contributors = [
     github: "Ritika8081",
     avatar: "https://avatars.githubusercontent.com/u/103934960?v=4",
   },
+  {
+    name: "Aman Maheshwari",
+    github: "Amanmahe",
+    avatar: "https://avatars.githubusercontent.com/Amanmahe",
+  },
 ];
 
 const Contributors = () => {

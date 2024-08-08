@@ -10,9 +10,9 @@ import {
   FileArchive,
   FileDown,
   Infinity,
-  ArrowUp,
+  ArrowUp, 
   Trash2,
-  Download
+   Download,
 } from "lucide-react";
 import { vendorsList } from "./vendors";
 import { BoardsList } from "./UDL_Boards";
@@ -42,6 +42,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+
 interface ConnectionProps {
   LineData: Function;
   Connection: (isConnected: boolean) => void;
@@ -55,12 +56,14 @@ const Connection: React.FC<ConnectionProps> = ({
   selectedBits,
   setSelectedBits,
 }) => {
-  const [open, setOpen] = useState(false);
+  const [open,setOpen] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
+  const [indexTracker,setIndexTracker]=useState<number[]>([]);//keep track of indexes of files
+  const [counter,setCounter]=useState<number>(0);
   const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
   const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to store the timer interval
@@ -68,7 +71,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
   const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
-
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
@@ -97,7 +99,18 @@ const Connection: React.FC<ConnectionProps> = ({
     const value = e.target.value.replace(/[^0-9]/g, "");
     setCustomTime(value);
   };
+  //Function to delete all saved files
+  const deletedata=()=>{
+    setDatasets([]);
+  };
 
+const deleteindividualfiles=(index: number)=>{
+  const newDatasets = datasets.filter((item, i) => i !== index);
+  setDatasets(newDatasets);
+  const newRemovedIndexes = indexTracker.filter((item, i) => i !== index);
+  // setRemovedIndexes((prevIndexes) => [...prevIndexes, index]);
+  setIndexTracker(newRemovedIndexes);
+}
   const handleCustomTimeSet = () => {
     // Function to handle the custom time input set
     const time = parseInt(customTime);
@@ -314,15 +327,16 @@ const Connection: React.FC<ConnectionProps> = ({
     const durationInSeconds = Math.round(
       (endTime.getTime() - startTimeRef.current) / 1000
     );
-
     if (bufferRef.current.length > 0) {
       const data = [...bufferRef.current]; // Create a copy of the current buffer
       setDatasets((prevDatasets) => {
         const newDatasets = [...prevDatasets, data];
         return newDatasets;
       });
-
-      bufferRef.current = []; // Clear the buffer ref
+      bufferRef.current = [];
+      setIndexTracker((prevIndexes) => [...prevIndexes, counter]); // Clear the buffer ref
+      let newCounter=counter+1;
+      setCounter(newCounter);
     }
 
     toast.success("Recording completed Successfully", {
@@ -351,17 +365,26 @@ const Connection: React.FC<ConnectionProps> = ({
       .padStart(2, "0")}`;
   };
 
+  const savedataindividual = async (index: number) => {
+    const csvData = convertToCSV(datasets[index]);
+    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+    saveAs(blob, "data.csv");
+    deleteindividualfiles(index);
+  };
+
   const saveData = async () => {
     if (datasets.length === 1) {
       const csvData = convertToCSV(datasets[0]);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
       saveAs(blob, "data.csv");
+      deletedata();
     } else if (datasets.length > 1) {
       const zip = new JSZip();
       datasets.forEach((data, index) => {
         const csvData = convertToCSV(data);
         zip.file(`data${index + 1}.csv`, csvData);
       });
+      deletedata();
       const zipContent = await zip.generateAsync({ type: "blob" });
       saveAs(zipContent, "datasets.zip");
     } else {
@@ -517,7 +540,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-        {datasets.length > 0 && (
+       {isConnected && datasets.length > 0 && (
           <TooltipProvider>
             <Tooltip>
               <div className="flex">
@@ -535,16 +558,20 @@ const Connection: React.FC<ConnectionProps> = ({
                 </Button>
                 <Separator orientation="vertical" className="h-full" />
                 {datasets.length === 1 ? (
-                  <Button className="rounded-l-none">
+                  <Button className="rounded-l-none" onClick={deletedata}>
                     <Trash2 size={20} />
                   </Button>
                 ) : (
+                  <>
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
-                      <Button className="rounded-l-none">
+                      <Button className="rounded-none">
                         <ArrowUp size={20} />
                       </Button>
                     </PopoverTrigger>
+                    <Button className="rounded-l-none" onClick={deletedata}>
+                    <Trash2 size={20} />
+                  </Button>
                     <PopoverContent className="w-80">
                       <div className="space-y-4">
                         {datasets.map((dataset, index) => (
@@ -552,12 +579,12 @@ const Connection: React.FC<ConnectionProps> = ({
                             key={index}
                             className="flex justify-between items-center"
                           >
-                            <span>File</span>
+                            <span>file{indexTracker[index]}.csv</span>
                             <div className="space-x-2">
-                              <Button size="sm" variant="outline">
+                              <Button size="sm" variant="outline" onClick={()=>savedataindividual(index)}>
                                 <Download size={16} />
                               </Button>
-                              <Button size="sm" variant="outline">
+                              <Button size="sm" variant="outline" onClick={() => deleteindividualfiles(index)}>
                                 <Trash2 size={16} />
                               </Button>
                             </div>
@@ -566,6 +593,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       </div>
                     </PopoverContent>
                   </Popover>
+                  </>
                 )}
               </div>
               <TooltipContent>

@@ -57,9 +57,10 @@ const Steps: React.FC = () => {
             </TableBody>
           </Table>
           <p className="text-destructive mt-4 text-sm font-semibold">
-            Warning: If power pins are swapped, your BioAmp hardware will be
-            fried and become unusable (DIE).
+             Warning: If power pins are swapped, your BioAmp hardware will be
+               fried and become unusable (DIE).
           </p>
+
         </>
       ),
     },
