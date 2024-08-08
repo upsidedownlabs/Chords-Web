@@ -41,6 +41,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+
+
 interface ConnectionProps {
   LineData: Function;
   Connection: (isConnected: boolean) => void;
@@ -418,7 +420,7 @@ const deleteindividualfiles=(index: number)=>{
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-4" >
+                <PopoverContent className="w-64 p-4">
                   <div className="flex flex-col space-y-4">
                     <div className="text-sm font-medium">
                       Set End Time (minutes)
