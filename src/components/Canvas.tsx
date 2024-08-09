@@ -211,12 +211,12 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
               responsive: true,
               millisPerPixel: 8,
               interpolation: "bezier",
-              timestampFormatter: SmoothieChart.timeFormatter,
+              // timestampFormatter: SmoothieChart.timeFormatter,
               grid: {
                 fillStyle: colors.background,
                 strokeStyle: colors.grid,
                 borderVisible: true,
-                millisPerLine: 2000,
+                millisPerLine: 500,
                 lineWidth: 1,
               },
               labels: {
@@ -296,31 +296,33 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
   };
 
   return (
-    <div className="flex justify-center items-center flex-row md:h-[85%] h-[80%] w-screen px-4 gap-10">
-      <div className="flex justify-center items-center flex-col h-[85%] w-[95%]">
+    <div className="flex justify-center items-start md:h-[85%] h-[80%] w-screen p-2">
+      <div className="grid md:grid-cols-2 grid-cols-1 gap-4 w-full mt-5 m-4">
         {channels.map((channel, index) => {
           if (channel) {
             return (
-              <div key={index} className="flex flex-col w-full mb-1 relative">
-                <div className="border border-secondary-foreground md:h-36 h-28 w-full">
+              <div key={index} className="flex flex-col w-full relative mb-2">
+                <div className="border border-secondary-foreground w-full h-[35vh]">
+                  {" "}
+                  {/* Adjust height as needed */}
                   <canvas
                     id={`smoothie-chart-${index + 1}`}
                     className="w-full h-full"
                   />
                 </div>
-                <div className="absolute top-1/2 right-0 -mr-5 -mt-7 z-10">
+                <div className="absolute top-[45%] right-0 -mr-2 -mt-2 z-10">
                   <Card className="bg-secondary border-primary rounded-2xl">
-                    <CardContent className="flex flex-col p-1 items-center justify-center gap-2">
+                    <CardContent className="flex flex-col p-1 items-center justify-center gap-1">
                       <Button
                         variant={"outline"}
-                        className="border-muted-foreground hover:bg-destructive w-7 h-7 p-0 rounded-full"
+                        className="border-muted-foreground hover:bg-destructive w-6 h-6 p-0 rounded-full"
                         onClick={() => handlePauseClick(index)}
                         size={"sm"}
                       >
                         {isPaused[index] ? (
-                          <Play size={14} />
+                          <Play size={12} />
                         ) : (
-                          <Pause size={14} />
+                          <Pause size={12} />
                         )}
                       </Button>
                       <p className="text-[10px]">{`CH${index + 1}`}</p>
