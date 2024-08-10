@@ -10,9 +10,13 @@ import {
   FileArchive,
   FileDown,
   Infinity,
-  ArrowUp, 
+  ArrowUp,
   Trash2,
-   Download,
+  Download,
+  Pause,
+  Play,
+  Grid,
+  List,
 } from "lucide-react";
 import { vendorsList } from "./vendors";
 import { BoardsList } from "./UDL_Boards";
@@ -42,12 +46,19 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+interface GridViewProps {
+  isGridView: boolean;
+  setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
+}
 
 interface ConnectionProps {
   LineData: Function;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
+  gridViewProps: GridViewProps;
+  isGridView: boolean; // Add this
+  setIsGridView: Dispatch<SetStateAction<boolean>>; // Add this
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -55,15 +66,17 @@ const Connection: React.FC<ConnectionProps> = ({
   Connection,
   selectedBits,
   setSelectedBits,
+  gridViewProps,
 }) => {
-  const [open,setOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const { isGridView, setIsGridView } = gridViewProps;
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
-  const [indexTracker,setIndexTracker]=useState<number[]>([]);//keep track of indexes of files
-  const [counter,setCounter]=useState<number>(0);
+  const [indexTracker, setIndexTracker] = useState<number[]>([]); //keep track of indexes of files
+  const [counter, setCounter] = useState<number>(0);
   const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
   const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to store the timer interval
@@ -72,6 +85,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
   const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
+  const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is paused
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -93,6 +107,9 @@ const Connection: React.FC<ConnectionProps> = ({
       }
     }
   };
+  const toggleView = () => {
+    setIsGridView(!isGridView);
+  };
 
   const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Function to handle the custom time input change
@@ -100,17 +117,17 @@ const Connection: React.FC<ConnectionProps> = ({
     setCustomTime(value);
   };
   //Function to delete all saved files
-  const deletedata=()=>{
+  const deletedata = () => {
     setDatasets([]);
   };
 
-const deleteindividualfiles=(index: number)=>{
-  const newDatasets = datasets.filter((item, i) => i !== index);
-  setDatasets(newDatasets);
-  const newRemovedIndexes = indexTracker.filter((item, i) => i !== index);
-  // setRemovedIndexes((prevIndexes) => [...prevIndexes, index]);
-  setIndexTracker(newRemovedIndexes);
-}
+  const deleteindividualfiles = (index: number) => {
+    const newDatasets = datasets.filter((item, i) => i !== index);
+    setDatasets(newDatasets);
+    const newRemovedIndexes = indexTracker.filter((item, i) => i !== index);
+    // setRemovedIndexes((prevIndexes) => [...prevIndexes, index]);
+    setIndexTracker(newRemovedIndexes);
+  };
   const handleCustomTimeSet = () => {
     // Function to handle the custom time input set
     const time = parseInt(customTime);
@@ -149,6 +166,14 @@ const deleteindividualfiles=(index: number)=>{
     },
     [setSelectedBits]
   );
+  const handleToggle = () => {
+    // Toggle between Resume and Pause
+    if (isPaused) {
+      resumeData(); // Resume data display
+    } else {
+      pauseData(); // Pause data display
+    }
+  };
 
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -218,30 +243,33 @@ const deleteindividualfiles=(index: number)=>{
   };
 
   const readData = async (): Promise<void> => {
-    // Function to read the data from the device
-    const decoder = new TextDecoder(); // Create a new text decoder
-    let lineBuffer = ""; // Initialize the line buffer
+    const decoder = new TextDecoder();
+    let lineBuffer = "";
     while (isConnectedRef.current) {
-      // Loop until the device is connected
       try {
-        const StreamData = await readerRef.current?.read(); // Read the data from the device
+        if (isPaused) {
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Wait before checking again
+          continue; // Skip processing if paused
+        }
+
+        const StreamData = await readerRef.current?.read();
         if (StreamData?.done) {
           console.log("Thank you for using our app!");
           break;
         }
+
         const receivedData = decoder.decode(StreamData?.value, {
           stream: true,
         });
-        const lines = (lineBuffer + receivedData).split("\n"); // Split the data by new line
-        lineBuffer = lines.pop() ?? ""; // Get the last line
+        const lines = (lineBuffer + receivedData).split("\n");
+        lineBuffer = lines.pop() ?? "";
+
         for (const line of lines) {
-          // Loop through the lines
           const dataValues = line.split(",");
-          if (dataValues.length === 1) {
-          } else {
-            LineData(dataValues); // Pass the data values to the LineData function which will be used by DataPass to pass to the Canvas component
+          if (dataValues.length > 1) {
+            LineData(dataValues); // Update data visualization
             if (isRecordingRef.current) {
-              bufferRef.current.push(dataValues); // Push the data values to the buffer if recording is on
+              bufferRef.current.push(dataValues);
             }
           }
         }
@@ -250,7 +278,18 @@ const deleteindividualfiles=(index: number)=>{
         break;
       }
     }
+
     await disconnectDevice();
+  };
+
+  const pauseData = () => {
+    setIsPaused(true); // Set the paused state to true
+    toast("Data display paused");
+  };
+
+  const resumeData = () => {
+    setIsPaused(false); // Set the paused state to false
+    toast("Data display resumed");
   };
 
   const columnNames = [
@@ -335,7 +374,7 @@ const deleteindividualfiles=(index: number)=>{
       });
       bufferRef.current = [];
       setIndexTracker((prevIndexes) => [...prevIndexes, counter]); // Clear the buffer ref
-      let newCounter=counter+1;
+      let newCounter = counter + 1;
       setCounter(newCounter);
     }
 
@@ -484,7 +523,6 @@ const deleteindividualfiles=(index: number)=>{
           <div className="flex items-center space-x-2">
             {detectedBits ? (
               <Button
-                variant="outline"
                 className={`w-36 flex justify-center items-center overflow-hidden ${
                   selectedBits === "auto"
                     ? "bg-dark text-light"
@@ -540,7 +578,7 @@ const deleteindividualfiles=(index: number)=>{
             </Tooltip>
           </TooltipProvider>
         )}
-       {isConnected && datasets.length > 0 && (
+        {isConnected && datasets.length > 0 && (
           <TooltipProvider>
             <Tooltip>
               <div className="flex">
@@ -563,36 +601,44 @@ const deleteindividualfiles=(index: number)=>{
                   </Button>
                 ) : (
                   <>
-                  <Popover open={open} onOpenChange={setOpen}>
-                    <PopoverTrigger asChild>
-                      <Button className="rounded-none">
-                        <ArrowUp size={20} />
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <Button className="rounded-none">
+                          <ArrowUp size={20} />
+                        </Button>
+                      </PopoverTrigger>
+                      <Button className="rounded-l-none" onClick={deletedata}>
+                        <Trash2 size={20} />
                       </Button>
-                    </PopoverTrigger>
-                    <Button className="rounded-l-none" onClick={deletedata}>
-                    <Trash2 size={20} />
-                  </Button>
-                    <PopoverContent className="w-80">
-                      <div className="space-y-4">
-                        {datasets.map((dataset, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between items-center"
-                          >
-                            <span>file{indexTracker[index]}.csv</span>
-                            <div className="space-x-2">
-                              <Button size="sm" variant="outline" onClick={()=>savedataindividual(index)}>
-                                <Download size={16} />
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => deleteindividualfiles(index)}>
-                                <Trash2 size={16} />
-                              </Button>
+                      <PopoverContent className="w-80">
+                        <div className="space-y-4">
+                          {datasets.map((dataset, index) => (
+                            <div
+                              key={index}
+                              className="flex justify-between items-center"
+                            >
+                              <span>file{indexTracker[index]}.csv</span>
+                              <div className="space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => savedataindividual(index)}
+                                >
+                                  <Download size={16} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => deleteindividualfiles(index)}
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </>
                 )}
               </div>
@@ -602,6 +648,41 @@ const deleteindividualfiles=(index: number)=>{
                 ) : (
                   <p>Save As Zip</p>
                 )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button>
+                  {isPaused ? (
+                    <Play className="h-5 w-5" /> // Show Play icon when paused
+                  ) : (
+                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isPaused ? "Resume Data Display" : "Pause Data Display"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="bg-secondary gap-2"
+                  onClick={() => setIsGridView(!isGridView)}
+                >
+                  {isGridView ? <List size={20} /> : <Grid size={20} />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isPaused ? "Resume Data Display" : "Pause Data Display"}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
