@@ -56,9 +56,8 @@ interface ConnectionProps {
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
-  gridViewProps: GridViewProps;
-  isGridView: boolean; // Add this
-  setIsGridView: Dispatch<SetStateAction<boolean>>; // Add this
+  isGridView: boolean;
+  setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -66,10 +65,10 @@ const Connection: React.FC<ConnectionProps> = ({
   Connection,
   selectedBits,
   setSelectedBits,
-  gridViewProps,
+  isGridView,
+  setIsGridView,
 }) => {
   const [open, setOpen] = useState(false);
-  const { isGridView, setIsGridView } = gridViewProps;
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
@@ -106,9 +105,6 @@ const Connection: React.FC<ConnectionProps> = ({
         toast.success(`Recording end time set to ${minutes} minutes`);
       }
     }
-  };
-  const toggleView = () => {
-    setIsGridView(!isGridView);
   };
 
   const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -675,14 +671,14 @@ const Connection: React.FC<ConnectionProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className="bg-secondary gap-2"
+                  className="bg-primary gap-2"
                   onClick={() => setIsGridView(!isGridView)}
                 >
                   {isGridView ? <List size={20} /> : <Grid size={20} />}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{isPaused ? "Resume Data Display" : "Pause Data Display"}</p>
+                <p>{isGridView ? "Grid" : "List"}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

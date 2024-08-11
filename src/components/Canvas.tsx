@@ -16,15 +16,15 @@ import { BitSelection } from "./DataPass";
 interface CanvasProps {
   data: string;
   selectedBits: BitSelection;
+  isGridView: boolean;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
+const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
   const { theme } = useTheme(); // Get the current theme
 
   const channels = useMemo(() => [true, true, true, true], []); // Number of channels
 
   const [isPaused, setIsPaused] = useState(Array(channels.length).fill(false)); // Paused state for each channel
-  const [isGridView, setIsGridView] = useState(true);
   const chartRef = useRef<SmoothieChart[]>([]); // Reference to the chart
   const seriesRef = useRef<(TimeSeries | null)[]>([]); // Reference to the timeseries
   const [isChartInitialized, setIsChartInitialized] = useState(false); // Chart initialization state
@@ -33,9 +33,6 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
     () => [],
     []
   );
-  const toggleView = () => {
-    setIsGridView(!isGridView);
-  };
 
   const getChannelColor = useCallback(
     // Get the color for each channel
@@ -299,11 +296,6 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
 
   return (
     <div className="flex flex-col justify-center items-start mx-4 px-4">
-      <div className="flex justify-end w-full">
-        <Button onClick={toggleView}>
-          {isGridView ? <List size={20} /> : <Grid size={20} />}
-        </Button>
-      </div>
       <div
         className={`grid ${
           isGridView ? "md:grid-cols-2 grid-cols-1 gap-2" : "grid-cols-1 gap-1"
@@ -315,7 +307,7 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
               <div
                 key={index}
                 className={`flex flex-col w-full relative ${
-                  isGridView ? "mb-2" : ""
+                  isGridView ? "mb-2" : "mb-1"
                 }`}
               >
                 <div

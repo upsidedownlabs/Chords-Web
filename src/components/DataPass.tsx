@@ -11,12 +11,16 @@ const DataPass = () => {
   const [data, setData] = useState(""); // Data from the serial port
   const [selectedBits, setSelectedBits] = useState<BitSelection>("auto"); // Selected bits
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
-  const [isGridView, setIsGridView] = useState(true); // Grid view state
+  const [isGridView, setIsGridView] = useState<boolean>(false); // Grid view state
 
   return (
     <>
       {isConnected ? (
-        <Canvas data={data} selectedBits={selectedBits} />
+        <Canvas
+          data={data}
+          selectedBits={selectedBits}
+          isGridView={isGridView}
+        />
       ) : (
         <Steps />
       )}
@@ -25,7 +29,8 @@ const DataPass = () => {
         Connection={setIsConnected}
         selectedBits={selectedBits}
         setSelectedBits={setSelectedBits}
-        gridViewProps={{ isGridView, setIsGridView }} // Pass both state and setter in one prop
+        isGridView={isGridView}
+        setIsGridView={setIsGridView}
       />
     </>
   );
