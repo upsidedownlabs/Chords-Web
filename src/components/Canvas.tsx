@@ -1,5 +1,5 @@
 "use client";
-import { Pause, Play } from "lucide-react";
+import { Pause, Play, Grid, List } from "lucide-react";
 import React, {
   useEffect,
   useRef,
@@ -16,19 +16,18 @@ import { BitSelection } from "./DataPass";
 interface CanvasProps {
   data: string;
   selectedBits: BitSelection;
+  isGridView: boolean;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
+const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
   const { theme } = useTheme(); // Get the current theme
 
   const channels = useMemo(() => [true, true, true, true], []); // Number of channels
 
   const [isPaused, setIsPaused] = useState(Array(channels.length).fill(false)); // Paused state for each channel
-
   const chartRef = useRef<SmoothieChart[]>([]); // Reference to the chart
   const seriesRef = useRef<(TimeSeries | null)[]>([]); // Reference to the timeseries
   const [isChartInitialized, setIsChartInitialized] = useState(false); // Chart initialization state
-
   const batchSize = 10; // Batch size for processing data
   const batchBuffer = useMemo<Array<{ time: number; values: number[] }>>( // Buffer for batch processing
     () => [],
@@ -296,38 +295,55 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits }) => {
   };
 
   return (
-    <div className="flex justify-center items-start md:h-[85%] h-[80%] w-screen p-2">
-      <div className="grid md:grid-cols-2 grid-cols-1 gap-4 w-full mt-5 m-4">
+    <div className="flex flex-col justify-center items-start mx-4 px-4">
+      <div
+        className={`grid ${
+          isGridView ? "md:grid-cols-2 grid-cols-1 gap-2" : "grid-cols-1 gap-1"
+        } w-full`}
+      >
         {channels.map((channel, index) => {
           if (channel) {
             return (
-              <div key={index} className="flex flex-col w-full relative mb-2">
-                <div className="border border-secondary-foreground w-full h-[35vh]">
-                  {" "}
-                  {/* Adjust height as needed */}
+              <div
+                key={index}
+                className={`flex flex-col w-full relative ${
+                  isGridView ? "mb-2" : "mb-1"
+                }`}
+              >
+                <div
+                  className={`border border-secondary-foreground w-full ${
+                    isGridView ? "h-[40vh]" : "h-[20vh]"
+                  } relative`}
+                >
                   <canvas
                     id={`smoothie-chart-${index + 1}`}
                     className="w-full h-full"
                   />
-                </div>
-                <div className="absolute top-[45%] right-0 -mr-2 -mt-2 z-10">
-                  <Card className="bg-secondary border-primary rounded-2xl">
-                    <CardContent className="flex flex-col p-1 items-center justify-center gap-1">
-                      <Button
-                        variant={"outline"}
-                        className="border-muted-foreground hover:bg-destructive w-6 h-6 p-0 rounded-full"
-                        onClick={() => handlePauseClick(index)}
-                        size={"sm"}
-                      >
-                        {isPaused[index] ? (
-                          <Play size={12} />
-                        ) : (
-                          <Pause size={12} />
-                        )}
-                      </Button>
-                      <p className="text-[10px]">{`CH${index + 1}`}</p>
-                    </CardContent>
-                  </Card>
+                  <div
+                    className={`absolute ${
+                      isGridView
+                        ? "top-[45%] right-0 -mr-3 -mt-3"
+                        : "top-1/2 right-0 transform -translate-y-1/2 -mr-2"
+                    } z-10`}
+                  >
+                    <Card className="bg-secondary border-primary rounded-2xl">
+                      <CardContent className="flex flex-col p-1 items-center justify-center gap-1">
+                        <Button
+                          variant={"outline"}
+                          className="border-muted-foreground hover:bg-destructive w-6 h-6 p-0 rounded-full"
+                          onClick={() => handlePauseClick(index)}
+                          size={"sm"}
+                        >
+                          {isPaused[index] ? (
+                            <Play size={12} />
+                          ) : (
+                            <Pause size={12} />
+                          )}
+                        </Button>
+                        <p className="text-[10px]">{`CH${index + 1}`}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               </div>
             );
