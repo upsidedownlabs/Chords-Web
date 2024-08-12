@@ -88,6 +88,10 @@ const Connection: React.FC<ConnectionProps> = ({
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
+  const [isPrimary, setIsPrimary] = useState(false);
+
+  // Condition to change the variant
+  const variant = isPrimary ? 'primary' : 'outline';
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -113,7 +117,7 @@ const Connection: React.FC<ConnectionProps> = ({
     setCustomTime(value);
   };
   //Function to delete all saved files
-  const deletedata = () => {
+  const deletedataall = () => {
     setDatasets([]);
   };
 
@@ -412,14 +416,14 @@ const Connection: React.FC<ConnectionProps> = ({
       const csvData = convertToCSV(datasets[0]);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
       saveAs(blob, "data.csv");
-      deletedata();
+      deletedataall();
     } else if (datasets.length > 1) {
       const zip = new JSZip();
       datasets.forEach((data, index) => {
         const csvData = convertToCSV(data);
         zip.file(`data${index + 1}.csv`, csvData);
       });
-      deletedata();
+      deletedataall();
       const zipContent = await zip.generateAsync({ type: "blob" });
       saveAs(zipContent, "datasets.zip");
     } else {
@@ -519,9 +523,9 @@ const Connection: React.FC<ConnectionProps> = ({
           <div className="flex items-center space-x-2">
             {detectedBits ? (
               <Button
-                className={`w-36 flex justify-center items-center overflow-hidden ${
+              className={`w-36 flex justify-center items-center overflow-hidden ${
                   selectedBits === "auto"
-                    ? "bg-dark text-light"
+                    ? "bg-primary text-light"
                     : "bg-white text-black"
                 }`}
                 onClick={() =>
@@ -578,63 +582,62 @@ const Connection: React.FC<ConnectionProps> = ({
           <TooltipProvider>
             <Tooltip>
               <div className="flex">
-                <Button onClick={saveData} className="rounded-r-none">
+              {datasets.length === 1 && (
                   <TooltipTrigger asChild>
-                    {datasets.length === 1 ? (
-                      <FileDown className="mr-2" />
-                    ) : (
-                      <span className="flex flex-row justify-center items-center">
-                        <FileArchive className="mr-2" />
-                        <p className="text-lg">{datasets.length}</p>
-                      </span>
-                    )}
+                  <Button  className="rounded-r-none" onClick={saveData}>
+                    <FileDown className="mr-2" />
+                  </Button>
                   </TooltipTrigger>
-                </Button>
+                  )}
                 <Separator orientation="vertical" className="h-full" />
                 {datasets.length === 1 ? (
-                  <Button className="rounded-l-none" onClick={deletedata}>
+                  <Button className="rounded-l-none" onClick={deletedataall}>
                     <Trash2 size={20} />
                   </Button>
                 ) : (
                   <>
-                    <Popover open={open} onOpenChange={setOpen}>
-                      <PopoverTrigger asChild>
-                        <Button className="rounded-none">
-                          <ArrowUp size={20} />
-                        </Button>
-                      </PopoverTrigger>
-                      <Button className="rounded-l-none" onClick={deletedata}>
-                        <Trash2 size={20} />
+                  <Popover open={open} onOpenChange={setOpen}>
+                    <PopoverTrigger asChild>
+                      <Button className="rounded-r-none mr-1">
+                        <FileArchive className="mr-2" />
+                        <p className="text-lg">{datasets.length}</p>
                       </Button>
-                      <PopoverContent className="w-80">
-                        <div className="space-y-4">
-                          {datasets.map((dataset, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between items-center"
-                            >
-                              <span>file{indexTracker[index]}.csv</span>
-                              <div className="space-x-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => savedataindividual(index)}
-                                >
-                                  <Download size={16} />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => deleteindividualfiles(index)}
-                                >
-                                  <Trash2 size={16} />
-                                </Button>
+                    </PopoverTrigger>
+                    <Button className="rounded-l-none" onClick={deletedataall}>
+                    <Trash2 size={20} />
+                  </Button>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-4 ">
+                        <div className="flex justify-between items-center">
+                        <span className="text-red-500">ZipFile</span>
+                        <div className="space-x-2">
+                        <Button size="sm" variant="outline" onClick={saveData}>
+                                <Download size={16} />
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={deletedataall}>
+                                <Trash2 size={16} />
+                              </Button>
                               </div>
-                            </div>
-                          ))}
                         </div>
-                      </PopoverContent>
-                    </Popover>
+                        {datasets.map((dataset, index) => (
+                          <div
+                            key={index}
+                            className="flex justify-between items-center"
+                          >
+                            <span>File{indexTracker[index]}.csv</span>
+                            <div className="space-x-2">
+                              <Button size="sm" variant="outline" onClick={()=>savedataindividual(index)}>
+                                <Download size={16} />
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => deleteindividualfiles(index)}>
+                                <Trash2 size={16} />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   </>
                 )}
               </div>
@@ -648,7 +651,8 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-        {isConnected && (
+
+{isConnected && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -683,10 +687,13 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
+
       </div>
       <div className="flex-1"></div>
     </div>
   );
 };
+
 
 export default Connection;
