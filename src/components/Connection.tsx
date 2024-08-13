@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
+import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
 import {
   Cable,
@@ -46,15 +47,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-interface GridViewProps {
-  isGridView: boolean;
-  setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
-}
-interface DisplayProps {
-  isDisplay: boolean;
-  setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
 interface ConnectionProps {
   LineData: Function;
   Connection: (isConnected: boolean) => void;
@@ -91,15 +83,12 @@ const Connection: React.FC<ConnectionProps> = ({
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
   const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
+  const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
-  const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is paused
+  // const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is pause
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
-  const [isPrimary, setIsPrimary] = useState(false);
-
-  // Condition to change the variant
-  const variant = isPrimary ? "primary" : "outline";
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -174,14 +163,6 @@ const Connection: React.FC<ConnectionProps> = ({
     },
     [setSelectedBits]
   );
-  const handleToggle = () => {
-    // Toggle between Resume and Pause
-    if (isPaused) {
-      resumeData(); // Resume data display
-    } else {
-      pauseData(); // Pause data display
-    }
-  };
 
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -251,33 +232,30 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const readData = async (): Promise<void> => {
-    const decoder = new TextDecoder();
-    let lineBuffer = "";
+    // Function to read the data from the device
+    const decoder = new TextDecoder(); // Create a new text decoder
+    let lineBuffer = ""; // Initialize the line buffer
     while (isConnectedRef.current) {
+      // Loop until the device is connected
       try {
-        if (isDisplay) {
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Wait before checking again
-          continue; // Skip processing if paused
-        }
-
-        const StreamData = await readerRef.current?.read();
+        const StreamData = await readerRef.current?.read(); // Read the data from the device
         if (StreamData?.done) {
           console.log("Thank you for using our app!");
           break;
         }
-
         const receivedData = decoder.decode(StreamData?.value, {
           stream: true,
         });
-        const lines = (lineBuffer + receivedData).split("\n");
-        lineBuffer = lines.pop() ?? "";
-
+        const lines = (lineBuffer + receivedData).split("\n"); // Split the data by new line
+        lineBuffer = lines.pop() ?? ""; // Get the last line
         for (const line of lines) {
+          // Loop through the lines
           const dataValues = line.split(",");
-          if (dataValues.length > 1) {
-            LineData(dataValues); // Update data visualization
+          if (dataValues.length === 1) {
+          } else {
+            LineData(dataValues); // Pass the data values to the LineData function which will be used by DataPass to pass to the Canvas component
             if (isRecordingRef.current) {
-              bufferRef.current.push(dataValues);
+              bufferRef.current.push(dataValues); // Push the data values to the buffer if recording is on
             }
           }
         }
@@ -286,17 +264,28 @@ const Connection: React.FC<ConnectionProps> = ({
         break;
       }
     }
-
     await disconnectDevice();
   };
 
+  const handleDisplayToggle = (isDisplay: boolean) => {
+    setIsDisplay((prevIsDisplay) => !prevIsDisplay);
+
+    chartRef.current.forEach((chart) => {
+      if (isDisplay) {
+        chart.stop();
+      } else {
+        chart.start();
+      }
+    });
+  };
+
   const pauseData = () => {
-    setIsDisplay(true); // Set the paused state to true
+    setIsDisplay(true);
     toast("Data display paused");
   };
 
   const resumeData = () => {
-    setIsDisplay(false); // Set the paused state to false
+    setIsDisplay(false);
     toast("Data display resumed");
   };
 
@@ -682,11 +671,11 @@ const Connection: React.FC<ConnectionProps> = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button onClick={() => setIsDisplay(!isDisplay)}>
+                <Button onClick={() => handleDisplayToggle(isDisplay)}>
                   {isDisplay ? (
-                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
+                    <Pause className="h-5 w-5" onClick={() => pauseData()} /> // Show Pause icon when playing
                   ) : (
-                    <Play className="h-5 w-5" /> // Show Play icon when paused
+                    <Play className="h-5 w-5" onClick={() => resumeData()} /> // Show Play icon when paused
                   )}
                 </Button>
               </TooltipTrigger>

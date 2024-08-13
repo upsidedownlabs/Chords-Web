@@ -135,7 +135,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
     batchBuffer.forEach((batch) => {
       channels.forEach((channel, index) => {
-        if (channel) {
+        if (channel && !isPaused[index]) {
           const series = seriesRef.current[index];
           if (series && !isNaN(batch.values[index])) {
             series.append(batch.time, batch.values[index]);
@@ -268,6 +268,7 @@ const Canvas: React.FC<CanvasProps> = ({
       updateChartColors();
     }
   }, [theme, isChartInitialized, updateChartColors]);
+  
   const handlePauseClick = (index: number) => {
     // Handle the pause click for each channel
     setIsPaused((prevIsPaused) => {
@@ -284,24 +285,26 @@ const Canvas: React.FC<CanvasProps> = ({
   };
 
   return (
-    <div className="flex flex-col justify-center items-start mx-4 px-4 mt-2 ">
+    <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
       <div
         className={`grid ${
-          isGridView ? "md:grid-cols-2 grid-cols-1 gap-4" : "grid-cols-1 gap-1"
-        } w-full`}
+          isGridView
+            ? "md:grid-cols-2 grid-cols-1 gap-8" // Apply the same spacing for both horizontal and vertical gaps
+            : "grid-cols-1 gap-1"
+        } w-full h-full`}
       >
         {channels.map((channel, index) => {
           if (channel) {
             return (
               <div
                 key={index}
-                className={`flex flex-col w-full relative ${
-                  isGridView ? "mb-2" : "mb-1"
+                className={`flex flex-col w-full relative h-full${
+                  isGridView ? "" : ""
                 }`}
               >
                 <div
                   className={`border border-secondary-foreground w-full ${
-                    isGridView ? "h-[40vh]" : "h-[20vh]"
+                    isGridView ? "h-[38vh]" : "h-[20vh]"
                   } relative`}
                 >
                   <canvas

@@ -12,7 +12,7 @@ const DataPass = () => {
   const [selectedBits, setSelectedBits] = useState<BitSelection>("auto"); // Selected bits
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
   const [isGridView, setIsGridView] = useState<boolean>(false); // Grid view state
-  const [isDisplay, setIsDisplay] = useState<boolean>(false); // Display state
+  const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
 
   return (
     <>
