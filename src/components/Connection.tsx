@@ -88,10 +88,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
-  const [isPrimary, setIsPrimary] = useState(false);
-
-  // Condition to change the variant
-  const variant = isPrimary ? 'primary' : 'outline';
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -117,7 +113,7 @@ const Connection: React.FC<ConnectionProps> = ({
     setCustomTime(value);
   };
   //Function to delete all saved files
-  const deletedataall = () => {
+  const deleteAlldata = () => {
     setDatasets([]);
   };
 
@@ -416,14 +412,14 @@ const Connection: React.FC<ConnectionProps> = ({
       const csvData = convertToCSV(datasets[0]);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
       saveAs(blob, "data.csv");
-      deletedataall();
+      deleteAlldata();
     } else if (datasets.length > 1) {
       const zip = new JSZip();
       datasets.forEach((data, index) => {
         const csvData = convertToCSV(data);
         zip.file(`data${index + 1}.csv`, csvData);
       });
-      deletedataall();
+      deleteAlldata();
       const zipContent = await zip.generateAsync({ type: "blob" });
       saveAs(zipContent, "datasets.zip");
     } else {
@@ -525,7 +521,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Button
               className={`w-36 flex justify-center items-center overflow-hidden ${
                   selectedBits === "auto"
-                    ? "bg-primary text-light"
+                    ? "bg-dark text-light"
                     : "bg-white text-black"
                 }`}
                 onClick={() =>
@@ -591,7 +587,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   )}
                 <Separator orientation="vertical" className="h-full" />
                 {datasets.length === 1 ? (
-                  <Button className="rounded-l-none" onClick={deletedataall}>
+                  <Button className="rounded-l-none" onClick={deleteAlldata}>
                     <Trash2 size={20} />
                   </Button>
                 ) : (
@@ -603,7 +599,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         <p className="text-lg">{datasets.length}</p>
                       </Button>
                     </PopoverTrigger>
-                    <Button className="rounded-l-none" onClick={deletedataall}>
+                    <Button className="rounded-l-none" onClick={deleteAlldata}>
                     <Trash2 size={20} />
                   </Button>
                     <PopoverContent className="w-80">
@@ -614,7 +610,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         <Button size="sm" variant="outline" onClick={saveData}>
                                 <Download size={16} />
                               </Button>
-                              <Button size="sm" variant="outline" onClick={deletedataall}>
+                              <Button size="sm" variant="outline" onClick={deleteAlldata}>
                                 <Trash2 size={16} />
                               </Button>
                               </div>
