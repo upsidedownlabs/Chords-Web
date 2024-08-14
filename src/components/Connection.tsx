@@ -11,7 +11,6 @@ import {
   FileArchive,
   FileDown,
   Infinity,
-  ArrowUp,
   Trash2,
   Download,
   Pause,
@@ -40,7 +39,6 @@ import {
 import { BitSelection } from "./DataPass";
 
 import { Separator } from "./ui/separator";
-import { Switch } from "../components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -68,7 +66,7 @@ const Connection: React.FC<ConnectionProps> = ({
   isDisplay,
   setIsDisplay,
 }) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
@@ -114,7 +112,7 @@ const Connection: React.FC<ConnectionProps> = ({
     setCustomTime(value);
   };
   //Function to delete all saved files
-  const deletedataall = () => {
+  const deleteAllData = () => {
     setDatasets([]);
   };
 
@@ -413,14 +411,14 @@ const Connection: React.FC<ConnectionProps> = ({
       const csvData = convertToCSV(datasets[0]);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
       saveAs(blob, "data.csv");
-      deletedataall();
+      deleteAllData();
     } else if (datasets.length > 1) {
       const zip = new JSZip();
       datasets.forEach((data, index) => {
         const csvData = convertToCSV(data);
         zip.file(`data${index + 1}.csv`, csvData);
       });
-      deletedataall();
+      deleteAllData();
       const zipContent = await zip.generateAsync({ type: "blob" });
       saveAs(zipContent, "datasets.zip");
     } else {
@@ -521,7 +519,7 @@ const Connection: React.FC<ConnectionProps> = ({
             {detectedBits ? (
               <Button
                 variant={selectedBits === "auto" ? "outline" : "default"}
-                className={`w-36 flex justify-center items-center overflow-hidden`}
+                className="w-36 flex justify-center items-center overflow-hidden"
                 onClick={() =>
                   setSelectedBits(
                     selectedBits === "auto" ? detectedBits : "auto"
@@ -622,7 +620,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 )}
                 <Separator orientation="vertical" className="h-full" />
                 {datasets.length === 1 ? (
-                  <Button className="rounded-l-none" onClick={deletedataall}>
+                  <Button className="rounded-l-none" onClick={deleteAllData}>
                     <Trash2 size={20} />
                   </Button>
                 ) : (
@@ -636,7 +634,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       </PopoverTrigger>
                       <Button
                         className="rounded-l-none"
-                        onClick={deletedataall}
+                        onClick={deleteAllData}
                       >
                         <Trash2 size={20} />
                       </Button>
@@ -655,7 +653,7 @@ const Connection: React.FC<ConnectionProps> = ({
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={deletedataall}
+                                onClick={deleteAllData}
                               >
                                 <Trash2 size={16} />
                               </Button>
