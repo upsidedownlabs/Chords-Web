@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
+import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
 import {
   Cable,
@@ -46,11 +47,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-interface GridViewProps {
-  isGridView: boolean;
-  setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
 interface ConnectionProps {
   LineData: Function;
   Connection: (isConnected: boolean) => void;
@@ -58,6 +54,8 @@ interface ConnectionProps {
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
   isGridView: boolean;
   setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
+  isDisplay: boolean;
+  setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -67,6 +65,8 @@ const Connection: React.FC<ConnectionProps> = ({
   setSelectedBits,
   isGridView,
   setIsGridView,
+  isDisplay,
+  setIsDisplay,
 }) => {
   const [open, setOpen] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
@@ -83,8 +83,9 @@ const Connection: React.FC<ConnectionProps> = ({
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
   const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
+  const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
-  const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is paused
+  // const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is pause
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -113,7 +114,7 @@ const Connection: React.FC<ConnectionProps> = ({
     setCustomTime(value);
   };
   //Function to delete all saved files
-  const deletedata = () => {
+  const deletedataall = () => {
     setDatasets([]);
   };
 
@@ -162,14 +163,6 @@ const Connection: React.FC<ConnectionProps> = ({
     },
     [setSelectedBits]
   );
-  const handleToggle = () => {
-    // Toggle between Resume and Pause
-    if (isPaused) {
-      resumeData(); // Resume data display
-    } else {
-      pauseData(); // Pause data display
-    }
-  };
 
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -239,33 +232,30 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const readData = async (): Promise<void> => {
-    const decoder = new TextDecoder();
-    let lineBuffer = "";
+    // Function to read the data from the device
+    const decoder = new TextDecoder(); // Create a new text decoder
+    let lineBuffer = ""; // Initialize the line buffer
     while (isConnectedRef.current) {
+      // Loop until the device is connected
       try {
-        if (isPaused) {
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Wait before checking again
-          continue; // Skip processing if paused
-        }
-
-        const StreamData = await readerRef.current?.read();
+        const StreamData = await readerRef.current?.read(); // Read the data from the device
         if (StreamData?.done) {
           console.log("Thank you for using our app!");
           break;
         }
-
         const receivedData = decoder.decode(StreamData?.value, {
           stream: true,
         });
-        const lines = (lineBuffer + receivedData).split("\n");
-        lineBuffer = lines.pop() ?? "";
-
+        const lines = (lineBuffer + receivedData).split("\n"); // Split the data by new line
+        lineBuffer = lines.pop() ?? ""; // Get the last line
         for (const line of lines) {
+          // Loop through the lines
           const dataValues = line.split(",");
-          if (dataValues.length > 1) {
-            LineData(dataValues); // Update data visualization
+          if (dataValues.length === 1) {
+          } else {
+            LineData(dataValues); // Pass the data values to the LineData function which will be used by DataPass to pass to the Canvas component
             if (isRecordingRef.current) {
-              bufferRef.current.push(dataValues);
+              bufferRef.current.push(dataValues); // Push the data values to the buffer if recording is on
             }
           }
         }
@@ -274,17 +264,28 @@ const Connection: React.FC<ConnectionProps> = ({
         break;
       }
     }
-
     await disconnectDevice();
   };
 
+  const handleDisplayToggle = (isDisplay: boolean) => {
+    setIsDisplay((prevIsDisplay) => !prevIsDisplay);
+
+    chartRef.current.forEach((chart) => {
+      if (isDisplay) {
+        chart.stop();
+      } else {
+        chart.start();
+      }
+    });
+  };
+
   const pauseData = () => {
-    setIsPaused(true); // Set the paused state to true
+    setIsDisplay(true);
     toast("Data display paused");
   };
 
   const resumeData = () => {
-    setIsPaused(false); // Set the paused state to false
+    setIsDisplay(false);
     toast("Data display resumed");
   };
 
@@ -376,7 +377,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     toast.success("Recording completed Successfully", {
       description: (
-        <div className="mt-2 flex flex-col space-y-1">
+        <div className="mt-2 flex flex-col mb-4">
           <p>Start Time: {startTimeString}</p>
           <p>End Time: {endTimeString}</p>
           <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
@@ -412,14 +413,14 @@ const Connection: React.FC<ConnectionProps> = ({
       const csvData = convertToCSV(datasets[0]);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
       saveAs(blob, "data.csv");
-      deletedata();
+      deletedataall();
     } else if (datasets.length > 1) {
       const zip = new JSZip();
       datasets.forEach((data, index) => {
         const csvData = convertToCSV(data);
         zip.file(`data${index + 1}.csv`, csvData);
       });
-      deletedata();
+      deletedataall();
       const zipContent = await zip.generateAsync({ type: "blob" });
       saveAs(zipContent, "datasets.zip");
     } else {
@@ -431,7 +432,7 @@ const Connection: React.FC<ConnectionProps> = ({
     <div className="flex h-14 items-center justify-between px-4">
       <div className="flex-1">
         {isRecordingRef.current && (
-          <div className="flex justify-center items-center space-x-1 w-min">
+          <div className="flex justify-center items-center space-x-1 w-min mx-4">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
@@ -455,7 +456,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-4">
+                <PopoverContent className="w-64 p-4 mx-4">
                   <div className="flex flex-col space-y-4">
                     <div className="text-sm font-medium">
                       Set End Time (minutes)
@@ -519,11 +520,8 @@ const Connection: React.FC<ConnectionProps> = ({
           <div className="flex items-center space-x-2">
             {detectedBits ? (
               <Button
-                className={`w-36 flex justify-center items-center overflow-hidden ${
-                  selectedBits === "auto"
-                    ? "bg-dark text-light"
-                    : "bg-white text-black"
-                }`}
+                variant={selectedBits === "auto" ? "outline" : "default"}
+                className={`w-36 flex justify-center items-center overflow-hidden`}
                 onClick={() =>
                   setSelectedBits(
                     selectedBits === "auto" ? detectedBits : "auto"
@@ -574,46 +572,101 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="bg-primary gap-2"
+                  onClick={() => setIsGridView(!isGridView)}
+                >
+                  {isGridView ? <List size={20} /> : <Grid size={20} />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isGridView ? "Grid" : "List"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={() => handleDisplayToggle(isDisplay)}>
+                  {isDisplay ? (
+                    <Pause className="h-5 w-5" onClick={() => pauseData()} /> // Show Pause icon when playing
+                  ) : (
+                    <Play className="h-5 w-5" onClick={() => resumeData()} /> // Show Play icon when paused
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {isConnected && datasets.length > 0 && (
           <TooltipProvider>
             <Tooltip>
               <div className="flex">
-                <Button onClick={saveData} className="rounded-r-none">
+                {datasets.length === 1 && (
                   <TooltipTrigger asChild>
-                    {datasets.length === 1 ? (
+                    <Button className="rounded-r-none" onClick={saveData}>
                       <FileDown className="mr-2" />
-                    ) : (
-                      <span className="flex flex-row justify-center items-center">
-                        <FileArchive className="mr-2" />
-                        <p className="text-lg">{datasets.length}</p>
-                      </span>
-                    )}
+                    </Button>
                   </TooltipTrigger>
-                </Button>
+                )}
                 <Separator orientation="vertical" className="h-full" />
                 {datasets.length === 1 ? (
-                  <Button className="rounded-l-none" onClick={deletedata}>
+                  <Button className="rounded-l-none" onClick={deletedataall}>
                     <Trash2 size={20} />
                   </Button>
                 ) : (
                   <>
                     <Popover open={open} onOpenChange={setOpen}>
                       <PopoverTrigger asChild>
-                        <Button className="rounded-none">
-                          <ArrowUp size={20} />
+                        <Button className="rounded-r-none mr-1">
+                          <FileArchive className="mr-2" />
+                          <p className="text-lg">{datasets.length}</p>
                         </Button>
                       </PopoverTrigger>
-                      <Button className="rounded-l-none" onClick={deletedata}>
+                      <Button
+                        className="rounded-l-none"
+                        onClick={deletedataall}
+                      >
                         <Trash2 size={20} />
                       </Button>
                       <PopoverContent className="w-80">
-                        <div className="space-y-4">
+                        <div className="space-y-4 ">
+                          <div className="flex justify-between items-center">
+                            <span className="text-red-500">ZipFile</span>
+                            <div className="space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={saveData}
+                              >
+                                <Download size={16} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={deletedataall}
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </div>
+                          </div>
                           {datasets.map((dataset, index) => (
                             <div
                               key={index}
                               className="flex justify-between items-center"
                             >
-                              <span>file{indexTracker[index]}.csv</span>
+                              <span>File{indexTracker[index]}.csv</span>
                               <div className="space-x-2">
                                 <Button
                                   size="sm"
@@ -644,41 +697,6 @@ const Connection: React.FC<ConnectionProps> = ({
                 ) : (
                   <p>Save As Zip</p>
                 )}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button>
-                  {isPaused ? (
-                    <Play className="h-5 w-5" /> // Show Play icon when paused
-                  ) : (
-                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isPaused ? "Resume Data Display" : "Pause Data Display"}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="bg-primary gap-2"
-                  onClick={() => setIsGridView(!isGridView)}
-                >
-                  {isGridView ? <List size={20} /> : <Grid size={20} />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isGridView ? "Grid" : "List"}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

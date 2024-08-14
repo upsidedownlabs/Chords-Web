@@ -12,6 +12,7 @@ const DataPass = () => {
   const [selectedBits, setSelectedBits] = useState<BitSelection>("auto"); // Selected bits
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
   const [isGridView, setIsGridView] = useState<boolean>(false); // Grid view state
+  const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
 
   return (
     <>
@@ -20,6 +21,7 @@ const DataPass = () => {
           data={data}
           selectedBits={selectedBits}
           isGridView={isGridView}
+          isDisplay={isDisplay}
         />
       ) : (
         <Steps />
@@ -31,6 +33,8 @@ const DataPass = () => {
         setSelectedBits={setSelectedBits}
         isGridView={isGridView}
         setIsGridView={setIsGridView}
+        isDisplay={isDisplay}
+        setIsDisplay={setIsDisplay}
       />
     </>
   );

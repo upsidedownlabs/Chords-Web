@@ -17,25 +17,28 @@ interface CanvasProps {
   data: string;
   selectedBits: BitSelection;
   isGridView: boolean;
+  isDisplay: boolean; // New prop for play/pause functionality
 }
 
-const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
-  const { theme } = useTheme(); // Get the current theme
-
-  const channels = useMemo(() => [true, true, true, true], []); // Number of channels
-
-  const [isPaused, setIsPaused] = useState(Array(channels.length).fill(false)); // Paused state for each channel
-  const chartRef = useRef<SmoothieChart[]>([]); // Reference to the chart
-  const seriesRef = useRef<(TimeSeries | null)[]>([]); // Reference to the timeseries
-  const [isChartInitialized, setIsChartInitialized] = useState(false); // Chart initialization state
-  const batchSize = 10; // Batch size for processing data
-  const batchBuffer = useMemo<Array<{ time: number; values: number[] }>>( // Buffer for batch processing
+const Canvas: React.FC<CanvasProps> = ({
+  data,
+  selectedBits,
+  isGridView,
+  isDisplay,
+}) => {
+  const { theme } = useTheme();
+  const channels = useMemo(() => [true, true, true, true], []);
+  const chartRef = useRef<SmoothieChart[]>([]);
+  const seriesRef = useRef<(TimeSeries | null)[]>([]);
+  const [isChartInitialized, setIsChartInitialized] = useState(false);
+  const [isPaused, setIsPaused] = useState(Array(channels.length).fill(false)); // Paused state for each channe
+  const batchSize = 10;
+  const batchBuffer = useMemo<Array<{ time: number; values: number[] }>>(
     () => [],
     []
   );
 
   const getChannelColor = useCallback(
-    // Get the color for each channel
     (index: number) => {
       const colorsDark = ["#FF4985", "#79E6F3", "#00FFC1", "#ccc"];
       const colorsLight = ["#D10054", "#007A8C", "#008060", "#555555"];
@@ -47,7 +50,6 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
   );
 
   const getThemeColors = useCallback(() => {
-    // Get the theme colors
     return theme === "dark"
       ? {
           background: "rgba(2, 8, 23)",
@@ -64,7 +66,6 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
   }, [theme]);
 
   const getMaxValue = useCallback((bits: BitSelection): number => {
-    // Get the max value for the chart
     switch (bits) {
       case "ten":
         return 1024;
@@ -78,12 +79,10 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
   }, []);
 
   const shouldAutoScale = useCallback((bits: BitSelection): boolean => {
-    // Check if the chart should autoscale
     return bits === "auto";
   }, []);
 
   const updateChartColors = useCallback(() => {
-    // Update the chart colors based on the theme
     const colors = getThemeColors();
     chartRef.current.forEach((chart, index) => {
       if (chart) {
@@ -115,7 +114,6 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
           });
         }
 
-        // Restream the chart to apply changes
         chart.streamTo(
           document.getElementById(
             `smoothie-chart-${index + 1}`
@@ -133,8 +131,7 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
   ]);
 
   const processBatch = useCallback(() => {
-    // Process the batch data
-    if (batchBuffer.length === 0) return;
+    if (batchBuffer.length === 0 || !isDisplay) return;
 
     batchBuffer.forEach((batch) => {
       channels.forEach((channel, index) => {
@@ -148,12 +145,11 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
     });
 
     batchBuffer.length = 0;
-  }, [channels, isPaused, batchBuffer]);
+  }, [channels, batchBuffer, isDisplay]);
 
   const handleDataUpdate = useCallback(
-    // Create batch data from the incoming data with timestamp
     (line: string) => {
-      if (line.trim() !== "") {
+      if (line.trim() !== "" && isDisplay) {
         const sensorValues = line.split(",").map(Number).slice(1);
         const timestamp = Date.now();
 
@@ -164,11 +160,10 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
         }
       }
     },
-    [processBatch, batchBuffer]
+    [processBatch, batchBuffer, isDisplay]
   );
 
   useEffect(() => {
-    // Update the chart with the incoming data
     if (isChartInitialized) {
       const lines = String(data).split("\n");
       lines.forEach(handleDataUpdate);
@@ -177,19 +172,18 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      if (batchBuffer.length > 0) {
+      if (batchBuffer.length > 0 && isDisplay) {
         processBatch();
       }
     }, 100);
 
     return () => {
       clearInterval(intervalId);
-      processBatch(); // Process any remaining data
+      processBatch();
     };
-  }, [processBatch, batchBuffer]);
+  }, [processBatch, batchBuffer, isDisplay]);
 
   useEffect(() => {
-    // Initialize the chart
     if (!isChartInitialized) {
       const colors = getThemeColors();
       channels.forEach((channel, index) => {
@@ -206,11 +200,9 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
 
           if (canvas) {
             const chart = new SmoothieChart({
-              // Create a new chart instance for each channel
               responsive: true,
               millisPerPixel: 8,
               interpolation: "bezier",
-              // timestampFormatter: SmoothieChart.timeFormatter,
               grid: {
                 fillStyle: colors.background,
                 strokeStyle: colors.grid,
@@ -233,7 +225,7 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
               lineWidth: 1,
             });
 
-            chart.streamTo(canvas, 500); // Stream the chart to the canvas with a delay of 500ms
+            chart.streamTo(canvas, 500);
 
             if (chartRef.current && seriesRef.current) {
               chartRef.current[index] = chart;
@@ -257,7 +249,6 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
 
   useEffect(() => {
     if (isChartInitialized) {
-      // Update the chart with the selected bits and autoscale
       chartRef.current.forEach((chart) => {
         if (chart) {
           if (shouldAutoScale(selectedBits)) {
@@ -274,11 +265,10 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
 
   useEffect(() => {
     if (isChartInitialized) {
-      // Update the chart colors based on the theme when the chart is initialized
       updateChartColors();
     }
   }, [theme, isChartInitialized, updateChartColors]);
-
+  
   const handlePauseClick = (index: number) => {
     // Handle the pause click for each channel
     setIsPaused((prevIsPaused) => {
@@ -295,24 +285,26 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
   };
 
   return (
-    <div className="flex flex-col justify-center items-start mx-4 px-4">
+    <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
       <div
         className={`grid ${
-          isGridView ? "md:grid-cols-2 grid-cols-1 gap-2" : "grid-cols-1 gap-1"
-        } w-full`}
+          isGridView
+            ? "md:grid-cols-2 grid-cols-1 gap-8" // Apply the same spacing for both horizontal and vertical gaps
+            : "grid-cols-1 gap-1"
+        } w-full h-full`}
       >
         {channels.map((channel, index) => {
           if (channel) {
             return (
               <div
                 key={index}
-                className={`flex flex-col w-full relative ${
-                  isGridView ? "mb-2" : "mb-1"
+                className={`flex flex-col w-full relative h-full${
+                  isGridView ? "" : ""
                 }`}
               >
                 <div
                   className={`border border-secondary-foreground w-full ${
-                    isGridView ? "h-[40vh]" : "h-[20vh]"
+                    isGridView ? "h-[38vh]" : "h-[20vh]"
                   } relative`}
                 >
                   <canvas
@@ -326,7 +318,7 @@ const Canvas: React.FC<CanvasProps> = ({ data, selectedBits, isGridView }) => {
                         : "top-1/2 right-0 transform -translate-y-1/2 -mr-2"
                     } z-10`}
                   >
-                    <Card className="bg-secondary border-primary rounded-2xl">
+                    <Card className="bg-secondary border-primary rounded-2xl -mr-1">
                       <CardContent className="flex flex-col p-1 items-center justify-center gap-1">
                         <Button
                           variant={"outline"}
