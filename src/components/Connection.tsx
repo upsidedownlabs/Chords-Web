@@ -377,7 +377,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     toast.success("Recording completed Successfully", {
       description: (
-        <div className="mt-2 flex flex-col space-y-1">
+        <div className="mt-2 flex flex-col mb-4">
           <p>Start Time: {startTimeString}</p>
           <p>End Time: {endTimeString}</p>
           <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
@@ -432,7 +432,7 @@ const Connection: React.FC<ConnectionProps> = ({
     <div className="flex h-14 items-center justify-between px-4">
       <div className="flex-1">
         {isRecordingRef.current && (
-          <div className="flex justify-center items-center space-x-1 w-min">
+          <div className="flex justify-center items-center space-x-1 w-min mx-4">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
@@ -520,11 +520,8 @@ const Connection: React.FC<ConnectionProps> = ({
           <div className="flex items-center space-x-2">
             {detectedBits ? (
               <Button
-                className={`w-36 flex justify-center items-center overflow-hidden ${
-                  selectedBits === "auto"
-                    ? "bg-primary text-black"
-                    : "bg-white text-black"
-                }`}
+                variant={selectedBits === "auto" ? "outline" : "default"}
+                className={`w-36 flex justify-center items-center overflow-hidden`}
                 onClick={() =>
                   setSelectedBits(
                     selectedBits === "auto" ? detectedBits : "auto"
@@ -570,6 +567,43 @@ const Connection: React.FC<ConnectionProps> = ({
                   {!isRecordingRef.current
                     ? "Start Recording"
                     : "Stop Recording"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="bg-primary gap-2"
+                  onClick={() => setIsGridView(!isGridView)}
+                >
+                  {isGridView ? <List size={20} /> : <Grid size={20} />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isGridView ? "Grid" : "List"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={() => handleDisplayToggle(isDisplay)}>
+                  {isDisplay ? (
+                    <Pause className="h-5 w-5" onClick={() => pauseData()} /> // Show Pause icon when playing
+                  ) : (
+                    <Play className="h-5 w-5" onClick={() => resumeData()} /> // Show Play icon when paused
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -663,43 +697,6 @@ const Connection: React.FC<ConnectionProps> = ({
                 ) : (
                   <p>Save As Zip</p>
                 )}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={() => handleDisplayToggle(isDisplay)}>
-                  {isDisplay ? (
-                    <Pause className="h-5 w-5" onClick={() => pauseData()} /> // Show Pause icon when playing
-                  ) : (
-                    <Play className="h-5 w-5" onClick={() => resumeData()} /> // Show Play icon when paused
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="bg-primary gap-2"
-                  onClick={() => setIsGridView(!isGridView)}
-                >
-                  {isGridView ? <List size={20} /> : <Grid size={20} />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isGridView ? "Grid" : "List"}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
