@@ -268,7 +268,7 @@ const Canvas: React.FC<CanvasProps> = ({
       updateChartColors();
     }
   }, [theme, isChartInitialized, updateChartColors]);
-  
+
   const handlePauseClick = (index: number) => {
     // Handle the pause click for each channel
     setIsPaused((prevIsPaused) => {
@@ -289,8 +289,8 @@ const Canvas: React.FC<CanvasProps> = ({
       <div
         className={`grid ${
           isGridView
-            ? "md:grid-cols-2 grid-cols-1 gap-8" // Apply the same spacing for both horizontal and vertical gaps
-            : "grid-cols-1 gap-1"
+            ? "md:grid-cols-2 grid-cols-1" // Apply the same spacing for both horizontal and vertical gaps
+            : "grid-cols-1"
         } w-full h-full`}
       >
         {channels.map((channel, index) => {
@@ -304,14 +304,14 @@ const Canvas: React.FC<CanvasProps> = ({
               >
                 <div
                   className={`border border-secondary-foreground w-full ${
-                    isGridView ? "h-[38vh]" : "h-[20vh]"
+                    isGridView ? "h-[40vh]" : "h-[20vh]"
                   } relative`}
                 >
                   <canvas
                     id={`smoothie-chart-${index + 1}`}
                     className="w-full h-full"
                   />
-                  <div
+                  {/* <div
                     className={`absolute ${
                       isGridView
                         ? "top-[45%] right-0 -mr-3 -mt-3"
@@ -335,7 +335,7 @@ const Canvas: React.FC<CanvasProps> = ({
                         <p className="text-[10px]">{`CH${index + 1}`}</p>
                       </CardContent>
                     </Card>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             );

@@ -177,7 +177,7 @@ const Connection: React.FC<ConnectionProps> = ({
     // Function to connect to the device
     try {
       const port = await navigator.serial.requestPort(); // Request the serial port
-      await port.open({ baudRate: 115200 }); // Open the port with baud rate 115200
+      await port.open({ baudRate: 57600}); // Open the port with baud rate 115200
       Connection(true); // Set the connection state to true, which will enable the data visualization as it is getting used is DataPaas
       setIsConnected(true);
       isConnectedRef.current = true;
@@ -233,39 +233,60 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const readData = async (): Promise<void> => {
     // Function to read the data from the device
-    const decoder = new TextDecoder(); // Create a new text decoder
-    let lineBuffer = ""; // Initialize the line buffer
+    const packetLength = 17; // Packet length from the Arduino (17 bytes)
+    let buffer = new Uint8Array(packetLength); // Buffer to store the received data
+    let bufferIndex = 0; // Index to keep track of the buffer position
+
     while (isConnectedRef.current) {
-      // Loop until the device is connected
-      try {
-        const StreamData = await readerRef.current?.read(); // Read the data from the device
-        if (StreamData?.done) {
-          console.log("Thank you for using our app!");
-          break;
-        }
-        const receivedData = decoder.decode(StreamData?.value, {
-          stream: true,
-        });
-        const lines = (lineBuffer + receivedData).split("\n"); // Split the data by new line
-        lineBuffer = lines.pop() ?? ""; // Get the last line
-        for (const line of lines) {
-          // Loop through the lines
-          const dataValues = line.split(",");
-          if (dataValues.length === 1) {
-          } else {
-            LineData(dataValues); // Pass the data values to the LineData function which will be used by DataPass to pass to the Canvas component
-            if (isRecordingRef.current) {
-              bufferRef.current.push(dataValues); // Push the data values to the buffer if recording is on
+        // Loop until the device is connected
+        try {
+            const streamData = await readerRef.current?.read(); // Read the data from the device
+            if (streamData?.done) {
+                console.log("Thank you for using our app!");
+                break;
             }
-          }
+
+            const receivedData = streamData?.value; // Received raw data as Uint8Array
+            if (receivedData) {
+                for (let i = 0; i < receivedData.length; i++) {
+                    buffer[bufferIndex++] = receivedData[i]; // Store data in the buffer
+                    if (bufferIndex === packetLength) {
+                        // If a full packet is received
+                        processPacket(buffer); // Process the received packet
+                        bufferIndex = 0; // Reset the buffer index
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Error reading from device:", error);
+            break;
         }
-      } catch (error) {
-        console.error("Error reading from device:", error);
-        break;
-      }
     }
     await disconnectDevice();
-  };
+};
+
+const processPacket = (buffer: Uint8Array): void => {
+  if (buffer.length !== 17) {
+      console.error("Invalid packet length");
+      return;
+  }
+
+  // Extract the 6 ADC channel values from the buffer
+  const channelData = [];
+  for (let i = 0; i < 6; i++) {
+      let highByte = buffer[4 + i * 2];
+      let lowByte = buffer[5 + i * 2];
+      let value = (highByte << 8) | lowByte; // Combine high and low bytes
+      channelData.push(value.toString()); // Convert the number to a string
+  }
+
+  console.log("Channels:", channelData); // Log the channel data
+
+  LineData(channelData); // Pass the string array to the LineData function
+  if (isRecordingRef.current) {
+      bufferRef.current.push(channelData); // Push the string array to the buffer if recording is on
+  }
+};
 
   const handleDisplayToggle = (isDisplay: boolean) => {
     setIsDisplay((prevIsDisplay) => !prevIsDisplay);
@@ -609,7 +630,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-        {isConnected && datasets.length > 0 && (
+        {isConnected && datasets.length >= 0 && (
           <TooltipProvider>
             <Tooltip>
               <div className="flex">
