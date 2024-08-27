@@ -116,6 +116,7 @@ const Connection: React.FC<ConnectionProps> = ({
   //Function to delete all saved files
   const deletedataall = () => {
     setDatasets([]);
+    deleteDataFromIndexedDB();
   };
 
   const deleteindividualfiles = (index: number) => {
@@ -124,6 +125,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const newRemovedIndexes = indexTracker.filter((item, i) => i !== index);
     // setRemovedIndexes((prevIndexes) => [...prevIndexes, index]);
     setIndexTracker(newRemovedIndexes);
+    deleteDataFromIndexedDB();
   };
   const handleCustomTimeSet = () => {
     // Function to handle the custom time input set
@@ -186,7 +188,7 @@ const Connection: React.FC<ConnectionProps> = ({
         description: (
           <div className="mt-2 flex flex-col space-y-1">
             <p>Device: {formatPortInfo(portRef.current.getInfo())}</p>
-            <p>Baud Rate: 115200</p>
+            <p>Baud Rate: 57600</p>
           </div>
         ),
       });
@@ -230,6 +232,8 @@ const Connection: React.FC<ConnectionProps> = ({
       isRecordingRef.current = false;
     }
   };
+
+  let packetCounter = 0; // Initialize the packet counter
 
   const readData = async (): Promise<void> => {
     // Function to read the data from the device
@@ -285,29 +289,7 @@ const processPacket = (buffer: Uint8Array): void => {
   LineData(channelData); // Pass the string array to the LineData function
   if (isRecordingRef.current) {
       bufferRef.current.push(channelData); // Push the string array to the buffer if recording is on
-  }
-};
-
-  const handleDisplayToggle = (isDisplay: boolean) => {
-    setIsDisplay((prevIsDisplay) => !prevIsDisplay);
-
-    chartRef.current.forEach((chart) => {
-      if (isDisplay) {
-        chart.stop();
-      } else {
-        chart.start();
-      }
-    });
-  };
-
-  const pauseData = () => {
-    setIsDisplay(true);
-    toast("Data display paused");
-  };
-
-  const resumeData = () => {
-    setIsDisplay(false);
-    toast("Data display resumed");
+    }
   };
 
   const columnNames = [
@@ -422,31 +404,143 @@ const processPacket = (buffer: Uint8Array): void => {
       .padStart(2, "0")}`;
   };
 
-  const savedataindividual = async (index: number) => {
-    const csvData = convertToCSV(datasets[index]);
-    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-    saveAs(blob, "data.csv");
-    deleteindividualfiles(index);
+  // Initialize IndexedDB
+  const initIndexedDB = async (): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("adcReadings", 1);
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains("adcReadings")) {
+          db.createObjectStore("adcReadings", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+        }
+      };
+
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
   };
 
+  // Save buffer data to IndexedDB
+  const saveBufferToIndexedDB = async (buffer: string[][]) => {
+    if (buffer.length === 0) return;
+
+    try {
+      const db = await initIndexedDB();
+      const tx = db.transaction(["adcReadings"], "readwrite");
+      const store = tx.objectStore("adcReadings");
+
+      buffer.forEach((row) => {
+        store.add({
+          counter: Number(row[0]),
+          channel_1: Number(row[1]),
+          channel_2: Number(row[2]),
+          channel_3: Number(row[3]),
+          channel_4: Number(row[4]),
+        });
+      });
+
+      tx.oncomplete = () =>
+        console.log("Transaction complete: Data saved to IndexedDB");
+      tx.onerror = (error) => console.error("Transaction error:", error);
+    } catch (error) {
+      console.error("Error saving buffer to IndexedDB:", error);
+    }
+  };
+
+  // Retrieve and display data from IndexedDB
+  const displayDataFromIndexedDB = async () => {
+    try {
+      const db = await initIndexedDB();
+      const tx = db.transaction(["adcReadings"], "readonly");
+      const store = tx.objectStore("adcReadings");
+
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const data = request.result;
+        console.log("Data currently in IndexedDB:", data);
+      };
+      request.onerror = (error) => {
+        console.error("Error retrieving data from IndexedDB:", error);
+      };
+    } catch (error) {
+      console.error("Error initializing IndexedDB for display:", error);
+    }
+  };
+
+  // Delete all data from IndexedDB
+  const deleteDataFromIndexedDB = async () => {
+    try {
+      const db = await initIndexedDB();
+      const tx = db.transaction(["adcReadings"], "readwrite");
+      const store = tx.objectStore("adcReadings");
+
+      const clearRequest = store.clear();
+      clearRequest.onsuccess = () =>
+        console.log("All data deleted from IndexedDB");
+      clearRequest.onerror = (error) =>
+        console.error("Error deleting data from IndexedDB:", error);
+    } catch (error) {
+      console.error("Error initializing IndexedDB for deletion:", error);
+    }
+  };
+
+  // Save data to IndexedDB and then download it
   const saveData = async () => {
+    if (datasets.length === 0) {
+      toast.error("No data available to download.");
+      return;
+    }
+
+    // Save each dataset to IndexedDB
+    for (const dataset of datasets) {
+      await saveBufferToIndexedDB(dataset);
+      await displayDataFromIndexedDB(); // Display data after each save
+    }
+
+    // Wait for user confirmation before downloading
+    const confirmed = window.confirm("Do you want to download the saved data?");
+    if (!confirmed) return;
+
+    // Proceed with saving as CSV or ZIP
     if (datasets.length === 1) {
       const csvData = convertToCSV(datasets[0]);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
       saveAs(blob, "data.csv");
-      deletedataall();
+      await deleteDataFromIndexedDB(); // Delete data after download
     } else if (datasets.length > 1) {
       const zip = new JSZip();
       datasets.forEach((data, index) => {
         const csvData = convertToCSV(data);
         zip.file(`data${index + 1}.csv`, csvData);
       });
-      deletedataall();
       const zipContent = await zip.generateAsync({ type: "blob" });
       saveAs(zipContent, "datasets.zip");
-    } else {
-      toast.error("No data available to download.");
+      await deleteDataFromIndexedDB(); // Delete data after download
     }
+  };
+
+  // Save individual dataset and then download it
+  const saveDataIndividual = async (index: number) => {
+    await saveBufferToIndexedDB(datasets[index]);
+    await displayDataFromIndexedDB(); // Display data before download
+
+    // Wait for user confirmation before downloading
+    const confirmed = window.confirm("Do you want to download the saved data?");
+    if (!confirmed) return;
+
+    const csvData = convertToCSV(datasets[index]);
+    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+    saveAs(blob, `data${index + 1}.csv`);
+    await deleteDataFromIndexedDB(); // Delete data after download
   };
 
   return (
@@ -614,11 +708,11 @@ const processPacket = (buffer: Uint8Array): void => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button onClick={() => handleDisplayToggle(isDisplay)}>
+                <Button onClick={() => setIsDisplay(!isDisplay)}>
                   {isDisplay ? (
-                    <Pause className="h-5 w-5" onClick={() => pauseData()} /> // Show Pause icon when playing
+                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
                   ) : (
-                    <Play className="h-5 w-5" onClick={() => resumeData()} /> // Show Play icon when paused
+                    <Play className="h-5 w-5" /> // Show Play icon when paused
                   )}
                 </Button>
               </TooltipTrigger>
@@ -692,7 +786,7 @@ const processPacket = (buffer: Uint8Array): void => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => savedataindividual(index)}
+                                  onClick={() => saveDataIndividual(index)}
                                 >
                                   <Download size={16} />
                                 </Button>

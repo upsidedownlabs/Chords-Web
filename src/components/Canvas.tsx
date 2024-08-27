@@ -32,6 +32,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const seriesRef = useRef<(TimeSeries | null)[]>([]);
   const [isChartInitialized, setIsChartInitialized] = useState(false);
   const [isPaused, setIsPaused] = useState(Array(channels.length).fill(false)); // Paused state for each channe
+  const [isGlobalPaused, setIsGlobalPaused] = useState(!isDisplay);
   const batchSize = 10;
   const batchBuffer = useMemo<Array<{ time: number; values: number[] }>>(
     () => [],
@@ -131,7 +132,7 @@ const Canvas: React.FC<CanvasProps> = ({
   ]);
 
   const processBatch = useCallback(() => {
-    if (batchBuffer.length === 0 || !isDisplay) return;
+    if (batchBuffer.length === 0 || isGlobalPaused) return;
 
     batchBuffer.forEach((batch) => {
       channels.forEach((channel, index) => {
@@ -145,7 +146,7 @@ const Canvas: React.FC<CanvasProps> = ({
     });
 
     batchBuffer.length = 0;
-  }, [channels, batchBuffer, isDisplay]);
+  }, [channels, batchBuffer, isGlobalPaused, isPaused]);
 
   const handleDataUpdate = useCallback(
     (line: string) => {
@@ -162,7 +163,7 @@ const Canvas: React.FC<CanvasProps> = ({
     },
     [processBatch, batchBuffer, isDisplay]
   );
-
+  // console.log(data);
   useEffect(() => {
     if (isChartInitialized) {
       const lines = String(data).split("\n");
@@ -264,26 +265,37 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [selectedBits, isChartInitialized, getMaxValue, shouldAutoScale]);
 
   useEffect(() => {
+    setIsGlobalPaused(!isDisplay);
+
+    chartRef.current.forEach((chart) => {
+      if (chart) {
+        if (isDisplay) {
+          chart.start();
+        } else {
+          chart.stop();
+        }
+      }
+    });
+  }, [isDisplay]);
+  useEffect(() => {
     if (isChartInitialized) {
       updateChartColors();
     }
   }, [theme, isChartInitialized, updateChartColors]);
 
   const handlePauseClick = (index: number) => {
-    // Handle the pause click for each channel
     setIsPaused((prevIsPaused) => {
       const updatedIsPaused = [...prevIsPaused];
       updatedIsPaused[index] = !prevIsPaused[index];
 
       if (updatedIsPaused[index]) {
         chartRef.current[index].stop();
-      } else {
+      } else if (!isGlobalPaused) {
         chartRef.current[index].start();
       }
       return updatedIsPaused;
     });
   };
-
   return (
     <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
       <div
