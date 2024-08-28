@@ -85,6 +85,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
   const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
+  const indexedDBRef = useRef<IDBDatabase | null>(null);
   // const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is pause
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
@@ -179,7 +180,7 @@ const Connection: React.FC<ConnectionProps> = ({
     // Function to connect to the device
     try {
       const port = await navigator.serial.requestPort(); // Request the serial port
-      await port.open({ baudRate: 57600}); // Open the port with baud rate 115200
+      await port.open({ baudRate: 57600 }); // Open the port with baud rate 115200
       Connection(true); // Set the connection state to true, which will enable the data visualization as it is getting used is DataPaas
       setIsConnected(true);
       isConnectedRef.current = true;
@@ -242,52 +243,52 @@ const Connection: React.FC<ConnectionProps> = ({
     let bufferIndex = 0; // Index to keep track of the buffer position
 
     while (isConnectedRef.current) {
-        // Loop until the device is connected
-        try {
-            const streamData = await readerRef.current?.read(); // Read the data from the device
-            if (streamData?.done) {
-                console.log("Thank you for using our app!");
-                break;
-            }
-
-            const receivedData = streamData?.value; // Received raw data as Uint8Array
-            if (receivedData) {
-                for (let i = 0; i < receivedData.length; i++) {
-                    buffer[bufferIndex++] = receivedData[i]; // Store data in the buffer
-                    if (bufferIndex === packetLength) {
-                        // If a full packet is received
-                        processPacket(buffer); // Process the received packet
-                        bufferIndex = 0; // Reset the buffer index
-                    }
-                }
-            }
-        } catch (error) {
-            console.error("Error reading from device:", error);
-            break;
+      // Loop until the device is connected
+      try {
+        const streamData = await readerRef.current?.read(); // Read the data from the device
+        if (streamData?.done) {
+          console.log("Thank you for using our app!");
+          break;
         }
+
+        const receivedData = streamData?.value; // Received raw data as Uint8Array
+        if (receivedData) {
+          for (let i = 0; i < receivedData.length; i++) {
+            buffer[bufferIndex++] = receivedData[i]; // Store data in the buffer
+            if (bufferIndex === packetLength) {
+              // If a full packet is received
+              processPacket(buffer); // Process the received packet
+              bufferIndex = 0; // Reset the buffer index
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error reading from device:", error);
+        break;
+      }
     }
     await disconnectDevice();
-};
+  };
 
-const processPacket = (buffer: Uint8Array): void => {
-  if (buffer.length !== 17) {
+  const processPacket = (buffer: Uint8Array): void => {
+    if (buffer.length !== 17) {
       console.error("Invalid packet length");
       return;
-  }
+    }
 
-  // Extract the 6 ADC channel values from the buffer
-  const channelData = [];
-  for (let i = 0; i < 6; i++) {
+    // Extract the 6 ADC channel values from the buffer
+    const channelData = [];
+    for (let i = 0; i < 6; i++) {
       let highByte = buffer[4 + i * 2];
       let lowByte = buffer[5 + i * 2];
       let value = (highByte << 8) | lowByte; // Combine high and low bytes
       channelData.push(value.toString()); // Convert the number to a string
-  }
+    }
 
-  console.log("Channels:", channelData); // Log the channel data
+    console.log("Channels:", channelData); // Log the channel data
 
-  LineData(channelData); // Pass the string array to the LineData function
-  if (isRecordingRef.current) {
+    LineData(channelData); // Pass the string array to the LineData function
+    if (isRecordingRef.current) {
       bufferRef.current.push(channelData); // Push the string array to the buffer if recording is on
     }
   };
@@ -300,15 +301,18 @@ const processPacket = (buffer: Uint8Array): void => {
     "Channel 4",
   ];
 
-  const convertToCSV = (buffer: string[][]): string => {
-    // Function to convert the buffer data to CSV
-    const headerRow = columnNames.join(",");
-    const rows = buffer.map((row) => row.map(Number).join(","));
-    const csvData = [headerRow, ...rows].join("\n");
-    return csvData;
+  const convertToCSV = (data: any[]): string => {
+    if (data.length === 0) return "";
+
+    const header = Object.keys(data[0]);
+    const rows = data.map((item) =>
+      header.map((fieldName) => JSON.stringify(item[fieldName] || "")).join(",")
+    );
+
+    return [header.join(","), ...rows].join("\n");
   };
 
-  const handleRecord = () => {
+  const handleRecord = async () => {
     if (isConnected) {
       if (isRecordingRef.current) {
         stopRecording(); // Stop the recording if it is already on
@@ -319,6 +323,17 @@ const processPacket = (buffer: Uint8Array): void => {
         startTimeRef.current = nowTime;
         setElapsedTime(0);
         timerIntervalRef.current = setInterval(checkRecordingTime, 1000);
+
+        // Initialize IndexedDB for this recording session
+        try {
+          const db = await initIndexedDB();
+          indexedDBRef.current = db; // Store the database connection in a ref
+        } catch (error) {
+          console.error("Failed to initialize IndexedDB:", error);
+          toast.error(
+            "Failed to initialize storage. Recording may not be saved."
+          );
+        }
       }
     } else {
       toast.warning("No device is connected");
@@ -335,6 +350,9 @@ const processPacket = (buffer: Uint8Array): void => {
       return newElapsedTime;
     });
   };
+  const generateSessionId = () => {
+    return Math.floor(Date.now() / 1000); // Use the current timestamp as a simple session ID
+  };
 
   const formatDuration = (durationInSeconds: number): string => {
     const minutes = Math.floor(durationInSeconds / 60); // Get the minutes
@@ -347,15 +365,13 @@ const processPacket = (buffer: Uint8Array): void => {
     }`;
   };
 
-  const stopRecording = () => {
+  const stopRecording = async () => {
     if (timerIntervalRef.current) {
-      // Clear the timer interval if it is set
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
 
     if (startTimeRef.current === null) {
-      // Check if the start time is set properly
       toast.error("Start time was not set properly.");
       return;
     }
@@ -366,16 +382,23 @@ const processPacket = (buffer: Uint8Array): void => {
     const durationInSeconds = Math.round(
       (endTime.getTime() - startTimeRef.current) / 1000
     );
+
+    const sessionId = generateSessionId(); // Generate or retrieve a session ID
+
+    // Save any remaining data in the buffer to IndexedDB
     if (bufferRef.current.length > 0) {
-      const data = [...bufferRef.current]; // Create a copy of the current buffer
-      setDatasets((prevDatasets) => {
-        const newDatasets = [...prevDatasets, data];
-        return newDatasets;
-      });
+      await saveDataDuringRecording(bufferRef.current, sessionId); // Pass the sessionId
       bufferRef.current = [];
-      setIndexTracker((prevIndexes) => [...prevIndexes, counter]); // Clear the buffer ref
-      let newCounter = counter + 1;
-      setCounter(newCounter);
+    }
+
+    // Get the total number of recorded files
+    const allData = await getAllDataFromIndexedDB();
+    const recordedFilesCount = allData.length;
+
+    // Close the IndexedDB connection
+    if (indexedDBRef.current) {
+      indexedDBRef.current.close();
+      indexedDBRef.current = null;
     }
 
     toast.success("Recording completed Successfully", {
@@ -384,7 +407,8 @@ const processPacket = (buffer: Uint8Array): void => {
           <p>Start Time: {startTimeString}</p>
           <p>End Time: {endTimeString}</p>
           <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
-          <p>Stored Recorded Files: {datasets.length + 1}</p>
+          <p>Files Recorded: {recordedFilesCount}</p>
+          <p>Data saved to IndexedDB</p>
         </div>
       ),
     });
@@ -394,6 +418,33 @@ const processPacket = (buffer: Uint8Array): void => {
     startTimeRef.current = null;
     endTimeRef.current = null;
     setElapsedTime(0);
+  };
+
+  // Add this function to save data to IndexedDB during recording
+  const saveDataDuringRecording = async (
+    data: string[][],
+    sessionId: number
+  ) => {
+    if (!isRecordingRef.current || !indexedDBRef.current) return;
+
+    try {
+      const tx = indexedDBRef.current.transaction(["adcReadings"], "readwrite");
+      const store = tx.objectStore("adcReadings");
+
+      for (const row of data) {
+        await store.add({
+          sessionId: sessionId, // Save the session ID
+          timestamp: new Date().toISOString(),
+          counter: Number(row[0]),
+          channel_1: Number(row[1]),
+          channel_2: Number(row[2]),
+          channel_3: Number(row[3]),
+          channel_4: Number(row[4]),
+        });
+      }
+    } catch (error) {
+      console.error("Error saving data during recording:", error);
+    }
   };
 
   const formatTime = (seconds: number): string => {
@@ -429,53 +480,6 @@ const processPacket = (buffer: Uint8Array): void => {
     });
   };
 
-  // Save buffer data to IndexedDB
-  const saveBufferToIndexedDB = async (buffer: string[][]) => {
-    if (buffer.length === 0) return;
-
-    try {
-      const db = await initIndexedDB();
-      const tx = db.transaction(["adcReadings"], "readwrite");
-      const store = tx.objectStore("adcReadings");
-
-      buffer.forEach((row) => {
-        store.add({
-          counter: Number(row[0]),
-          channel_1: Number(row[1]),
-          channel_2: Number(row[2]),
-          channel_3: Number(row[3]),
-          channel_4: Number(row[4]),
-        });
-      });
-
-      tx.oncomplete = () =>
-        console.log("Transaction complete: Data saved to IndexedDB");
-      tx.onerror = (error) => console.error("Transaction error:", error);
-    } catch (error) {
-      console.error("Error saving buffer to IndexedDB:", error);
-    }
-  };
-
-  // Retrieve and display data from IndexedDB
-  const displayDataFromIndexedDB = async () => {
-    try {
-      const db = await initIndexedDB();
-      const tx = db.transaction(["adcReadings"], "readonly");
-      const store = tx.objectStore("adcReadings");
-
-      const request = store.getAll();
-      request.onsuccess = () => {
-        const data = request.result;
-        console.log("Data currently in IndexedDB:", data);
-      };
-      request.onerror = (error) => {
-        console.error("Error retrieving data from IndexedDB:", error);
-      };
-    } catch (error) {
-      console.error("Error initializing IndexedDB for display:", error);
-    }
-  };
-
   // Delete all data from IndexedDB
   const deleteDataFromIndexedDB = async () => {
     try {
@@ -486,6 +490,7 @@ const processPacket = (buffer: Uint8Array): void => {
       const clearRequest = store.clear();
       clearRequest.onsuccess = () =>
         console.log("All data deleted from IndexedDB");
+      toast.success("Recorded file is deleted.");
       clearRequest.onerror = (error) =>
         console.error("Error deleting data from IndexedDB:", error);
     } catch (error) {
@@ -493,54 +498,96 @@ const processPacket = (buffer: Uint8Array): void => {
     }
   };
 
-  // Save data to IndexedDB and then download it
+  // New function to retrieve all data from IndexedDB
+  const getAllDataFromIndexedDB = async (): Promise<any[]> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const db = await initIndexedDB();
+        const tx = db.transaction(["adcReadings"], "readonly");
+        const store = tx.objectStore("adcReadings");
+
+        const request = store.getAll();
+        request.onsuccess = () => {
+          resolve(request.result);
+        };
+        request.onerror = (error) => {
+          reject(error);
+        };
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
+  // Updated saveData function
   const saveData = async () => {
-    if (datasets.length === 0) {
-      toast.error("No data available to download.");
-      return;
-    }
+    try {
+      const allData = await getAllDataFromIndexedDB();
 
-    // Save each dataset to IndexedDB
-    for (const dataset of datasets) {
-      await saveBufferToIndexedDB(dataset);
-      await displayDataFromIndexedDB(); // Display data after each save
-    }
+      if (allData.length === 0) {
+        toast.error("No data available to download.");
+        return;
+      }
 
-    // Wait for user confirmation before downloading
-    const confirmed = window.confirm("Do you want to download the saved data?");
-    if (!confirmed) return;
+      // Ensure data is in the correct format
+      const formattedData = allData.map((item) => ({
+        sessionId: item.sessionId,
+        timestamp: item.timestamp,
+        counter: item.counter,
+        channel_1: item.channel_1,
+        channel_2: item.channel_2,
+        channel_3: item.channel_3,
+        channel_4: item.channel_4,
+      }));
 
-    // Proceed with saving as CSV or ZIP
-    if (datasets.length === 1) {
-      const csvData = convertToCSV(datasets[0]);
+      const csvData = convertToCSV(formattedData);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-      saveAs(blob, "data.csv");
-      await deleteDataFromIndexedDB(); // Delete data after download
-    } else if (datasets.length > 1) {
-      const zip = new JSZip();
-      datasets.forEach((data, index) => {
-        const csvData = convertToCSV(data);
-        zip.file(`data${index + 1}.csv`, csvData);
-      });
-      const zipContent = await zip.generateAsync({ type: "blob" });
-      saveAs(zipContent, "datasets.zip");
-      await deleteDataFromIndexedDB(); // Delete data after download
+      saveAs(blob, "all_recorded_data.csv");
+
+      await deleteDataFromIndexedDB();
+      toast.success("Data downloaded and cleared from storage.");
+    } catch (error) {
+      console.error("Error saving data:", error);
+      toast.error("Failed to save data. Please try again.");
     }
   };
 
   // Save individual dataset and then download it
-  const saveDataIndividual = async (index: number) => {
-    await saveBufferToIndexedDB(datasets[index]);
-    await displayDataFromIndexedDB(); // Display data before download
+  const saveDataIndividual = async (sessionId: number) => {
+    try {
+      const allData = await getAllDataFromIndexedDB();
 
-    // Wait for user confirmation before downloading
-    const confirmed = window.confirm("Do you want to download the saved data?");
-    if (!confirmed) return;
+      if (allData.length === 0) {
+        toast.error("No data available to download.");
+        return;
+      }
 
-    const csvData = convertToCSV(datasets[index]);
-    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-    saveAs(blob, `data${index + 1}.csv`);
-    await deleteDataFromIndexedDB(); // Delete data after download
+      const sessionData = allData.filter(
+        (item) => item.sessionId === sessionId
+      );
+
+      if (sessionData.length === 0) {
+        toast.error("No data available for this session.");
+        return;
+      }
+
+      const formattedData = sessionData.map((item) => ({
+        counter: item.counter,
+        channel_1: item.channel_1,
+        channel_2: item.channel_2,
+        channel_3: item.channel_3,
+        channel_4: item.channel_4,
+      }));
+
+      const csvData = convertToCSV(formattedData);
+      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+      saveAs(blob, `recorded_data_session_${sessionId}.csv`);
+
+      toast.success("Session data downloaded successfully.");
+    } catch (error) {
+      console.error("Error saving individual data:", error);
+      toast.error("Failed to save data. Please try again.");
+    }
   };
 
   return (
