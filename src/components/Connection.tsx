@@ -1,6 +1,7 @@
 "use client";
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback,useEffect } from "react";
 import { Button } from "./ui/button";
+import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
 import {
   Cable,
@@ -45,11 +46,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
-interface GridViewProps {
-  isGridView: boolean;
-  setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
-}
+import { ReadableStreamDefaultReadResult } from "stream/web";
 
 interface ConnectionProps {
   LineData: Function;
@@ -58,6 +55,8 @@ interface ConnectionProps {
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
   isGridView: boolean;
   setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
+  isDisplay: boolean;
+  setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -67,6 +66,8 @@ const Connection: React.FC<ConnectionProps> = ({
   setSelectedBits,
   isGridView,
   setIsGridView,
+  isDisplay,
+  setIsDisplay,
 }) => {
   const [open, setOpen] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
@@ -83,11 +84,16 @@ const Connection: React.FC<ConnectionProps> = ({
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
   const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
+  const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
-  const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is paused
+  const indexedDBRef = useRef<IDBDatabase | null>(null);
+  // const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is pause
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
+  
+
+
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -113,8 +119,9 @@ const Connection: React.FC<ConnectionProps> = ({
     setCustomTime(value);
   };
   //Function to delete all saved files
-  const deleteAlldata = () => {
+  const deletedataall = () => {
     setDatasets([]);
+    deleteDataFromIndexedDB();
   };
 
   const deleteindividualfiles = (index: number) => {
@@ -123,6 +130,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const newRemovedIndexes = indexTracker.filter((item, i) => i !== index);
     // setRemovedIndexes((prevIndexes) => [...prevIndexes, index]);
     setIndexTracker(newRemovedIndexes);
+    deleteDataFromIndexedDB();
   };
   const handleCustomTimeSet = () => {
     // Function to handle the custom time input set
@@ -162,14 +170,6 @@ const Connection: React.FC<ConnectionProps> = ({
     },
     [setSelectedBits]
   );
-  const handleToggle = () => {
-    // Toggle between Resume and Pause
-    if (isPaused) {
-      resumeData(); // Resume data display
-    } else {
-      pauseData(); // Pause data display
-    }
-  };
 
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -184,16 +184,16 @@ const Connection: React.FC<ConnectionProps> = ({
     // Function to connect to the device
     try {
       const port = await navigator.serial.requestPort(); // Request the serial port
-      await port.open({ baudRate: 115200 }); // Open the port with baud rate 115200
+      await port.open({ baudRate: 57600 }); // Open the port with baud rate 115200
       Connection(true); // Set the connection state to true, which will enable the data visualization as it is getting used is DataPaas
       setIsConnected(true);
       isConnectedRef.current = true;
-      portRef.current = port;
+      // portRef.current = port;
       toast.success("Connection Successfull", {
         description: (
           <div className="mt-2 flex flex-col space-y-1">
-            <p>Device: {formatPortInfo(portRef.current.getInfo())}</p>
-            <p>Baud Rate: 115200</p>
+            <p>Device: {formatPortInfo(port.getInfo())}</p>
+            <p>Baud Rate: 57600</p>
           </div>
         ),
       });
@@ -238,55 +238,129 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
+  let packetCounter = 0; // Initialize the packet counter
+
   const readData = async (): Promise<void> => {
-    const decoder = new TextDecoder();
-    let lineBuffer = "";
-    while (isConnectedRef.current) {
-      try {
-        if (isPaused) {
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Wait before checking again
-          continue; // Skip processing if paused
-        }
+    // Function to read the data from the device
+    // const reader = port.readable?.getReader();
+    let bufferIndex = 0; // Index to keep track of the buffer position
+    const buffer: number[] = [];
+    const PACKET_LENGTH = 17;
+    const SYNC_BYTE1 = 0xA5;
+    const SYNC_BYTE2 = 0x5A;
+    const END_BYTE = 0x01;
+    let previousCounter: number | null = null; // Store the previous counter value
+    let hasRemovedInitialElements = false; // Flag to ensure we only remove the first 20 elements once
+  
+    try {
+      while (isConnectedRef.current) {
+          const streamData = await readerRef.current?.read();
+          
 
-        const StreamData = await readerRef.current?.read();
-        if (StreamData?.done) {
-          console.log("Thank you for using our app!");
-          break;
-        }
-
-        const receivedData = decoder.decode(StreamData?.value, {
-          stream: true,
-        });
-        const lines = (lineBuffer + receivedData).split("\n");
-        lineBuffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          const dataValues = line.split(",");
-          if (dataValues.length > 1) {
-            LineData(dataValues); // Update data visualization
-            if (isRecordingRef.current) {
-              bufferRef.current.push(dataValues);
-            }
+          if (streamData?.done) {
+            console.log("Thank you for using our app!");
+            break;
           }
-        }
-      } catch (error) {
-        console.error("Error reading from device:", error);
-        break;
-      }
+
+          // Add received data to buffer
+          
+          if(streamData){
+            const {value} = streamData;
+            buffer.push(...value);
+          }
+
+          // Continue parsing as long as there's enough data for at least one packet
+          while (buffer.length >= PACKET_LENGTH) {
+  
+            // Find sync bytes in buffer
+            const syncIndex = buffer.findIndex((byte, index) =>
+              byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2
+            );
+    
+            if (syncIndex === -1) {
+              buffer.length = 0;
+              continue;
+            }
+            // console.log(syncIndex);
+  
+            if (syncIndex + PACKET_LENGTH <= buffer.length) {
+              // We found a sync sequence and have enough bytes for a full packet
+              const endByteIndex = syncIndex + PACKET_LENGTH - 1;
+    
+              if (
+                buffer[syncIndex] === SYNC_BYTE1 &&
+                buffer[syncIndex + 1] === SYNC_BYTE2 &&
+                buffer[endByteIndex] === END_BYTE
+              ) {
+                // Valid packet found
+                const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH);
+                // Process the packet
+                const channelData:  string[] = [];
+                for (let i = 0; i < 6; i++) {
+                  const highByte = packet[4 + i * 2];
+                  const lowByte = packet[5 + i * 2];
+                  const value = (highByte << 8) | lowByte; // Combine the two bytes
+                  channelData.push(value.toString());
+                }
+                const counter = packet[3];
+                channelData.push(counter.toString());
+    
+                LineData(channelData); // Pass the string array to the LineData function
+                if (isRecordingRef.current) {
+                  bufferRef.current.push(channelData); // Push the string array to the buffer if recording is on
+                }
+    
+                // Check for data loss by comparing the counter values
+                console.log(previousCounter);
+                if (previousCounter !== null) {
+                  const expectedCounter: number = (previousCounter + 1) % 256;
+                  if (counter !== expectedCounter) {
+                    console.warn(
+                      `Data loss detected! Previous counter: ${previousCounter}, Current counter: ${counter}`
+                    );
+                  }
+                }
+                previousCounter = counter; // Update previousCounter for the next check
+                buffer.splice(0, endByteIndex + 1);
+              } else {
+                // End byte does not match; remove up to syncIndex + 1 to recheck
+                buffer.splice(0, syncIndex + 1);
+              }
+          } else {
+            break;
+          }
+          }}
+    } catch (error) {
+      console.error("Error reading from device:", error);
+    } finally {
+      // readerRef.releaseLock(); // Ensure the reader is released
+      await disconnectDevice();
     }
-
-    await disconnectDevice();
   };
+  
 
-  const pauseData = () => {
-    setIsPaused(true); // Set the paused state to true
-    toast("Data display paused");
-  };
+  // const processPacket = (buffer: Uint8Array): void => {
+  //   if (buffer.length !== 17) {
+  //     console.error("Invalid packet length");
+  //     return;
+  //   }
 
-  const resumeData = () => {
-    setIsPaused(false); // Set the paused state to false
-    toast("Data display resumed");
-  };
+  //   // Extract the 6 ADC channel values from the buffer
+  //   const channelData = [];
+  //   for (let i = 0; i < 6; i++) {
+  //     let highByte = buffer[4 + i * 2];
+  //     let lowByte = buffer[5 + i * 2];
+  //     let value = (highByte << 8) | lowByte; // Combine high and low bytes
+  //     channelData.push(value.toString()); // Convert the number to a string
+  //   }
+
+  //   console.log("Channels:", channelData); // Log the channel data
+//no changehere
+    // LineData(channelData); // Pass the string array to the LineData function
+    // if (isRecordingRef.current) {
+    //   bufferRef.current.push(channelData); // Push the string array to the buffer if recording is on
+    // }
+  // };
 
   const columnNames = [
     "Counter",
@@ -296,15 +370,18 @@ const Connection: React.FC<ConnectionProps> = ({
     "Channel 4",
   ];
 
-  const convertToCSV = (buffer: string[][]): string => {
-    // Function to convert the buffer data to CSV
-    const headerRow = columnNames.join(",");
-    const rows = buffer.map((row) => row.map(Number).join(","));
-    const csvData = [headerRow, ...rows].join("\n");
-    return csvData;
+  const convertToCSV = (data: any[]): string => {
+    if (data.length === 0) return "";
+
+    const header = Object.keys(data[0]);
+    const rows = data.map((item) =>
+      header.map((fieldName) => JSON.stringify(item[fieldName] || "")).join(",")
+    );
+
+    return [header.join(","), ...rows].join("\n");
   };
 
-  const handleRecord = () => {
+  const handleRecord = async () => {
     if (isConnected) {
       if (isRecordingRef.current) {
         stopRecording(); // Stop the recording if it is already on
@@ -315,6 +392,17 @@ const Connection: React.FC<ConnectionProps> = ({
         startTimeRef.current = nowTime;
         setElapsedTime(0);
         timerIntervalRef.current = setInterval(checkRecordingTime, 1000);
+
+        // Initialize IndexedDB for this recording session
+        try {
+          const db = await initIndexedDB();
+          indexedDBRef.current = db; // Store the database connection in a ref
+        } catch (error) {
+          console.error("Failed to initialize IndexedDB:", error);
+          toast.error(
+            "Failed to initialize storage. Recording may not be saved."
+          );
+        }
       }
     } else {
       toast.warning("No device is connected");
@@ -331,6 +419,9 @@ const Connection: React.FC<ConnectionProps> = ({
       return newElapsedTime;
     });
   };
+  const generateSessionId = () => {
+    return Math.floor(Date.now() / 1000); // Use the current timestamp as a simple session ID
+  };
 
   const formatDuration = (durationInSeconds: number): string => {
     const minutes = Math.floor(durationInSeconds / 60); // Get the minutes
@@ -343,15 +434,13 @@ const Connection: React.FC<ConnectionProps> = ({
     }`;
   };
 
-  const stopRecording = () => {
+  const stopRecording = async () => {
     if (timerIntervalRef.current) {
-      // Clear the timer interval if it is set
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
 
     if (startTimeRef.current === null) {
-      // Check if the start time is set properly
       toast.error("Start time was not set properly.");
       return;
     }
@@ -362,25 +451,33 @@ const Connection: React.FC<ConnectionProps> = ({
     const durationInSeconds = Math.round(
       (endTime.getTime() - startTimeRef.current) / 1000
     );
+
+    const sessionId = generateSessionId(); // Generate or retrieve a session ID
+
+    // Save any remaining data in the buffer to IndexedDB
     if (bufferRef.current.length > 0) {
-      const data = [...bufferRef.current]; // Create a copy of the current buffer
-      setDatasets((prevDatasets) => {
-        const newDatasets = [...prevDatasets, data];
-        return newDatasets;
-      });
+      await saveDataDuringRecording(bufferRef.current, sessionId); // Pass the sessionId
       bufferRef.current = [];
-      setIndexTracker((prevIndexes) => [...prevIndexes, counter]); // Clear the buffer ref
-      let newCounter = counter + 1;
-      setCounter(newCounter);
+    }
+
+    // Get the total number of recorded files
+    const allData = await getAllDataFromIndexedDB();
+    const recordedFilesCount = allData.length;
+
+    // Close the IndexedDB connection
+    if (indexedDBRef.current) {
+      indexedDBRef.current.close();
+      indexedDBRef.current = null;
     }
 
     toast.success("Recording completed Successfully", {
       description: (
-        <div className="mt-2 flex flex-col space-y-1">
+        <div className="mt-2 flex flex-col mb-4">
           <p>Start Time: {startTimeString}</p>
           <p>End Time: {endTimeString}</p>
           <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
-          <p>Stored Recorded Files: {datasets.length + 1}</p>
+          <p>Files Recorded: {recordedFilesCount}</p>
+          <p>Data saved to IndexedDB</p>
         </div>
       ),
     });
@@ -392,6 +489,33 @@ const Connection: React.FC<ConnectionProps> = ({
     setElapsedTime(0);
   };
 
+  // Add this function to save data to IndexedDB during recording
+  const saveDataDuringRecording = async (
+    data: string[][],
+    sessionId: number
+  ) => {
+    if (!isRecordingRef.current || !indexedDBRef.current) return;
+
+    try {
+      const tx = indexedDBRef.current.transaction(["adcReadings"], "readwrite");
+      const store = tx.objectStore("adcReadings");
+
+      for (const row of data) {
+        await store.add({
+          sessionId: sessionId, // Save the session ID
+          timestamp: new Date().toISOString(),
+          counter: Number(row[0]),
+          channel_1: Number(row[1]),
+          channel_2: Number(row[2]),
+          channel_3: Number(row[3]),
+          channel_4: Number(row[4]),
+        });
+      }
+    } catch (error) {
+      console.error("Error saving data during recording:", error);
+    }
+  };
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -400,30 +524,138 @@ const Connection: React.FC<ConnectionProps> = ({
       .padStart(2, "0")}`;
   };
 
-  const savedataindividual = async (index: number) => {
-    const csvData = convertToCSV(datasets[index]);
-    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-    saveAs(blob, "data.csv");
-    deleteindividualfiles(index);
+  // Initialize IndexedDB
+  const initIndexedDB = async (): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("adcReadings", 1);
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains("adcReadings")) {
+          db.createObjectStore("adcReadings", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+        }
+      };
+
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
   };
 
+  // Delete all data from IndexedDB
+  const deleteDataFromIndexedDB = async () => {
+    try {
+      const db = await initIndexedDB();
+      const tx = db.transaction(["adcReadings"], "readwrite");
+      const store = tx.objectStore("adcReadings");
+
+      const clearRequest = store.clear();
+      clearRequest.onsuccess = () =>
+        console.log("All data deleted from IndexedDB");
+      toast.success("Recorded file is deleted.");
+      clearRequest.onerror = (error) =>
+        console.error("Error deleting data from IndexedDB:", error);
+    } catch (error) {
+      console.error("Error initializing IndexedDB for deletion:", error);
+    }
+  };
+
+  // New function to retrieve all data from IndexedDB
+  const getAllDataFromIndexedDB = async (): Promise<any[]> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const db = await initIndexedDB();
+        const tx = db.transaction(["adcReadings"], "readonly");
+        const store = tx.objectStore("adcReadings");
+
+        const request = store.getAll();
+        request.onsuccess = () => {
+          resolve(request.result);
+        };
+        request.onerror = (error) => {
+          reject(error);
+        };
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
+  // Updated saveData function
   const saveData = async () => {
-    if (datasets.length === 1) {
-      const csvData = convertToCSV(datasets[0]);
+    try {
+      const allData = await getAllDataFromIndexedDB();
+
+      if (allData.length === 0) {
+        toast.error("No data available to download.");
+        return;
+      }
+
+      // Ensure data is in the correct format
+      const formattedData = allData.map((item) => ({
+        sessionId: item.sessionId,
+        timestamp: item.timestamp,
+        counter: item.counter,
+        channel_1: item.channel_1,
+        channel_2: item.channel_2,
+        channel_3: item.channel_3,
+        channel_4: item.channel_4,
+      }));
+
+      const csvData = convertToCSV(formattedData);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-      saveAs(blob, "data.csv");
-      deleteAlldata();
-    } else if (datasets.length > 1) {
-      const zip = new JSZip();
-      datasets.forEach((data, index) => {
-        const csvData = convertToCSV(data);
-        zip.file(`data${index + 1}.csv`, csvData);
-      });
-      deleteAlldata();
-      const zipContent = await zip.generateAsync({ type: "blob" });
-      saveAs(zipContent, "datasets.zip");
-    } else {
-      toast.error("No data available to download.");
+      saveAs(blob, "all_recorded_data.csv");
+
+      await deleteDataFromIndexedDB();
+      toast.success("Data downloaded and cleared from storage.");
+    } catch (error) {
+      console.error("Error saving data:", error);
+      toast.error("Failed to save data. Please try again.");
+    }
+  };
+
+  // Save individual dataset and then download it
+  const saveDataIndividual = async (sessionId: number) => {
+    try {
+      const allData = await getAllDataFromIndexedDB();
+
+      if (allData.length === 0) {
+        toast.error("No data available to download.");
+        return;
+      }
+
+      const sessionData = allData.filter(
+        (item) => item.sessionId === sessionId
+      );
+
+      if (sessionData.length === 0) {
+        toast.error("No data available for this session.");
+        return;
+      }
+
+      const formattedData = sessionData.map((item) => ({
+        counter: item.counter,
+        channel_1: item.channel_1,
+        channel_2: item.channel_2,
+        channel_3: item.channel_3,
+        channel_4: item.channel_4,
+      }));
+
+      const csvData = convertToCSV(formattedData);
+      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+      saveAs(blob, `recorded_data_session_${sessionId}.csv`);
+
+      toast.success("Session data downloaded successfully.");
+    } catch (error) {
+      console.error("Error saving individual data:", error);
+      toast.error("Failed to save data. Please try again.");
     }
   };
 
@@ -431,7 +663,7 @@ const Connection: React.FC<ConnectionProps> = ({
     <div className="flex h-14 items-center justify-between px-4">
       <div className="flex-1">
         {isRecordingRef.current && (
-          <div className="flex justify-center items-center space-x-1 w-min">
+          <div className="flex justify-center items-center space-x-1 w-min mx-4">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
@@ -455,7 +687,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-4">
+                <PopoverContent className="w-64 p-4 mx-4">
                   <div className="flex flex-col space-y-4">
                     <div className="text-sm font-medium">
                       Set End Time (minutes)
@@ -519,11 +751,8 @@ const Connection: React.FC<ConnectionProps> = ({
           <div className="flex items-center space-x-2">
             {detectedBits ? (
               <Button
-              className={`w-36 flex justify-center items-center overflow-hidden ${
-                  selectedBits === "auto"
-                    ? "bg-dark text-light"
-                    : "bg-white text-black"
-                }`}
+                variant={selectedBits === "auto" ? "outline" : "default"}
+                className={`w-36 flex justify-center items-center overflow-hidden`}
                 onClick={() =>
                   setSelectedBits(
                     selectedBits === "auto" ? detectedBits : "auto"
@@ -574,98 +803,6 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-        {isConnected && datasets.length > 0 && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex">
-              {datasets.length === 1 && (
-                  <TooltipTrigger asChild>
-                  <Button  className="rounded-r-none" onClick={saveData}>
-                    <FileDown className="mr-2" />
-                  </Button>
-                  </TooltipTrigger>
-                  )}
-                <Separator orientation="vertical" className="h-full" />
-                {datasets.length === 1 ? (
-                  <Button className="rounded-l-none" onClick={deleteAlldata}>
-                    <Trash2 size={20} />
-                  </Button>
-                ) : (
-                  <>
-                  <Popover open={open} onOpenChange={setOpen}>
-                    <PopoverTrigger asChild>
-                      <Button className="rounded-r-none mr-1">
-                        <FileArchive className="mr-2" />
-                        <p className="text-lg">{datasets.length}</p>
-                      </Button>
-                    </PopoverTrigger>
-                    <Button className="rounded-l-none" onClick={deleteAlldata}>
-                    <Trash2 size={20} />
-                  </Button>
-                    <PopoverContent className="w-80">
-                      <div className="space-y-4 ">
-                        <div className="flex justify-between items-center">
-                        <span className="text-red-500">ZipFile</span>
-                        <div className="space-x-2">
-                        <Button size="sm" variant="outline" onClick={saveData}>
-                                <Download size={16} />
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={deleteAlldata}>
-                                <Trash2 size={16} />
-                              </Button>
-                              </div>
-                        </div>
-                        {datasets.map((dataset, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between items-center"
-                          >
-                            <span>File{indexTracker[index]}.csv</span>
-                            <div className="space-x-2">
-                              <Button size="sm" variant="outline" onClick={()=>savedataindividual(index)}>
-                                <Download size={16} />
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => deleteindividualfiles(index)}>
-                                <Trash2 size={16} />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  </>
-                )}
-              </div>
-              <TooltipContent>
-                {datasets.length === 1 ? (
-                  <p>Save As CSV</p>
-                ) : (
-                  <p>Save As Zip</p>
-                )}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-{isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button>
-                  {isPaused ? (
-                    <Play className="h-5 w-5" /> // Show Play icon when paused
-                  ) : (
-                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isPaused ? "Resume Data Display" : "Pause Data Display"}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
@@ -683,13 +820,122 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-
-
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={() => setIsDisplay(!isDisplay)}>
+                  {isDisplay ? (
+                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
+                  ) : (
+                    <Play className="h-5 w-5" /> // Show Play icon when paused
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {isConnected && datasets.length >= 0 && (
+          <TooltipProvider>
+            <Tooltip>
+              <div className="flex">
+                {datasets.length === 1 && (
+                  <TooltipTrigger asChild>
+                    <Button className="rounded-r-none" onClick={saveData}>
+                      <FileDown className="mr-2" />
+                    </Button>
+                  </TooltipTrigger>
+                )}
+                <Separator orientation="vertical" className="h-full" />
+                {datasets.length === 1 ? (
+                  <Button className="rounded-l-none" onClick={deletedataall}>
+                    <Trash2 size={20} />
+                  </Button>
+                ) : (
+                  <>
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <Button className="rounded-r-none mr-1">
+                          <FileArchive className="mr-2" />
+                          <p className="text-lg">{datasets.length}</p>
+                        </Button>
+                      </PopoverTrigger>
+                      <Button
+                        className="rounded-l-none"
+                        onClick={deletedataall}
+                      >
+                        <Trash2 size={20} />
+                      </Button>
+                      <PopoverContent className="w-80">
+                        <div className="space-y-4 ">
+                          <div className="flex justify-between items-center">
+                            <span className="text-red-500">ZipFile</span>
+                            <div className="space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={saveData}
+                              >
+                                <Download size={16} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={deletedataall}
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </div>
+                          </div>
+                          {datasets.map((dataset, index) => (
+                            <div
+                              key={index}
+                              className="flex justify-between items-center"
+                            >
+                              <span>File{indexTracker[index]}.csv</span>
+                              <div className="space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => saveDataIndividual(index)}
+                                >
+                                  <Download size={16} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => deleteindividualfiles(index)}
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </>
+                )}
+              </div>
+              <TooltipContent>
+                {datasets.length === 1 ? (
+                  <p>Save As CSV</p>
+                ) : (
+                  <p>Save As Zip</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
       <div className="flex-1"></div>
     </div>
   );
 };
-
 
 export default Connection;
