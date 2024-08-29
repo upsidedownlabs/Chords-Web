@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
@@ -75,8 +75,10 @@ const Connection: React.FC<ConnectionProps> = ({
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
   const [indexTracker, setIndexTracker] = useState<number[]>([]); //keep track of indexes of files
+  const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
   const [counter, setCounter] = useState<number>(0);
   const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
+  const [hasData, setHasData] = useState(false);
   const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to store the timer interval
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
@@ -234,8 +236,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  let packetCounter = 0; // Initialize the packet counter
-
   const readData = async (): Promise<void> => {
     // Function to read the data from the device
     const packetLength = 17; // Packet length from the Arduino (17 bytes)
@@ -285,7 +285,7 @@ const Connection: React.FC<ConnectionProps> = ({
       channelData.push(value.toString()); // Convert the number to a string
     }
 
-    console.log("Channels:", channelData); // Log the channel data
+    // console.log("Channels:", channelData); // Log the channel data
 
     LineData(channelData); // Pass the string array to the LineData function
     if (isRecordingRef.current) {
@@ -365,6 +365,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }`;
   };
 
+  // Updated stopRecording function
   const stopRecording = async () => {
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -393,6 +394,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // Get the total number of recorded files
     const allData = await getAllDataFromIndexedDB();
+    setHasData(allData.length > 0);
     const recordedFilesCount = allData.length;
 
     // Close the IndexedDB connection
@@ -414,11 +416,22 @@ const Connection: React.FC<ConnectionProps> = ({
     });
 
     isRecordingRef.current = false;
-
     startTimeRef.current = null;
     endTimeRef.current = null;
     setElapsedTime(0);
+
+    setIsRecordButtonDisabled(true); // Disable the record button
   };
+
+  const checkDataAvailability = async () => {
+    const allData = await getAllDataFromIndexedDB();
+    setHasData(allData.length > 0);
+  };
+
+  // Call this function when your component mounts or when you suspect the data might change
+  useEffect(() => {
+    checkDataAvailability();
+  }, []);
 
   // Add this function to save data to IndexedDB during recording
   const saveDataDuringRecording = async (
@@ -487,12 +500,24 @@ const Connection: React.FC<ConnectionProps> = ({
       const tx = db.transaction(["adcReadings"], "readwrite");
       const store = tx.objectStore("adcReadings");
 
+      // Clear the store
       const clearRequest = store.clear();
-      clearRequest.onsuccess = () =>
+      clearRequest.onsuccess = async () => {
         console.log("All data deleted from IndexedDB");
-      toast.success("Recorded file is deleted.");
-      clearRequest.onerror = (error) =>
+        toast.success("Recorded file is deleted.");
+        setOpen(false);
+
+        // Check if there is any data left after deletion
+        const allData = await getAllDataFromIndexedDB();
+        setHasData(allData.length > 0);
+
+        setIsRecordButtonDisabled(false); // Enable the record button after deletion
+      };
+
+      clearRequest.onerror = (error) => {
         console.error("Error deleting data from IndexedDB:", error);
+        toast.error("Failed to delete data. Please try again.");
+      };
     } catch (error) {
       console.error("Error initializing IndexedDB for deletion:", error);
     }
@@ -540,52 +565,16 @@ const Connection: React.FC<ConnectionProps> = ({
         channel_4: item.channel_4,
       }));
 
+      setOpen(false);
       const csvData = convertToCSV(formattedData);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
       saveAs(blob, "all_recorded_data.csv");
 
       await deleteDataFromIndexedDB();
       toast.success("Data downloaded and cleared from storage.");
+      setHasData(false); // Update state after data is deleted
     } catch (error) {
       console.error("Error saving data:", error);
-      toast.error("Failed to save data. Please try again.");
-    }
-  };
-
-  // Save individual dataset and then download it
-  const saveDataIndividual = async (sessionId: number) => {
-    try {
-      const allData = await getAllDataFromIndexedDB();
-
-      if (allData.length === 0) {
-        toast.error("No data available to download.");
-        return;
-      }
-
-      const sessionData = allData.filter(
-        (item) => item.sessionId === sessionId
-      );
-
-      if (sessionData.length === 0) {
-        toast.error("No data available for this session.");
-        return;
-      }
-
-      const formattedData = sessionData.map((item) => ({
-        counter: item.counter,
-        channel_1: item.channel_1,
-        channel_2: item.channel_2,
-        channel_3: item.channel_3,
-        channel_4: item.channel_4,
-      }));
-
-      const csvData = convertToCSV(formattedData);
-      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-      saveAs(blob, `recorded_data_session_${sessionId}.csv`);
-
-      toast.success("Session data downloaded successfully.");
-    } catch (error) {
-      console.error("Error saving individual data:", error);
       toast.error("Failed to save data. Please try again.");
     }
   };
@@ -715,7 +704,7 @@ const Connection: React.FC<ConnectionProps> = ({
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <Button onClick={handleRecord}>
+              <Button onClick={handleRecord} disabled={isRecordButtonDisabled}>
                 <TooltipTrigger asChild>
                   {isRecordingRef.current ? (
                     <CircleStop />
@@ -771,82 +760,64 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-        {isConnected && datasets.length >= 0 && (
+        {isConnected && (
           <TooltipProvider>
             <Tooltip>
               <div className="flex">
-                {datasets.length === 1 && (
+                {hasData && datasets.length === 1 && (
                   <TooltipTrigger asChild>
-                    <Button className="rounded-r-none" onClick={saveData}>
+                    <Button
+                      className="rounded-r-none"
+                      onClick={saveData}
+                      disabled={!hasData}
+                    >
                       <FileDown className="mr-2" />
                     </Button>
                   </TooltipTrigger>
                 )}
                 <Separator orientation="vertical" className="h-full" />
-                {datasets.length === 1 ? (
-                  <Button className="rounded-l-none" onClick={deletedataall}>
+                {hasData && datasets.length === 1 ? (
+                  <Button
+                    className="rounded-l-none"
+                    onClick={deleteDataFromIndexedDB}
+                    disabled={!hasData}
+                  >
                     <Trash2 size={20} />
                   </Button>
                 ) : (
                   <>
                     <Popover open={open} onOpenChange={setOpen}>
                       <PopoverTrigger asChild>
-                        <Button className="rounded-r-none mr-1">
+                        <Button
+                          className="rounded-r-none mr-1"
+                          disabled={!hasData}
+                        >
                           <FileArchive className="mr-2" />
-                          <p className="text-lg">{datasets.length}</p>
+                          <p className="text-lg">{datasets}</p>
                         </Button>
                       </PopoverTrigger>
                       <Button
                         className="rounded-l-none"
-                        onClick={deletedataall}
+                        onClick={deleteDataFromIndexedDB}
+                        disabled={!hasData}
                       >
                         <Trash2 size={20} />
                       </Button>
                       <PopoverContent className="w-80">
-                        <div className="space-y-4 ">
+                        <div className="space-y-4">
                           <div className="flex justify-between items-center">
-                            <span className="text-red-500">ZipFile</span>
+                            <span className="text-red-500">Recorded File</span>
                             <div className="space-x-2">
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={saveData}
+                                disabled={!hasData}
                               >
                                 <Download size={16} />
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={deletedataall}
-                              >
-                                <Trash2 size={16} />
-                              </Button>
                             </div>
                           </div>
-                          {datasets.map((dataset, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between items-center"
-                            >
-                              <span>File{indexTracker[index]}.csv</span>
-                              <div className="space-x-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => saveDataIndividual(index)}
-                                >
-                                  <Download size={16} />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => deleteindividualfiles(index)}
-                                >
-                                  <Trash2 size={16} />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
                         </div>
                       </PopoverContent>
                     </Popover>
