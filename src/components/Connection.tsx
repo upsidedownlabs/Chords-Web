@@ -504,7 +504,7 @@ const Connection: React.FC<ConnectionProps> = ({
         await store.add({
           sessionId: sessionId, // Save the session ID
           timestamp: new Date().toISOString(),
-          counter: Number(row[0]),
+          counter: Number(row[6]),
           channel_1: Number(row[1]),
           channel_2: Number(row[2]),
           channel_3: Number(row[3]),

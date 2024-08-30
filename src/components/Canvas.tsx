@@ -152,7 +152,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const handleDataUpdate = useCallback(
     (line: string) => {
       if (line.trim() !== "" && isDisplay) {
-        const sensorValues = line.split(",").map(Number).slice(1);
+        const sensorValues = line.split(",").map(Number).slice(0);//storing values of channels
         const timestamp = Date.now();
 
         batchBuffer.push({ time: timestamp, values: sensorValues });
