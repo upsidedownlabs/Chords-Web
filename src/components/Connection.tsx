@@ -47,6 +47,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+import { ReadableStreamDefaultReadResult } from "stream/web";
+
 interface ConnectionProps {
   LineData: Function;
   Connection: (isConnected: boolean) => void;
@@ -116,20 +118,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const value = e.target.value.replace(/[^0-9]/g, "");
     setCustomTime(value);
   };
-  //Function to delete all saved files
-  const deletedataall = () => {
-    setDatasets([]);
-    deleteDataFromIndexedDB();
-  };
 
-  const deleteindividualfiles = (index: number) => {
-    const newDatasets = datasets.filter((item, i) => i !== index);
-    setDatasets(newDatasets);
-    const newRemovedIndexes = indexTracker.filter((item, i) => i !== index);
-    // setRemovedIndexes((prevIndexes) => [...prevIndexes, index]);
-    setIndexTracker(newRemovedIndexes);
-    deleteDataFromIndexedDB();
-  };
   const handleCustomTimeSet = () => {
     // Function to handle the custom time input set
     const time = parseInt(customTime);
@@ -190,7 +179,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.success("Connection Successfull", {
         description: (
           <div className="mt-2 flex flex-col space-y-1">
-            <p>Device: {formatPortInfo(portRef.current.getInfo())}</p>
+            <p>Device: {formatPortInfo(port.getInfo())}</p>
             <p>Baud Rate: 57600</p>
           </div>
         ),
@@ -236,63 +225,88 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
+  // Function to read the data from the device
   const readData = async (): Promise<void> => {
-    // Function to read the data from the device
-    const packetLength = 17; // Packet length from the Arduino (17 bytes)
-    let buffer = new Uint8Array(packetLength); // Buffer to store the received data
-    let bufferIndex = 0; // Index to keep track of the buffer position
+    let bufferIndex = 0;
+    const buffer: number[] = [];
+    const PACKET_LENGTH = 17;
+    const SYNC_BYTE1 = 0xa5;
+    const SYNC_BYTE2 = 0x5a;
+    const END_BYTE = 0x01;
+    let previousCounter: number | null = null;
+    let hasRemovedInitialElements = false;
 
-    while (isConnectedRef.current) {
-      // Loop until the device is connected
-      try {
-        const streamData = await readerRef.current?.read(); // Read the data from the device
+    try {
+      while (isConnectedRef.current) {
+        const streamData = await readerRef.current?.read();
         if (streamData?.done) {
           console.log("Thank you for using our app!");
           break;
         }
+        if (streamData) {
+          const { value } = streamData;
+          buffer.push(...value);
+        }
 
-        const receivedData = streamData?.value; // Received raw data as Uint8Array
-        if (receivedData) {
-          for (let i = 0; i < receivedData.length; i++) {
-            buffer[bufferIndex++] = receivedData[i]; // Store data in the buffer
-            if (bufferIndex === packetLength) {
-              // If a full packet is received
-              processPacket(buffer); // Process the received packet
-              bufferIndex = 0; // Reset the buffer index
+        while (buffer.length >= PACKET_LENGTH) {
+          const syncIndex = buffer.findIndex(
+            (byte, index) =>
+              byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2
+          );
+
+          if (syncIndex === -1) {
+            buffer.length = 0;
+            continue;
+          }
+
+          if (syncIndex + PACKET_LENGTH <= buffer.length) {
+            const endByteIndex = syncIndex + PACKET_LENGTH - 1;
+
+            if (
+              buffer[syncIndex] === SYNC_BYTE1 &&
+              buffer[syncIndex + 1] === SYNC_BYTE2 &&
+              buffer[endByteIndex] === END_BYTE
+            ) {
+              const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH);
+              const channelData: string[] = [];
+              for (let i = 0; i < 6; i++) {
+                const highByte = packet[4 + i * 2];
+                const lowByte = packet[5 + i * 2];
+                const value = (highByte << 8) | lowByte;
+                channelData.push(value.toString());
+              }
+              const counter = packet[3];
+              channelData.push(counter.toString());
+
+              LineData(channelData);
+              if (isRecordingRef.current) {
+                bufferRef.current.push(channelData);
+              }
+
+              if (previousCounter !== null) {
+                const expectedCounter: number = (previousCounter + 1) % 256;
+                if (counter !== expectedCounter) {
+                  console.warn(
+                    `Data loss detected! Previous counter: ${previousCounter}, Current counter: ${counter}`
+                  );
+                }
+              }
+              previousCounter = counter;
+              buffer.splice(0, endByteIndex + 1);
+            } else {
+              buffer.splice(0, syncIndex + 1);
             }
+          } else {
+            break;
           }
         }
-      } catch (error) {
-        console.error("Error reading from device:", error);
-        break;
       }
-    }
-    await disconnectDevice();
-  };
-
-  const processPacket = (buffer: Uint8Array): void => {
-    if (buffer.length !== 17) {
-      console.error("Invalid packet length");
-      return;
-    }
-
-    // Extract the 6 ADC channel values from the buffer
-    const channelData = [];
-    for (let i = 0; i < 6; i++) {
-      let highByte = buffer[4 + i * 2];
-      let lowByte = buffer[5 + i * 2];
-      let value = (highByte << 8) | lowByte; // Combine high and low bytes
-      channelData.push(value.toString()); // Convert the number to a string
-    }
-
-    // console.log("Channels:", channelData); // Log the channel data
-
-    LineData(channelData); // Pass the string array to the LineData function
-    if (isRecordingRef.current) {
-      bufferRef.current.push(channelData); // Push the string array to the buffer if recording is on
+    } catch (error) {
+      console.error("Error reading from device:", error);
+    } finally {
+      await disconnectDevice();
     }
   };
-
   const columnNames = [
     "Counter",
     "Channel 1",
@@ -306,7 +320,13 @@ const Connection: React.FC<ConnectionProps> = ({
 
     const header = Object.keys(data[0]);
     const rows = data.map((item) =>
-      header.map((fieldName) => JSON.stringify(item[fieldName] || "")).join(",")
+      header
+        .map((fieldName) =>
+          item[fieldName] !== undefined && item[fieldName] !== null
+            ? JSON.stringify(item[fieldName])
+            : ""
+        )
+        .join(",")
     );
 
     return [header.join(","), ...rows].join("\n");
@@ -350,9 +370,6 @@ const Connection: React.FC<ConnectionProps> = ({
       return newElapsedTime;
     });
   };
-  const generateSessionId = () => {
-    return Math.floor(Date.now() / 1000); // Use the current timestamp as a simple session ID
-  };
 
   const formatDuration = (durationInSeconds: number): string => {
     const minutes = Math.floor(durationInSeconds / 60); // Get the minutes
@@ -384,20 +401,15 @@ const Connection: React.FC<ConnectionProps> = ({
       (endTime.getTime() - startTimeRef.current) / 1000
     );
 
-    const sessionId = generateSessionId(); // Generate or retrieve a session ID
-
-    // Save any remaining data in the buffer to IndexedDB
     if (bufferRef.current.length > 0) {
-      await saveDataDuringRecording(bufferRef.current, sessionId); // Pass the sessionId
+      await saveDataDuringRecording(bufferRef.current);
       bufferRef.current = [];
     }
 
-    // Get the total number of recorded files
     const allData = await getAllDataFromIndexedDB();
     setHasData(allData.length > 0);
     const recordedFilesCount = allData.length;
 
-    // Close the IndexedDB connection
     if (indexedDBRef.current) {
       indexedDBRef.current.close();
       indexedDBRef.current = null;
@@ -420,7 +432,7 @@ const Connection: React.FC<ConnectionProps> = ({
     endTimeRef.current = null;
     setElapsedTime(0);
 
-    setIsRecordButtonDisabled(true); // Disable the record button
+    setIsRecordButtonDisabled(true);
   };
 
   const checkDataAvailability = async () => {
@@ -434,10 +446,7 @@ const Connection: React.FC<ConnectionProps> = ({
   }, []);
 
   // Add this function to save data to IndexedDB during recording
-  const saveDataDuringRecording = async (
-    data: string[][],
-    sessionId: number
-  ) => {
+  const saveDataDuringRecording = async (data: string[][]) => {
     if (!isRecordingRef.current || !indexedDBRef.current) return;
 
     try {
@@ -446,20 +455,18 @@ const Connection: React.FC<ConnectionProps> = ({
 
       for (const row of data) {
         await store.add({
-          sessionId: sessionId, // Save the session ID
           timestamp: new Date().toISOString(),
-          counter: Number(row[0]),
-          channel_1: Number(row[1]),
-          channel_2: Number(row[2]),
-          channel_3: Number(row[3]),
-          channel_4: Number(row[4]),
+          channel_1: Number(row[0]),
+          channel_2: Number(row[1]),
+          channel_3: Number(row[2]),
+          channel_4: Number(row[3]),
+          counter: Number(row[6]),
         });
       }
     } catch (error) {
       console.error("Error saving data during recording:", error);
     }
   };
-
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -556,9 +563,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
       // Ensure data is in the correct format
       const formattedData = allData.map((item) => ({
-        sessionId: item.sessionId,
         timestamp: item.timestamp,
-        counter: item.counter,
         channel_1: item.channel_1,
         channel_2: item.channel_2,
         channel_3: item.channel_3,
@@ -568,7 +573,20 @@ const Connection: React.FC<ConnectionProps> = ({
       setOpen(false);
       const csvData = convertToCSV(formattedData);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-      saveAs(blob, "all_recorded_data.csv");
+
+      // Get the current date and time
+      const now = new Date();
+      const formattedTimestamp = `${now.getFullYear()}-${String(
+        now.getMonth() + 1
+      ).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}_${String(
+        now.getHours()
+      ).padStart(2, "0")}-${String(now.getMinutes()).padStart(2, "0")}-${String(
+        now.getSeconds()
+      ).padStart(2, "0")}`;
+
+      // Use the timestamp in the filename
+      const filename = `recorded_data_${formattedTimestamp}.csv`;
+      saveAs(blob, filename);
 
       await deleteDataFromIndexedDB();
       toast.success("Data downloaded and cleared from storage.");
@@ -704,6 +722,26 @@ const Connection: React.FC<ConnectionProps> = ({
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={() => setIsDisplay(!isDisplay)}>
+                  {isDisplay ? (
+                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
+                  ) : (
+                    <Play className="h-5 w-5" /> // Show Play icon when paused
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
               <Button onClick={handleRecord} disabled={isRecordButtonDisabled}>
                 <TooltipTrigger asChild>
                   {isRecordingRef.current ? (
@@ -718,43 +756,6 @@ const Connection: React.FC<ConnectionProps> = ({
                   {!isRecordingRef.current
                     ? "Start Recording"
                     : "Stop Recording"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="bg-primary gap-2"
-                  onClick={() => setIsGridView(!isGridView)}
-                >
-                  {isGridView ? <List size={20} /> : <Grid size={20} />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isGridView ? "Grid" : "List"}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={() => setIsDisplay(!isDisplay)}>
-                  {isDisplay ? (
-                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
-                  ) : (
-                    <Play className="h-5 w-5" /> // Show Play icon when paused
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -830,6 +831,23 @@ const Connection: React.FC<ConnectionProps> = ({
                 ) : (
                   <p>Save As Zip</p>
                 )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="bg-primary gap-2"
+                  onClick={() => setIsGridView(!isGridView)}
+                >
+                  {isGridView ? <List size={20} /> : <Grid size={20} />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isGridView ? "Grid" : "List"}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

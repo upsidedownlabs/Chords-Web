@@ -202,13 +202,13 @@ const Canvas: React.FC<CanvasProps> = ({
           if (canvas) {
             const chart = new SmoothieChart({
               responsive: true,
-              millisPerPixel: 8,
-              interpolation: "bezier",
+              millisPerPixel: 10,
+              interpolation: "linear",
               grid: {
                 fillStyle: colors.background,
                 strokeStyle: colors.grid,
                 borderVisible: true,
-                millisPerLine: 500,
+                millisPerLine: 1000,
                 lineWidth: 1,
               },
               labels: {
@@ -283,19 +283,6 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [theme, isChartInitialized, updateChartColors]);
 
-  const handlePauseClick = (index: number) => {
-    setIsPaused((prevIsPaused) => {
-      const updatedIsPaused = [...prevIsPaused];
-      updatedIsPaused[index] = !prevIsPaused[index];
-
-      if (updatedIsPaused[index]) {
-        chartRef.current[index].stop();
-      } else if (!isGlobalPaused) {
-        chartRef.current[index].start();
-      }
-      return updatedIsPaused;
-    });
-  };
   return (
     <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
       <div
@@ -323,31 +310,6 @@ const Canvas: React.FC<CanvasProps> = ({
                     id={`smoothie-chart-${index + 1}`}
                     className="w-full h-full"
                   />
-                  {/* <div
-                    className={`absolute ${
-                      isGridView
-                        ? "top-[45%] right-0 -mr-3 -mt-3"
-                        : "top-1/2 right-0 transform -translate-y-1/2 -mr-2"
-                    } z-10`}
-                  >
-                    <Card className="bg-secondary border-primary rounded-2xl -mr-1">
-                      <CardContent className="flex flex-col p-1 items-center justify-center gap-1">
-                        <Button
-                          variant={"outline"}
-                          className="border-muted-foreground hover:bg-destructive w-6 h-6 p-0 rounded-full"
-                          onClick={() => handlePauseClick(index)}
-                          size={"sm"}
-                        >
-                          {isPaused[index] ? (
-                            <Play size={12} />
-                          ) : (
-                            <Pause size={12} />
-                          )}
-                        </Button>
-                        <p className="text-[10px]">{`CH${index + 1}`}</p>
-                      </CardContent>
-                    </Card>
-                  </div> */}
                 </div>
               </div>
             );
