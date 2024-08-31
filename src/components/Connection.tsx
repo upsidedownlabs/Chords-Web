@@ -78,7 +78,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
   const [indexTracker, setIndexTracker] = useState<number[]>([]); //keep track of indexes of files
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
-  const [counter, setCounter] = useState<number>(0);
   const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
   const [hasData, setHasData] = useState(false);
   const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
@@ -203,27 +202,32 @@ const Connection: React.FC<ConnectionProps> = ({
       if (portRef.current && portRef.current.readable) {
         // Check if the port is available and readable
         if (readerRef.current) {
-          await readerRef.current.cancel(); // Cancel the reader
-          readerRef.current.releaseLock(); // Release the reader lock
+          await readerRef.current.cancel(); // Cancel the reader to stop data flow
+          readerRef.current.releaseLock(); // Release the reader lock to allow other operations
         }
-        await portRef.current.close();
-        portRef.current = null;
+        await portRef.current.close(); // Close the port to disconnect the device
+        portRef.current = null; // Reset the port reference to null
+  
+        // Notify the user of successful disconnection with a reconnect option
         toast("Disconnected from device", {
           action: {
             label: "Reconnect",
-            onClick: () => connectToDevice(),
+            onClick: () => connectToDevice(), // Reconnect when the "Reconnect" button is clicked
           },
         });
       }
     } catch (error) {
+      // Handle any errors that occur during disconnection
       console.error("Error during disconnection:", error);
     } finally {
-      setIsConnected(false);
-      Connection(false);
-      isConnectedRef.current = false;
-      isRecordingRef.current = false;
+      // Ensure the connection state is properly updated
+      setIsConnected(false); // Update state to indicate the device is disconnected
+      Connection(false); // Update any relevant state or UI to reflect disconnection
+      isConnectedRef.current = false; // Reset the connection reference
+      isRecordingRef.current = false; // Ensure recording is stopped
     }
   };
+  
 
   // Function to read the data from the device
   const readData = async (): Promise<void> => {
@@ -307,13 +311,6 @@ const Connection: React.FC<ConnectionProps> = ({
       await disconnectDevice();
     }
   };
-  const columnNames = [
-    "Counter",
-    "Channel 1",
-    "Channel 2",
-    "Channel 3",
-    "Channel 4",
-  ];
 
   const convertToCSV = (data: any[]): string => {
     if (data.length === 0) return "";
