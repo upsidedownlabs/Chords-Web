@@ -8,9 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { SmoothieChart, TimeSeries } from "smoothie";
-import { Button } from "./ui/button";
 import { useTheme } from "next-themes";
-import { Card, CardContent } from "./ui/card";
 import { BitSelection } from "./DataPass";
 
 interface CanvasProps {

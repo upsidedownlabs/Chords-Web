@@ -12,7 +12,12 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { CircleAlert } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
+import dotenv from "dotenv";
 
+// Load environment variables from .env file
+dotenv.config();
+
+const Version = process.env.NEXT_PUBLIC_VERSION;
 const contributors = [
   {
     name: "Deepak Khatri",
@@ -62,6 +67,7 @@ const Contributors = () => {
         <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <Card className="border-none -m-5">
             <CardHeader>
+              <p>Chords:{Version}</p>
               <CardTitle className="text-lg">Contributors</CardTitle>
               <Separator className="bg-primary" />
             </CardHeader>

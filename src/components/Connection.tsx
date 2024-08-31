@@ -11,7 +11,6 @@ import {
   FileArchive,
   FileDown,
   Infinity,
-  ArrowUp,
   Trash2,
   Download,
   Pause,
@@ -40,7 +39,6 @@ import {
 import { BitSelection } from "./DataPass";
 
 import { Separator } from "./ui/separator";
-import { Switch } from "../components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -70,7 +68,7 @@ const Connection: React.FC<ConnectionProps> = ({
   isDisplay,
   setIsDisplay,
 }) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
@@ -207,7 +205,7 @@ const Connection: React.FC<ConnectionProps> = ({
         }
         await portRef.current.close(); // Close the port to disconnect the device
         portRef.current = null; // Reset the port reference to null
-  
+
         // Notify the user of successful disconnection with a reconnect option
         toast("Disconnected from device", {
           action: {
@@ -227,7 +225,6 @@ const Connection: React.FC<ConnectionProps> = ({
       isRecordingRef.current = false; // Ensure recording is stopped
     }
   };
-  
 
   // Function to read the data from the device
   const readData = async (): Promise<void> => {
@@ -686,11 +683,11 @@ const Connection: React.FC<ConnectionProps> = ({
           <div className="flex items-center space-x-2">
             {detectedBits ? (
               <Button
-                variant={selectedBits === "auto" ? "outline" : "outline"}
+                variant="outline"
                 className={`w-36 flex justify-center items-center overflow-hidden ${
                   selectedBits === "auto"
-                    ? "bg-white text-black"
-                    : "bg-dark text-light"
+                    ? "bg-white text-black" // Background color for "auto" selected
+                    : "bg-dark text-light" // Background color for detected bits selected
                 }`}
                 onClick={() =>
                   setSelectedBits(
@@ -773,7 +770,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={saveData}
                       disabled={!hasData}
                     >
-                      <FileDown className="mr-2" />
+                      <Download size={16} className="mr-2" />
                     </Button>
                   </TooltipTrigger>
                 )}
@@ -788,41 +785,21 @@ const Connection: React.FC<ConnectionProps> = ({
                   </Button>
                 ) : (
                   <>
-                    <Popover open={open} onOpenChange={setOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          className="rounded-r-none mr-1"
-                          disabled={!hasData}
-                        >
-                          <FileArchive className="mr-2" />
-                          <p className="text-lg">{datasets}</p>
-                        </Button>
-                      </PopoverTrigger>
-                      <Button
-                        className="rounded-l-none"
-                        onClick={deleteDataFromIndexedDB}
-                        disabled={!hasData}
-                      >
-                        <Trash2 size={20} />
-                      </Button>
-                      <PopoverContent className="w-80">
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span className="text-red-500">Recorded File</span>
-                            <div className="space-x-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={saveData}
-                                disabled={!hasData}
-                              >
-                                <Download size={16} />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <Button
+                      className="rounded-r-none mr-1"
+                      onClick={saveData} // Adjust functionality for saving multiple datasets if needed
+                      disabled={!hasData}
+                    >
+                      <FileArchive className="mr-2" />
+                      <p className="text-lg">{datasets}</p>
+                    </Button>
+                    <Button
+                      className="rounded-l-none"
+                      onClick={deleteDataFromIndexedDB}
+                      disabled={!hasData}
+                    >
+                      <Trash2 size={20} />
+                    </Button>
                   </>
                 )}
               </div>

@@ -61,7 +61,7 @@ const Steps = () => {
             {
               title: "Start Visualizing",
               description:
-                "Open plot it, click connect, choose COM port and start visualizing the signals.",
+                "Open Chords, click connect, choose COM port and start visualizing the signals.",
               image: "/steps/plotIt.jpg",
             },
           ].map((step, index) => (

@@ -15,9 +15,10 @@ const Navbar = () => {
         <div className="flex w-full max-w-screen mx-4 md:mx-16 justify-between items-center">
           <Link href="/">
             <div className="flex flex-row gap-2 group">
-              <div className="text-primary font-medium text-xl hover:cursor-pointer font-lobster tracking-wide hover:tracking-widest transition-all duration-300 hover:text-plot">
-                plot it
+              <div className="font-rancho text-primary font-bold text-2xl hover:cursor-pointer tracking-wide hover:tracking-widest transition-transform transform-gpu duration-300 hover:text-gradient bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text text-shadow-lg shadow-lg">
+                Chords
               </div>
+
               <Badge
                 variant={"outline"}
                 className="mt-1 font-poppins tracking-wider font-thin rounded group-hover:bg-secondary"
