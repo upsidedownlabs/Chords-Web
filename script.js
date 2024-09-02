@@ -34,10 +34,14 @@ class SmoothieChartManager {
       .then(() => {
         console.log("IndexedDB initialized");
       })
+    
       .catch((error) => {
         console.error("Failed to initialize IndexedDB:", error);
       });
-
+    
+    window.addEventListener("load", () => this.checkBrowserCompatibility()); // Check browser compatibility on load
+    document.getElementById("mainNav").style.backgroundColor = "red";
+    
     // Helper function to add input listeners
     const addInputListener = (rangeId, valueId) => {
       document.getElementById(rangeId).addEventListener("input", (e) => {
@@ -101,8 +105,6 @@ class SmoothieChartManager {
       this.stopStreaming();
       await this.saveCsv(); // Save data to CSV file
     });
-
-    window.addEventListener("load", () => this.checkBrowserCompatibility()); // Check browser compatibility on load
   }
 
   // Create and display the charts
@@ -700,10 +702,10 @@ class SmoothieChartManager {
     if (!navigator.serial) {
       // Show compatibility message if not supported
       document.getElementById("compatibilityMessage").style.display = "block";
-      document.querySelector("nav").style.display = "none";
       document.getElementById("chartsContainer").style.display = "none";
       return;
     }
+    document.getElementById("mainNav").style.display = "block";
     this.drawCharts(4, 37, this.isHighSpeed ? 2 : 1); // Create and display the charts with default speed
   }
 }
