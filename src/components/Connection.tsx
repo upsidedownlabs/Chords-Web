@@ -87,6 +87,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
+  const [ifBits, setifBits] = useState<BitSelection>("ten");
   // const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is pause
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
@@ -139,8 +140,7 @@ const Connection: React.FC<ConnectionProps> = ({
         (b) => parseInt(b.field_pid) === info.usbProductId
       );
       if (board) {
-        setDetectedBits(board.bits as BitSelection); // Set the detected bits
-        setSelectedBits(board.bits as BitSelection); // Set the selected bits
+        setifBits(board.Bits as BitSelection);
         return `${board.name} | Product ID: ${info.usbProductId}`; // Return the board name and product ID
       }
 
@@ -229,83 +229,92 @@ const Connection: React.FC<ConnectionProps> = ({
   // Function to read the data from the device
   const readData = async (): Promise<void> => {
     let bufferIndex = 0;
-    const buffer: number[] = [];
-    const PACKET_LENGTH = 17;
-    const SYNC_BYTE1 = 0xa5;
-    const SYNC_BYTE2 = 0x5a;
-    const END_BYTE = 0x01;
-    let previousCounter: number | null = null;
-    let hasRemovedInitialElements = false;
+    const buffer: number[] = []; // Buffer to store incoming data from the device
+    const PACKET_LENGTH = 17; // Length of the expected data packet
+    const SYNC_BYTE1 = 0xa5; // First synchronization byte to identify the start of a packet
+    const SYNC_BYTE2 = 0x5a; // Second synchronization byte to identify the start of a packet
+    const END_BYTE = 0x01; // End byte to identify the end of a packet
+    let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+    let hasRemovedInitialElements = false; // Flag to check if initial buffer elements have been removed
 
     try {
       while (isConnectedRef.current) {
-        const streamData = await readerRef.current?.read();
+        // Loop while the device is connected
+        const streamData = await readerRef.current?.read(); // Read data from the device
         if (streamData?.done) {
-          console.log("Thank you for using our app!");
+          // Check if the data stream has ended
+          console.log("Thank you for using our app!"); // Log a message when the stream ends
           break;
         }
         if (streamData) {
-          const { value } = streamData;
-          buffer.push(...value);
+          const { value } = streamData; // Get the data from the stream
+          buffer.push(...value); // Append the data to the buffer
         }
 
         while (buffer.length >= PACKET_LENGTH) {
+          // Process packets while the buffer contains at least one full packet
           const syncIndex = buffer.findIndex(
             (byte, index) =>
-              byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2
+              byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2 // Find the index of the sync bytes
           );
 
           if (syncIndex === -1) {
+            // If no sync bytes are found, clear the buffer
             buffer.length = 0;
             continue;
           }
 
           if (syncIndex + PACKET_LENGTH <= buffer.length) {
-            const endByteIndex = syncIndex + PACKET_LENGTH - 1;
+            // Check if a full packet is available in the buffer
+            const endByteIndex = syncIndex + PACKET_LENGTH - 1; // Calculate the index of the end byte
 
             if (
               buffer[syncIndex] === SYNC_BYTE1 &&
               buffer[syncIndex + 1] === SYNC_BYTE2 &&
-              buffer[endByteIndex] === END_BYTE
+              buffer[endByteIndex] === END_BYTE // Verify that the packet has the correct start and end bytes
             ) {
-              const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH);
-              const channelData: string[] = [];
+              const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
+              const channelData: string[] = []; // Array to store the extracted channel data
               for (let i = 0; i < 6; i++) {
-                const highByte = packet[4 + i * 2];
-                const lowByte = packet[5 + i * 2];
-                const value = (highByte << 8) | lowByte;
-                channelData.push(value.toString());
+                // Loop through each channel in the packet
+                const highByte = packet[4 + i * 2]; // Extract the high byte for the channel
+                const lowByte = packet[5 + i * 2]; // Extract the low byte for the channel
+                const value = (highByte << 8) | lowByte; // Combine the high and low bytes to get the channel value
+                channelData.push(value.toString()); // Convert the value to string and store it in the array
               }
-              const counter = packet[3];
-              channelData.push(counter.toString());
+              const counter = packet[3]; // Extract the counter value from the packet
+              channelData.push(counter.toString()); // Add the counter value to the channel data
 
-              LineData(channelData);
+              LineData(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
-                bufferRef.current.push(channelData);
+                // Check if recording is enabled
+                bufferRef.current.push(channelData); // Store the channel data in the buffer if recording
               }
 
               if (previousCounter !== null) {
-                const expectedCounter: number = (previousCounter + 1) % 256;
+                // If there was a previous counter value
+                const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
                 if (counter !== expectedCounter) {
+                  // Check for data loss by comparing the current counter with the expected counter
                   console.warn(
                     `Data loss detected! Previous counter: ${previousCounter}, Current counter: ${counter}`
                   );
                 }
               }
-              previousCounter = counter;
-              buffer.splice(0, endByteIndex + 1);
+              previousCounter = counter; // Update the previous counter with the current counter
+              buffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
             } else {
-              buffer.splice(0, syncIndex + 1);
+              buffer.splice(0, syncIndex + 1); // If the packet is invalid, remove the sync bytes and try again
             }
           } else {
-            break;
+            break; // If a full packet is not available, exit the loop and wait for more data
           }
         }
       }
     } catch (error) {
-      console.error("Error reading from device:", error);
+      console.error("Error reading from device:", error); // Handle any errors that occur during the read process
     } finally {
-      await disconnectDevice();
+      await disconnectDevice(); // Ensure the device is disconnected when finished
     }
   };
 
@@ -472,24 +481,27 @@ const Connection: React.FC<ConnectionProps> = ({
   // Initialize IndexedDB
   const initIndexedDB = async (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open("adcReadings", 1);
+      const request = indexedDB.open("adcReadings", 1); // Open a connection to the "adcReadings" IndexedDB database with version 1
 
       request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
+        // Event triggered if the database version changes or the database is created for the first time
+        const db = (event.target as IDBOpenDBRequest).result; // Get the IDBDatabase instance
+
+        // Check if the "adcReadings" object store exists; if not, create it
         if (!db.objectStoreNames.contains("adcReadings")) {
           db.createObjectStore("adcReadings", {
-            keyPath: "id",
-            autoIncrement: true,
+            keyPath: "id", // Define the primary key for the object store
+            autoIncrement: true, // Enable auto-increment for the primary key
           });
         }
       };
 
       request.onsuccess = () => {
-        resolve(request.result);
+        resolve(request.result); // Resolve the promise with the IDBDatabase instance when the connection is successful
       };
 
       request.onerror = () => {
-        reject(request.error);
+        reject(request.error); // Reject the promise with the error if the connection fails
       };
     });
   };
@@ -681,19 +693,18 @@ const Connection: React.FC<ConnectionProps> = ({
         </Button>
         {isConnected && (
           <div className="flex items-center space-x-2">
-            {detectedBits ? (
+            {ifBits ? (
               <Button
                 variant="outline"
                 className={`w-36 flex justify-center items-center overflow-hidden ${
                   selectedBits === "auto"
-                    ? "bg-white text-black" // Background color for "auto" selected
-                    : "bg-dark text-light" // Background color for detected bits selected
-                }`}
+                    ? "bg-gray-800 text-white dark:bg-white dark:text-black"
+                    : "bg-white text-black dark:bg-gray-800 dark:text-white"
+                } hover:bg-gray-800 hover:text-white dark:hover:bg-white dark:hover:text-black`}
                 onClick={() =>
-                  setSelectedBits(
-                    selectedBits === "auto" ? detectedBits : "auto"
-                  )
+                  setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
                 }
+                aria-label="Toggle Autoscale"
               >
                 Autoscale
               </Button>
@@ -704,7 +715,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 }
                 value={selectedBits}
               >
-                <SelectTrigger className="w-32 text-background bg-primary">
+                <SelectTrigger className="w-32">
                   <SelectValue placeholder="Select bits" />
                 </SelectTrigger>
                 <SelectContent side="top">
@@ -717,6 +728,7 @@ const Connection: React.FC<ConnectionProps> = ({
             )}
           </div>
         )}
+
         {isConnected && (
           <TooltipProvider>
             <Tooltip>

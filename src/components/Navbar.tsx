@@ -13,20 +13,19 @@ const Navbar = () => {
     <div>
       <div className="top-0 md:left-0 md:right-0 flex backdrop-blur-sm justify-center py-[10px] border-b items-center font-bold z-50">
         <div className="flex w-full max-w-screen mx-4 md:mx-16 justify-between items-center">
-          <Link href="/">
-            <div className="flex flex-row gap-2 group">
-              <div className="font-rancho text-primary font-bold text-2xl hover:cursor-pointer tracking-wide hover:tracking-widest transition-transform transform-gpu duration-300 hover:text-gradient bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text text-shadow-lg shadow-lg">
-                Chords
-              </div>
-
+          <div className="flex flex-row gap-2 group">
+            <div className="font-rancho text-primary font-bold text-2xl hover:cursor-pointer transition-transform transform-gpu duration-300 hover:text-gradient bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text ">
+              Chords
+            </div>
+            <Link href="/">
               <Badge
                 variant={"outline"}
                 className="mt-1 font-poppins tracking-wider font-thin rounded group-hover:bg-secondary"
               >
                 Alpha
               </Badge>
-            </div>
-          </Link>
+            </Link>
+          </div>
           <div className="flex gap-0 md:gap-2 items-center">
             <ModeToggle />
             <Link href="https://github.com/upsidedownlabs" target="__blank">
