@@ -25,6 +25,10 @@ body {
   z-index: 9999;
 }
 
+#mainNav {
+  display: none;
+}
+
 #recordButton {
   display: flex;
   align-items: center;
