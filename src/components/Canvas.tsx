@@ -8,9 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { SmoothieChart, TimeSeries } from "smoothie";
-import { Button } from "./ui/button";
 import { useTheme } from "next-themes";
-import { Card, CardContent } from "./ui/card";
 import { BitSelection } from "./DataPass";
 
 interface CanvasProps {
@@ -32,6 +30,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const seriesRef = useRef<(TimeSeries | null)[]>([]);
   const [isChartInitialized, setIsChartInitialized] = useState(false);
   const [isPaused, setIsPaused] = useState(Array(channels.length).fill(false)); // Paused state for each channe
+  const [isGlobalPaused, setIsGlobalPaused] = useState(!isDisplay);
   const batchSize = 10;
   const batchBuffer = useMemo<Array<{ time: number; values: number[] }>>(
     () => [],
@@ -131,7 +130,7 @@ const Canvas: React.FC<CanvasProps> = ({
   ]);
 
   const processBatch = useCallback(() => {
-    if (batchBuffer.length === 0 || !isDisplay) return;
+    if (batchBuffer.length === 0 || isGlobalPaused) return;
 
     batchBuffer.forEach((batch) => {
       channels.forEach((channel, index) => {
@@ -145,12 +144,12 @@ const Canvas: React.FC<CanvasProps> = ({
     });
 
     batchBuffer.length = 0;
-  }, [channels, batchBuffer, isDisplay]);
+  }, [channels, batchBuffer, isGlobalPaused, isPaused]);
 
   const handleDataUpdate = useCallback(
     (line: string) => {
       if (line.trim() !== "" && isDisplay) {
-        const sensorValues = line.split(",").map(Number).slice(1);
+        const sensorValues = line.split(",").map(Number).slice(0);
         const timestamp = Date.now();
 
         batchBuffer.push({ time: timestamp, values: sensorValues });
@@ -162,7 +161,7 @@ const Canvas: React.FC<CanvasProps> = ({
     },
     [processBatch, batchBuffer, isDisplay]
   );
-
+  // console.log(data);
   useEffect(() => {
     if (isChartInitialized) {
       const lines = String(data).split("\n");
@@ -201,13 +200,13 @@ const Canvas: React.FC<CanvasProps> = ({
           if (canvas) {
             const chart = new SmoothieChart({
               responsive: true,
-              millisPerPixel: 8,
-              interpolation: "bezier",
+              millisPerPixel: 10,
+              interpolation: "linear",
               grid: {
                 fillStyle: colors.background,
                 strokeStyle: colors.grid,
                 borderVisible: true,
-                millisPerLine: 500,
+                millisPerLine: 1000,
                 lineWidth: 1,
               },
               labels: {
@@ -264,33 +263,31 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [selectedBits, isChartInitialized, getMaxValue, shouldAutoScale]);
 
   useEffect(() => {
+    setIsGlobalPaused(!isDisplay);
+
+    chartRef.current.forEach((chart) => {
+      if (chart) {
+        if (isDisplay) {
+          chart.start();
+        } else {
+          chart.stop();
+        }
+      }
+    });
+  }, [isDisplay]);
+  useEffect(() => {
     if (isChartInitialized) {
       updateChartColors();
     }
   }, [theme, isChartInitialized, updateChartColors]);
-  
-  const handlePauseClick = (index: number) => {
-    // Handle the pause click for each channel
-    setIsPaused((prevIsPaused) => {
-      const updatedIsPaused = [...prevIsPaused];
-      updatedIsPaused[index] = !prevIsPaused[index];
-
-      if (updatedIsPaused[index]) {
-        chartRef.current[index].stop();
-      } else {
-        chartRef.current[index].start();
-      }
-      return updatedIsPaused;
-    });
-  };
 
   return (
     <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
       <div
         className={`grid ${
           isGridView
-            ? "md:grid-cols-2 grid-cols-1 gap-8" // Apply the same spacing for both horizontal and vertical gaps
-            : "grid-cols-1 gap-1"
+            ? "md:grid-cols-2 grid-cols-1" // Apply the same spacing for both horizontal and vertical gaps
+            : "grid-cols-1"
         } w-full h-full`}
       >
         {channels.map((channel, index) => {
@@ -304,38 +301,13 @@ const Canvas: React.FC<CanvasProps> = ({
               >
                 <div
                   className={`border border-secondary-foreground w-full ${
-                    isGridView ? "h-[38vh]" : "h-[20vh]"
+                    isGridView ? "h-[40vh]" : "h-[20vh]"
                   } relative`}
                 >
                   <canvas
                     id={`smoothie-chart-${index + 1}`}
                     className="w-full h-full"
                   />
-                  <div
-                    className={`absolute ${
-                      isGridView
-                        ? "top-[45%] right-0 -mr-3 -mt-3"
-                        : "top-1/2 right-0 transform -translate-y-1/2 -mr-2"
-                    } z-10`}
-                  >
-                    <Card className="bg-secondary border-primary rounded-2xl -mr-1">
-                      <CardContent className="flex flex-col p-1 items-center justify-center gap-1">
-                        <Button
-                          variant={"outline"}
-                          className="border-muted-foreground hover:bg-destructive w-6 h-6 p-0 rounded-full"
-                          onClick={() => handlePauseClick(index)}
-                          size={"sm"}
-                        >
-                          {isPaused[index] ? (
-                            <Play size={12} />
-                          ) : (
-                            <Pause size={12} />
-                          )}
-                        </Button>
-                        <p className="text-[10px]">{`CH${index + 1}`}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
                 </div>
               </div>
             );

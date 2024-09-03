@@ -11,7 +11,7 @@ import PlotIt from "./PlotIt";
 const FAQSection = () => {
   const FAQs: { question: string; answer: React.ReactNode }[] = [
     {
-      question: `What is the purpose of plot it?`,
+      question: `What is the purpose of Chords?`,
       answer: (
         <>
           <PlotIt /> is made to plot biopotential signals like ECG, EMG or EOG
@@ -20,7 +20,7 @@ const FAQSection = () => {
       ),
     },
     {
-      question: `What kind of data plot it collects?`,
+      question: `What kind of data Chords collects?`,
       answer: (
         <>
           It collects the biopotential data from the device connected to the
@@ -47,7 +47,7 @@ const FAQSection = () => {
       ),
     },
     {
-      question: "From where I can collect required hardware for plot it?",
+      question: "From where I can collect required hardware for Chords?",
       answer: (
         <>
           You can collect the required hardware from{" "}
@@ -64,7 +64,7 @@ const FAQSection = () => {
       ),
     },
     {
-      question: "What are the limitations of plot it?",
+      question: "What are the limitations of Chords?",
       answer: (
         <>
           <PlotIt /> uses{" "}
@@ -100,10 +100,10 @@ const FAQSection = () => {
       ),
     },
     {
-      question: "What data format does Plot It support?",
+      question: "What data format does Chords support?",
       answer: (
         <>
-          Plot It supports an array format: [counter, A0, A1, ..., A6], where
+          Chords supports an array format: [counter, A0, A1, ..., A6], where
           counter is a uint8_t (0-255) and A0-A6 are raw signal values. Array
           example : [10, 468, 472, 463, 466, 465]. For implementation details,
           see our{" "}
@@ -120,7 +120,7 @@ const FAQSection = () => {
       ),
     },
     {
-      question: "Which microcontrollers are supported by plot it?",
+      question: "Which microcontrollers are supported by Chords?",
       answer: (
         <>
           Arduino Uno, Arduino Nano & Maker Uno are tested and supported by{" "}
