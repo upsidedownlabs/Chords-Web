@@ -140,7 +140,7 @@ const Connection: React.FC<ConnectionProps> = ({
         (b) => parseInt(b.field_pid) === info.usbProductId
       );
       if (board) {
-        setifBits(board.Bits as BitSelection);
+        setifBits(board.bits as BitSelection);
         return `${board.name} | Product ID: ${info.usbProductId}`; // Return the board name and product ID
       }
 
