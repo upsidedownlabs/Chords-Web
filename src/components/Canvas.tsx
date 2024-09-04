@@ -200,7 +200,7 @@ const Canvas: React.FC<CanvasProps> = ({
           if (canvas) {
             const chart = new SmoothieChart({
               responsive: true,
-              millisPerPixel: 10,
+              millisPerPixel: 4,
               interpolation: "linear",
               grid: {
                 fillStyle: colors.background,

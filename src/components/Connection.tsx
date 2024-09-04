@@ -695,12 +695,8 @@ const Connection: React.FC<ConnectionProps> = ({
           <div className="flex items-center space-x-2">
             {ifBits ? (
               <Button
-                variant="outline"
-                className={`w-36 flex justify-center items-center overflow-hidden ${
-                  selectedBits === "auto"
-                    ? "bg-gray-800 text-white dark:bg-white dark:text-black"
-                    : "bg-white text-black dark:bg-gray-800 dark:text-white"
-                } hover:bg-gray-800 hover:text-white dark:hover:bg-white dark:hover:text-black`}
+                variant={selectedBits === "auto" ? "outline" : "default"}
+                className={`w-36 flex justify-center items-center overflow-hidden  `}
                 onClick={() =>
                   setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
                 }
