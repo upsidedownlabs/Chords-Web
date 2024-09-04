@@ -12,8 +12,8 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { CircleAlert } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
+import { getVersion } from "../../Version";
 
-const Version = process.env.NEXT_PUBLIC_VERSION;
 const contributors = [
   {
     name: "Deepak Khatri",
@@ -63,7 +63,7 @@ const Contributors = () => {
         <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <Card className="border-none -m-5">
             <CardHeader>
-              <p>Chords:{Version}</p>
+              <p>Chords:{getVersion()}</p>
               <CardTitle className="text-lg">Contributors</CardTitle>
               <Separator className="bg-primary" />
             </CardHeader>
