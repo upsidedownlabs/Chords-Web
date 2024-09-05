@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/Ritika8081/BioSignal-Recorder-Web/blob/main/public/steps/Chords.png"><br>
+ ![Chords Default](public/steps/Chords.png)
    <h1 align="center">Chords</h1><hr>
 </p>
 
@@ -57,10 +57,10 @@ Chords is an application based on Web Serial connection, you can connect boards 
 
 ## Contributors
 
-We are thankful to our awesome contributors, the list below is alphabetically sorted.
+Thank you for contributing to our project! Your support is invaluable in creating & enhancing Chords-Web and making it even better. 😊
 
-- [Aman Maheswari](https://github.com/Amanmahe)
-- [Deepak Khatri](https://github.com/lorforlinux)
-- [Deepesh Kumar](https://github.com/akadeepesh)
-- [Mahesh Tupe](https://github.com/Asc91)
-- [Ritika Mishra](https://github.com/ritika8081)
+<center>
+<a href="https://github.com/upsidedownlabs/Chords-Web/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=upsidedownlabs/Chords-Web" />
+</a>
+</center>

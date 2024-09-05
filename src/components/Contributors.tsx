@@ -64,8 +64,13 @@ const Contributors = () => {
           <Card className="border-none -m-5">
             <CardHeader>
               <p>Chords:{VERSION}</p>
-              <CardTitle className="text-lg">
-                Contributors (in alphabetical order)
+              <CardTitle>
+                <div className="flex justify-between">
+                  <span className="text-lg">Contributors</span>
+                  <span className="text-sm text-muted-foreground">
+                    Alphabetical Order
+                  </span>
+                </div>
               </CardTitle>
               <Separator className="bg-primary" />
             </CardHeader>
