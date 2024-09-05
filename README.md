@@ -1,6 +1,5 @@
-<p align="center">
- ![Chords Default](public/steps/Chords.png)
-   <h1 align="center">Chords</h1><hr>
+![Chords Default](public/steps/Chords.png)
+
 </p>
 
 Chords is an application based on Web Serial connection, you can connect boards like Arduino Uno, Arduino Nano after uploading the ArduinoFirmware.ino code to it, you'll recieve data signals from the board which can be visualized on web using Chords. Users can visualize ECG and EMG signals.
