@@ -1,11 +1,11 @@
 import React from "react";
 import Link from "next/link";
-import PlotIt from "./PlotIt";
+import Chords from "./Chords";
 const Footer = () => {
   return (
     <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
       <p className="text-xs text-muted-foreground">
-        <PlotIt /> | &copy; {new Date().getFullYear()}{" "}
+        <Chords /> | &copy; {new Date().getFullYear()}{" "}
         <Link href="https://upsidedownlabs.tech/" target="_blank">
           Upside Down Labs
         </Link>

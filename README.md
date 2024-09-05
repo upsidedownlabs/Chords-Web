@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/akadeepesh/biosignal-recorder-web-private/assets/100466756/95cad4a8-8fbb-4662-afb6-414be104f69d"><br>
+  <img src="https://github.com/Ritika8081/BioSignal-Recorder-Web/blob/main/public/assets/Chords.png"><br>
    <h1 align="center">Chords</h1><hr>
 </p>
 

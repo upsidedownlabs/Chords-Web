@@ -5,7 +5,7 @@ import { Button } from "../../components/ui/button";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import PlotIt from "./PlotIt";
+import Chords from "./Chords";
 
 const HeadSection = () => {
   const { theme } = useTheme();
@@ -16,8 +16,8 @@ const HeadSection = () => {
           <div className="flex flex-col justify-center gap-8 items-center">
             <div>
               <h1 className="lg:leading-tighter text-[1.90rem] font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] text-center">
-                <span className="text-7xl">We Got Your Signal!</span>
-                <br /> Let&apos;s <PlotIt />
+                <span className="text-7xl">Tune Into Your EXG Data </span>
+                <br /> With <Chords />
               </h1>
             </div>
             <div className="flex flex-col items-center space-y-4 text-center mt-4">
@@ -45,7 +45,7 @@ const HeadSection = () => {
                   </Button>
                 </Link>
                 <Link
-                  href="https://github.com/upsidedownlabs/BioSignal-Recorder-Web"
+                  href="https://github.com/upsidedownlabs/Chords-Web"
                   target="_blank"
                 >
                   <Button

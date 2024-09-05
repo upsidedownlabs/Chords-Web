@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import Image from "next/image";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
-import PlotIt from "./PlotIt";
+import Chords from "./Chords";
 
 const Stack = () => {
   const { theme } = useTheme();
@@ -64,7 +64,7 @@ const Stack = () => {
       <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
         <div className="space-y-3">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-            <PlotIt /> is open-source, and free to use.
+            <Chords /> is open-source, and free to use.
           </h2>
           <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
             It is powered by the following technologies, that makes it super
@@ -101,7 +101,7 @@ const Stack = () => {
             <Button>Visualize Now &rarr;</Button>
           </Link>
           <Link
-            href="https://github.com/upsidedownlabs/BioSignal-Recorder-Web"
+            href="https://github.com/upsidedownlabs/Chords-Web"
             target="_blank"
           >
             <Button variant="outline">

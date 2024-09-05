@@ -62,7 +62,7 @@ const Steps = () => {
               title: "Start Visualizing",
               description:
                 "Open Chords, click connect, choose COM port and start visualizing the signals.",
-              image: "/steps/plotIt.jpg",
+              image: "/steps/Chords.png",
             },
           ].map((step, index) => (
             <Card key={index} className="flex flex-col h-full">

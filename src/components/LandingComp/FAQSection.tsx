@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from "../../components/ui/accordion";
 import Link from "next/link";
-import PlotIt from "./PlotIt";
+import Chords from "./Chords";
 
 const FAQSection = () => {
   const FAQs: { question: string; answer: React.ReactNode }[] = [
@@ -14,7 +14,7 @@ const FAQSection = () => {
       question: `What is the purpose of Chords?`,
       answer: (
         <>
-          <PlotIt /> is made to plot biopotential signals like ECG, EMG or EOG
+          <Chords /> is made to plot biopotential signals like ECG, EMG or EOG
           in real time. It is made for educational & research purposes.
         </>
       ),
@@ -35,7 +35,7 @@ const FAQSection = () => {
         <>
           You can raise an issue or suggest an improvement on our{" "}
           <Link
-            href="https://github.com/upsidedownlabs/BioSignal-Recorder-Web/issues"
+            href="https://github.com/upsidedownlabs/Chords-Web/issues"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 hover:underline underline-offset-4"
@@ -67,7 +67,7 @@ const FAQSection = () => {
       question: "What are the limitations of Chords?",
       answer: (
         <>
-          <PlotIt /> uses{" "}
+          <Chords /> uses{" "}
           <Link
             href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API"
             target="_blank"
@@ -108,7 +108,7 @@ const FAQSection = () => {
           example : [10, 468, 472, 463, 466, 465]. For implementation details,
           see our{" "}
           <Link
-            href="https://github.com/upsidedownlabs/BioSignal-Recorder-Web/blob/main/ArduinoFirmware/ArduinoFirmware.ino"
+            href="https://github.com/upsidedownlabs/Chords-Web/blob/main/ArduinoFirmware/ArduinoFirmware.ino"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 hover:underline underline-offset-4"
@@ -124,7 +124,7 @@ const FAQSection = () => {
       answer: (
         <>
           Arduino Uno, Arduino Nano & Maker Uno are tested and supported by{" "}
-          <PlotIt />.
+          <Chords />.
         </>
       ),
     },
@@ -135,7 +135,7 @@ const FAQSection = () => {
         <>
           Yes, you just have to make sure that microcontroller is providing a
           compatible data format to the software. By doing this you can use any
-          microcontroller with <PlotIt />
+          microcontroller with <Chords />
         </>
       ),
     },
