@@ -16,6 +16,11 @@ import { VERSION } from "../../Version";
 
 const contributors = [
   {
+    name: "Aman Maheshwari",
+    github: "Amanmahe",
+    avatar: "https://avatars.githubusercontent.com/Amanmahe",
+  },
+  {
     name: "Deepak Khatri",
     github: "lorforlinux",
     avatar: "https://avatars.githubusercontent.com/u/20015794?v=4",
@@ -34,11 +39,6 @@ const contributors = [
     name: "Ritika Mishra",
     github: "Ritika8081",
     avatar: "https://avatars.githubusercontent.com/u/103934960?v=4",
-  },
-  {
-    name: "Aman Maheshwari",
-    github: "Amanmahe",
-    avatar: "https://avatars.githubusercontent.com/Amanmahe",
   },
 ];
 
@@ -64,7 +64,14 @@ const Contributors = () => {
           <Card className="border-none -m-5">
             <CardHeader>
               <p>Chords:{VERSION}</p>
-              <CardTitle className="text-lg">Contributors</CardTitle>
+              <CardTitle>
+                <div className="flex justify-between">
+                  <span className="text-lg">Contributors</span>
+                  <span className="text-sm text-muted-foreground">
+                    Alphabetical Order
+                  </span>
+                </div>
+              </CardTitle>
               <Separator className="bg-primary" />
             </CardHeader>
             <CardContent className="flex justify-center items-center gap-5">

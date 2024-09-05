@@ -1,7 +1,7 @@
 import React from "react";
 import { Card } from "../ui/card";
 import Image from "next/image";
-import PlotIt from "./PlotIt";
+import Chords from "./Chords";
 
 export function Features() {
   const features: {
@@ -40,10 +40,10 @@ export function Features() {
         <div className="flex flex-col items-center justify-center space-y-2 text-center">
           <div className="space-y-2 flex flex-col justify-center items-center">
             <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center">
-              <PlotIt /> is packed with features
+              <Chords /> is packed with features
             </h1>
             <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed text-center">
-              An overview of all the core features <PlotIt /> provides.
+              An overview of all the core features <Chords /> provides.
             </p>
           </div>
         </div>

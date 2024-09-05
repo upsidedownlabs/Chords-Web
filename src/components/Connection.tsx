@@ -8,8 +8,6 @@ import {
   Circle,
   CircleStop,
   CircleX,
-  FileArchive,
-  FileDown,
   Infinity,
   Trash2,
   Download,
