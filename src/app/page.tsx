@@ -2,7 +2,7 @@ import React from "react";
 import Navbar from "../components/Navbar";
 import { Skeleton } from "../components/ui/skeleton";
 import dynamic from "next/dynamic";
-import Steps from "../components//LandingComp/steps";
+import Steps from "../components//LandingComp/Steps";
 import { Separator } from "../components/ui/separator";
 import { Features } from "../components/LandingComp/Features";
 import FAQSection from "../components/LandingComp/FAQSection";
