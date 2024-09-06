@@ -52,7 +52,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 
 ## Resources
 
-- [Vendors](https://github.com/akadeepesh/biosignal-recorder-web-private/blob/master/src/components/vendors.ts) list for board name and there vendor id are taken from [Stackblitz](https://stackblitz.com/edit/typescript-web-serial?file=vendors.ts) created by [William Grasel](https://github.com/willgm)
+- [Vendors](src/components/vendors.ts) list for board name and there vendor id are taken from [Stackblitz](https://stackblitz.com/edit/typescript-web-serial?file=vendors.ts) created by [William Grasel](https://github.com/willgm)
 
 ## Contributors
 

@@ -14,14 +14,14 @@ const Stack = () => {
       name: "Next.js",
       logo:
         theme === "light"
-          ? "/assets/dark/next-js.png"
-          : "/assets/light/nextjs.svg",
+          ? "./assets/dark/next-js.png"
+          : "./assets/light/nextjs.svg",
       url: "https://nextjs.org/",
       description: "The fantastic React framework for building web apps.",
     },
     {
       name: "Tailwind CSS",
-      logo: "/assets/tailwindcss.svg",
+      logo: "./assets/tailwindcss.svg",
       url: "https://tailwindcss.com/",
       description: "A utility-first CSS framework for rapid UI development.",
     },
@@ -29,14 +29,14 @@ const Stack = () => {
       name: "shadcn/ui",
       logo:
         theme === "light"
-          ? "/assets/dark/ShadcnUI.png"
-          : "/assets/light/ShadcnUI.png",
+          ? "./assets/dark/ShadcnUI.png"
+          : "./assets/light/ShadcnUI.png",
       url: "https://ui.shadcn.com",
       description: "Built with amazing components from shadcn/ui.",
     },
     {
       name: "Smoothie Charts",
-      logo: "/assets/smoothie-logo.png",
+      logo: "./assets/smoothie-logo.png",
       url: "http://smoothiecharts.org/",
       description: "Timeseries charts for plotting the data real time.",
     },
@@ -44,8 +44,8 @@ const Stack = () => {
       name: "Web Serial Api",
       logo:
         theme === "light"
-          ? "/assets/dark/favicon.ico"
-          : "/assets/light/favicon.ico",
+          ? "./assets/dark/favicon.ico"
+          : "./assets/light/favicon.ico",
       url: "https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API",
       description: "For connecting to the serial port of the device.",
     },
@@ -53,8 +53,8 @@ const Stack = () => {
       name: "JSZip",
       logo:
         theme === "light"
-          ? "/assets/dark/favicon.ico"
-          : "/assets/light/favicon.ico",
+          ? "./assets/dark/favicon.ico"
+          : "./assets/light/favicon.ico",
       url: "https://stuk.github.io/jszip/",
       description: "For creating and downloading the recorded data zip files.",
     },
