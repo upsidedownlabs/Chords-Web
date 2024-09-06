@@ -14,7 +14,7 @@ const Footer = () => {
         <Link
           className="text-xs hover:underline underline-offset-4"
           target="_blank"
-          href="https://www.linkedin.com/posts/upsidedownlabs_step-to-improve-signal-quality-activity-7210620110040965120-_sOk?utm_source=share&utm_medium=member_desktop"
+          href="https://docs.upsidedownlabs.tech/guides/index.html"
         >
           Improve Signal Quality
         </Link>
