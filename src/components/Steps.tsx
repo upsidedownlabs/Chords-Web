@@ -21,12 +21,12 @@ import Image from "next/image";
 
 const Steps: React.FC = () => {
   const ImageLinks = [
-    "https://docs.upsidedownlabs.tech/_images/connections-with-arduino.PNG",
-    "https://docs.upsidedownlabs.tech/_images/connection-with-cable.PNG",
-    "https://docs.upsidedownlabs.tech/_images/emg.PNG",
-    "https://docs.upsidedownlabs.tech/_images/ecg.PNG",
-    "https://docs.upsidedownlabs.tech/_images/eog-horizontal.PNG",
-    "https://docs.upsidedownlabs.tech/_images/eog-vertical.PNG",
+    "https://docs.upsidedownlabs.tech/_images/connections-with-arduino.png",
+    "https://docs.upsidedownlabs.tech/_images/connection-with-cable.png",
+    "https://docs.upsidedownlabs.tech/_images/emg.png",
+    "https://docs.upsidedownlabs.tech/_images/ecg.png",
+    "https://docs.upsidedownlabs.tech/_images/eog-horizontal.png",
+    "https://docs.upsidedownlabs.tech/_images/eog-vertical.png",
   ];
 
   const carouselItems = [

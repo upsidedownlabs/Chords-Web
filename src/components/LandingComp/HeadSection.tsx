@@ -26,7 +26,7 @@ const HeadSection = () => {
                   <Button>
                     {theme === "dark" ? (
                       <Image
-                        src="/assets/dark/favicon.ico"
+                        src="./assets/dark/favicon.ico"
                         width={16}
                         height={16}
                         alt="logo"
@@ -34,7 +34,7 @@ const HeadSection = () => {
                       />
                     ) : (
                       <Image
-                        src="/assets/light/favicon.ico"
+                        src="./assets/light/favicon.ico"
                         width={16}
                         height={16}
                         alt="logo"
@@ -62,7 +62,7 @@ const HeadSection = () => {
         </div>
         {theme === "dark" ? (
           <Image
-            src="/assets/dark/HeroSignalsClean.PNG"
+            src="./assets/dark/HeroSignalsClean.png"
             alt="Plotter"
             width={1000}
             height={1000}
@@ -70,7 +70,7 @@ const HeadSection = () => {
           />
         ) : (
           <Image
-            src="/assets/light/HeroSignalsClean.PNG"
+            src="./assets/light/HeroSignalsClean.png"
             alt="Plotter"
             width={1000}
             height={1000}

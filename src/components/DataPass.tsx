@@ -1,7 +1,7 @@
 "use client";
 
 import Connection from "./Connection";
-import Steps from "./Steps";
+import Steps from "./steps";
 import React, { useState } from "react";
 import Canvas from "./Canvas";
 
