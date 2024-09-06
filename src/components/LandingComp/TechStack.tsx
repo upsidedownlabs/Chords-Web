@@ -14,7 +14,7 @@ const Stack = () => {
       name: "Next.js",
       logo:
         theme === "light"
-          ? "/assets/dark/next-js.png"
+          ? "/assets/dark/next-js.PNG"
           : "/assets/light/nextjs.svg",
       url: "https://nextjs.org/",
       description: "The fantastic React framework for building web apps.",
@@ -29,14 +29,14 @@ const Stack = () => {
       name: "shadcn/ui",
       logo:
         theme === "light"
-          ? "/assets/dark/ShadcnUI.png"
-          : "/assets/light/ShadcnUI.png",
+          ? "/assets/dark/ShadcnUI.PNG"
+          : "/assets/light/ShadcnUI.PNG",
       url: "https://ui.shadcn.com",
       description: "Built with amazing components from shadcn/ui.",
     },
     {
       name: "Smoothie Charts",
-      logo: "/assets/smoothie-logo.png",
+      logo: "/assets/smoothie-logo.PNG",
       url: "http://smoothiecharts.org/",
       description: "Timeseries charts for plotting the data real time.",
     },

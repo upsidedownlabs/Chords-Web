@@ -13,25 +13,25 @@ export function Features() {
       title: "Multi Channel Data Plot",
       description:
         "Plot data from multiple channels in different graphs. Each stream is different color coded for easy identification.",
-      image: "/assets/MultiChannel.jpg",
+      image: "/assets/MultiChannel.JPG",
     },
     {
       title: "Record & Save Data",
       description:
         "Record and save data for future reference. Export data in CSV/ZIP format for further analysis.",
-      image: "/assets/DownloadIcon.png",
+      image: "/assets/DownloadIcon.PNG",
     },
     {
       title: "AutoScale & Board Detection",
       description:
         "Automatically detects ADC of developement board to scale the graph accordingly. No need to manually set the scale.",
-      image: "/assets/Arduino.png",
+      image: "/assets/Arduino.PNG",
     },
     {
       title: "Freeze Stream",
       description:
         "Freeze the stream to analyze the data. Resume the stream when you are ready to continue.",
-      image: "/assets/Pause.png",
+      image: "/assets/Pause.PNG",
     },
   ];
   return (

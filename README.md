@@ -1,4 +1,4 @@
-![Chords Default](public/steps/Chords.png)
+![Chords Default](public/steps/Chords.PNG)
 
 </p>
 

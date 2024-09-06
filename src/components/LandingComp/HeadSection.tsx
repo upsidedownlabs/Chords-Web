@@ -62,7 +62,7 @@ const HeadSection = () => {
         </div>
         {theme === "dark" ? (
           <Image
-            src="/assets/dark/HeroSignalsClean.png"
+            src="/assets/dark/HeroSignalsClean.PNG"
             alt="Plotter"
             width={1000}
             height={1000}
@@ -70,7 +70,7 @@ const HeadSection = () => {
           />
         ) : (
           <Image
-            src="/assets/light/HeroSignalsClean.png"
+            src="/assets/light/HeroSignalsClean.PNG"
             alt="Plotter"
             width={1000}
             height={1000}

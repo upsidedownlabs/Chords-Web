@@ -50,19 +50,19 @@ const Steps = () => {
               title: "Gather Hardware",
               description:
                 "Take a developement board, BioAmp hardware, cables & electrodes. Make the connections.",
-              image: "/steps/connections.png",
+              image: "/steps/connections.PNG",
             },
             {
               title: "Upload The Code",
               description:
                 "Upload the provided code to your developement board using Arduino IDE.",
-              image: "/steps/UploadCode.jpg",
+              image: "/steps/UploadCode.JPG",
             },
             {
               title: "Start Visualizing",
               description:
                 "Open Chords, click connect, choose COM port and start visualizing the signals.",
-              image: "/steps/Chords.png",
+              image: "/steps/Chords.PNG",
             },
           ].map((step, index) => (
             <Card key={index} className="flex flex-col h-full">
