@@ -113,7 +113,7 @@ const Steps: React.FC = () => {
         <span className="flex flex-row gap-2">
           Click{" "}
           <Badge className="cursor-default">
-            <p className="text-sm sm:text-base">&quot;Connect&quot;</p>
+            <p className="text-sm sm:text-base">Connect</p>
           </Badge>{" "}
           For Board Connection.
         </span>
