@@ -32,6 +32,7 @@
     "embla-carousel-react": "^8.1.5",
     "esc-pos-encoder": "^2.0.1",
     "file-saver": "^2.0.5",
+    "framer-motion": "^11.5.4",
     "jszip": "^3.10.1",
     "lucide-react": "^0.383.0",
     "next": "14.2.3",

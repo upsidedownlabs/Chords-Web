@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "../components/ui/skeleton";
 import InCompatibleBrowser from "../components/InCompatibleBrowser";
+import MobileUnsupported from "../components/MobileUnsupported";
 
 const DataPass = dynamic(() => import("./DataPass"), {
   loading: () => <SkeletonUI />,
@@ -45,17 +46,30 @@ const SkeletonUI = () => (
   </div>
 );
 
+const isMobile = () => {
+  if (typeof window === "undefined") return false; // for server-side rendering
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+};
+
 const SerialCheck = () => {
   const [serialState, setSerialState] = useState<
     "loading" | "available" | "unavailable"
   >("loading");
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   useEffect(() => {
-    setSerialState(navigator.serial ? "available" : "unavailable"); // Check if serial is available in the browser
+    setSerialState(navigator.serial ? "available" : "unavailable");
+    setIsMobileDevice(isMobile());
   }, []);
 
   if (serialState === "loading") {
     return <SkeletonUI />;
+  }
+
+  if (isMobileDevice) {
+    return <MobileUnsupported />;
   }
 
   return (
