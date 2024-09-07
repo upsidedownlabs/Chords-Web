@@ -715,7 +715,6 @@ const Connection: React.FC<ConnectionProps> = ({
                   setSelectedBits(value as BitSelection)
                 }
                 value={selectedBits}
-                disabled={!isDisplay} // Disable when paused
               >
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Select bits" />
