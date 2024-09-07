@@ -166,9 +166,8 @@ const Canvas: React.FC<CanvasProps> = ({
     if (isChartInitialized) {
       const lines = String(data).split("\n");
       lines.forEach(handleDataUpdate);
-      updateChartColors();
     }
-  }, [data, isChartInitialized, handleDataUpdate, updateChartColors, theme]);
+  }, [data, isChartInitialized, handleDataUpdate]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
