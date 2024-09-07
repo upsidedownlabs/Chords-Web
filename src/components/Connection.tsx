@@ -150,7 +150,7 @@ const Connection: React.FC<ConnectionProps> = ({
           ?.name ?? "Unknown Vendor";
       return `${vendorName} | Product ID: ${info.usbProductId}`;
     },
-    [setSelectedBits]
+    []
   );
 
   const handleClick = () => {

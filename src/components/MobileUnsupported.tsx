@@ -97,8 +97,9 @@ export default function MobileUnsupported() {
               Will you develop a mobile version?
             </AccordionTrigger>
             <AccordionContent className="text-white/80 mx-3">
-              We're always exploring ways to expand our app's accessibility.
-              Stay tuned for updates on potential mobile support in the future!
+              We&apos;re always exploring ways to expand our app&apos;s
+              accessibility. Stay tuned for updates on potential mobile support
+              in the future!
             </AccordionContent>
           </AccordionItem>
         </Accordion>
