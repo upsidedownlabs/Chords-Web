@@ -180,11 +180,6 @@ const Connection: React.FC<ConnectionProps> = ({
         ),
       });
 
-      // Show confirmation box
-      window.alert(
-        "Remaining channels will reflect data from channels connected to sensors."
-      );
-
       const reader = port.readable?.getReader();
       readerRef.current = reader;
       readData(); // Start reading the data from the device
