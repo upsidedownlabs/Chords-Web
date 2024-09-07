@@ -28,7 +28,10 @@ const Navbar = () => {
           </div>
           <div className="flex gap-0 md:gap-2 items-center">
             <ModeToggle />
-            <Link href="https://github.com/upsidedownlabs" target="__blank">
+            <Link
+              href="https://github.com/upsidedownlabs/Chords-Web"
+              target="__blank"
+            >
               <Button variant={"ghost"} size={"sm"}>
                 <GitHubLogoIcon width={24} height={24} />
               </Button>

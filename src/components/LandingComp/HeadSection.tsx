@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "../../components/ui/button";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
@@ -9,6 +9,12 @@ import Chords from "./Chords";
 
 const HeadSection = () => {
   const { theme } = useTheme();
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsImageLoaded(false); // Reset loading state on theme change
+  }, [theme]);
+
   return (
     <>
       <section className="w-full pt-24">
@@ -24,23 +30,17 @@ const HeadSection = () => {
               <div className="space-x-4 flex">
                 <Link href="/stream">
                   <Button>
-                    {theme === "dark" ? (
-                      <Image
-                        src="./assets/dark/favicon.ico"
-                        width={16}
-                        height={16}
-                        alt="logo"
-                        className="mr-2"
-                      />
-                    ) : (
-                      <Image
-                        src="./assets/light/favicon.ico"
-                        width={16}
-                        height={16}
-                        alt="logo"
-                        className="mr-2"
-                      />
-                    )}
+                    <Image
+                      src={
+                        theme === "dark"
+                          ? "./assets/dark/favicon.ico"
+                          : "./assets/light/favicon.ico"
+                      }
+                      width={16}
+                      height={16}
+                      alt="logo"
+                      className="mr-2"
+                    />
                     Visualize Now
                   </Button>
                 </Link>
@@ -60,23 +60,29 @@ const HeadSection = () => {
             </div>
           </div>
         </div>
-        {theme === "dark" ? (
-          <Image
-            src="./assets/dark/HeroSignalsClean.png"
-            alt="Plotter"
-            width={1000}
-            height={1000}
-            className="mx-auto mt-20 rounded"
-          />
-        ) : (
-          <Image
-            src="./assets/light/HeroSignalsClean.png"
-            alt="Plotter"
-            width={1000}
-            height={1000}
-            className="mx-auto mt-20 rounded"
-          />
+
+        {/* Loader */}
+        {!isImageLoaded && (
+          <div className="loader">
+            <div className="spinner"></div>
+          </div>
         )}
+
+        {/* Image */}
+        <Image
+          src={
+            theme === "dark"
+              ? "./assets/dark/HeroSignalsClean.png"
+              : "./assets/light/HeroSignalsClean.png"
+          }
+          alt="Plotter"
+          width={1000}
+          height={1000}
+          className={`mx-auto mt-20 rounded transition-opacity duration-300 ${
+            isImageLoaded ? "opacity-100" : "opacity-0"
+          }`}
+          onLoadingComplete={() => setIsImageLoaded(true)}
+        />
       </section>
     </>
   );

@@ -103,8 +103,8 @@ const FAQSection = () => {
       question: "What data format does Chords support?",
       answer: (
         <>
-          Chords supports an array format: [counter, A0, A1, ..., A6], where
-          counter is a uint8_t (0-255) and A0-A6 are raw signal values. Array
+          Chords supports an array format: [counter, A0, A1, ..., A4], where
+          counter is a uint8_t (0-255) and A0-A4 are raw signal values. Array
           example : [10, 468, 472, 463, 466, 465]. For implementation details,
           see our{" "}
           <Link
