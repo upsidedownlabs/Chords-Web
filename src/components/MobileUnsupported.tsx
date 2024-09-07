@@ -60,11 +60,7 @@ export default function MobileUnsupported() {
           available on desktop browsers. For the best experience, please switch
           to a desktop device.
         </p>
-        <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-          Learn More
-        </Button>
       </motion.div>
-
       <motion.div
         initial="hidden"
         animate="visible"

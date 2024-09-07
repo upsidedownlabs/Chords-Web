@@ -19,7 +19,6 @@ import {
 import { vendorsList } from "./vendors";
 import { BoardsList } from "./UDL_Boards";
 import { toast } from "sonner";
-import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import {
   Tooltip,
@@ -41,9 +40,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-
-import { ReadableStreamDefaultReadResult } from "stream/web";
+} from "../components/ui/popover";
 
 interface ConnectionProps {
   LineData: Function;
