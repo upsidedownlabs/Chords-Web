@@ -1,4 +1,5 @@
 "use client";
+import { Pause, Play, Grid, List } from "lucide-react";
 import React, {
   useEffect,
   useRef,
@@ -14,7 +15,7 @@ interface CanvasProps {
   data: string;
   selectedBits: BitSelection;
   isGridView: boolean;
-  isDisplay: boolean;
+  isDisplay: boolean; // New prop for play/pause functionality
 }
 
 const Canvas: React.FC<CanvasProps> = ({
@@ -28,6 +29,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const chartRef = useRef<SmoothieChart[]>([]);
   const seriesRef = useRef<(TimeSeries | null)[]>([]);
   const [isChartInitialized, setIsChartInitialized] = useState(false);
+  const [isPaused, setIsPaused] = useState(Array(channels.length).fill(false)); // Paused state for each channe
   const [isGlobalPaused, setIsGlobalPaused] = useState(!isDisplay);
   const batchSize = 10;
   const batchBuffer = useMemo<Array<{ time: number; values: number[] }>>(
@@ -117,10 +119,6 @@ const Canvas: React.FC<CanvasProps> = ({
           ) as HTMLCanvasElement,
           500
         );
-
-        if (isGlobalPaused) {
-          chart.stop();
-        }
       }
     });
   }, [
@@ -136,7 +134,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
     batchBuffer.forEach((batch) => {
       channels.forEach((channel, index) => {
-        if (channel) {
+        if (channel && !isPaused[index]) {
           const series = seriesRef.current[index];
           if (series && !isNaN(batch.values[index])) {
             series.append(batch.time, batch.values[index]);
@@ -146,7 +144,7 @@ const Canvas: React.FC<CanvasProps> = ({
     });
 
     batchBuffer.length = 0;
-  }, [channels, batchBuffer, isGlobalPaused]);
+  }, [channels, batchBuffer, isGlobalPaused, isPaused]);
 
   const handleDataUpdate = useCallback(
     (line: string) => {
@@ -163,13 +161,20 @@ const Canvas: React.FC<CanvasProps> = ({
     },
     [processBatch, batchBuffer, isDisplay]
   );
-
+  // console.log(data);
   useEffect(() => {
     if (isChartInitialized) {
       const lines = String(data).split("\n");
       lines.forEach(handleDataUpdate);
     }
   }, [data, isChartInitialized, handleDataUpdate]);
+
+  // Updated to ensure colors are correctly applied when the theme changes
+  useEffect(() => {
+    if (isChartInitialized) {
+      updateChartColors(); // Apply the updated theme colors to the chart
+    }
+  }, [theme, isChartInitialized, updateChartColors]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -247,6 +252,27 @@ const Canvas: React.FC<CanvasProps> = ({
     shouldAutoScale,
     getChannelColor,
   ]);
+  useEffect(() => {
+    const resizeCanvas = () => {
+      channels.forEach((channel, index) => {
+        const canvas = document.getElementById(
+          `smoothie-chart-${index + 1}`
+        ) as HTMLCanvasElement;
+
+        const parentDiv = canvas.parentElement;
+        if (parentDiv) {
+          canvas.height = parentDiv.offsetHeight - 2;
+          canvas.width = parentDiv.offsetWidth;
+        }
+      });
+    };
+
+    window.addEventListener("resize", resizeCanvas);
+
+    return () => {
+      window.removeEventListener("resize", resizeCanvas);
+    };
+  }, [channels]);
 
   useEffect(() => {
     if (isChartInitialized) {
@@ -287,7 +313,9 @@ const Canvas: React.FC<CanvasProps> = ({
     <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
       <div
         className={`grid ${
-          isGridView ? "md:grid-cols-2 grid-cols-1" : "grid-cols-1"
+          isGridView
+            ? "md:grid-cols-2 grid-cols-1" // Apply the same spacing for both horizontal and vertical gaps
+            : "grid-cols-1"
         } w-full h-full`}
       >
         {channels.map((channel, index) => {
@@ -295,7 +323,9 @@ const Canvas: React.FC<CanvasProps> = ({
             return (
               <div
                 key={index}
-                className={`flex flex-col w-full relative h-full`}
+                className={`flex flex-col w-full relative h-full${
+                  isGridView ? "" : ""
+                }`}
               >
                 <div
                   className={`border border-secondary-foreground w-full ${

@@ -3,37 +3,23 @@
 import React, { useEffect, useState } from "react";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
 
-export function ModeToggle({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+export const ModeToggle = () => {
+  const { theme, setTheme, systemTheme } = useTheme();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const toggleTheme = () => {
-    console.log("Current theme:", theme); // Debug log
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-
-  if (!mounted) {
-    return null;
-  }
+  // Determine the current theme (dark/light)
+  const currentTheme = theme === "system" ? systemTheme : theme;
 
   return (
-    <div className={className} {...props}>
-      <Button variant="ghost" size="sm" onClick={toggleTheme}>
-        {theme === "dark" ? (
-          <SunIcon width={16} height={16} />
-        ) : (
-          <MoonIcon width={16} height={16} />
-        )}
-      </Button>
-    </div>
+    <button
+      onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
+      aria-label="Toggle Theme"
+    >
+      {currentTheme === "dark" ? (
+        <SunIcon className="w-6 h-6" />
+      ) : (
+        <MoonIcon className="w-6 h-6" />
+      )}
+    </button>
   );
-}
+};
