@@ -1,8 +1,6 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
-import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
+import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
+import { Button } from "@/components/ui/button"; // Importing the Button from shadcn
 
 export const ModeToggle = () => {
   const { theme, setTheme, systemTheme } = useTheme();
@@ -10,16 +8,18 @@ export const ModeToggle = () => {
   // Determine the current theme (dark/light)
   const currentTheme = theme === "system" ? systemTheme : theme;
 
+  // Toggle between light and dark themes
+  const toggleTheme = () => {
+    setTheme(currentTheme === "dark" ? "light" : "dark");
+  };
+
   return (
-    <button
-      onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
-      aria-label="Toggle Theme"
-    >
+    <Button variant="ghost" size="sm" onClick={toggleTheme}>
       {currentTheme === "dark" ? (
-        <SunIcon className="w-6 h-6" />
+        <SunIcon width={16} height={16} />
       ) : (
-        <MoonIcon className="w-6 h-6" />
+        <MoonIcon width={16} height={16} />
       )}
-    </button>
+    </Button>
   );
 };
