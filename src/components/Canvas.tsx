@@ -28,7 +28,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const chartRef = useRef<SmoothieChart[]>([]);
   const seriesRef = useRef<(TimeSeries | null)[]>([]);
   const [isChartInitialized, setIsChartInitialized] = useState(false);
-  const [isGlobalPaused, setIsGlobalPaused] = useState(!isDisplay);
+  const [isGlobalPaused, setIsGlobalPaused] = useState(true);
   const batchSize = 10;
   const batchBuffer = useMemo<Array<{ time: number; values: number[] }>>(
     () => [],
@@ -117,12 +117,6 @@ const Canvas: React.FC<CanvasProps> = ({
           ) as HTMLCanvasElement,
           500
         );
-
-        if (isGlobalPaused) {
-          chart.stop();
-        } else {
-          chart.start();
-        }
       }
     });
   }, [
