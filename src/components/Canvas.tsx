@@ -120,8 +120,6 @@ const Canvas: React.FC<CanvasProps> = ({
 
         if (isGlobalPaused) {
           chart.stop();
-        } else {
-          chart.start();
         }
       }
     });

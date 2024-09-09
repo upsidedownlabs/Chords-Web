@@ -8,12 +8,29 @@ import { useTheme } from "next-themes";
 import Chords from "./Chords";
 
 const HeadSection = () => {
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme(); // Use resolvedTheme for better detection
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [mounted, setMounted] = useState(false); // To check if theme is ready
 
+  // Set mounted to true only after the client has mounted
   useEffect(() => {
+    setMounted(true);
     setIsImageLoaded(false); // Reset loading state on theme change
   }, [theme]);
+
+  // Preload images to avoid delay in theme switch
+  const preloadImage = (src) => {
+    const img = new Image();
+    img.src = src;
+  };
+
+  useEffect(() => {
+    preloadImage("./assets/dark/HeroSignalsClean.png");
+    preloadImage("./assets/light/HeroSignalsClean.png");
+  }, []);
+
+  // If not mounted yet, return null to avoid theme flickering
+  if (!mounted) return null;
 
   return (
     <>
@@ -32,7 +49,7 @@ const HeadSection = () => {
                   <Button>
                     <Image
                       src={
-                        theme === "dark"
+                        resolvedTheme === "dark"
                           ? "./assets/dark/favicon.ico"
                           : "./assets/light/favicon.ico"
                       }
@@ -71,7 +88,7 @@ const HeadSection = () => {
         {/* Image */}
         <Image
           src={
-            theme === "dark"
+            resolvedTheme === "dark"
               ? "./assets/dark/HeroSignalsClean.png"
               : "./assets/light/HeroSignalsClean.png"
           }
