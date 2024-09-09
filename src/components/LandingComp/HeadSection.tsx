@@ -7,29 +7,30 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import Chords from "./Chords";
 
-const HeadSection = () => {
-  const { theme, resolvedTheme } = useTheme(); // Use resolvedTheme for better detection
+const HeadSection: React.FC = () => {
+  const { theme, resolvedTheme } = useTheme(); // Use resolvedTheme for better theme detection
   const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const [mounted, setMounted] = useState(false); // To check if theme is ready
+  const [mounted, setMounted] = useState(false); // To check if the component is mounted
 
-  // Set mounted to true only after the client has mounted
+  // Set mounted to true after the client has mounted
   useEffect(() => {
     setMounted(true);
-    setIsImageLoaded(false); // Reset loading state on theme change
+    setIsImageLoaded(false); // Reset image loading state on theme change
   }, [theme]);
 
-  // Preload images to avoid delay in theme switch
-  const preloadImage = (src) => {
-    const img = new Image();
+  // Preload dark and light images to avoid delay on theme switch
+  const preloadImage = (src: string) => {
+    const img = new window.Image();
     img.src = src;
   };
 
+  // Preload images on component mount
   useEffect(() => {
-    preloadImage("./assets/dark/HeroSignalsClean.png");
-    preloadImage("./assets/light/HeroSignalsClean.png");
+    preloadImage("/assets/dark/HeroSignalsClean.png");
+    preloadImage("/assets/light/HeroSignalsClean.png");
   }, []);
 
-  // If not mounted yet, return null to avoid theme flickering
+  // If the component is not mounted yet, avoid rendering to prevent flickering
   if (!mounted) return null;
 
   return (
@@ -39,7 +40,7 @@ const HeadSection = () => {
           <div className="flex flex-col justify-center gap-8 items-center">
             <div>
               <h1 className="lg:leading-tighter text-[1.90rem] font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] text-center">
-                <span className="text-7xl">Tune Into Your EXG Data </span>
+                <span className="text-7xl">Tune Into Your EXG Data</span>
                 <br /> With <Chords />
               </h1>
             </div>
@@ -50,8 +51,8 @@ const HeadSection = () => {
                     <Image
                       src={
                         resolvedTheme === "dark"
-                          ? "./assets/dark/favicon.ico"
-                          : "./assets/light/favicon.ico"
+                          ? "/assets/dark/favicon.ico"
+                          : "/assets/light/favicon.ico"
                       }
                       width={16}
                       height={16}
@@ -89,8 +90,8 @@ const HeadSection = () => {
         <Image
           src={
             resolvedTheme === "dark"
-              ? "./assets/dark/HeroSignalsClean.png"
-              : "./assets/light/HeroSignalsClean.png"
+              ? "/assets/dark/HeroSignalsClean.png"
+              : "/assets/light/HeroSignalsClean.png"
           }
           alt="Plotter"
           width={1000}
