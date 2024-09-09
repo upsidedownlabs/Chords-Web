@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
-
 import { Button } from "@/components/ui/button";
 
 export function ModeToggle({
@@ -11,13 +10,14 @@ export function ModeToggle({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const toggleTheme = () => {
+    console.log("Current theme:", theme); // Debug log
     setTheme(theme === "dark" ? "light" : "dark");
   };
 

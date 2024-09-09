@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "../../components/ui/button";
@@ -8,15 +9,14 @@ import { useTheme } from "next-themes";
 import Chords from "./Chords";
 
 const HeadSection: React.FC = () => {
-  const { theme, resolvedTheme } = useTheme(); // Use resolvedTheme for better theme detection
+  const { resolvedTheme } = useTheme(); // `resolvedTheme` reflects the system theme or the user-set theme
   const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const [mounted, setMounted] = useState(false); // To check if the component is mounted
+  const [mounted, setMounted] = useState(false); // Ensures the theme detection works after mounting
 
   // Set mounted to true after the client has mounted
   useEffect(() => {
     setMounted(true);
-    setIsImageLoaded(false); // Reset image loading state on theme change
-  }, [theme]);
+  }, []);
 
   // Preload dark and light images to avoid delay on theme switch
   const preloadImage = (src: string) => {
@@ -96,6 +96,7 @@ const HeadSection: React.FC = () => {
           alt="Plotter"
           width={1000}
           height={1000}
+          priority // Use priority to preload the image
           className={`mx-auto mt-20 rounded transition-opacity duration-300 ${
             isImageLoaded ? "opacity-100" : "opacity-0"
           }`}
