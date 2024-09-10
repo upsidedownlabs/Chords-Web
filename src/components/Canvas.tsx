@@ -10,6 +10,7 @@ import React, {
 import { SmoothieChart, TimeSeries } from "smoothie";
 import { useTheme } from "next-themes";
 import { BitSelection } from "./DataPass";
+import html2canvas from "html2canvas";
 
 interface CanvasProps {
   data: string;
@@ -29,12 +30,43 @@ const Canvas: React.FC<CanvasProps> = ({
   const chartRef = useRef<SmoothieChart[]>([]);
   const seriesRef = useRef<(TimeSeries | null)[]>([]);
   const [isChartInitialized, setIsChartInitialized] = useState(false);
-  const [isGlobalPaused, setIsGlobalPaused] = useState(!isDisplay);
+  const [isGlobalPaused, setIsGlobalPaused] = useState(true);
   const batchSize = 10;
   const batchBuffer = useMemo<Array<{ time: number; values: number[] }>>(
     () => [],
     []
   );
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  const captureScreenshot = useCallback(() => {
+    if (gridRef.current) {
+      html2canvas(gridRef.current).then((canvas) => {
+        const url = canvas.toDataURL();
+        setScreenshotUrl(url);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    setIsGlobalPaused(!isDisplay);
+
+    if (!isDisplay) {
+      captureScreenshot();
+    } else {
+      setScreenshotUrl(null);
+    }
+
+    chartRef.current.forEach((chart) => {
+      if (chart) {
+        if (isDisplay) {
+          chart.start();
+        } else {
+          chart.stop();
+        }
+      }
+    });
+  }, [isDisplay, captureScreenshot]);
 
   const getChannelColor = useCallback(
     (index: number) => {
@@ -308,12 +340,27 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [theme, isChartInitialized, updateChartColors]);
 
+  // const getImageFilters = useCallback(() => {
+  //   if (theme === "dark") {
+  //     return "brightness(0.8) hue-rotate(180deg) saturate(2) contrast(1.2)";
+  //   } else {
+  //     return "brightness(1.2) saturate(0.8) contrast(0.9)";
+  //   }
+  // }, [theme]);
+
   return (
     <div className="flex flex-col justify-center items-start px-4 m-2 sm:m-4 md:m-6 lg:m-8 h-[60vh] sm:h-[70vh] md:h-[80vh]">
       <div
+        ref={gridRef}
         className={`grid ${
           isGridView ? "md:grid-cols-2 grid-cols-1" : "grid-cols-1"
-        } w-full h-full`}
+        } w-full h-full relative`}
+        style={{
+          backgroundColor:
+            theme === "dark" ? "hsl(222.2, 84%, 4.9%)" : "hsl(0, 0%, 100%)",
+          color:
+            theme === "dark" ? "hsl(210, 40%, 98%)" : "hsl(222.2, 84%, 4.9%)",
+        }}
       >
         {channels.map((channel, index) => {
           if (channel) {
@@ -335,6 +382,16 @@ const Canvas: React.FC<CanvasProps> = ({
           }
           return null;
         })}
+        {screenshotUrl && !isDisplay && (
+          <img
+            src={screenshotUrl}
+            alt="Chart Screenshot"
+            className={`absolute top-0 left-0 w-full h-full object-cover z-50 cursor-pointer ${
+              theme === "dark" ? "" : "invert"
+            }`}
+            // style={{ filter: getImageFilters() }}
+          />
+        )}
       </div>
     </div>
   );
