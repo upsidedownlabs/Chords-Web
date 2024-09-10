@@ -1,4 +1,5 @@
 "use client";
+import { Pause, Play, Grid, List } from "lucide-react";
 import React, {
   useEffect,
   useRef,
@@ -199,6 +200,13 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [data, isChartInitialized, handleDataUpdate]);
 
+  // Updated to ensure colors are correctly applied when the theme changes
+  useEffect(() => {
+    if (isChartInitialized) {
+      updateChartColors(); // Apply the updated theme colors to the chart
+    }
+  }, [theme, isChartInitialized, updateChartColors]);
+
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (batchBuffer.length > 0 && isDisplay) {
@@ -275,6 +283,27 @@ const Canvas: React.FC<CanvasProps> = ({
     shouldAutoScale,
     getChannelColor,
   ]);
+  useEffect(() => {
+    const resizeCanvas = () => {
+      channels.forEach((channel, index) => {
+        const canvas = document.getElementById(
+          `smoothie-chart-${index + 1}`
+        ) as HTMLCanvasElement;
+
+        const parentDiv = canvas.parentElement;
+        if (parentDiv) {
+          canvas.height = parentDiv.offsetHeight - 2;
+          canvas.width = parentDiv.offsetWidth;
+        }
+      });
+    };
+
+    window.addEventListener("resize", resizeCanvas);
+
+    return () => {
+      window.removeEventListener("resize", resizeCanvas);
+    };
+  }, [channels]);
 
   useEffect(() => {
     if (isChartInitialized) {
@@ -338,18 +367,14 @@ const Canvas: React.FC<CanvasProps> = ({
             return (
               <div
                 key={index}
-                className={`flex flex-col w-full relative h-full`}
+                className={`border border-secondary-foreground w-full ${
+                  isGridView ? "h-[40vh]" : "h-[20vh]"
+                } relative`}
               >
-                <div
-                  className={`border border-secondary-foreground w-full ${
-                    isGridView ? "h-[40vh]" : "h-[20vh]"
-                  } relative`}
-                >
-                  <canvas
-                    id={`smoothie-chart-${index + 1}`}
-                    className="w-full h-full"
-                  />
-                </div>
+                <canvas
+                  id={`smoothie-chart-${index + 1}`}
+                  className="w-full h-full"
+                />
               </div>
             );
           }

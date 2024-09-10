@@ -8,18 +8,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 
 - **Connection**: Experience a smooth connection/disconnection with board in single click.
 - **Real-time Visualization**: Visualize incoming data without any jitter from the board in real-time on SmoothieCharts.
-- **Recording**: Record the signals data in csv files, multiple instances can be recorded and downloaded as zip of csv's.
-- **Bi Directional Communication**: We can also write data in the board, the table below shows what we recieve if sent data is:
-<div>
-
-| Sent Data | Data Received | Value                 |
-| :-------: | ------------- | --------------------- |
-|    'c'    | Channel Count | 6                     |
-|    'n'    | Board Name    | "Arduino"             |
-|    's'    | Sampling Rate | {125, 250, 500, 1000} |
-|    'r'    | Resolution    | 10                    |
-
-</div>
+- **Recording**: Record the signals data and downloaded data in csv files.
 
 ## Compatible Browsers
 

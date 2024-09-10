@@ -1,29 +1,20 @@
-"use client";
-
-import React, { useEffect } from "react";
-import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
-
+import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 
 export function ModeToggle({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+  const { theme, setTheme, systemTheme } = useTheme();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Determine the current theme (dark/light)
+  const currentTheme = theme === "system" ? systemTheme : theme;
 
+  // Toggle between light and dark themes
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    setTheme(currentTheme === "dark" ? "light" : "dark");
   };
-
-  if (!mounted) {
-    return null;
-  }
 
   return (
     <div className={className} {...props}>
