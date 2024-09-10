@@ -311,6 +311,14 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [theme, isChartInitialized, updateChartColors]);
 
+  // const getImageFilters = useCallback(() => {
+  //   if (theme === "dark") {
+  //     return "brightness(0.8) hue-rotate(180deg) saturate(2) contrast(1.2)";
+  //   } else {
+  //     return "brightness(1.2) saturate(0.8) contrast(0.9)";
+  //   }
+  // }, [theme]);
+
   return (
     <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
       <div
@@ -318,6 +326,12 @@ const Canvas: React.FC<CanvasProps> = ({
         className={`grid ${
           isGridView ? "md:grid-cols-2 grid-cols-1" : "grid-cols-1"
         } w-full h-full relative`}
+        style={{
+          backgroundColor:
+            theme === "dark" ? "hsl(222.2, 84%, 4.9%)" : "hsl(0, 0%, 100%)",
+          color:
+            theme === "dark" ? "hsl(210, 40%, 98%)" : "hsl(222.2, 84%, 4.9%)",
+        }}
       >
         {channels.map((channel, index) => {
           if (channel) {
@@ -341,10 +355,14 @@ const Canvas: React.FC<CanvasProps> = ({
           }
           return null;
         })}
-        {screenshotUrl && (
-          <div
-            className="absolute top-0 left-0 w-full h-full bg-cover bg-center z-10"
-            style={{ backgroundImage: `url(${screenshotUrl})` }}
+        {screenshotUrl && !isDisplay && (
+          <img
+            src={screenshotUrl}
+            alt="Chart Screenshot"
+            className={`absolute top-0 left-0 w-full h-full object-cover z-50 cursor-pointer ${
+              theme === "dark" ? "" : "invert"
+            }`}
+            // style={{ filter: getImageFilters() }}
           />
         )}
       </div>

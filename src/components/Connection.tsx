@@ -163,7 +163,7 @@ const Connection: React.FC<ConnectionProps> = ({
     // Function to connect to the device
     try {
       const port = await navigator.serial.requestPort(); // Request the serial port
-      await port.open({ baudRate: 57600 }); // Open the port with baud rate 57600
+      await port.open({ baudRate: 115200 }); // Open the port with baud rate 57600
       Connection(true); // Set the connection state to true, which will enable the data visualization as it is getting used is DataPaas
       setIsConnected(true);
       isConnectedRef.current = true;
@@ -172,7 +172,7 @@ const Connection: React.FC<ConnectionProps> = ({
         description: (
           <div className="mt-2 flex flex-col space-y-1">
             <p>Device: {formatPortInfo(port.getInfo())}</p>
-            <p>Baud Rate: 57600</p>
+            <p>Baud Rate: 115200</p>
           </div>
         ),
       });
