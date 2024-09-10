@@ -776,7 +776,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={saveData}
                       disabled={!hasData}
                     >
-                      <Download size={16} className="mr-2" />
+                      <Download size={16} className="mr-1" />
                     </Button>
                   </TooltipTrigger>
                 )}
@@ -796,7 +796,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={saveData} // Adjust functionality for saving multiple datasets if needed
                       disabled={!hasData}
                     >
-                      <Download size={16} className="mr-2" />
+                      <Download size={16} className="mr-1" />
                       <p className="text-lg">{datasets}</p>
                     </Button>
                     <Button

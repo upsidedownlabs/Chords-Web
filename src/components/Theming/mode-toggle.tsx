@@ -1,8 +1,11 @@
 import { useTheme } from "next-themes";
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
-import { Button } from "@/components/ui/button"; // Importing the Button from shadcn
+import { Button } from "@/components/ui/button";
 
-export const ModeToggle = () => {
+export function ModeToggle({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   const { theme, setTheme, systemTheme } = useTheme();
 
   // Determine the current theme (dark/light)
@@ -14,12 +17,14 @@ export const ModeToggle = () => {
   };
 
   return (
-    <Button variant="ghost" size="sm" onClick={toggleTheme}>
-      {currentTheme === "dark" ? (
-        <SunIcon width={16} height={16} />
-      ) : (
-        <MoonIcon width={16} height={16} />
-      )}
-    </Button>
+    <div className={className} {...props}>
+      <Button variant="ghost" size="sm" onClick={toggleTheme}>
+        {theme === "dark" ? (
+          <SunIcon width={16} height={16} />
+        ) : (
+          <MoonIcon width={16} height={16} />
+        )}
+      </Button>
+    </div>
   );
-};
+}

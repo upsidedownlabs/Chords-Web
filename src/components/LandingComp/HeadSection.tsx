@@ -9,7 +9,7 @@ import { useTheme } from "next-themes";
 import Chords from "./Chords";
 
 const HeadSection: React.FC = () => {
-  const { resolvedTheme } = useTheme(); // `resolvedTheme` reflects the system theme or the user-set theme
+  const { resolvedTheme } = useTheme();
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [mounted, setMounted] = useState(false); // Ensures the theme detection works after mounting
 

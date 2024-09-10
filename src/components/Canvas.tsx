@@ -15,7 +15,7 @@ interface CanvasProps {
   data: string;
   selectedBits: BitSelection;
   isGridView: boolean;
-  isDisplay: boolean; // New prop for play/pause functionality
+  isDisplay: boolean;
 }
 
 const Canvas: React.FC<CanvasProps> = ({
@@ -29,7 +29,6 @@ const Canvas: React.FC<CanvasProps> = ({
   const chartRef = useRef<SmoothieChart[]>([]);
   const seriesRef = useRef<(TimeSeries | null)[]>([]);
   const [isChartInitialized, setIsChartInitialized] = useState(false);
-  const [isPaused, setIsPaused] = useState(Array(channels.length).fill(false)); // Paused state for each channe
   const [isGlobalPaused, setIsGlobalPaused] = useState(!isDisplay);
   const batchSize = 10;
   const batchBuffer = useMemo<Array<{ time: number; values: number[] }>>(
@@ -134,7 +133,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
     batchBuffer.forEach((batch) => {
       channels.forEach((channel, index) => {
-        if (channel && !isPaused[index]) {
+        if (channel) {
           const series = seriesRef.current[index];
           if (series && !isNaN(batch.values[index])) {
             series.append(batch.time, batch.values[index]);
@@ -144,7 +143,7 @@ const Canvas: React.FC<CanvasProps> = ({
     });
 
     batchBuffer.length = 0;
-  }, [channels, batchBuffer, isGlobalPaused, isPaused]);
+  }, [channels, batchBuffer, isGlobalPaused]);
 
   const handleDataUpdate = useCallback(
     (line: string) => {
@@ -161,7 +160,7 @@ const Canvas: React.FC<CanvasProps> = ({
     },
     [processBatch, batchBuffer, isDisplay]
   );
-  // console.log(data);
+
   useEffect(() => {
     if (isChartInitialized) {
       const lines = String(data).split("\n");
@@ -313,9 +312,7 @@ const Canvas: React.FC<CanvasProps> = ({
     <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
       <div
         className={`grid ${
-          isGridView
-            ? "md:grid-cols-2 grid-cols-1" // Apply the same spacing for both horizontal and vertical gaps
-            : "grid-cols-1"
+          isGridView ? "md:grid-cols-2 grid-cols-1" : "grid-cols-1"
         } w-full h-full`}
       >
         {channels.map((channel, index) => {
@@ -323,20 +320,14 @@ const Canvas: React.FC<CanvasProps> = ({
             return (
               <div
                 key={index}
-                className={`flex flex-col w-full relative h-full${
-                  isGridView ? "" : ""
-                }`}
+                className={`border border-secondary-foreground w-full ${
+                  isGridView ? "h-[40vh]" : "h-[20vh]"
+                } relative`}
               >
-                <div
-                  className={`border border-secondary-foreground w-full ${
-                    isGridView ? "h-[40vh]" : "h-[20vh]"
-                  } relative`}
-                >
-                  <canvas
-                    id={`smoothie-chart-${index + 1}`}
-                    className="w-full h-full"
-                  />
-                </div>
+                <canvas
+                  id={`smoothie-chart-${index + 1}`}
+                  className="w-full h-full"
+                />
               </div>
             );
           }
