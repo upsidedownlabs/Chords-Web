@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 export function ModeToggle({
   className,
-  disabled, // Accept disabled prop
+  disabled,
   ...props
 }: React.HTMLAttributes<HTMLDivElement> & { disabled?: boolean }) {
   const { theme, setTheme, systemTheme } = useTheme();
@@ -19,15 +19,13 @@ export function ModeToggle({
     }
   };
 
+  if (disabled) {
+    return null; // Do not render the button if it's disabled
+  }
+
   return (
     <div className={className} {...props}>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={toggleTheme}
-        disabled={disabled} // Disable the button based on the prop
-        className={`${disabled ? "opacity-50 cursor-not-allowed" : ""}`} // Fade the color if disabled
-      >
+      <Button variant="ghost" size="sm" onClick={toggleTheme}>
         {theme === "dark" ? (
           <SunIcon width={16} height={16} />
         ) : (
