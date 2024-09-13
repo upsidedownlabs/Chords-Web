@@ -72,9 +72,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow: hidden; /* Hide scrollbars on body */
+  }
+  html {
+    overflow: hidden; /* Hide scrollbars on html */
   }
 }
-/* globals.css */
+
 @layer utilities {
   .text-gradient {
     background: linear-gradient(to right, #f472b6, #a855f7, #3b82f6);
@@ -82,7 +86,7 @@
     -webkit-text-fill-color: transparent;
   }
 }
-/* styles/globals.css */
+
 .loader {
   position: fixed;
   top: 70%;
@@ -91,7 +95,6 @@
   z-index: 9999; /* Ensure the loader is on top of other content */
 }
 
-/* styles/globals.css */
 .spinner {
   border: 4px solid rgba(0, 0, 0, 0.1);
   border-radius: 50%;
