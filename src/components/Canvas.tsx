@@ -1,5 +1,5 @@
 "use client";
-import { Pause, Play, Grid, List } from "lucide-react";
+
 import React, {
   useEffect,
   useRef,
@@ -319,7 +319,7 @@ const Canvas: React.FC<CanvasProps> = ({
   // }, [theme]);
 
   return (
-    <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
+    <div className="flex flex-col justify-center items-start px-4 m-2 sm:m-4 md:m-6 lg:m-8 h-[60vh] sm:h-[70vh] md:h-[80vh]">
       <div
         ref={gridRef}
         className={`grid ${
@@ -338,7 +338,9 @@ const Canvas: React.FC<CanvasProps> = ({
               <div
                 key={index}
                 className={`border border-secondary-foreground w-full ${
-                  isGridView ? "h-[40vh]" : "h-[20vh]"
+                  isGridView
+                    ? "h-[30vh] sm:h-[35vh] md:h-[40vh]"
+                    : "h-[15vh] sm:h-[18vh] md:h-[20vh]"
                 } relative`}
               >
                 <canvas
