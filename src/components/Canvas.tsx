@@ -10,7 +10,6 @@ import React, {
 import { SmoothieChart, TimeSeries } from "smoothie";
 import { useTheme } from "next-themes";
 import { BitSelection } from "./DataPass";
-import html2canvas from "html2canvas";
 
 interface CanvasProps {
   data: string;
@@ -38,35 +37,6 @@ const Canvas: React.FC<CanvasProps> = ({
   );
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-
-  const captureScreenshot = useCallback(() => {
-    if (gridRef.current) {
-      html2canvas(gridRef.current).then((canvas) => {
-        const url = canvas.toDataURL();
-        setScreenshotUrl(url);
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    setIsGlobalPaused(!isDisplay);
-
-    if (!isDisplay) {
-      captureScreenshot();
-    } else {
-      setScreenshotUrl(null);
-    }
-
-    chartRef.current.forEach((chart) => {
-      if (chart) {
-        if (isDisplay) {
-          chart.start();
-        } else {
-          chart.stop();
-        }
-      }
-    });
-  }, [isDisplay, captureScreenshot]);
 
   const getChannelColor = useCallback(
     (index: number) => {
@@ -380,16 +350,6 @@ const Canvas: React.FC<CanvasProps> = ({
           }
           return null;
         })}
-        {screenshotUrl && !isDisplay && (
-          <img
-            src={screenshotUrl}
-            alt="Chart Screenshot"
-            className={`absolute top-0 left-0 w-full h-full object-cover z-50 cursor-pointer ${
-              theme === "dark" ? "" : "invert"
-            }`}
-            // style={{ filter: getImageFilters() }}
-          />
-        )}
       </div>
     </div>
   );
