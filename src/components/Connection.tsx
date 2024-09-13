@@ -82,7 +82,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("ten");
-  // const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is pause
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -619,7 +618,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex h-14 items-center justify-between px-4">
+    <div className="flex h-14 items-center justify-center px-4">
       <div className="flex-1">
         {isRecordingRef.current && (
           <div className="flex justify-center items-center space-x-1 w-min mx-4">

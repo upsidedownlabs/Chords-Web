@@ -72,16 +72,12 @@
   }
   body {
     @apply bg-background text-foreground;
-    overflow: hidden; /* Hide scrollbars on body */
-  }
-  html {
-    overflow: hidden; /* Hide scrollbars on html */
   }
 }
 
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(to right, #f472b6, #a855f7, #3b82f6);
+    background: linear-gradient(to right, #f472b6, #a855f7, #1c1d1f);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
