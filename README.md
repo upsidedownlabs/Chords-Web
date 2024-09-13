@@ -8,13 +8,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 
 - **Connection**: Experience a smooth connection/disconnection with board in single click.
 - **Real-time Visualization**: Visualize incoming data without any jitter from the board in real-time on SmoothieCharts.
-- **Recording**: Record the signals data and downloaded data in csv files.
-
-## Compatible Browsers
-
-| Feature | Chrome | Edge | Firefox | Opera | Safari | Chrome Android | Firefox for Android | Safari iOS | Samsung Internet | WebView Android |
-| ------- | ------ | ---- | ------- | ----- | ------ | -------------- | ------------------- | ---------- | ---------------- | --------------- |
-| ✅      | ✅     | ✅   | ❌      | ✅    | ❌     | ❌             | ❌                  | ❌         | ❌               | ❌              |
+- **Recording**: Record the signals data and download data in csv file.
 
 ## How to use
 
