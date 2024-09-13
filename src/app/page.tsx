@@ -38,7 +38,6 @@ const SkeletonUI = () => (
 const page = () => {
   return (
     <>
-      <Navbar />
       <div className="flex flex-col">
         <HeadSection />
         <Separator className="mt-20" />

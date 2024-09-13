@@ -1,9 +1,8 @@
-"use client";
-
 import Connection from "./Connection";
 import Steps from "./Steps";
 import React, { useState } from "react";
 import Canvas from "./Canvas";
+import Navbar from "./Navbar"; // Import the Navbar
 
 export type BitSelection = "ten" | "twelve" | "fourteen" | "auto";
 
@@ -16,6 +15,7 @@ const DataPass = () => {
 
   return (
     <>
+      <Navbar isDisplay={isDisplay} />
       {isConnected ? (
         <Canvas
           data={data}

@@ -9,7 +9,7 @@ import Contributors from "./Contributors";
 import { Badge } from "./ui/badge";
 import { useTheme } from "next-themes";
 
-const Navbar = () => {
+const Navbar = ({ isDisplay }: { isDisplay: boolean }) => {
   const { theme, setTheme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -43,7 +43,7 @@ const Navbar = () => {
             </Badge>
           </div>
           <div className="flex gap-0 md:gap-2 items-center">
-            <ModeToggle />
+            <ModeToggle disabled={!isDisplay} />
             <Link
               href="https://github.com/upsidedownlabs/Chords-Web"
               target="__blank"
