@@ -80,7 +80,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
-  const [ifBits, setifBits] = useState<BitSelection>("ten");
+  const [ifBits, setifBits] = useState<BitSelection>("auto");
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port

@@ -340,39 +340,40 @@ const Canvas: React.FC<CanvasProps> = ({
 
   return (
     <div className="flex flex-col justify-center items-start px-4 m-2 sm:m-4 md:m-6 lg:m-8 h-[60vh] sm:h-[70vh] md:h-[80vh]">
-  <div
-    ref={gridRef}
-    className={`grid ${isGridView ? "md:grid-cols-2 grid-cols-1" : "grid-cols-1"} w-full h-full relative`}
-    style={{
-      backgroundColor:
-        theme === "dark" ? "hsl(222.2, 84%, 4.9%)" : "hsl(0, 0%, 100%)",
-      color:
-        theme === "dark" ? "hsl(210, 40%, 98%)" : "hsl(222.2, 84%, 4.9%)",
-    }}
-  >
-    {channels.map((channel, index) => {
-      if (channel) {
-        return (
-          <div
-            key={index}
-            className={`border border-secondary-foreground w-full ${
-              isGridView
-                ? "h-[30vh] sm:h-[35vh] md:h-[40vh]"
-                : "h-[15vh] sm:h-[18vh] md:h-[20vh]"
-            } relative`}
-          >
-            <canvas
-              id={`smoothie-chart-${index + 1}`}
-              className="w-full h-full"
-            />
-          </div>
-        );
-      }
-      return null;
-    })}
-  </div>
-</div>
-
+      <div
+        ref={gridRef}
+        className={`grid ${
+          isGridView ? "md:grid-cols-2 grid-cols-1" : "grid-cols-1"
+        } w-full h-full relative`}
+        style={{
+          backgroundColor:
+            theme === "dark" ? "hsl(222.2, 84%, 4.9%)" : "hsl(0, 0%, 100%)",
+          color:
+            theme === "dark" ? "hsl(210, 40%, 98%)" : "hsl(222.2, 84%, 4.9%)",
+        }}
+      >
+        {channels.map((channel, index) => {
+          if (channel) {
+            return (
+              <div
+                key={index}
+                className={`border border-secondary-foreground w-full ${
+                  isGridView
+                    ? "h-[30vh] sm:h-[35vh] md:h-[40vh]"
+                    : "h-[15vh] sm:h-[18vh] md:h-[20vh]"
+                } relative`}
+              >
+                <canvas
+                  id={`smoothie-chart-${index + 1}`}
+                  className="w-full h-full"
+                />
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+    </div>
   );
 };
 

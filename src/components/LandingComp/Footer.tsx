@@ -16,7 +16,7 @@ const Footer = () => {
           target="_blank"
           href="https://docs.upsidedownlabs.tech/guides/index.html"
         >
-          Improve Signal Quality
+          Guides
         </Link>
         <Link
           className="text-xs hover:underline underline-offset-4"
