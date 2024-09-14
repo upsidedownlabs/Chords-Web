@@ -137,6 +137,7 @@ const Connection: React.FC<ConnectionProps> = ({
       );
       if (board) {
         setifBits(board.bits as BitSelection);
+        setSelectedBits(selectedBits === "auto" ? ifBits : "auto");
         return `${board.name} | Product ID: ${info.usbProductId}`; // Return the board name and product ID
       }
 
