@@ -16,8 +16,7 @@ import {
   Grid,
   List,
 } from "lucide-react";
-import { vendorsList } from "./vendors";
-import { BoardsList } from "./UDL_Boards";
+import { BoardsList } from "./boards";
 import { toast } from "sonner";
 import { saveAs } from "file-saver";
 import {
@@ -130,6 +129,7 @@ const Connection: React.FC<ConnectionProps> = ({
       if (!info || !info.usbVendorId) {
         return "Port with no info";
       }
+      // console.log(info);
 
       // First, check if the board exists in BoardsList
       const board = BoardsList.find(
@@ -141,12 +141,6 @@ const Connection: React.FC<ConnectionProps> = ({
       }
 
       setDetectedBits(null);
-
-      // If not found in BoardsList, fall back to the vendor check
-      const vendorName =
-        vendorsList.find((d) => parseInt(d.field_vid) === info.usbVendorId)
-          ?.name ?? "Unknown Vendor";
-      return `${vendorName} | Product ID: ${info.usbProductId}`;
     },
     []
   );
