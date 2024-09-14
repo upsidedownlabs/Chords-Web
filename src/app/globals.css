@@ -74,15 +74,15 @@
     @apply bg-background text-foreground;
   }
 }
-/* globals.css */
+
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(to right, #f472b6, #a855f7, #3b82f6);
+    background: linear-gradient(to right, #f472b6, #a855f7, #1c1d1f);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 }
-/* styles/globals.css */
+
 .loader {
   position: fixed;
   top: 70%;
@@ -91,7 +91,6 @@
   z-index: 9999; /* Ensure the loader is on top of other content */
 }
 
-/* styles/globals.css */
 .spinner {
   border: 4px solid rgba(0, 0, 0, 0.1);
   border-radius: 50%;

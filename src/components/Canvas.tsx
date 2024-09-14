@@ -1,4 +1,5 @@
 "use client";
+
 import React, {
   useEffect,
   useRef,
@@ -9,7 +10,6 @@ import React, {
 import { SmoothieChart, TimeSeries } from "smoothie";
 import { useTheme } from "next-themes";
 import { BitSelection } from "./DataPass";
-import html2canvas from "html2canvas";
 
 interface CanvasProps {
   data: string;
@@ -35,37 +35,8 @@ const Canvas: React.FC<CanvasProps> = ({
     () => [],
     []
   );
-  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+
   const gridRef = useRef<HTMLDivElement>(null);
-
-  const captureScreenshot = useCallback(() => {
-    if (gridRef.current) {
-      html2canvas(gridRef.current).then((canvas) => {
-        const url = canvas.toDataURL();
-        setScreenshotUrl(url);
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    setIsGlobalPaused(!isDisplay);
-
-    if (!isDisplay) {
-      captureScreenshot();
-    } else {
-      setScreenshotUrl(null);
-    }
-
-    chartRef.current.forEach((chart) => {
-      if (chart) {
-        if (isDisplay) {
-          chart.start();
-        } else {
-          chart.stop();
-        }
-      }
-    });
-  }, [isDisplay, captureScreenshot]);
 
   const getChannelColor = useCallback(
     (index: number) => {
@@ -112,20 +83,26 @@ const Canvas: React.FC<CanvasProps> = ({
   }, []);
 
   const updateChartColors = useCallback(() => {
+    // Get the current theme colors
     const colors = getThemeColors();
+
+    // Iterate through each chart in the chartRef array
     chartRef.current.forEach((chart, index) => {
       if (chart) {
+        // Update grid colors based on the theme
         chart.options.grid = {
           ...chart.options.grid,
           fillStyle: colors.background,
           strokeStyle: colors.grid,
         };
 
+        // Update label and title colors based on the theme
         if (chart.options.labels && chart.options.title) {
           chart.options.labels.fillStyle = colors.text;
           chart.options.title.fillStyle = colors.text;
         }
 
+        // Set scaling options for the chart
         if (shouldAutoScale(selectedBits)) {
           chart.options.maxValue = undefined;
           chart.options.minValue = undefined;
@@ -134,6 +111,7 @@ const Canvas: React.FC<CanvasProps> = ({
           chart.options.minValue = 0;
         }
 
+        // Update the series with new color settings
         const series = seriesRef.current[index];
         if (series) {
           chart.removeTimeSeries(series);
@@ -143,6 +121,7 @@ const Canvas: React.FC<CanvasProps> = ({
           });
         }
 
+        // Stream chart data to the corresponding canvas element
         chart.streamTo(
           document.getElementById(
             `smoothie-chart-${index + 1}`
@@ -160,19 +139,25 @@ const Canvas: React.FC<CanvasProps> = ({
   ]);
 
   const processBatch = useCallback(() => {
+    // Exit early if the batch buffer is empty or if global pause is active
     if (batchBuffer.length === 0 || isGlobalPaused) return;
 
+    // Process each batch in the buffer
     batchBuffer.forEach((batch) => {
+      // Iterate through each channel
       channels.forEach((channel, index) => {
         if (channel) {
+          // Retrieve the corresponding series for the channel
           const series = seriesRef.current[index];
           if (series && !isNaN(batch.values[index])) {
+            // Append the data point to the series if the value is valid
             series.append(batch.time, batch.values[index]);
           }
         }
       });
     });
 
+    // Clear the batch buffer after processing
     batchBuffer.length = 0;
   }, [channels, batchBuffer, isGlobalPaused]);
 
@@ -199,6 +184,13 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   }, [data, isChartInitialized, handleDataUpdate]);
 
+  // Updated to ensure colors are correctly applied when the theme changes
+  useEffect(() => {
+    if (isChartInitialized) {
+      updateChartColors(); // Apply the updated theme colors to the chart
+    }
+  }, [theme, isChartInitialized, updateChartColors]);
+
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (batchBuffer.length > 0 && isDisplay) {
@@ -213,21 +205,28 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [processBatch, batchBuffer, isDisplay]);
 
   useEffect(() => {
+    // Check if the chart has not been initialized yet
     if (!isChartInitialized) {
+      // Get the current theme colors for the chart
       const colors = getThemeColors();
+
+      // Iterate over each channel to set up a chart
       channels.forEach((channel, index) => {
         if (channel) {
+          // Get the canvas element for the current channel
           const canvas = document.getElementById(
             `smoothie-chart-${index + 1}`
           ) as HTMLCanvasElement;
 
+          // Adjust canvas dimensions based on its parent element
           const parentDiv = canvas.parentElement;
           if (parentDiv) {
-            canvas.height = parentDiv.offsetHeight - 2;
+            canvas.height = parentDiv.offsetHeight - 2; // Subtracting 2 for margin/padding
             canvas.width = parentDiv.offsetWidth;
           }
 
           if (canvas) {
+            // Create a new SmoothieChart instance with the current theme settings
             const chart = new SmoothieChart({
               responsive: true,
               millisPerPixel: 4,
@@ -247,15 +246,20 @@ const Canvas: React.FC<CanvasProps> = ({
                 ? undefined
                 : getMaxValue(selectedBits),
             });
+
+            // Create a new TimeSeries instance for this chart
             const series = new TimeSeries();
 
+            // Add the TimeSeries to the chart with specific styles
             chart.addTimeSeries(series, {
               strokeStyle: getChannelColor(index),
               lineWidth: 1,
             });
 
+            // Start streaming data to the canvas with a specified update interval
             chart.streamTo(canvas, 500);
 
+            // Store references to the chart and series for later use
             if (chartRef.current && seriesRef.current) {
               chartRef.current[index] = chart;
               seriesRef.current[index] = series;
@@ -264,6 +268,7 @@ const Canvas: React.FC<CanvasProps> = ({
         }
       });
 
+      // Mark the chart as initialized
       setIsChartInitialized(true);
     }
   }, [
@@ -275,6 +280,28 @@ const Canvas: React.FC<CanvasProps> = ({
     shouldAutoScale,
     getChannelColor,
   ]);
+
+  useEffect(() => {
+    const resizeCanvas = () => {
+      channels.forEach((channel, index) => {
+        const canvas = document.getElementById(
+          `smoothie-chart-${index + 1}`
+        ) as HTMLCanvasElement;
+
+        const parentDiv = canvas.parentElement;
+        if (parentDiv) {
+          canvas.height = parentDiv.offsetHeight - 2;
+          canvas.width = parentDiv.offsetWidth;
+        }
+      });
+    };
+
+    window.addEventListener("resize", resizeCanvas);
+
+    return () => {
+      window.removeEventListener("resize", resizeCanvas);
+    };
+  }, [channels]);
 
   useEffect(() => {
     if (isChartInitialized) {
@@ -312,41 +339,39 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [theme, isChartInitialized, updateChartColors]);
 
   return (
-    <div className="flex flex-col justify-center items-start px-4 m-4 h-[80vh]">
+    <div className="flex flex-col justify-center items-start px-4 m-2 sm:m-4 md:m-6 lg:m-8 h-[60vh] sm:h-[70vh] md:h-[80vh]">
       <div
         ref={gridRef}
         className={`grid ${
           isGridView ? "md:grid-cols-2 grid-cols-1" : "grid-cols-1"
         } w-full h-full relative`}
+        style={{
+          backgroundColor:
+            theme === "dark" ? "hsl(222.2, 84%, 4.9%)" : "hsl(0, 0%, 100%)",
+          color:
+            theme === "dark" ? "hsl(210, 40%, 98%)" : "hsl(222.2, 84%, 4.9%)",
+        }}
       >
         {channels.map((channel, index) => {
           if (channel) {
             return (
               <div
                 key={index}
-                className={`flex flex-col w-full relative h-full`}
+                className={`border border-secondary-foreground w-full ${
+                  isGridView
+                    ? "h-[30vh] sm:h-[35vh] md:h-[40vh]"
+                    : "h-[15vh] sm:h-[18vh] md:h-[20vh]"
+                } relative`}
               >
-                <div
-                  className={`border border-secondary-foreground w-full ${
-                    isGridView ? "h-[40vh]" : "h-[20vh]"
-                  } relative`}
-                >
-                  <canvas
-                    id={`smoothie-chart-${index + 1}`}
-                    className="w-full h-full"
-                  />
-                </div>
+                <canvas
+                  id={`smoothie-chart-${index + 1}`}
+                  className="w-full h-full"
+                />
               </div>
             );
           }
           return null;
         })}
-        {screenshotUrl && (
-          <div
-            className="absolute top-0 left-0 w-full h-full bg-cover bg-center z-10"
-            style={{ backgroundImage: `url(${screenshotUrl})` }}
-          />
-        )}
       </div>
     </div>
   );

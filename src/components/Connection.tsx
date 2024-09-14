@@ -16,8 +16,7 @@ import {
   Grid,
   List,
 } from "lucide-react";
-import { vendorsList } from "./vendors";
-import { BoardsList } from "./UDL_Boards";
+import { BoardsList } from "./boards";
 import { toast } from "sonner";
 import { saveAs } from "file-saver";
 import {
@@ -69,7 +68,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
-  const [indexTracker, setIndexTracker] = useState<number[]>([]); //keep track of indexes of files
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
   const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
   const [hasData, setHasData] = useState(false);
@@ -82,11 +80,13 @@ const Connection: React.FC<ConnectionProps> = ({
   const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
-  const [ifBits, setifBits] = useState<BitSelection>("ten");
-  // const [isPaused, setIsPaused] = useState<boolean>(false); // State to track if the data display is pause
+  const [ifBits, setifBits] = useState<BitSelection>("auto");
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
+  const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
+    null
+  );
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -129,6 +129,7 @@ const Connection: React.FC<ConnectionProps> = ({
       if (!info || !info.usbVendorId) {
         return "Port with no info";
       }
+      // console.log(info);
 
       // First, check if the board exists in BoardsList
       const board = BoardsList.find(
@@ -136,16 +137,11 @@ const Connection: React.FC<ConnectionProps> = ({
       );
       if (board) {
         setifBits(board.bits as BitSelection);
+        setSelectedBits(selectedBits === "auto" ? ifBits : "auto");
         return `${board.name} | Product ID: ${info.usbProductId}`; // Return the board name and product ID
       }
 
       setDetectedBits(null);
-
-      // If not found in BoardsList, fall back to the vendor check
-      const vendorName =
-        vendorsList.find((d) => parseInt(d.field_vid) === info.usbVendorId)
-          ?.name ?? "Unknown Vendor";
-      return `${vendorName} | Product ID: ${info.usbProductId}`;
     },
     []
   );
@@ -160,27 +156,43 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const connectToDevice = async () => {
-    // Function to connect to the device
     try {
       const port = await navigator.serial.requestPort(); // Request the serial port
-      await port.open({ baudRate: 57600 }); // Open the port with baud rate 57600
-      Connection(true); // Set the connection state to true, which will enable the data visualization as it is getting used is DataPaas
+      await port.open({ baudRate: 115200 }); // Open the port with baud rate 115200
+      Connection(true); // Set the connection state to true, enabling the data visualization
       setIsConnected(true);
       isConnectedRef.current = true;
       portRef.current = port;
+
       toast.success("Connection Successful", {
         description: (
           <div className="mt-2 flex flex-col space-y-1">
             <p>Device: {formatPortInfo(port.getInfo())}</p>
-            <p>Baud Rate: 57600</p>
+            <p>Baud Rate: 115200</p>
           </div>
         ),
       });
 
+      // Get the reader from the port
       const reader = port.readable?.getReader();
       readerRef.current = reader;
-      readData(); // Start reading the data from the device
-      await navigator.wakeLock.request("screen"); // Request the wake lock to keep the screen on
+
+      // Get the writer from the port (check if it's available)
+      const writer = port.writable?.getWriter();
+      if (writer) {
+        writerRef.current = writer;
+
+        const message = new TextEncoder().encode("START\n");
+        await writerRef.current.write(message);
+      } else {
+        console.error("Writable stream not available");
+      }
+
+      // Start reading the data from the device
+      readData();
+
+      // Request the wake lock to keep the screen on
+      await navigator.wakeLock.request("screen");
     } catch (error) {
       // If there is an error during connection, disconnect the device
       disconnectDevice();
@@ -194,11 +206,22 @@ const Connection: React.FC<ConnectionProps> = ({
     // Function to disconnect the device
     try {
       if (portRef.current && portRef.current.readable) {
-        // Check if the port is available and readable
-        if (readerRef.current) {
-          await readerRef.current.cancel(); // Cancel the reader to stop data flow
-          readerRef.current.releaseLock(); // Release the reader lock to allow other operations
+        // Check if the writer is available to send the STOP command
+        if (writerRef.current) {
+          const stopMessage = new TextEncoder().encode("STOP\n"); // Prepare the STOP command
+          console.log(stopMessage);
+          await writerRef.current.write(stopMessage); // Send the STOP command to the device
+          writerRef.current.releaseLock(); // Release the writer lock
+          writerRef.current = null; // Reset the writer reference
         }
+
+        // Cancel the reader to stop data flow
+        if (readerRef.current) {
+          await readerRef.current.cancel(); // Cancel the reader
+          readerRef.current.releaseLock(); // Release the reader lock to allow other operations
+          readerRef.current = null; // Reset the reader reference
+        }
+
         await portRef.current.close(); // Close the port to disconnect the device
         portRef.current = null; // Reset the port reference to null
 
@@ -226,9 +249,11 @@ const Connection: React.FC<ConnectionProps> = ({
   const readData = async (): Promise<void> => {
     let bufferIndex = 0;
     const buffer: number[] = []; // Buffer to store incoming data from the device
-    const PACKET_LENGTH = 17; // Length of the expected data packet
-    const SYNC_BYTE1 = 0xa5; // First synchronization byte to identify the start of a packet
-    const SYNC_BYTE2 = 0x5a; // Second synchronization byte to identify the start of a packet
+    const HEADER_LENGTH = 3;
+    const NUM_CHANNELS = 6;
+    const PACKET_LENGTH = 16; // Length of the expected data packet
+    const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
+    const SYNC_BYTE2 = 0x7c; // Second synchronization byte to identify the start of a packet
     const END_BYTE = 0x01; // End byte to identify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     let hasRemovedInitialElements = false; // Flag to check if initial buffer elements have been removed
@@ -271,16 +296,15 @@ const Connection: React.FC<ConnectionProps> = ({
             ) {
               const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
               const channelData: string[] = []; // Array to store the extracted channel data
-              for (let i = 0; i < 6; i++) {
+              for (let channel = 0; channel < NUM_CHANNELS; channel++) {
                 // Loop through each channel in the packet
-                const highByte = packet[4 + i * 2]; // Extract the high byte for the channel
-                const lowByte = packet[5 + i * 2]; // Extract the low byte for the channel
+                const highByte = packet[channel * 2 + HEADER_LENGTH]; // Extract the high byte for the channel
+                const lowByte = packet[channel * 2 + HEADER_LENGTH + 1]; // Extract the low byte for the channel
                 const value = (highByte << 8) | lowByte; // Combine the high and low bytes to get the channel value
                 channelData.push(value.toString()); // Convert the value to string and store it in the array
               }
-              const counter = packet[3]; // Extract the counter value from the packet
+              const counter = packet[2]; // Extract the counter value from the packet
               channelData.push(counter.toString()); // Add the counter value to the channel data
-
               LineData(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
                 // Check if recording is enabled
@@ -600,7 +624,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex h-14 items-center justify-between px-4">
+    <div className="flex h-14 items-center justify-center px-4">
       <div className="flex-1">
         {isRecordingRef.current && (
           <div className="flex justify-center items-center space-x-1 w-min mx-4">
@@ -776,7 +800,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={saveData}
                       disabled={!hasData}
                     >
-                      <Download size={16} className="mr-2" />
+                      <Download size={16} className="mr-1" />
                     </Button>
                   </TooltipTrigger>
                 )}
@@ -796,7 +820,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={saveData} // Adjust functionality for saving multiple datasets if needed
                       disabled={!hasData}
                     >
-                      <Download size={16} className="mr-2" />
+                      <Download size={16} className="" />
                       <p className="text-lg">{datasets}</p>
                     </Button>
                     <Button

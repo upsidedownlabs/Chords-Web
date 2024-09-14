@@ -16,7 +16,7 @@ export const BoardsList = Object.freeze([
   },
   {
     name: "Arduino UNO R4 Minima",
-    field_pid: "4098",
+    field_pid: "105",
     bits: "fourteen",
   },
   {

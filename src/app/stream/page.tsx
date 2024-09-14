@@ -5,7 +5,6 @@ import SerialCheck from "../../components/SerialCheck";
 const Page = () => {
   return (
     <div className="h-screen">
-      <Navbar />
       <SerialCheck />
     </div>
   );

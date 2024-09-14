@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "../../components/ui/button";
@@ -7,13 +8,30 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import Chords from "./Chords";
 
-const HeadSection = () => {
-  const { theme } = useTheme();
+const HeadSection: React.FC = () => {
+  const { resolvedTheme } = useTheme();
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [mounted, setMounted] = useState(false); // Ensures the theme detection works after mounting
 
+  // Set mounted to true after the client has mounted
   useEffect(() => {
-    setIsImageLoaded(false); // Reset loading state on theme change
-  }, [theme]);
+    setMounted(true);
+  }, []);
+
+  // Preload dark and light images to avoid delay on theme switch
+  const preloadImage = (src: string) => {
+    const img = new window.Image();
+    img.src = src;
+  };
+
+  // Preload images on component mount
+  useEffect(() => {
+    preloadImage("./assets/dark/HeroSignalsClean.png");
+    preloadImage("./assets/light/HeroSignalsClean.png");
+  }, []);
+
+  // If the component is not mounted yet, avoid rendering to prevent flickering
+  if (!mounted) return null;
 
   return (
     <>
@@ -22,7 +40,7 @@ const HeadSection = () => {
           <div className="flex flex-col justify-center gap-8 items-center">
             <div>
               <h1 className="lg:leading-tighter text-[1.90rem] font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] text-center">
-                <span className="text-7xl">Tune Into Your EXG Data </span>
+                <span className="text-7xl">Tune Into Your EXG Data</span>
                 <br /> With <Chords />
               </h1>
             </div>
@@ -32,7 +50,7 @@ const HeadSection = () => {
                   <Button>
                     <Image
                       src={
-                        theme === "dark"
+                        resolvedTheme === "dark"
                           ? "./assets/dark/favicon.ico"
                           : "./assets/light/favicon.ico"
                       }
@@ -71,13 +89,14 @@ const HeadSection = () => {
         {/* Image */}
         <Image
           src={
-            theme === "dark"
+            resolvedTheme === "dark"
               ? "./assets/dark/HeroSignalsClean.png"
               : "./assets/light/HeroSignalsClean.png"
           }
           alt="Plotter"
           width={1000}
           height={1000}
+          priority // Use priority to preload the image
           className={`mx-auto mt-20 rounded transition-opacity duration-300 ${
             isImageLoaded ? "opacity-100" : "opacity-0"
           }`}
