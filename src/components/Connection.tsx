@@ -181,7 +181,7 @@ const Connection: React.FC<ConnectionProps> = ({
       if (writer) {
         writerRef.current = writer;
 
-        const message = new TextEncoder().encode("START");
+        const message = new TextEncoder().encode("START\n");
         await writerRef.current.write(message);
       } else {
         console.error("Writable stream not available");
@@ -205,11 +205,22 @@ const Connection: React.FC<ConnectionProps> = ({
     // Function to disconnect the device
     try {
       if (portRef.current && portRef.current.readable) {
-        // Check if the port is available and readable
-        if (readerRef.current) {
-          await readerRef.current.cancel(); // Cancel the reader to stop data flow
-          readerRef.current.releaseLock(); // Release the reader lock to allow other operations
+        // Check if the writer is available to send the STOP command
+        if (writerRef.current) {
+          const stopMessage = new TextEncoder().encode("STOP\n"); // Prepare the STOP command
+          console.log(stopMessage);
+          await writerRef.current.write(stopMessage); // Send the STOP command to the device
+          writerRef.current.releaseLock(); // Release the writer lock
+          writerRef.current = null; // Reset the writer reference
         }
+
+        // Cancel the reader to stop data flow
+        if (readerRef.current) {
+          await readerRef.current.cancel(); // Cancel the reader
+          readerRef.current.releaseLock(); // Release the reader lock to allow other operations
+          readerRef.current = null; // Reset the reader reference
+        }
+
         await portRef.current.close(); // Close the port to disconnect the device
         portRef.current = null; // Reset the port reference to null
 
