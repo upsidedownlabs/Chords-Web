@@ -158,7 +158,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const connectToDevice = async () => {
     try {
       const port = await navigator.serial.requestPort(); // Request the serial port
-      await port.open({ baudRate: 115200 }); // Open the port with baud rate 115200
+      await port.open({ baudRate: 230400 }); // Open the port with baud rate 230400
       Connection(true); // Set the connection state to true, enabling the data visualization
       setIsConnected(true);
       isConnectedRef.current = true;
@@ -168,7 +168,7 @@ const Connection: React.FC<ConnectionProps> = ({
         description: (
           <div className="mt-2 flex flex-col space-y-1">
             <p>Device: {formatPortInfo(port.getInfo())}</p>
-            <p>Baud Rate: 115200</p>
+            <p>Baud Rate: 230400</p>
           </div>
         ),
       });
@@ -624,7 +624,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-10 items-center justify-center px-4 m-2 ">
+    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-10 items-center justify-center px-4 m-2">
       <div className="flex-1">
         {isRecordingRef.current && (
           <div className="flex justify-center items-center space-x-1 w-min mx-4">

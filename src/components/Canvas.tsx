@@ -359,8 +359,8 @@ const Canvas: React.FC<CanvasProps> = ({
                 key={index}
                 className={`border border-secondary-foreground w-full ${
                   isGridView
-                    ? "h-[30vh] sm:h-[35vh] md:h-[40vh]"
-                    : "h-[15vh] sm:h-[18vh] md:h-[20vh]"
+                    ? "h-[25vh] sm:h-[30vh] md:h-[35vh] lg:h-[40vh]"
+                    : "h-[10vh] sm:h-[15vh] md:h-[20vh] lg:h-[25vh]"
                 } relative`}
               >
                 <canvas
