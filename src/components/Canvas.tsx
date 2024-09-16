@@ -339,7 +339,7 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [theme, isChartInitialized, updateChartColors]);
 
   return (
-    <div className="flex flex-col justify-center items-start px-4 m-2  h-[60vh] sm:h-[70vh] md:h-[80vh]">
+    <div className="flex flex-col justify-center items-start px-4 m-2 sm:m-4 md:m-6 lg:m-8 h-[60vh] sm:h-[70vh] md:h-[80vh]">
       <div
         ref={gridRef}
         className={`grid ${
@@ -359,8 +359,8 @@ const Canvas: React.FC<CanvasProps> = ({
                 key={index}
                 className={`border border-secondary-foreground w-full ${
                   isGridView
-                    ? "h-[25vh] sm:h-[30vh] md:h-[35vh] lg:h-[40vh]"
-                    : "h-[10vh] sm:h-[15vh] md:h-[20vh] lg:h-[25vh]"
+                    ? "h-[25vh] sm:h-[30vh] md:h-[35vh] lg:h-[35vh]"
+                    : "h-[10vh] sm:h-[15vh] md:h-[20vh] lg:h-[20vh]"
                 } relative`}
               >
                 <canvas
