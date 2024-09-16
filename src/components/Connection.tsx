@@ -624,7 +624,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex h-14 items-center justify-center px-4">
+    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-10 items-center justify-center px-4 m-2 ">
       <div className="flex-1">
         {isRecordingRef.current && (
           <div className="flex justify-center items-center space-x-1 w-min mx-4">
@@ -632,7 +632,7 @@ const Connection: React.FC<ConnectionProps> = ({
               {formatTime(elapsedTime)}
             </div>
             <Separator orientation="vertical" className="bg-primary h-9" />
-            <div className="">
+            <div>
               <Popover
                 open={isEndTimePopoverOpen}
                 onOpenChange={setIsEndTimePopoverOpen}
@@ -716,7 +716,7 @@ const Connection: React.FC<ConnectionProps> = ({
             {ifBits ? (
               <Button
                 variant={selectedBits === "auto" ? "default" : "outline"}
-                className={`w-36 flex justify-center items-center overflow-hidden `}
+                className="w-36 flex justify-center items-center overflow-hidden"
                 onClick={() =>
                   setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
                 }
@@ -731,7 +731,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   setSelectedBits(value as BitSelection)
                 }
                 value={selectedBits}
-                disabled={!isDisplay} // Disable when paused
+                disabled={!isDisplay}
               >
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Select bits" />
@@ -817,10 +817,10 @@ const Connection: React.FC<ConnectionProps> = ({
                   <>
                     <Button
                       className="rounded-r-none mr-1"
-                      onClick={saveData} // Adjust functionality for saving multiple datasets if needed
+                      onClick={saveData}
                       disabled={!hasData}
                     >
-                      <Download size={16} className="" />
+                      <Download size={16} />
                       <p className="text-lg">{datasets}</p>
                     </Button>
                     <Button
