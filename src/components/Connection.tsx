@@ -40,6 +40,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../components/ui/popover";
+import { delay } from "framer-motion";
 
 interface ConnectionProps {
   LineData: Function;
@@ -137,7 +138,7 @@ const Connection: React.FC<ConnectionProps> = ({
       );
       if (board) {
         setifBits(board.bits as BitSelection);
-        setSelectedBits(selectedBits === "auto" ? ifBits : "auto");
+        setSelectedBits(board.bits as BitSelection);
         return `${board.name} | Product ID: ${info.usbProductId}`; // Return the board name and product ID
       }
 
@@ -180,10 +181,11 @@ const Connection: React.FC<ConnectionProps> = ({
       // Get the writer from the port (check if it's available)
       const writer = port.writable?.getWriter();
       if (writer) {
-        writerRef.current = writer;
-
-        const message = new TextEncoder().encode("START\n");
-        await writerRef.current.write(message);
+        setTimeout(function(){
+          writerRef.current = writer;
+          const message = new TextEncoder().encode("START\n");
+          writerRef.current.write(message);
+        },2000);
       } else {
         console.error("Writable stream not available");
       }
