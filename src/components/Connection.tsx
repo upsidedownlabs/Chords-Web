@@ -3,6 +3,8 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
 import {
   Cable,
   Circle,
@@ -43,7 +45,7 @@ import {
 import { delay } from "framer-motion";
 
 interface ConnectionProps {
-  LineData: Function;
+  LineData: (data: any) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
@@ -51,6 +53,8 @@ interface ConnectionProps {
   setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
   isDisplay: boolean;
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
+  setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
+  canvasCount: number;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -62,6 +66,8 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsGridView,
   isDisplay,
   setIsDisplay,
+  setCanvasCount,
+  canvasCount,
 }) => {
   const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
@@ -88,6 +94,18 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
+
+  const increaseCanvas = () => {
+    if (canvasCount < 6) {
+      setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
+    }
+  };
+
+  const decreaseCanvas = () => {
+    if (canvasCount > 1) {
+      setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
+    }
+  };
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -861,6 +879,31 @@ const Connection: React.FC<ConnectionProps> = ({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+        )}
+        {isConnected && (
+          <div className="flex items-center">
+            <Button>
+              <ToggleGroup type="single">
+                <ToggleGroupItem
+                  value="a"
+                  className="button-plus mr-0"
+                  onClick={increaseCanvas}
+                >
+                  +
+                </ToggleGroupItem>
+                <ToggleGroupItem value="b" className="button-ch mr-0">
+                  Ch
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="c"
+                  className="button-minus mr-0"
+                  onClick={decreaseCanvas}
+                >
+                  -
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </Button>
+          </div>
         )}
       </div>
       <div className="flex-1"></div>
