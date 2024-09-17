@@ -339,12 +339,12 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [theme, isChartInitialized, updateChartColors]);
 
   return (
-    <div className="flex flex-col justify-center items-start px-4 m-6 h-[76vh]">
+    <div className="flex flex-col justify-center items-center px-2 flex-grow m-4">
       <div
         ref={gridRef}
         className={`grid ${
           isGridView ? "md:grid-cols-2 grid-cols-1" : "grid-cols-1"
-        } w-full h-full relative`}
+        } w-full h-[76vh]`}
         style={{
           backgroundColor:
             theme === "dark" ? "hsl(222.2, 84%, 4.9%)" : "hsl(0, 0%, 100%)",
@@ -358,7 +358,7 @@ const Canvas: React.FC<CanvasProps> = ({
               <div
                 key={index}
                 className={`border border-secondary-foreground w-full ${
-                  isGridView ? "h-[38vh] " : "h-[19vh] "
+                  isGridView ? "h-[39vh]" : "h-[19vh]"
                 } relative`}
               >
                 <canvas

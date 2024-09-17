@@ -626,7 +626,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-2 items-center justify-center mb-6 mt-4">
+    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-2 items-center justify-center mb-6 mt-2">
       <div className="flex-1">
         {isRecordingRef.current && (
           <div className="flex justify-center items-center space-x-1 w-min mx-4">
