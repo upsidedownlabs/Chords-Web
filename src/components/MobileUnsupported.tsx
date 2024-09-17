@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { TbDeviceMobileOff } from "react-icons/tb";
 import {
   Accordion,
   AccordionContent,
@@ -7,7 +8,7 @@ import {
   AccordionTrigger,
 } from "./ui/accordion";
 import { Button } from "./ui/button";
-import { ChevronRight, Smartphone, Monitor } from "lucide-react";
+import { ChevronRight, Monitor } from "lucide-react";
 import Chords from "./LandingComp/Chords";
 import Link from "next/link";
 
@@ -18,8 +19,8 @@ export default function MobileUnsupported() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-600 to-blue-600 text-white p-6 flex flex-col justify-between">
-      <motion.header
+<div className="min-h-screen bg-gradient-to-b from-black to-gray-800 text-white p-6 flex flex-col justify-between">
+<motion.header
         initial="hidden"
         animate="visible"
         variants={fadeIn}
@@ -38,7 +39,7 @@ export default function MobileUnsupported() {
         className="flex justify-center items-center my-10"
       >
         <div className="relative">
-          <Smartphone className="w-32 h-32 text-red-500" />
+          <TbDeviceMobileOff className="w-32 h-32 text-red-500" />
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
             <div className="w-16 h-1 bg-red-500 rotate-45"></div>
           </div>
