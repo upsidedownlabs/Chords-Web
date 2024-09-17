@@ -181,11 +181,11 @@ const Connection: React.FC<ConnectionProps> = ({
       // Get the writer from the port (check if it's available)
       const writer = port.writable?.getWriter();
       if (writer) {
-        setTimeout(function(){
+        setTimeout(function () {
           writerRef.current = writer;
           const message = new TextEncoder().encode("START\n");
           writerRef.current.write(message);
-        },2000);
+        }, 2000);
       } else {
         console.error("Writable stream not available");
       }
@@ -626,7 +626,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-10 items-center justify-center px-4 m-2">
+    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-2 items-center justify-center mb-6 mt-4">
       <div className="flex-1">
         {isRecordingRef.current && (
           <div className="flex justify-center items-center space-x-1 w-min mx-4">
