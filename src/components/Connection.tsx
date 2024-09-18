@@ -49,8 +49,6 @@ interface ConnectionProps {
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
-  isGridView: boolean;
-  setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
   isDisplay: boolean;
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
@@ -62,8 +60,6 @@ const Connection: React.FC<ConnectionProps> = ({
   Connection,
   selectedBits,
   setSelectedBits,
-  isGridView,
-  setIsGridView,
   isDisplay,
   setIsDisplay,
   setCanvasCount,
