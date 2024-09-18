@@ -3,6 +3,8 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
 import {
   Cable,
   Circle,
@@ -43,7 +45,7 @@ import {
 import { delay } from "framer-motion";
 
 interface ConnectionProps {
-  LineData: Function;
+  LineData: (data: any) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
@@ -51,6 +53,8 @@ interface ConnectionProps {
   setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
   isDisplay: boolean;
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
+  setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
+  canvasCount: number;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -62,6 +66,8 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsGridView,
   isDisplay,
   setIsDisplay,
+  setCanvasCount,
+  canvasCount,
 }) => {
   const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
@@ -88,6 +94,18 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
+
+  const increaseCanvas = () => {
+    if (canvasCount < 6) {
+      setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
+    }
+  };
+
+  const decreaseCanvas = () => {
+    if (canvasCount > 1) {
+      setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
+    }
+  };
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -159,7 +177,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const connectToDevice = async () => {
     try {
       const port = await navigator.serial.requestPort(); // Request the serial port
-      await port.open({ baudRate: 115200 }); // Open the port with baud rate 115200
+      await port.open({ baudRate: 230400 }); // Open the port with baud rate 230400
       Connection(true); // Set the connection state to true, enabling the data visualization
       setIsConnected(true);
       isConnectedRef.current = true;
@@ -169,7 +187,7 @@ const Connection: React.FC<ConnectionProps> = ({
         description: (
           <div className="mt-2 flex flex-col space-y-1">
             <p>Device: {formatPortInfo(port.getInfo())}</p>
-            <p>Baud Rate: 115200</p>
+            <p>Baud Rate: 230400</p>
           </div>
         ),
       });
@@ -181,11 +199,11 @@ const Connection: React.FC<ConnectionProps> = ({
       // Get the writer from the port (check if it's available)
       const writer = port.writable?.getWriter();
       if (writer) {
-        setTimeout(function(){
+        setTimeout(function () {
           writerRef.current = writer;
           const message = new TextEncoder().encode("START\n");
           writerRef.current.write(message);
-        },2000);
+        }, 2000);
       } else {
         console.error("Writable stream not available");
       }
@@ -626,7 +644,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex h-14 items-center justify-center px-4">
+    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-2 items-center justify-center mb-6 mt-2">
       <div className="flex-1">
         {isRecordingRef.current && (
           <div className="flex justify-center items-center space-x-1 w-min mx-4">
@@ -634,7 +652,7 @@ const Connection: React.FC<ConnectionProps> = ({
               {formatTime(elapsedTime)}
             </div>
             <Separator orientation="vertical" className="bg-primary h-9" />
-            <div className="">
+            <div>
               <Popover
                 open={isEndTimePopoverOpen}
                 onOpenChange={setIsEndTimePopoverOpen}
@@ -718,7 +736,7 @@ const Connection: React.FC<ConnectionProps> = ({
             {ifBits ? (
               <Button
                 variant={selectedBits === "auto" ? "default" : "outline"}
-                className={`w-36 flex justify-center items-center overflow-hidden `}
+                className="w-36 flex justify-center items-center overflow-hidden"
                 onClick={() =>
                   setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
                 }
@@ -733,7 +751,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   setSelectedBits(value as BitSelection)
                 }
                 value={selectedBits}
-                disabled={!isDisplay} // Disable when paused
+                disabled={!isDisplay}
               >
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Select bits" />
@@ -819,10 +837,10 @@ const Connection: React.FC<ConnectionProps> = ({
                   <>
                     <Button
                       className="rounded-r-none mr-1"
-                      onClick={saveData} // Adjust functionality for saving multiple datasets if needed
+                      onClick={saveData}
                       disabled={!hasData}
                     >
-                      <Download size={16} className="" />
+                      <Download size={16} />
                       <p className="text-lg">{datasets}</p>
                     </Button>
                     <Button
@@ -861,6 +879,31 @@ const Connection: React.FC<ConnectionProps> = ({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+        )}
+        {isConnected && (
+          <div className="flex items-center">
+            <Button>
+              <ToggleGroup type="single">
+              <ToggleGroupItem
+                  value="c"
+                  className="button-minus mr-0"
+                  onClick={decreaseCanvas}
+                >
+                  -
+                </ToggleGroupItem>
+                <ToggleGroupItem value="b" className="button-ch mr-0">
+                  Ch
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="a"
+                  className="button-plus mr-0"
+                  onClick={increaseCanvas}
+                >
+                  +
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </Button>
+          </div>
         )}
       </div>
       <div className="flex-1"></div>
