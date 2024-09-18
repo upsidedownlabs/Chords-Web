@@ -239,25 +239,6 @@ const Canvas: React.FC<CanvasProps> = ({
       setIsChartInitialized(true);
     };
 
-    // Cleanup existing time series and stop the charts
-    chartRef.current.forEach((chart, index) => {
-      if (chart) {
-        const canvas = document.getElementById(
-          `smoothie-chart-${index + 1}`
-        ) as HTMLCanvasElement;
-        const context = canvas?.getContext("2d");
-        if (context) {
-          context.clearRect(0, 0, canvas.width, canvas.height);
-        }
-      }
-    });
-
-    seriesRef.current.forEach((series) => {
-      if (series) {
-        series.clear();
-      }
-    });
-
     initializeCharts();
   }, [
     canvasCount,
@@ -302,38 +283,41 @@ const Canvas: React.FC<CanvasProps> = ({
   const getHeightClass = (count: number) => {
     switch (count) {
       case 1:
-        return "h-[78vh]";
+        return "h-[70vh]"; // Full height of the container for one canvas
       case 2:
-        return "h-[39vh]";
+        return "h-[35vh]"; // 50% of the container height for two canvases
       case 3:
-        return "h-[26vh]";
+        return "h-[23.33vh]"; // Approximately 1/3rd for three canvases
       case 4:
-        return "h-[19vh]";
+        return "h-[17.5vh]"; // Approximately 1/4th for four canvases
       case 5:
-        return "h-[15vh]";
+        return "h-[14vh]"; // For five canvases, slightly smaller
       case 6:
-        return "h-[13vh]";
+        return "h-[11.67vh]"; // 1/6th of the container
       default:
-        return "h-[78vh]";
+        return "h-[70vh]"; // Default for a single canvas
     }
   };
 
   return (
-    <div className="flex flex-col h-full justify-center items-start px-4 m-2 sm:m-2 md:m-2 lg:m-2 h-[60vh] sm:h-[70vh] md:h-[75vh]">
-      <div className={`grid w-full h-full relative`}>
-        {channels.map((_, index) => (
-          <div
-            key={index}
-            className={`border border-secondary-foreground w-full ${getHeightClass(
-              channels.length
-            )} relative bg-white dark:bg-gray-900`}
-          >
-            <canvas
-              id={`smoothie-chart-${index + 1}`}
-              className="w-full h-full m-0 p-0"
-            />
-          </div>
-        ))}
+    <div className="flex justify-center items-center h-[80vh] m-6">
+      {/* Canvas container taking 70% of the screen height */}
+      <div className="flex flex-col justify-center items-start w-full px-4">
+        <div className="grid w-full h-full relative">
+          {channels.map((_, index) => (
+            <div
+              key={index}
+              className={`border border-secondary-foreground w-full ${getHeightClass(
+                channels.length
+              )} relative bg-white dark:bg-gray-900`}
+            >
+              <canvas
+                id={`smoothie-chart-${index + 1}`}
+                className="w-full h-full m-0 p-0"
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

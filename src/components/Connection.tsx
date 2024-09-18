@@ -640,7 +640,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 flex items-center justify-center h-2 mb-6 mt-2 px-4">
+    <div className="fixed bottom-0 left-0 right-0 flex items-center justify-center h-2 mb-6 px-4">
       {/* Left-aligned section */}
       <div className="absolute left-4 flex items-center space-x-1">
         {isRecordingRef.current && (
@@ -732,11 +732,11 @@ const Connection: React.FC<ConnectionProps> = ({
         </Button>
 
         {isConnected && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center mx-0 px-0">
             {ifBits ? (
               <Button
                 variant={selectedBits === "auto" ? "default" : "outline"}
-                className="w-36 flex justify-center items-center overflow-hidden"
+                className="w-36 flex justify-center items-center overflow-hidden p-0 m-0"
                 onClick={() =>
                   setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
                 }
@@ -753,7 +753,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 value={selectedBits}
                 disabled={!isDisplay}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-32 p-0 m-0">
                   <SelectValue placeholder="Select bits" />
                 </SelectTrigger>
                 <SelectContent side="top">
@@ -870,23 +870,26 @@ const Connection: React.FC<ConnectionProps> = ({
         )}
 
         {isConnected && (
-          <div className="flex items-center">
-            <Button>
-              <ToggleGroup type="single">
+          <div className="flex items-center mx-0 px-0">
+            <Button className="bg-none p-0 m-0">
+              <ToggleGroup
+                type="single"
+                className="bg-none border rounded-md p-0 m-0"
+              >
                 <ToggleGroupItem
-                  value="c"
-                  className="button-minus mr-0"
+                  value="decrease"
                   onClick={decreaseCanvas}
+                  className="py-2 m-0"
                 >
                   -
                 </ToggleGroupItem>
-                <ToggleGroupItem value="b" className="button-ch mr-0">
+                <ToggleGroupItem value="channels" className="px-3 py-2 m-0">
                   Ch
                 </ToggleGroupItem>
                 <ToggleGroupItem
-                  value="a"
-                  className="button-plus mr-0"
+                  value="increase"
                   onClick={increaseCanvas}
+                  className="py-2 m-0"
                 >
                   +
                 </ToggleGroupItem>
