@@ -640,10 +640,11 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-2 items-center justify-center mb-6 mt-2">
-      <div className="flex-1">
+    <div className="fixed bottom-0 left-0 right-0 flex items-center justify-center h-2 mb-6 mt-2 px-4">
+      {/* Left-aligned section */}
+      <div className="absolute left-4 flex items-center space-x-1">
         {isRecordingRef.current && (
-          <div className="flex justify-center items-center space-x-1 w-min mx-4">
+          <div className="flex items-center space-x-1 w-min">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
@@ -713,7 +714,9 @@ const Connection: React.FC<ConnectionProps> = ({
           </div>
         )}
       </div>
-      <div className="flex gap-4 flex-1 justify-center">
+
+      {/* Center-aligned buttons */}
+      <div className="flex gap-4 items-center">
         <Button className="bg-primary gap-2" onClick={handleClick}>
           {isConnected ? (
             <>
@@ -727,6 +730,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </>
           )}
         </Button>
+
         {isConnected && (
           <div className="flex items-center space-x-2">
             {ifBits ? (
@@ -737,7 +741,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
                 }
                 aria-label="Toggle Autoscale"
-                disabled={!isDisplay} // Disable when paused
+                disabled={!isDisplay}
               >
                 Autoscale
               </Button>
@@ -769,9 +773,9 @@ const Connection: React.FC<ConnectionProps> = ({
               <TooltipTrigger asChild>
                 <Button onClick={() => setIsDisplay(!isDisplay)}>
                   {isDisplay ? (
-                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
+                    <Pause className="h-5 w-5" />
                   ) : (
-                    <Play className="h-5 w-5" /> // Show Play icon when paused
+                    <Play className="h-5 w-5" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -783,18 +787,22 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <Button onClick={handleRecord} disabled={isRecordButtonDisabled}>
-                <TooltipTrigger asChild>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleRecord}
+                  disabled={isRecordButtonDisabled}
+                >
                   {isRecordingRef.current ? (
                     <CircleStop />
                   ) : (
                     <Circle fill="red" />
                   )}
-                </TooltipTrigger>
-              </Button>
+                </Button>
+              </TooltipTrigger>
               <TooltipContent>
                 <p>
                   {!isRecordingRef.current
@@ -805,6 +813,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
@@ -859,6 +868,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
         {isConnected && (
           <div className="flex items-center">
             <Button>
@@ -885,7 +895,6 @@ const Connection: React.FC<ConnectionProps> = ({
           </div>
         )}
       </div>
-      <div className="flex-1"></div>
     </div>
   );
 };

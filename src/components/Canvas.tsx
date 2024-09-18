@@ -83,7 +83,6 @@ const Canvas: React.FC<CanvasProps> = ({
       const canvas = document.getElementById(
         `smoothie-chart-${index + 1}`
       ) as HTMLCanvasElement;
-
       const parentDiv = canvas?.parentElement;
       if (parentDiv) {
         canvas.height = parentDiv.offsetHeight - 2;
@@ -164,85 +163,83 @@ const Canvas: React.FC<CanvasProps> = ({
       if (line.trim() !== "" && isDisplay) {
         const sensorValues = line.split(",").map(Number).slice(0);
         const timestamp = Date.now();
+        batchBuffer.push({ time: timestamp, values: sensorValues });
 
-        channels.forEach((_, index) => {
-          const series = seriesRef.current[index];
-          if (
-            series &&
-            sensorValues[index] !== undefined &&
-            !isNaN(sensorValues[index])
-          ) {
-            series.append(timestamp, sensorValues[index]);
-          }
-        });
+        // Process the batch buffer periodically or based on certain conditions
+        if (batchBuffer.length >= 10) {
+          // Example condition
+          processBatch();
+        }
       }
     },
-    [channels, isDisplay]
+    [batchBuffer, isDisplay, processBatch]
   );
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      processBatch();
+    }, 1000); // Adjust the interval as needed
+
+    return () => clearInterval(intervalId);
+  }, [processBatch]);
 
   useEffect(() => {
     if (isChartInitialized) {
       const lines = String(data).split("\n");
       lines.forEach(handleDataUpdate);
     }
-  }, [data, isChartInitialized, handleDataUpdate]);
+  }, [data, isChartInitialized, handleDataUpdate]); // Check these dependencies
 
   useEffect(() => {
     const initializeCharts = () => {
       const colors = getThemeColors();
+
       channels.forEach((_, index) => {
         const canvas = document.getElementById(
           `smoothie-chart-${index + 1}`
         ) as HTMLCanvasElement;
 
-        const parentDiv = canvas?.parentElement;
-        if (parentDiv) {
-          canvas.height = parentDiv.offsetHeight - 2;
-          canvas.width = parentDiv.offsetWidth;
-        }
-
         if (canvas) {
-          const chart = new SmoothieChart({
-            responsive: true,
-            millisPerPixel: 4,
-            interpolation: "linear",
-            grid: {
-              fillStyle: colors.background,
-              strokeStyle: colors.grid,
-              borderVisible: true,
-              millisPerLine: 1000,
-              lineWidth: 1,
-            },
-            labels: {
-              fillStyle: colors.text,
-            },
-            minValue: shouldAutoScale(selectedBits) ? undefined : 0,
-            maxValue: shouldAutoScale(selectedBits)
-              ? undefined
-              : getMaxValue(selectedBits),
-          });
-          const series = new TimeSeries();
+          const chart =
+            chartRef.current[index] ||
+            new SmoothieChart({
+              responsive: true,
+              millisPerPixel: 4,
+              interpolation: "linear",
+              grid: {
+                fillStyle: colors.background,
+                strokeStyle: colors.grid,
+                borderVisible: true,
+                millisPerLine: 1000,
+                lineWidth: 1,
+              },
+              labels: {
+                fillStyle: colors.text,
+              },
+              minValue: shouldAutoScale(selectedBits) ? undefined : 0,
+              maxValue: shouldAutoScale(selectedBits)
+                ? undefined
+                : getMaxValue(selectedBits),
+            });
+          const series = seriesRef.current[index] || new TimeSeries();
+
+          if (!chartRef.current[index]) {
+            chartRef.current[index] = chart;
+            seriesRef.current[index] = series;
+          }
 
           chart.addTimeSeries(series, {
             strokeStyle: getChannelColor(index),
             lineWidth: 1,
           });
 
-          const canvasElement = document.getElementById(
-            `smoothie-chart-${index + 1}`
-          ) as HTMLCanvasElement;
-
-          if (canvasElement) {
-            chart.streamTo(canvasElement, 500);
-            chartRef.current[index] = chart;
-            seriesRef.current[index] = series;
-          }
+          chart.streamTo(canvas, 500);
         }
       });
 
       setIsChartInitialized(true);
     };
 
+    // Cleanup existing time series and stop the charts
     chartRef.current.forEach((chart, index) => {
       if (chart) {
         const canvas = document.getElementById(
@@ -254,6 +251,7 @@ const Canvas: React.FC<CanvasProps> = ({
         }
       }
     });
+
     seriesRef.current.forEach((series) => {
       if (series) {
         series.clear();
@@ -264,7 +262,6 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [
     canvasCount,
     getThemeColors,
-    selectedBits,
     getMaxValue,
     shouldAutoScale,
     getChannelColor,
@@ -272,17 +269,8 @@ const Canvas: React.FC<CanvasProps> = ({
   ]);
 
   useEffect(() => {
-    if (isChartInitialized) {
-      updateChartColors();
-    }
-  }, [theme, isChartInitialized, updateChartColors]);
-
-  useEffect(() => {
-    if (isChartInitialized) {
-      const lines = String(data).split("\n");
-      lines.forEach(handleDataUpdate);
-    }
-  }, [data, isChartInitialized, handleDataUpdate]);
+    updateChartColors();
+  }, [theme, updateChartColors]);
 
   useEffect(() => {
     setIsGlobalPaused(!isDisplay);
@@ -329,18 +317,9 @@ const Canvas: React.FC<CanvasProps> = ({
         return "h-[78vh]";
     }
   };
-  useEffect(() => {
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, [resizeCanvas]);
-
-  useEffect(() => {
-    processBatch();
-  }, [processBatch]);
 
   return (
-    <div className="flex flex-col h-full justify-center items-start px-4 m-2 sm:m-4 md:m-6 lg:m-8 h-[60vh] sm:h-[70vh] md:h-[75vh]">
+    <div className="flex flex-col h-full justify-center items-start px-4 m-2 sm:m-2 md:m-2 lg:m-2 h-[60vh] sm:h-[70vh] md:h-[75vh]">
       <div className={`grid w-full h-full relative`}>
         {channels.map((_, index) => (
           <div
