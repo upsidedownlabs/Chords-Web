@@ -864,42 +864,25 @@ const Connection: React.FC<ConnectionProps> = ({
           </TooltipProvider>
         )}
         {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="bg-primary gap-2"
-                  onClick={() => setIsGridView(!isGridView)}
-                >
-                  {isGridView ? <List size={20} /> : <Grid size={20} />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isGridView ? "Grid" : "List"}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {isConnected && (
           <div className="flex items-center">
             <Button>
               <ToggleGroup type="single">
-                <ToggleGroupItem
-                  value="a"
-                  className="button-plus mr-0"
-                  onClick={increaseCanvas}
-                >
-                  +
-                </ToggleGroupItem>
-                <ToggleGroupItem value="b" className="button-ch mr-0">
-                  Ch
-                </ToggleGroupItem>
                 <ToggleGroupItem
                   value="c"
                   className="button-minus mr-0"
                   onClick={decreaseCanvas}
                 >
                   -
+                </ToggleGroupItem>
+                <ToggleGroupItem value="b" className="button-ch mr-0">
+                  Ch
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="a"
+                  className="button-plus mr-0"
+                  onClick={increaseCanvas}
+                >
+                  +
                 </ToggleGroupItem>
               </ToggleGroup>
             </Button>
