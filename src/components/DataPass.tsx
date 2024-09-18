@@ -23,7 +23,6 @@ const DataPass = () => {
         <Canvas
           data={data}
           selectedBits={selectedBits}
-          isGridView={isGridView}
           isDisplay={isDisplay}
           canvasCount={canvasCount} // Pass canvas count
         />
