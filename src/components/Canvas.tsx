@@ -300,7 +300,7 @@ const Canvas: React.FC<CanvasProps> = ({
   };
 
   return (
-    <div className="flex justify-center items-center h-[80vh] m-6">
+    <div className="flex justify-center items-center h-[80vh] m-4">
       {/* Canvas container taking 70% of the screen height */}
       <div className="flex flex-col justify-center items-start w-full px-4">
         <div className="grid w-full h-full relative">

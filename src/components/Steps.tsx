@@ -108,7 +108,8 @@ const Steps: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col justify-center items-center gap-4 min-h-[calc(100vh-8rem)] px-4 mb-16">
+    <div className="flex flex-col justify-center items-center gap-4 min-h-[calc(100vh-8rem)] w-[90vw] mx-auto px-4 mb-4">
+      {/* Header Section */}
       <div className="flex items-center justify-center text-sm sm:text-xl text-center">
         <span className="flex flex-row gap-2">
           Click{" "}
@@ -118,6 +119,8 @@ const Steps: React.FC = () => {
           For Board Connection.
         </span>
       </div>
+
+      {/* Documentation Link */}
       <div className="text-sm sm:text-base text-muted-foreground text-center">
         For More Detailed Steps Please Refer{" "}
         <Link
@@ -127,7 +130,9 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl mt-4">
+
+      {/* Carousel Section */}
+      <div className="relative w-full max-w-7xl mt-4 mb-4">
         <Carousel
           opts={{
             align: "start",
