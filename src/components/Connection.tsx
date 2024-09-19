@@ -3,6 +3,8 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import Canvas from "./Canvas";
 import {
   Cable,
   Circle,
@@ -13,8 +15,8 @@ import {
   Download,
   Pause,
   Play,
-  Grid,
-  List,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -43,14 +45,15 @@ import {
 import { delay } from "framer-motion";
 
 interface ConnectionProps {
-  LineData: Function;
+  LineData: (data: any) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
-  isGridView: boolean;
-  setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
   isDisplay: boolean;
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
+  setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
+  canvasCount: number;
+  channelCount: number;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -58,10 +61,11 @@ const Connection: React.FC<ConnectionProps> = ({
   Connection,
   selectedBits,
   setSelectedBits,
-  isGridView,
-  setIsGridView,
   isDisplay,
   setIsDisplay,
+  setCanvasCount,
+  canvasCount,
+  channelCount,
 }) => {
   const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
@@ -82,12 +86,34 @@ const Connection: React.FC<ConnectionProps> = ({
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
+  const [showAllChannels, setShowAllChannels] = useState(false);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
+
+  const increaseCanvas = () => {
+    if (canvasCount < 6) {
+      setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
+    }
+  };
+
+  const decreaseCanvas = () => {
+    if (canvasCount > 1) {
+      setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
+    }
+  };
+  const toggleShowAllChannels = () => {
+    if (canvasCount === 6) {
+      setCanvasCount(1); // If canvasCount is 6, reduce it to 1
+      setShowAllChannels(false);
+    } else {
+      setCanvasCount(6); // Otherwise, show all 6 canvases
+      setShowAllChannels(true);
+    }
+  };
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -159,7 +185,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const connectToDevice = async () => {
     try {
       const port = await navigator.serial.requestPort(); // Request the serial port
-      await port.open({ baudRate: 115200 }); // Open the port with baud rate 115200
+      await port.open({ baudRate: 230400 }); // Open the port with baud rate 230400
       Connection(true); // Set the connection state to true, enabling the data visualization
       setIsConnected(true);
       isConnectedRef.current = true;
@@ -169,7 +195,7 @@ const Connection: React.FC<ConnectionProps> = ({
         description: (
           <div className="mt-2 flex flex-col space-y-1">
             <p>Device: {formatPortInfo(port.getInfo())}</p>
-            <p>Baud Rate: 115200</p>
+            <p>Baud Rate: 230400</p>
           </div>
         ),
       });
@@ -181,11 +207,11 @@ const Connection: React.FC<ConnectionProps> = ({
       // Get the writer from the port (check if it's available)
       const writer = port.writable?.getWriter();
       if (writer) {
-        setTimeout(function(){
+        setTimeout(function () {
           writerRef.current = writer;
           const message = new TextEncoder().encode("START\n");
           writerRef.current.write(message);
-        },2000);
+        }, 2000);
       } else {
         console.error("Writable stream not available");
       }
@@ -626,15 +652,16 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex h-14 items-center justify-center px-4">
-      <div className="flex-1">
+    <div className="flex items-center justify-center h-4 mb-2 px-4 z-50">
+      {/* Left-aligned section */}
+      <div className="absolute left-4 flex items-center space-x-1">
         {isRecordingRef.current && (
-          <div className="flex justify-center items-center space-x-1 w-min mx-4">
+          <div className="flex items-center space-x-1 w-min">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
-            <Separator orientation="vertical" className="bg-primary h-9" />
-            <div className="">
+            <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
+            <div>
               <Popover
                 open={isEndTimePopoverOpen}
                 onOpenChange={setIsEndTimePopoverOpen}
@@ -699,7 +726,9 @@ const Connection: React.FC<ConnectionProps> = ({
           </div>
         )}
       </div>
-      <div className="flex gap-4 flex-1 justify-center">
+
+      {/* Center-aligned buttons */}
+      <div className="flex gap-3 items-center">
         <Button className="bg-primary gap-2" onClick={handleClick}>
           {isConnected ? (
             <>
@@ -713,17 +742,18 @@ const Connection: React.FC<ConnectionProps> = ({
             </>
           )}
         </Button>
+
         {isConnected && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center mx-0 px-0">
             {ifBits ? (
               <Button
                 variant={selectedBits === "auto" ? "default" : "outline"}
-                className={`w-36 flex justify-center items-center overflow-hidden `}
+                className="w-36 flex justify-center items-center overflow-hidden p-0 m-0"
                 onClick={() =>
                   setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
                 }
                 aria-label="Toggle Autoscale"
-                disabled={!isDisplay} // Disable when paused
+                disabled={!isDisplay}
               >
                 Autoscale
               </Button>
@@ -733,9 +763,9 @@ const Connection: React.FC<ConnectionProps> = ({
                   setSelectedBits(value as BitSelection)
                 }
                 value={selectedBits}
-                disabled={!isDisplay} // Disable when paused
+                disabled={!isDisplay}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-32 p-0 m-0">
                   <SelectValue placeholder="Select bits" />
                 </SelectTrigger>
                 <SelectContent side="top">
@@ -755,9 +785,9 @@ const Connection: React.FC<ConnectionProps> = ({
               <TooltipTrigger asChild>
                 <Button onClick={() => setIsDisplay(!isDisplay)}>
                   {isDisplay ? (
-                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
+                    <Pause className="h-5 w-5" />
                   ) : (
-                    <Play className="h-5 w-5" /> // Show Play icon when paused
+                    <Play className="h-5 w-5" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -769,18 +799,22 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <Button onClick={handleRecord} disabled={isRecordButtonDisabled}>
-                <TooltipTrigger asChild>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleRecord}
+                  disabled={isRecordButtonDisabled}
+                >
                   {isRecordingRef.current ? (
                     <CircleStop />
                   ) : (
                     <Circle fill="red" />
                   )}
-                </TooltipTrigger>
-              </Button>
+                </Button>
+              </TooltipTrigger>
               <TooltipContent>
                 <p>
                   {!isRecordingRef.current
@@ -791,6 +825,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
@@ -819,10 +854,10 @@ const Connection: React.FC<ConnectionProps> = ({
                   <>
                     <Button
                       className="rounded-r-none mr-1"
-                      onClick={saveData} // Adjust functionality for saving multiple datasets if needed
+                      onClick={saveData}
                       disabled={!hasData}
                     >
-                      <Download size={16} className="" />
+                      <Download size={16} />
                       <p className="text-lg">{datasets}</p>
                     </Button>
                     <Button
@@ -845,25 +880,47 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger asChild>
+              <div className="flex items-center mx-0 px-0">
                 <Button
-                  className="bg-primary gap-2"
-                  onClick={() => setIsGridView(!isGridView)}
+                  className="rounded-r-none"
+                  onClick={decreaseCanvas}
+                  disabled={canvasCount === 1} // Disable if canvas count is 1
                 >
-                  {isGridView ? <List size={20} /> : <Grid size={20} />}
+                  <Minus size={16} />
                 </Button>
-              </TooltipTrigger>
+                <Separator orientation="vertical" className="h-full" />
+                <Button
+                  className="flex items-center justify-center px-3 py-2 m-1 rounded-none" // No rounded corners for Ch button
+                  onClick={toggleShowAllChannels} // Toggle showing all channels
+                >
+                  CH
+                </Button>
+                <Separator orientation="vertical" className="h-full" />
+                <Button
+                  className="rounded-l-none"
+                  onClick={increaseCanvas}
+                  disabled={canvasCount >= 6} // Disable if the canvas count is 6 (max)
+                >
+                  <Plus size={16} />
+                </Button>
+              </div>
               <TooltipContent>
-                <p>{isGridView ? "Grid" : "List"}</p>
+                {canvasCount >= 6 ? (
+                  <p>Maximum Channels Reached</p>
+                ) : canvasCount === 1 ? (
+                  <p>At Least One Canvas Required</p>
+                ) : (
+                  <p>Adjust Canvas</p>
+                )}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
       </div>
-      <div className="flex-1"></div>
     </div>
   );
 };

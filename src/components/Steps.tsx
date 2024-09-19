@@ -71,7 +71,7 @@ const Steps: React.FC = () => {
       title: "BioAmp Cable Connections",
       content: (
         <div className="flex flex-col items-center">
-          <ol className="list-decimal pl-4 text-sm sm:text-base mb-4">
+          <ol className="list-decimal pl-4 text-sm sm:text-base mb-4 mt-4">
             <li>
               Connect the BioAmp cable to BioAmp hardware by inserting the cable
               end in the JST PH connector.
@@ -108,7 +108,7 @@ const Steps: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col justify-center items-center gap-4 min-h-[calc(100vh-8rem)] px-4">
+    <div className="flex flex-col justify-center items-center gap-4 min-h-[calc(100vh-6rem)] px-4">
       <div className="flex items-center justify-center text-sm sm:text-xl text-center">
         <span className="flex flex-row gap-2">
           Click{" "}
