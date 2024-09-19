@@ -108,7 +108,7 @@ const Steps: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col justify-center items-center gap-4 min-h-[calc(100vh-8rem)] w-[90vw] mx-auto px-4 mb-4">
+    <div className="flex flex-col justify-center items-center gap-4 min-h-[calc(100vh-13rem)] w-[90vw] mx-auto px-4 mb-12">
       {/* Header Section */}
       <div className="flex items-center justify-center text-sm sm:text-xl text-center">
         <span className="flex flex-row gap-2">
