@@ -652,7 +652,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 flex items-center justify-center h-9 mb-6 px-4 z-50">
+    <div className="flex items-center justify-center h-4 mb-2 px-4 z-50">
       {/* Left-aligned section */}
       <div className="absolute left-4 flex items-center space-x-1">
         {isRecordingRef.current && (
@@ -660,7 +660,7 @@ const Connection: React.FC<ConnectionProps> = ({
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
-            <Separator orientation="vertical" className="bg-primary h-9" />
+            <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
             <div>
               <Popover
                 open={isEndTimePopoverOpen}
