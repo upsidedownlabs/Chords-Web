@@ -4,6 +4,9 @@
 
 Chords is an application based on Web Serial connection, you can connect boards like Arduino Uno, Arduino Nano after uploading the ArduinoFirmware.ino code to it, you'll recieve data signals from the board which can be visualized on web using Chords. Users can visualize ECG and EMG signals.
 
+> [!NOTE]
+> Flash Arduino code to your hardware from [Chords Arduino Firmware](https://github.com/upsidedownlabs/Chords-Arduino-Firmware) to use it with Chords.
+
 ## Features
 
 - **Connection**: Experience a smooth connection/disconnection with board in single click.
