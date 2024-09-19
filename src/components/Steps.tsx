@@ -71,7 +71,7 @@ const Steps: React.FC = () => {
       title: "BioAmp Cable Connections",
       content: (
         <div className="flex flex-col items-center">
-          <ol className="list-decimal pl-4 text-sm sm:text-base mb-4">
+          <ol className="list-decimal pl-4 text-sm sm:text-base mb-4 mt-4">
             <li>
               Connect the BioAmp cable to BioAmp hardware by inserting the cable
               end in the JST PH connector.
@@ -108,66 +108,69 @@ const Steps: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col justify-center items-center gap-4 min-h-[calc(100vh-13rem)] w-[90vw] mx-auto px-4 mb-12">
-      {/* Header Section */}
-      <div className="flex items-center justify-center text-sm sm:text-xl text-center">
-        <span className="flex flex-row gap-2">
-          Click{" "}
-          <Badge className="cursor-default">
-            <p className="text-sm sm:text-base">Connect</p>
-          </Badge>{" "}
-          For Board Connection.
-        </span>
-      </div>
+    <div className="flex flex-col min-h-screen">
+      {/* Main Content Container */}
+      <div className="flex flex-col flex-grow w-[90vw] mx-auto px-4 mb-10">
+        {/* Header Section */}
+        <div className="flex items-center justify-center text-sm sm:text-xl text-center mb-4">
+          <span className="flex flex-row gap-2">
+            Click{" "}
+            <Badge className="cursor-default">
+              <p className="text-sm sm:text-base">Connect</p>
+            </Badge>{" "}
+            For Board Connection.
+          </span>
+        </div>
 
-      {/* Documentation Link */}
-      <div className="text-sm sm:text-base text-muted-foreground text-center">
-        For More Detailed Steps Please Refer{" "}
-        <Link
-          href="https://docs.upsidedownlabs.tech/hardware/bioamp/bioamp-exg-pill/index.html"
-          className="underline underline-offset-4"
-        >
-          Official Documentation
-        </Link>
-      </div>
+        {/* Documentation Link */}
+        <div className="text-sm sm:text-base text-muted-foreground text-center mb-4">
+          For More Detailed Steps Please Refer{" "}
+          <Link
+            href="https://docs.upsidedownlabs.tech/hardware/bioamp/bioamp-exg-pill/index.html"
+            className="underline underline-offset-4"
+          >
+            Official Documentation
+          </Link>
+        </div>
 
-      {/* Carousel Section */}
-      <div className="relative w-full max-w-7xl mt-4 mb-4">
-        <Carousel
-          opts={{
-            align: "start",
-          }}
-          className="w-full select-none px-12"
-        >
-          <CarouselContent>
-            {carouselItems.map((item, index) => (
-              <CarouselItem key={index} className="sm:basis-1/1 lg:basis-1/2">
-                <Card className="border-primary h-full">
-                  <CardContent className="flex flex-col h-[400px] p-4 sm:p-6">
-                    <h3 className="text-lg sm:text-xl font-semibold mb-4 text-left">
-                      {item.title}
-                    </h3>
-                    <div className="flex-grow flex flex-col items-center justify-center overflow-y-auto">
-                      {item.image ? (
-                        <Image
-                          alt={item.title}
-                          width={500}
-                          height={500}
-                          src={item.image}
-                          className="rounded-xl h-full w-full object-contain"
-                        />
-                      ) : (
-                        item.content
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious className="border-primary border-2 left-2 absolute" />
-          <CarouselNext className="border-primary border-2 right-2 absolute" />
-        </Carousel>
+        {/* Carousel Section */}
+        <div className="relative w-full max-w-7xl mt-4 mb-4">
+          <Carousel
+            opts={{
+              align: "start",
+            }}
+            className="w-full select-none px-12"
+          >
+            <CarouselContent>
+              {carouselItems.map((item, index) => (
+                <CarouselItem key={index} className="sm:basis-1/1 lg:basis-1/2">
+                  <Card className="border-primary h-full">
+                    <CardContent className="flex flex-col h-[400px] p-4 sm:p-6">
+                      <h3 className="text-lg sm:text-xl font-semibold mb-4 text-left">
+                        {item.title}
+                      </h3>
+                      <div className="flex-grow flex flex-col items-center justify-center overflow-y-auto">
+                        {item.image ? (
+                          <Image
+                            alt={item.title}
+                            width={500}
+                            height={500}
+                            src={item.image}
+                            className="rounded-xl h-full w-full object-contain"
+                          />
+                        ) : (
+                          item.content
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="border-primary border-2 left-2 absolute" />
+            <CarouselNext className="border-primary border-2 right-2 absolute" />
+          </Carousel>
+        </div>
       </div>
     </div>
   );

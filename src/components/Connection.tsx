@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-
+import Canvas from "./Canvas";
 import {
   Cable,
   Circle,
@@ -15,8 +15,8 @@ import {
   Download,
   Pause,
   Play,
-  Grid,
-  List,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -53,6 +53,7 @@ interface ConnectionProps {
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
+  channelCount: number;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -64,6 +65,7 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsDisplay,
   setCanvasCount,
   canvasCount,
+  channelCount,
 }) => {
   const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
@@ -84,6 +86,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
+  const [showAllChannels, setShowAllChannels] = useState(false);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -100,6 +103,15 @@ const Connection: React.FC<ConnectionProps> = ({
   const decreaseCanvas = () => {
     if (canvasCount > 1) {
       setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
+    }
+  };
+  const toggleShowAllChannels = () => {
+    if (canvasCount === 6) {
+      setCanvasCount(1); // If canvasCount is 6, reduce it to 1
+      setShowAllChannels(false);
+    } else {
+      setCanvasCount(6); // Otherwise, show all 6 canvases
+      setShowAllChannels(true);
     }
   };
 
@@ -716,7 +728,7 @@ const Connection: React.FC<ConnectionProps> = ({
       </div>
 
       {/* Center-aligned buttons */}
-      <div className="flex gap-4 items-center">
+      <div className="flex gap-3 items-center">
         <Button className="bg-primary gap-2" onClick={handleClick}>
           {isConnected ? (
             <>
@@ -870,32 +882,43 @@ const Connection: React.FC<ConnectionProps> = ({
         )}
 
         {isConnected && (
-          <div className="flex items-center mx-0 px-0">
-            <Button className="bg-none p-0 m-0">
-              <ToggleGroup
-                type="single"
-                className="bg-none border rounded-md p-0 m-0"
-              >
-                <ToggleGroupItem
-                  value="decrease"
+          <TooltipProvider>
+            <Tooltip>
+              <div className="flex items-center mx-0 px-0">
+                <Button
+                  className="rounded-r-none"
                   onClick={decreaseCanvas}
-                  className="py-2 m-0"
+                  disabled={canvasCount === 1} // Disable if canvas count is 1
                 >
-                  -
-                </ToggleGroupItem>
-                <ToggleGroupItem value="channels" className="px-3 py-2 m-0">
-                  Ch
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="increase"
+                  <Minus size={16} />
+                </Button>
+                <Separator orientation="vertical" className="h-full" />
+                <Button
+                  className="flex items-center justify-center px-3 py-2 m-1 rounded-none" // No rounded corners for Ch button
+                  onClick={toggleShowAllChannels} // Toggle showing all channels
+                >
+                  CH
+                </Button>
+                <Separator orientation="vertical" className="h-full" />
+                <Button
+                  className="rounded-l-none"
                   onClick={increaseCanvas}
-                  className="py-2 m-0"
+                  disabled={canvasCount >= 6} // Disable if the canvas count is 6 (max)
                 >
-                  +
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </Button>
-          </div>
+                  <Plus size={16} />
+                </Button>
+              </div>
+              <TooltipContent>
+                {canvasCount >= 6 ? (
+                  <p>Maximum Channels Reached</p>
+                ) : canvasCount === 1 ? (
+                  <p>At Least One Canvas Required</p>
+                ) : (
+                  <p>Adjust Canvas</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
     </div>
