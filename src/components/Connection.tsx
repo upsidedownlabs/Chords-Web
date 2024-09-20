@@ -471,7 +471,7 @@ const Connection: React.FC<ConnectionProps> = ({
           <p>Start Time: {startTimeString}</p>
           <p>End Time: {endTimeString}</p>
           <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
-          <p>Files Recorded: {recordedFilesCount}</p>
+          <p>Samples Recorded: {recordedFilesCount}</p>
           <p>Data saved to IndexedDB</p>
         </div>
       ),

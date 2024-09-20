@@ -36,8 +36,22 @@ const Canvas: React.FC<CanvasProps> = ({
 
   const getChannelColor = useCallback(
     (index: number) => {
-      const colorsDark = ["#FF4985", "#79E6F3", "#00FFC1", "#ccc"];
-      const colorsLight = ["#D10054", "#007A8C", "#008060", "#555555"];
+      const colorsDark = [
+        "#FF4985",
+        "#79E6F3",
+        "#00FFC1",
+        "#6EC207",
+        "#6256CA",
+        "#E85C0D",
+      ];
+      const colorsLight = [
+        "#D10054",
+        "#007A8C",
+        "#0A6847",
+        "#674188",
+        "#E65C19",
+        "#2E073F",
+      ];
       return theme === "dark"
         ? colorsDark[index] || colorsDark[colorsDark.length - 1]
         : colorsLight[index] || colorsLight[colorsLight.length - 1];
