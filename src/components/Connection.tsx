@@ -3,8 +3,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import Canvas from "./Canvas";
+
 import {
   Cable,
   Circle,
@@ -656,7 +655,7 @@ const Connection: React.FC<ConnectionProps> = ({
       {/* Left-aligned section */}
       <div className="absolute left-4 flex items-center space-x-1">
         {isRecordingRef.current && (
-          <div className="flex items-center space-x-1 w-min">
+          <div className="flex items-center space-x-1 w-min ml-2">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
@@ -729,56 +728,79 @@ const Connection: React.FC<ConnectionProps> = ({
 
       {/* Center-aligned buttons */}
       <div className="flex gap-3 items-center">
-        <Button className="bg-primary gap-2" onClick={handleClick}>
-          {isConnected ? (
-            <>
-              Disconnect
-              <CircleX size={17} />
-            </>
-          ) : (
-            <>
-              Connect
-              <Cable size={17} />
-            </>
-          )}
-        </Button>
-
-        {isConnected && (
-          <div className="flex items-center mx-0 px-0">
-            {ifBits ? (
-              <Button
-                variant={selectedBits === "auto" ? "default" : "outline"}
-                className="w-36 flex justify-center items-center overflow-hidden p-0 m-0"
-                onClick={() =>
-                  setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
-                }
-                aria-label="Toggle Autoscale"
-                disabled={!isDisplay}
-              >
-                Autoscale
+        {/* Connection button with tooltip */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button className="bg-primary gap-2" onClick={handleClick}>
+                {isConnected ? (
+                  <>
+                    Disconnect
+                    <CircleX size={17} />
+                  </>
+                ) : (
+                  <>
+                    Connect
+                    <Cable size={17} />
+                  </>
+                )}
               </Button>
-            ) : (
-              <Select
-                onValueChange={(value) =>
-                  setSelectedBits(value as BitSelection)
-                }
-                value={selectedBits}
-                disabled={!isDisplay}
-              >
-                <SelectTrigger className="w-32 p-0 m-0">
-                  <SelectValue placeholder="Select bits" />
-                </SelectTrigger>
-                <SelectContent side="top">
-                  <SelectItem value="ten">10 bits</SelectItem>
-                  <SelectItem value="twelve">12 bits</SelectItem>
-                  <SelectItem value="fourteen">14 bits</SelectItem>
-                  <SelectItem value="auto">Auto Scale</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isConnected ? "Disconnect Device" : "Connect Device"}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Autoscale/Bit selection */}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {ifBits ? (
+                  <Button
+                    variant={selectedBits === "auto" ? "default" : "outline"}
+                    className="w-36 flex justify-center items-center overflow-hidden p-0 m-0"
+                    onClick={() =>
+                      setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
+                    }
+                    aria-label="Toggle Autoscale"
+                    disabled={!isDisplay}
+                  >
+                    Autoscale
+                  </Button>
+                ) : (
+                  <Select
+                    onValueChange={(value) =>
+                      setSelectedBits(value as BitSelection)
+                    }
+                    value={selectedBits}
+                    disabled={!isDisplay}
+                  >
+                    <SelectTrigger className="w-32 p-0 m-0">
+                      <SelectValue placeholder="Select bits" />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      <SelectItem value="ten">10 bits</SelectItem>
+                      <SelectItem value="twelve">12 bits</SelectItem>
+                      <SelectItem value="fourteen">14 bits</SelectItem>
+                      <SelectItem value="auto">Auto Scale</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {selectedBits === "auto"
+                    ? "Auto Scaling Enabled"
+                    : "Manual Bit Selection"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
+        {/* Display (Play/Pause) button with tooltip */}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
@@ -800,13 +822,14 @@ const Connection: React.FC<ConnectionProps> = ({
           </TooltipProvider>
         )}
 
+        {/* Record button with tooltip */}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   onClick={handleRecord}
-                  disabled={isRecordButtonDisabled}
+                  disabled={isRecordButtonDisabled || !isDisplay}
                 >
                   {isRecordingRef.current ? (
                     <CircleStop />
@@ -826,11 +849,12 @@ const Connection: React.FC<ConnectionProps> = ({
           </TooltipProvider>
         )}
 
+        {/* Save/Delete data buttons with tooltip */}
         {isConnected && (
           <TooltipProvider>
-            <Tooltip>
-              <div className="flex">
-                {hasData && datasets.length === 1 && (
+            <div className="flex">
+              {hasData && datasets.length === 1 && (
+                <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       className="rounded-r-none"
@@ -840,26 +864,17 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Download size={16} className="mr-1" />
                     </Button>
                   </TooltipTrigger>
-                )}
-                <Separator orientation="vertical" className="h-full" />
-                {hasData && datasets.length === 1 ? (
-                  <Button
-                    className="rounded-l-none"
-                    onClick={deleteDataFromIndexedDB}
-                    disabled={!hasData}
-                  >
-                    <Trash2 size={20} />
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      className="rounded-r-none mr-1"
-                      onClick={saveData}
-                      disabled={!hasData}
-                    >
-                      <Download size={16} />
-                      <p className="text-lg">{datasets}</p>
-                    </Button>
+                  <TooltipContent>
+                    <p>Save Data as CSV</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              <Separator orientation="vertical" className="h-full" />
+
+              {hasData && datasets.length === 1 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     <Button
                       className="rounded-l-none"
                       onClick={deleteDataFromIndexedDB}
@@ -867,56 +882,117 @@ const Connection: React.FC<ConnectionProps> = ({
                     >
                       <Trash2 size={20} />
                     </Button>
-                  </>
-                )}
-              </div>
-              <TooltipContent>
-                {datasets.length === 1 ? (
-                  <p>Save As CSV</p>
-                ) : (
-                  <p>Save As Zip</p>
-                )}
-              </TooltipContent>
-            </Tooltip>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete Data</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="rounded-r-none mr-1"
+                        onClick={saveData}
+                        disabled={!hasData}
+                      >
+                        <Download size={16} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Save Data as Zip</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="rounded-l-none"
+                        onClick={deleteDataFromIndexedDB}
+                        disabled={!hasData}
+                      >
+                        <Trash2 size={20} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete All Data</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+            </div>
           </TooltipProvider>
         )}
 
+        {/* Canvas control buttons with tooltip */}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
               <div className="flex items-center mx-0 px-0">
-                <Button
-                  className="rounded-r-none"
-                  onClick={decreaseCanvas}
-                  disabled={canvasCount === 1} // Disable if canvas count is 1
-                >
-                  <Minus size={16} />
-                </Button>
+                {/* Decrease Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-r-none"
+                      onClick={decreaseCanvas}
+                      disabled={canvasCount === 1 || !isDisplay}
+                    >
+                      <Minus size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {canvasCount === 1
+                        ? "At Least One Canvas Required"
+                        : "Decrease Channel"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
                 <Separator orientation="vertical" className="h-full" />
-                <Button
-                  className="flex items-center justify-center px-3 py-2 m-1 rounded-none" // No rounded corners for Ch button
-                  onClick={toggleShowAllChannels} // Toggle showing all channels
-                >
-                  CH
-                </Button>
+
+                {/* Toggle All Channels Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="flex items-center justify-center px-3 py-2 m-1 rounded-none"
+                      onClick={toggleShowAllChannels}
+                      disabled={!isDisplay}
+                    >
+                      CH
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {showAllChannels
+                        ? "Hide All Channels"
+                        : "Show All Channels"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
                 <Separator orientation="vertical" className="h-full" />
-                <Button
-                  className="rounded-l-none"
-                  onClick={increaseCanvas}
-                  disabled={canvasCount >= 6} // Disable if the canvas count is 6 (max)
-                >
-                  <Plus size={16} />
-                </Button>
+
+                {/* Increase Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-l-none"
+                      onClick={increaseCanvas}
+                      disabled={canvasCount >= 6 || !isDisplay}
+                    >
+                      <Plus size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {canvasCount >= 6
+                        ? "Maximum Channels Reached"
+                        : "Increase Channel"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              <TooltipContent>
-                {canvasCount >= 6 ? (
-                  <p>Maximum Channels Reached</p>
-                ) : canvasCount === 1 ? (
-                  <p>At Least One Canvas Required</p>
-                ) : (
-                  <p>Adjust Canvas</p>
-                )}
-              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}

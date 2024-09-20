@@ -7,6 +7,7 @@ import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import Chords from "./Chords";
+import Navbar from "../Navbar";
 
 const HeadSection: React.FC = () => {
   const { resolvedTheme } = useTheme();
@@ -35,6 +36,7 @@ const HeadSection: React.FC = () => {
 
   return (
     <>
+      <Navbar isDisplay={true} />
       <section className="w-full pt-24">
         <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
           <div className="flex flex-col justify-center gap-8 items-center">
