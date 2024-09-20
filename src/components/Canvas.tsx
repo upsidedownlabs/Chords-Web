@@ -41,7 +41,7 @@ const Canvas: React.FC<CanvasProps> = ({
         "#79E6F3",
         "#00FFC1",
         "#6EC207",
-        "#6256CA",
+        "#AD49E1",
         "#E85C0D",
       ];
       const colorsLight = [
@@ -172,6 +172,7 @@ const Canvas: React.FC<CanvasProps> = ({
     batchBuffer.length = 0;
   }, [channels, batchBuffer, isGlobalPaused]);
 
+  // Improve the data update to handle data flow more consistently
   const handleDataUpdate = useCallback(
     (line: string) => {
       if (line.trim() !== "" && isDisplay) {
@@ -179,19 +180,18 @@ const Canvas: React.FC<CanvasProps> = ({
         const timestamp = Date.now();
         batchBuffer.push({ time: timestamp, values: sensorValues });
 
-        // Process the batch buffer periodically or based on certain conditions
-        if (batchBuffer.length >= 10) {
-          // Example condition
-          processBatch();
+        if (batchBuffer.length >= 5) {
+          processBatch(); // Process batches more frequently
         }
       }
     },
     [batchBuffer, isDisplay, processBatch]
   );
+
   useEffect(() => {
     const intervalId = setInterval(() => {
       processBatch();
-    }, 1000); // Adjust the interval as needed
+    }, 1000);
 
     return () => clearInterval(intervalId);
   }, [processBatch]);
