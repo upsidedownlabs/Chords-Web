@@ -119,13 +119,11 @@ const Canvas: React.FC<CanvasProps> = ({
           chart.options.labels.fillStyle = colors.text;
         }
 
-        if (shouldAutoScale(selectedBits)) {
-          chart.options.maxValue = undefined;
-          chart.options.minValue = undefined;
-        } else {
-          chart.options.maxValue = getMaxValue(selectedBits);
-          chart.options.minValue = 0;
-        }
+        // Always update max and min values for each channel
+        chart.options.maxValue = shouldAutoScale(selectedBits)
+          ? undefined
+          : getMaxValue(selectedBits);
+        chart.options.minValue = 0;
 
         const series = seriesRef.current[index];
         if (series) {
@@ -293,6 +291,31 @@ const Canvas: React.FC<CanvasProps> = ({
       window.removeEventListener("resize", handleResize);
     };
   }, [channels]);
+
+  useEffect(() => {
+    const updateChannels = () => {
+      channels.forEach((_, index) => {
+        if (chartRef.current[index]) {
+          const chart = chartRef.current[index];
+          chart.options.maxValue = shouldAutoScale(selectedBits)
+            ? undefined
+            : getMaxValue(selectedBits);
+          chart.options.minValue = 0;
+
+          const series = seriesRef.current[index];
+          if (series) {
+            chart.removeTimeSeries(series);
+            chart.addTimeSeries(series, {
+              strokeStyle: getChannelColor(index),
+              lineWidth: 1,
+            });
+          }
+        }
+      });
+    };
+
+    updateChannels();
+  }, [canvasCount, selectedBits]);
 
   const getHeightClass = (count: number) => {
     switch (count) {
