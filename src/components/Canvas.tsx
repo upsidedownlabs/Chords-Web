@@ -282,7 +282,6 @@ const Canvas: React.FC<CanvasProps> = ({
   useEffect(() => {
     const handleResize = () => {
       resizeCanvas();
-      updateChartColors(); // Make sure to update chart colors and values after resizing
     };
 
     window.addEventListener("resize", handleResize);
