@@ -955,7 +955,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      className="flex items-center justify-center px-3 py-2 m-1 rounded-none"
+                      className="flex items-center justify-center px-3 py-2 m-1 rounded-none user-select-none"
                       onClick={toggleShowAllChannels}
                       disabled={!isDisplay}
                     >
