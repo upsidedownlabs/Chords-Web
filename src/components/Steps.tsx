@@ -127,7 +127,7 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl mt-4">
+      <div className="relative w-full max-w-7xl ">
         <Carousel
           opts={{
             align: "start",
