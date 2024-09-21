@@ -3,7 +3,6 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import {
   Cable,
@@ -15,8 +14,8 @@ import {
   Download,
   Pause,
   Play,
-  Grid,
-  List,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -49,12 +48,11 @@ interface ConnectionProps {
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
-  isGridView: boolean;
-  setIsGridView: React.Dispatch<React.SetStateAction<boolean>>;
   isDisplay: boolean;
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
+  channelCount: number;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -62,12 +60,11 @@ const Connection: React.FC<ConnectionProps> = ({
   Connection,
   selectedBits,
   setSelectedBits,
-  isGridView,
-  setIsGridView,
   isDisplay,
   setIsDisplay,
   setCanvasCount,
   canvasCount,
+  channelCount,
 }) => {
   const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
@@ -83,11 +80,12 @@ const Connection: React.FC<ConnectionProps> = ({
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
-  const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
+  const bufferRef = useRef<number[][]>([]); // Ref to store the data temporary buffer during recording
   const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
+  const [showAllChannels, setShowAllChannels] = useState(false);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -104,6 +102,15 @@ const Connection: React.FC<ConnectionProps> = ({
   const decreaseCanvas = () => {
     if (canvasCount > 1) {
       setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
+    }
+  };
+  const toggleShowAllChannels = () => {
+    if (canvasCount === 6) {
+      setCanvasCount(1); // If canvasCount is 6, reduce it to 1
+      setShowAllChannels(false);
+    } else {
+      setCanvasCount(6); // Otherwise, show all 6 canvases
+      setShowAllChannels(true);
     }
   };
 
@@ -267,7 +274,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Function to read the data from the device
   const readData = async (): Promise<void> => {
-    let bufferIndex = 0;
     const buffer: number[] = []; // Buffer to store incoming data from the device
     const HEADER_LENGTH = 3;
     const NUM_CHANNELS = 6;
@@ -276,9 +282,9 @@ const Connection: React.FC<ConnectionProps> = ({
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte to identify the start of a packet
     const END_BYTE = 0x01; // End byte to identify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    let hasRemovedInitialElements = false; // Flag to check if initial buffer elements have been removed
-
+    
     try {
+      let baseTime = Date.now()+100;
       while (isConnectedRef.current) {
         // Loop while the device is connected
         const streamData = await readerRef.current?.read(); // Read data from the device
@@ -315,16 +321,17 @@ const Connection: React.FC<ConnectionProps> = ({
               buffer[endByteIndex] === END_BYTE // Verify that the packet has the correct start and end bytes
             ) {
               const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
-              const channelData: string[] = []; // Array to store the extracted channel data
+              const channelData: number[] = []; // Array to store the extracted channel data
               for (let channel = 0; channel < NUM_CHANNELS; channel++) {
                 // Loop through each channel in the packet
                 const highByte = packet[channel * 2 + HEADER_LENGTH]; // Extract the high byte for the channel
                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1]; // Extract the low byte for the channel
                 const value = (highByte << 8) | lowByte; // Combine the high and low bytes to get the channel value
-                channelData.push(value.toString()); // Convert the value to string and store it in the array
+                channelData.push(value); // Convert the value to string and store it in the array
               }
               const counter = packet[2]; // Extract the counter value from the packet
-              channelData.push(counter.toString()); // Add the counter value to the channel data
+              channelData.push(counter); // Add the counter value to the channel data
+              channelData.push(Date.now());
               LineData(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
                 // Check if recording is enabled
@@ -464,7 +471,7 @@ const Connection: React.FC<ConnectionProps> = ({
           <p>Start Time: {startTimeString}</p>
           <p>End Time: {endTimeString}</p>
           <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
-          <p>Files Recorded: {recordedFilesCount}</p>
+          <p>Samples Recorded: {recordedFilesCount}</p>
           <p>Data saved to IndexedDB</p>
         </div>
       ),
@@ -489,7 +496,7 @@ const Connection: React.FC<ConnectionProps> = ({
   }, []);
 
   // Add this function to save data to IndexedDB during recording
-  const saveDataDuringRecording = async (data: string[][]) => {
+  const saveDataDuringRecording = async (data: number[][]) => {
     if (!isRecordingRef.current || !indexedDBRef.current) return;
 
     try {
@@ -644,14 +651,15 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex h-2 items-center justify-center mb-6 mt-2">
-      <div className="flex-1">
+    <div className="flex items-center justify-center h-4 mb-2 px-4 z-50">
+      {/* Left-aligned section */}
+      <div className="absolute left-4 flex items-center space-x-1">
         {isRecordingRef.current && (
-          <div className="flex justify-center items-center space-x-1 w-min mx-4">
+          <div className="flex items-center space-x-1 w-min ml-2">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
-            <Separator orientation="vertical" className="bg-primary h-9" />
+            <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
             <div>
               <Popover
                 open={isEndTimePopoverOpen}
@@ -717,65 +725,91 @@ const Connection: React.FC<ConnectionProps> = ({
           </div>
         )}
       </div>
-      <div className="flex gap-4 flex-1 justify-center">
-        <Button className="bg-primary gap-2" onClick={handleClick}>
-          {isConnected ? (
-            <>
-              Disconnect
-              <CircleX size={17} />
-            </>
-          ) : (
-            <>
-              Connect
-              <Cable size={17} />
-            </>
-          )}
-        </Button>
-        {isConnected && (
-          <div className="flex items-center space-x-2">
-            {ifBits ? (
-              <Button
-                variant={selectedBits === "auto" ? "default" : "outline"}
-                className="w-36 flex justify-center items-center overflow-hidden"
-                onClick={() =>
-                  setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
-                }
-                aria-label="Toggle Autoscale"
-                disabled={!isDisplay} // Disable when paused
-              >
-                Autoscale
+
+      {/* Center-aligned buttons */}
+      <div className="flex gap-3 items-center">
+        {/* Connection button with tooltip */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button className="bg-primary gap-2" onClick={handleClick}>
+                {isConnected ? (
+                  <>
+                    Disconnect
+                    <CircleX size={17} />
+                  </>
+                ) : (
+                  <>
+                    Connect
+                    <Cable size={17} />
+                  </>
+                )}
               </Button>
-            ) : (
-              <Select
-                onValueChange={(value) =>
-                  setSelectedBits(value as BitSelection)
-                }
-                value={selectedBits}
-                disabled={!isDisplay}
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Select bits" />
-                </SelectTrigger>
-                <SelectContent side="top">
-                  <SelectItem value="ten">10 bits</SelectItem>
-                  <SelectItem value="twelve">12 bits</SelectItem>
-                  <SelectItem value="fourteen">14 bits</SelectItem>
-                  <SelectItem value="auto">Auto Scale</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isConnected ? "Disconnect Device" : "Connect Device"}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Autoscale/Bit selection */}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {ifBits ? (
+                  <Button
+                    variant={selectedBits === "auto" ? "default" : "outline"}
+                    className="w-36 flex justify-center items-center overflow-hidden p-0 m-0"
+                    onClick={() =>
+                      setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
+                    }
+                    aria-label="Toggle Autoscale"
+                    disabled={!isDisplay}
+                  >
+                    Autoscale
+                  </Button>
+                ) : (
+                  <Select
+                    onValueChange={(value) =>
+                      setSelectedBits(value as BitSelection)
+                    }
+                    value={selectedBits}
+                    disabled={!isDisplay}
+                  >
+                    <SelectTrigger className="w-32 p-0 m-0">
+                      <SelectValue placeholder="Select bits" />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      <SelectItem value="ten">10 bits</SelectItem>
+                      <SelectItem value="twelve">12 bits</SelectItem>
+                      <SelectItem value="fourteen">14 bits</SelectItem>
+                      <SelectItem value="auto">Auto Scale</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {selectedBits === "auto"
+                    ? "Auto Scaling Enabled"
+                    : "Manual Bit Selection"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
+        {/* Display (Play/Pause) button with tooltip */}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button onClick={() => setIsDisplay(!isDisplay)}>
                   {isDisplay ? (
-                    <Pause className="h-5 w-5" /> // Show Pause icon when playing
+                    <Pause className="h-5 w-5" />
                   ) : (
-                    <Play className="h-5 w-5" /> // Show Play icon when paused
+                    <Play className="h-5 w-5" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -787,18 +821,23 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
+        {/* Record button with tooltip */}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <Button onClick={handleRecord} disabled={isRecordButtonDisabled}>
-                <TooltipTrigger asChild>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleRecord}
+                  disabled={isRecordButtonDisabled || !isDisplay}
+                >
                   {isRecordingRef.current ? (
                     <CircleStop />
                   ) : (
                     <Circle fill="red" />
                   )}
-                </TooltipTrigger>
-              </Button>
+                </Button>
+              </TooltipTrigger>
               <TooltipContent>
                 <p>
                   {!isRecordingRef.current
@@ -809,11 +848,13 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
+        {/* Save/Delete data buttons with tooltip */}
         {isConnected && (
           <TooltipProvider>
-            <Tooltip>
-              <div className="flex">
-                {hasData && datasets.length === 1 && (
+            <div className="flex">
+              {hasData && datasets.length === 1 && (
+                <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       className="rounded-r-none"
@@ -823,26 +864,17 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Download size={16} className="mr-1" />
                     </Button>
                   </TooltipTrigger>
-                )}
-                <Separator orientation="vertical" className="h-full" />
-                {hasData && datasets.length === 1 ? (
-                  <Button
-                    className="rounded-l-none"
-                    onClick={deleteDataFromIndexedDB}
-                    disabled={!hasData}
-                  >
-                    <Trash2 size={20} />
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      className="rounded-r-none mr-1"
-                      onClick={saveData}
-                      disabled={!hasData}
-                    >
-                      <Download size={16} />
-                      <p className="text-lg">{datasets}</p>
-                    </Button>
+                  <TooltipContent>
+                    <p>Save Data as CSV</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              <Separator orientation="vertical" className="h-full" />
+
+              {hasData && datasets.length === 1 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     <Button
                       className="rounded-l-none"
                       onClick={deleteDataFromIndexedDB}
@@ -850,63 +882,121 @@ const Connection: React.FC<ConnectionProps> = ({
                     >
                       <Trash2 size={20} />
                     </Button>
-                  </>
-                )}
-              </div>
-              <TooltipContent>
-                {datasets.length === 1 ? (
-                  <p>Save As CSV</p>
-                ) : (
-                  <p>Save As Zip</p>
-                )}
-              </TooltipContent>
-            </Tooltip>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete Data</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="rounded-r-none mr-1"
+                        onClick={saveData}
+                        disabled={!hasData}
+                      >
+                        <Download size={16} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Save Data as Zip</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="rounded-l-none"
+                        onClick={deleteDataFromIndexedDB}
+                        disabled={!hasData}
+                      >
+                        <Trash2 size={20} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete All Data</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+            </div>
           </TooltipProvider>
         )}
+
+        {/* Canvas control buttons with tooltip */}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="bg-primary gap-2"
-                  onClick={() => setIsGridView(!isGridView)}
-                >
-                  {isGridView ? <List size={20} /> : <Grid size={20} />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isGridView ? "Grid" : "List"}</p>
-              </TooltipContent>
+              <div className="flex items-center mx-0 px-0">
+                {/* Decrease Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-r-none"
+                      onClick={decreaseCanvas}
+                      disabled={canvasCount === 1 || !isDisplay}
+                    >
+                      <Minus size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {canvasCount === 1
+                        ? "At Least One Canvas Required"
+                        : "Decrease Channel"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-full" />
+
+                {/* Toggle All Channels Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
+                      onClick={toggleShowAllChannels}
+                      disabled={!isDisplay}
+                    >
+                      CH
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {showAllChannels
+                        ? "Hide All Channels"
+                        : "Show All Channels"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-full" />
+
+                {/* Increase Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-l-none"
+                      onClick={increaseCanvas}
+                      disabled={canvasCount >= 6 || !isDisplay}
+                    >
+                      <Plus size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {canvasCount >= 6
+                        ? "Maximum Channels Reached"
+                        : "Increase Channel"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             </Tooltip>
           </TooltipProvider>
         )}
-        {isConnected && (
-          <div className="flex items-center">
-            <Button>
-              <ToggleGroup type="single">
-              <ToggleGroupItem
-                  value="c"
-                  className="button-minus mr-0"
-                  onClick={decreaseCanvas}
-                >
-                  -
-                </ToggleGroupItem>
-                <ToggleGroupItem value="b" className="button-ch mr-0">
-                  Ch
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="a"
-                  className="button-plus mr-0"
-                  onClick={increaseCanvas}
-                >
-                  +
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </Button>
-          </div>
-        )}
       </div>
-      <div className="flex-1"></div>
     </div>
   );
 };

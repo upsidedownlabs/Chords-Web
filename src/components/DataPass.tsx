@@ -9,12 +9,13 @@ import Navbar from "./Navbar"; // Import the Navbar
 export type BitSelection = "ten" | "twelve" | "fourteen" | "auto";
 
 const DataPass = () => {
-  const [data, setData] = useState(""); // Data from the serial port
+  // const [data, setData] = useState<number>(1); // Data from the serial port
+  const [data, setData] = useState<number[]>([]); // Ref to store the data temporary buffer during recording
   const [selectedBits, setSelectedBits] = useState<BitSelection>("auto"); // Selected bits
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
-  const [isGridView, setIsGridView] = useState<boolean>(true); // Grid view state
   const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
   const [canvasCount, setCanvasCount] = useState<number>(6); // Number of canvases
+  const [channelCount, setChannelCount] = useState<number>(1); // Number of channels
 
   return (
     <>
@@ -34,12 +35,11 @@ const DataPass = () => {
         Connection={setIsConnected}
         selectedBits={selectedBits}
         setSelectedBits={setSelectedBits}
-        isGridView={isGridView}
-        setIsGridView={setIsGridView}
         isDisplay={isDisplay}
         setIsDisplay={setIsDisplay}
         setCanvasCount={setCanvasCount}
         canvasCount={canvasCount}
+        channelCount={channelCount}
       />
     </>
   );
