@@ -97,6 +97,7 @@ const Canvas: React.FC<CanvasProps> = ({
       const canvas = document.getElementById(
         `smoothie-chart-${index + 1}`
       ) as HTMLCanvasElement;
+
       const parentDiv = canvas?.parentElement;
       if (parentDiv) {
         canvas.height = parentDiv.offsetHeight - 2;
@@ -105,6 +106,7 @@ const Canvas: React.FC<CanvasProps> = ({
     });
   };
 
+  // Update chart options (colors and scaling)
   const updateChartColors = useCallback(() => {
     const colors = getThemeColors();
     chartRef.current.forEach((chart, index) => {
@@ -283,7 +285,7 @@ const Canvas: React.FC<CanvasProps> = ({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [channels, updateChartColors]);
+  }, [channels, resizeCanvas]);
 
   useEffect(() => {
     const updateChannels = () => {
