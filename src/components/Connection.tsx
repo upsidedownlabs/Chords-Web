@@ -760,7 +760,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 {ifBits ? (
                   <Button
                     variant={selectedBits === "auto" ? "default" : "outline"}
-                    className="w-36 flex justify-center items-center overflow-hidden p-0 m-0"
+                    className="w-36 flex justify-center items-center overflow-hidden p-0 m-0 select-none"
                     onClick={() =>
                       setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
                     }

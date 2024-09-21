@@ -187,14 +187,6 @@ const Canvas: React.FC<CanvasProps> = ({
   );
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      processBatch();
-    }, 1000);
-
-    return () => clearInterval(intervalId);
-  }, [processBatch]);
-
-  useEffect(() => {
     if (isChartInitialized) {
       const lines = String(data).split("\n");
       lines.forEach(handleDataUpdate);
@@ -254,6 +246,7 @@ const Canvas: React.FC<CanvasProps> = ({
     initializeCharts();
   }, [
     canvasCount,
+    selectedBits,
     getThemeColors,
     getMaxValue,
     shouldAutoScale,
