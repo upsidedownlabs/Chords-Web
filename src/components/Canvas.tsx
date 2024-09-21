@@ -255,10 +255,11 @@ const Canvas: React.FC<CanvasProps> = ({
     getChannelColor,
     channels,
   ]);
-
   useEffect(() => {
-    updateChartColors();
-  }, [theme, updateChartColors]);
+    if (isChartInitialized) {
+      updateChartColors();
+    }
+  }, [theme, isChartInitialized, updateChartColors]);
 
   useEffect(() => {
     setIsGlobalPaused(!isDisplay);
@@ -285,7 +286,7 @@ const Canvas: React.FC<CanvasProps> = ({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [channels, resizeCanvas]);
+  }, [channels, updateChartColors]);
 
   useEffect(() => {
     const updateChannels = () => {
