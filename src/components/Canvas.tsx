@@ -199,62 +199,70 @@ const Canvas: React.FC<CanvasProps> = ({
     const initializeCharts = () => {
       const colors = getThemeColors();
 
+      // Clean up existing charts before initializing new ones
+      chartRef.current.forEach((chart, index) => {
+        if (chart) {
+          chart.stop(); // Stop the chart streaming
+          const series = seriesRef.current[index];
+          if (series) {
+            chart.removeTimeSeries(series);
+          }
+        }
+      });
+
+      // Re-initialize all channels
       channels.forEach((_, index) => {
         const canvas = document.getElementById(
           `smoothie-chart-${index + 1}`
         ) as HTMLCanvasElement;
-
         if (canvas) {
-          const chart =
-            chartRef.current[index] ||
-            new SmoothieChart({
-              responsive: true,
-              millisPerPixel: 4,
-              interpolation: "linear",
-              grid: {
-                fillStyle: colors.background,
-                strokeStyle: colors.grid,
-                borderVisible: true,
-                millisPerLine: 1000,
-                lineWidth: 1,
-              },
-              labels: {
-                fillStyle: colors.text,
-              },
-              minValue: shouldAutoScale(selectedBits) ? undefined : 0,
-              maxValue: shouldAutoScale(selectedBits)
-                ? undefined
-                : getMaxValue(selectedBits),
-            });
-          const series = seriesRef.current[index] || new TimeSeries();
+          const chart = new SmoothieChart({
+            // Chart options (including max/minValue)
+            responsive: true,
+            millisPerPixel: 4,
+            interpolation: "linear",
+            grid: {
+              fillStyle: colors.background,
+              strokeStyle: colors.grid,
+              borderVisible: true,
+              millisPerLine: 1000,
+              lineWidth: 1,
+            },
+            labels: {
+              fillStyle: colors.text,
+            },
+            minValue: shouldAutoScale(selectedBits) ? undefined : 0,
+            maxValue: shouldAutoScale(selectedBits)
+              ? undefined
+              : getMaxValue(selectedBits),
+          });
 
-          if (!chartRef.current[index]) {
-            chartRef.current[index] = chart;
-            seriesRef.current[index] = series;
-          }
+          const series = new TimeSeries();
+          chartRef.current[index] = chart; // Store the chart
+          seriesRef.current[index] = series; // Store the series
 
           chart.addTimeSeries(series, {
             strokeStyle: getChannelColor(index),
             lineWidth: 1,
           });
 
-          chart.streamTo(canvas, 500);
+          chart.streamTo(canvas, 500); // Stream data to the canvas
         }
       });
-
       setIsChartInitialized(true);
     };
 
-    initializeCharts();
+    initializeCharts(); // Call the initialization when canvasCount or selectedBits change
   }, [
     canvasCount,
     selectedBits,
-    getThemeColors,
-    getMaxValue,
-    shouldAutoScale,
-    getChannelColor,
     channels,
+    getThemeColors,
+    shouldAutoScale,
+    getMaxValue,
+    getChannelColor,
   ]);
+
   useEffect(() => {
     if (isChartInitialized) {
       updateChartColors();
@@ -276,17 +284,20 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [isDisplay]);
 
   useEffect(() => {
+    resizeCanvas(); // Force resize on channel changes
+
     const handleResize = () => {
       resizeCanvas();
     };
 
+    // Add resize event listener
     window.addEventListener("resize", handleResize);
-    resizeCanvas(); // Initial resize
 
+    // Cleanup the event listener when component unmounts or when dependencies change
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [channels, updateChartColors]);
+  }, [canvasCount, channels]); // Dependencies include canvasCount and channels
 
   useEffect(() => {
     const updateChannels = () => {
