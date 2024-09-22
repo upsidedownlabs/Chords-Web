@@ -13,11 +13,24 @@ const HeadSection: React.FC = () => {
   const { resolvedTheme } = useTheme();
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [mounted, setMounted] = useState(false); // Ensures the theme detection works after mounting
+  const [currentTheme, setCurrentTheme] = useState<string | undefined>(
+    undefined
+  );
 
   // Set mounted to true after the client has mounted
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Update theme with 50ms delay to ensure proper theme matching
+  useEffect(() => {
+    if (mounted) {
+      const timer = setTimeout(() => {
+        setCurrentTheme(resolvedTheme);
+      }, 50); // Add a delay of 50ms
+      return () => clearTimeout(timer); // Clean up the timer on unmount
+    }
+  }, [mounted, resolvedTheme]);
 
   // Preload dark and light images to avoid delay on theme switch
   const preloadImage = (src: string) => {
@@ -33,6 +46,11 @@ const HeadSection: React.FC = () => {
 
   // If the component is not mounted yet, avoid rendering to prevent flickering
   if (!mounted) return null;
+
+  const imageSrc =
+    currentTheme === "dark"
+      ? "./assets/dark/HeroSignalsClean.png"
+      : "./assets/light/HeroSignalsClean.png";
 
   return (
     <>
@@ -52,7 +70,7 @@ const HeadSection: React.FC = () => {
                   <Button>
                     <Image
                       src={
-                        resolvedTheme === "dark"
+                        currentTheme === "dark"
                           ? "./assets/dark/favicon.ico"
                           : "./assets/light/favicon.ico"
                       }
@@ -90,11 +108,7 @@ const HeadSection: React.FC = () => {
 
         {/* Image */}
         <Image
-          src={
-            resolvedTheme === "dark"
-              ? "./assets/dark/HeroSignalsClean.png"
-              : "./assets/light/HeroSignalsClean.png"
-          }
+          src={imageSrc}
           alt="Plotter"
           width={1000}
           height={1000}
