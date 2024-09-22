@@ -32,7 +32,6 @@ Chords is an application based on Web Serial connection, you can connect boards 
 - [TypeScript](https://www.typescriptlang.org/): Statically typed superset of JavaScript.
 - [Tailwind CSS](https://tailwindcss.com/): Utility-first CSS framework.
 - [Shadcn UI](https://tailwindcss.com/): Provides Reusable and customizable components, built with radix UI.
-- [Lodash](https://lodash.com/): Utility library for data manipulation, used for data throttling.
 - [Smoothie Js](http://smoothiecharts.org/): Real time charting library.
 - [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) Browser-based database for storing recorded data.
 
