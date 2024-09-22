@@ -121,11 +121,16 @@ const Canvas: React.FC<CanvasProps> = ({
           chart.options.labels.fillStyle = colors.text;
         }
 
-        // Always update max and min values for each channel
-        chart.options.maxValue = shouldAutoScale(selectedBits)
-          ? undefined
-          : getMaxValue(selectedBits);
-        chart.options.minValue = 0;
+        // Set scaling options for the chart
+        if (shouldAutoScale(selectedBits)) {
+          chart.options.maxValue = undefined;
+          chart.options.minValue = undefined;
+        } else {
+          chart.options.maxValue = getMaxValue(selectedBits);
+          chart.options.minValue = shouldAutoScale(selectedBits)
+            ? undefined
+            : 0;
+        }
 
         const series = seriesRef.current[index];
         if (series) {
@@ -306,7 +311,9 @@ const Canvas: React.FC<CanvasProps> = ({
           chart.options.maxValue = shouldAutoScale(selectedBits)
             ? undefined
             : getMaxValue(selectedBits);
-          chart.options.minValue = 0;
+          chart.options.minValue = shouldAutoScale(selectedBits)
+            ? undefined
+            : 0;
 
           const series = seriesRef.current[index];
           if (series) {
