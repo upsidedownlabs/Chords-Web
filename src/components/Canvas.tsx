@@ -196,6 +196,7 @@ const Canvas: React.FC<CanvasProps> = ({
   }, [data, isChartInitialized, handleDataUpdate]); // Check these dependencies
 
   useEffect(() => {
+    // Initialize charts only when the number of channels (canvasCount) changes
     const initializeCharts = () => {
       const colors = getThemeColors();
 
@@ -217,7 +218,6 @@ const Canvas: React.FC<CanvasProps> = ({
         ) as HTMLCanvasElement;
         if (canvas) {
           const chart = new SmoothieChart({
-            // Chart options (including max/minValue)
             responsive: true,
             millisPerPixel: 4,
             interpolation: "linear",
@@ -252,16 +252,15 @@ const Canvas: React.FC<CanvasProps> = ({
       setIsChartInitialized(true);
     };
 
-    initializeCharts(); // Call the initialization when canvasCount or selectedBits change
-  }, [
-    canvasCount,
-    selectedBits,
-    channels,
-    getThemeColors,
-    shouldAutoScale,
-    getMaxValue,
-    getChannelColor,
-  ]);
+    initializeCharts(); // Initialize when canvasCount changes
+  }, [canvasCount]); // Initialize charts only when canvasCount changes
+
+  // Update chart properties (theme, selectedBits) without reinitializing the charts
+  useEffect(() => {
+    if (isChartInitialized) {
+      updateChartColors(); // Update chart properties (colors, max/min values, etc.)
+    }
+  }, [theme, selectedBits, isChartInitialized, updateChartColors]);
 
   useEffect(() => {
     if (isChartInitialized) {
