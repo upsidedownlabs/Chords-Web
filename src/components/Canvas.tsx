@@ -225,7 +225,8 @@ const Canvas: React.FC<CanvasProps> = ({
           const chart = new SmoothieChart({
             responsive: true,
             millisPerPixel: 4,
-            interpolation: "linear",
+            interpolation: "bezier",
+            limitFPS: 100,
             grid: {
               fillStyle: colors.background,
               strokeStyle: colors.grid,
@@ -251,7 +252,7 @@ const Canvas: React.FC<CanvasProps> = ({
             lineWidth: 1,
           });
 
-          chart.streamTo(canvas, 500); // Stream data to the canvas
+          chart.streamTo(canvas, 100); // Stream data to the canvas
         }
       });
       setIsChartInitialized(true);
