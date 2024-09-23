@@ -13,7 +13,7 @@ const DataPass = () => {
   const [selectedBits, setSelectedBits] = useState<BitSelection>("auto"); // Selected bits
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
   const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
-  const [canvasCount, setCanvasCount] = useState<number>(6); // Number of canvases
+  const [canvasCount, setCanvasCount] = useState<number>(1); // Number of canvases
   const [channelCount, setChannelCount] = useState<number>(1); // Number of channels
 
   return (

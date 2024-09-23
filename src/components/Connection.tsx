@@ -75,6 +75,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
   const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
   const [hasData, setHasData] = useState(false);
+  const [recData, setrecData] = useState(false);
   const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to store the timer interval
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
@@ -393,7 +394,7 @@ const Connection: React.FC<ConnectionProps> = ({
         startTimeRef.current = nowTime;
         setElapsedTime(0);
         timerIntervalRef.current = setInterval(checkRecordingTime, 1000);
-
+        setrecData(true);
         // Initialize IndexedDB for this recording session
         try {
           const db = await initIndexedDB();
@@ -464,6 +465,7 @@ const Connection: React.FC<ConnectionProps> = ({
       indexedDBRef.current.close();
       indexedDBRef.current = null;
     }
+    setrecData(false);
 
     toast.success("Recording completed Successfully", {
       description: (
@@ -830,6 +832,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 <Button
                   onClick={handleRecord}
                   disabled={isRecordButtonDisabled || !isDisplay}
+                  
                 >
                   {isRecordingRef.current ? (
                     <CircleStop />
@@ -935,7 +938,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-r-none"
                       onClick={decreaseCanvas}
-                      disabled={canvasCount === 1 || !isDisplay}
+                      disabled={canvasCount === 1 || !isDisplay || recData}
                     >
                       <Minus size={16} />
                     </Button>
@@ -957,7 +960,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
                       onClick={toggleShowAllChannels}
-                      disabled={!isDisplay}
+                      disabled={!isDisplay || recData}
                     >
                       CH
                     </Button>
@@ -979,7 +982,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-l-none"
                       onClick={increaseCanvas}
-                      disabled={canvasCount >= 6 || !isDisplay}
+                      disabled={canvasCount >= 6 || !isDisplay || recData}
                     >
                       <Plus size={16} />
                     </Button>
