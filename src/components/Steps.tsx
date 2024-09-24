@@ -56,7 +56,7 @@ const Steps: React.FC = () => {
               </TableRow>
             </TableBody>
           </Table>
-          <p className="text-destructive mt-4 text-sm font-semibold">
+          <p className="text-red-500 mt-4 text-sm font-semibold">
             Warning: If power pins are swapped, your BioAmp hardware will be
             fried and become unusable (DIE).
           </p>
@@ -108,7 +108,7 @@ const Steps: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col justify-center items-center gap-4 min-h-[calc(100vh-6rem)] px-4">
+    <div className="flex flex-col justify-center items-center gap-2 min-h-[calc(100vh-6rem)] px-4 ">
       <div className="flex items-center justify-center text-sm sm:text-xl text-center">
         <span className="flex flex-row gap-2">
           Click{" "}
@@ -127,7 +127,7 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl mt-4">
+      <div className="relative w-full max-w-7xl ">
         <Carousel
           opts={{
             align: "start",
