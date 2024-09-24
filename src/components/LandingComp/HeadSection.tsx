@@ -83,7 +83,7 @@ const HeadSection: React.FC = () => {
                   </Button>
                 </Link>
                 <Link
-                  href="https://github.com/upsidedownlabs/Chords-Web"
+                  href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware"
                   target="_blank"
                 >
                   <Button
@@ -91,7 +91,7 @@ const HeadSection: React.FC = () => {
                     className="flex justify-center items-center"
                   >
                     <GitHubLogoIcon className="mr-2 h-4 w-4" />
-                    <span>Source Code</span>
+                    <span>Arduino-Firmware</span>
                   </Button>
                 </Link>
               </div>
