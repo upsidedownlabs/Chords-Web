@@ -27,7 +27,7 @@ const HeadSection: React.FC = () => {
     if (mounted) {
       const timer = setTimeout(() => {
         setCurrentTheme(resolvedTheme);
-      }, 50); // Add a delay of 50ms
+      },50 ); // Add a delay of 50ms
       return () => clearTimeout(timer); // Clean up the timer on unmount
     }
   }, [mounted, resolvedTheme]);
