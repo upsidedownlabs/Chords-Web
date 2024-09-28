@@ -63,7 +63,6 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsDisplay,
   setCanvasCount,
   canvasCount,
- 
 }) => {
   const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
@@ -184,7 +183,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const connectToDevice = async () => {
     try {
       const port = await navigator.serial.requestPort(); // Request the serial port
-      await port.open({ baudRate: 230400 }); 
+      await port.open({ baudRate: 230400 });
       Connection(true); // Set the connection state to true, enabling the data visualization
       setIsConnected(true);
       isConnectedRef.current = true;
@@ -238,19 +237,19 @@ const Connection: React.FC<ConnectionProps> = ({
           const stopMessage = new TextEncoder().encode("STOP\n"); // Prepare the STOP command
           console.log(stopMessage);
           await writerRef.current.write(stopMessage); // Send the STOP command to the device
-          writerRef.current.releaseLock(); 
+          writerRef.current.releaseLock();
           writerRef.current = null; // Reset the writer reference
         }
 
         // Cancel the reader to stop data flow
         if (readerRef.current) {
           await readerRef.current.cancel(); // Cancel the reader
-          readerRef.current.releaseLock(); 
+          readerRef.current.releaseLock();
           readerRef.current = null; // Reset the reader reference
         }
 
         await portRef.current.close(); // Close the port to disconnect the device
-        portRef.current = null; 
+        portRef.current = null;
 
         // Notify the user of successful disconnection with a reconnect option
         toast("Disconnected from device", {
@@ -266,8 +265,8 @@ const Connection: React.FC<ConnectionProps> = ({
     } finally {
       // Ensure the connection state is properly updated
       setIsConnected(false); // Update state to indicate the device is disconnected
-      Connection(false); 
-      isConnectedRef.current = false; 
+      Connection(false);
+      isConnectedRef.current = false;
       isRecordingRef.current = false; // Ensure recording is stopped
     }
   };
@@ -275,15 +274,15 @@ const Connection: React.FC<ConnectionProps> = ({
   // Function to read the data from the device
   const readData = async (): Promise<void> => {
     let bufferIndex = 0;
-    const buffer: number[] = []; 
+    const buffer: number[] = [];
     const HEADER_LENGTH = 3;
     const NUM_CHANNELS = 6;
-    const PACKET_LENGTH = 16; 
+    const PACKET_LENGTH = 16;
     const SYNC_BYTE1 = 0xc7;
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte to identify the start of a packet
-    const END_BYTE = 0x01; 
+    const END_BYTE = 0x01;
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    let hasRemovedInitialElements = false; 
+    let hasRemovedInitialElements = false;
 
     try {
       while (isConnectedRef.current) {
@@ -296,14 +295,14 @@ const Connection: React.FC<ConnectionProps> = ({
         }
         if (streamData) {
           const { value } = streamData;
-          buffer.push(...value); 
+          buffer.push(...value);
         }
 
         while (buffer.length >= PACKET_LENGTH) {
           // Process packets while the buffer contains at least one full packet
           const syncIndex = buffer.findIndex(
             (byte, index) =>
-              byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2 
+              byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2
           );
 
           if (syncIndex === -1) {
@@ -319,23 +318,23 @@ const Connection: React.FC<ConnectionProps> = ({
             if (
               buffer[syncIndex] === SYNC_BYTE1 &&
               buffer[syncIndex + 1] === SYNC_BYTE2 &&
-              buffer[endByteIndex] === END_BYTE 
+              buffer[endByteIndex] === END_BYTE
             ) {
               const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
               const channelData: string[] = []; // Array to store the extracted channel data
               for (let channel = 0; channel < NUM_CHANNELS; channel++) {
                 // Loop through each channel in the packet
-                const highByte = packet[channel * 2 + HEADER_LENGTH]; 
+                const highByte = packet[channel * 2 + HEADER_LENGTH];
                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1]; // Extract the low byte for the channel
                 const value = (highByte << 8) | lowByte;
                 channelData.push(value.toString()); // Convert the value to string and store it in the array
               }
               const counter = packet[2]; // Extract the counter value from the packet
-              channelData.push(counter.toString()); 
+              channelData.push(counter.toString());
               LineData(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
                 // Check if recording is enabled
-                bufferRef.current.push(channelData); 
+                bufferRef.current.push(channelData);
               }
 
               if (previousCounter !== null) {
@@ -349,7 +348,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 }
               }
               previousCounter = counter; // Update the previous counter with the current counter
-              buffer.splice(0, endByteIndex + 1); 
+              buffer.splice(0, endByteIndex + 1);
             } else {
               buffer.splice(0, syncIndex + 1);
             }
@@ -499,11 +498,11 @@ const Connection: React.FC<ConnectionProps> = ({
   // Add this function to save data to IndexedDB during recording
   const saveDataDuringRecording = async (data: string[][]) => {
     if (!isRecordingRef.current || !indexedDBRef.current) return;
-  
+
     try {
       const tx = indexedDBRef.current.transaction(["adcReadings"], "readwrite");
       const store = tx.objectStore("adcReadings");
-  
+
       // Dynamically create channel data based on the current canvas count
       for (const row of data) {
         const channels = row.slice(0, canvasCount); // Only include channels up to the current canvasCount
@@ -517,7 +516,7 @@ const Connection: React.FC<ConnectionProps> = ({
       console.error("Error saving data during recording:", error);
     }
   };
-  
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -527,35 +526,34 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   // Initialize IndexedDB
-const initIndexedDB = async (): Promise<IDBDatabase> => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open("adcReadings", 1); 
+  const initIndexedDB = async (): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("adcReadings", 1);
 
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
 
-      // Create the object store (if it doesn't already exist)
-      if (!db.objectStoreNames.contains("adcReadings")) {
-        const store = db.createObjectStore("adcReadings", {
-          keyPath: "id", 
-          autoIncrement: true,
-        });
-        // Define a flexible data structure, like an array for channels
-        store.createIndex("timestamp", "timestamp", { unique: false });
-        store.createIndex("channels", "channels", { unique: false }); // Channels stored as an array
-      }
-    };
+        // Create the object store (if it doesn't already exist)
+        if (!db.objectStoreNames.contains("adcReadings")) {
+          const store = db.createObjectStore("adcReadings", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+          // Define a flexible data structure, like an array for channels
+          store.createIndex("timestamp", "timestamp", { unique: false });
+          store.createIndex("channels", "channels", { unique: false }); // Channels stored as an array
+        }
+      };
 
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
 
-    request.onerror = () => {
-      reject(request.error);
-    };
-  });
-};
-
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  };
 
   // Delete all data from IndexedDB
   const deleteDataFromIndexedDB = async () => {
@@ -612,46 +610,44 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
   const saveData = async () => {
     try {
       const allData = await getAllDataFromIndexedDB();
-  
+
       if (allData.length === 0) {
         toast.error("No data available to download.");
         return;
       }
-  
-      // Log the raw data from IndexedDB to ensure the channels are correctly stored
-      console.log('Raw data from IndexedDB:', allData);
-  
+
       // Dynamically format data based on the current canvasCount
       const formattedData = allData.map((item) => {
         const dynamicChannels: { [key: string]: number | null } = {}; // Define the type of dynamicChannels
-  
+
         // Assume channels are stored as an array in `item.channels`
         const channels = item.channels || [];
-  
+
         // Loop through the channels array based on canvasCount and log the channel data
         for (let i = 0; i < canvasCount; i++) {
           const channelKey = `channel_${i + 1}`;
-          dynamicChannels[channelKey] = channels[i] !== undefined ? channels[i] : null; // Access channels array
-          
+          dynamicChannels[channelKey] =
+            channels[i] !== undefined ? channels[i] : null; // Access channels array
+
           // Log the value of each channel
           console.log(`Channel ${i + 1} value:`, channels[i]);
         }
-  
+
         return {
           timestamp: item.timestamp,
           ...dynamicChannels, // Spread the dynamic channels into the result object
           counter: item.counter || null, // Include the counter if you have it
         };
       });
-  
-      console.log('Formatted data to be saved:', formattedData);
-  
+
+      console.log("Formatted data to be saved:", formattedData);
+
       setOpen(false);
-  
+
       // Convert the formatted data to CSV
       const csvData = convertToCSV(formattedData);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-  
+
       // Get the current date and time
       const now = new Date();
       const formattedTimestamp = `${now.getFullYear()}-${String(
@@ -661,11 +657,11 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
       ).padStart(2, "0")}-${String(now.getMinutes()).padStart(2, "0")}-${String(
         now.getSeconds()
       ).padStart(2, "0")}`;
-  
+
       // Use the timestamp in the filename
       const filename = `recorded_data_${formattedTimestamp}.csv`;
       saveAs(blob, filename);
-  
+
       // Delete the data from IndexedDB after saving
       await deleteDataFromIndexedDB();
       toast.success("Data downloaded and cleared from storage.");
@@ -675,9 +671,6 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
       toast.error("Failed to save data. Please try again.");
     }
   };
-  
-  
-  
 
   return (
     <div className="flex items-center justify-center h-4 mb-2 px-4 z-50">
@@ -859,7 +852,6 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
                 <Button
                   onClick={handleRecord}
                   disabled={isRecordButtonDisabled || !isDisplay}
-                  
                 >
                   {isRecordingRef.current ? (
                     <CircleStop />
