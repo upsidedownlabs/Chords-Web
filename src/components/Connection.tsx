@@ -154,7 +154,6 @@ const Connection: React.FC<ConnectionProps> = ({
       if (!info || !info.usbVendorId) {
         return "Port with no info";
       }
-      // console.log(info);
 
       // First, check if the board exists in BoardsList
       const board = BoardsList.find(
@@ -271,43 +270,44 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  // Function to read the data from the device
+  // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
-    let bufferIndex = 0;
-    const buffer: number[] = [];
-    const HEADER_LENGTH = 3;
-    const NUM_CHANNELS = 6;
-    const PACKET_LENGTH = 16;
-    const SYNC_BYTE1 = 0xc7;
-    const SYNC_BYTE2 = 0x7c; // Second synchronization byte to identify the start of a packet
-    const END_BYTE = 0x01;
+    let bufferIndex = 0; // Index for tracking the current position in the buffer
+    const buffer: number[] = []; // Buffer to store incoming data
+    const HEADER_LENGTH = 3; // Length of the packet header
+    const NUM_CHANNELS = 6; // Number of channels in the data packet
+    const PACKET_LENGTH = 16; // Total length of each packet
+    const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
+    const SYNC_BYTE2 = 0x7c; // Second synchronization byte
+    const END_BYTE = 0x01; // End byte to signify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    let hasRemovedInitialElements = false;
+    let hasRemovedInitialElements = false; // Flag to track if initial elements have been removed
 
     try {
+      // Loop while the device is connected
       while (isConnectedRef.current) {
-        // Loop while the device is connected
         const streamData = await readerRef.current?.read(); // Read data from the device
         if (streamData?.done) {
           // Check if the data stream has ended
           console.log("Thank you for using our app!"); // Log a message when the stream ends
-          break;
+          break; // Exit the loop if the stream is done
         }
         if (streamData) {
-          const { value } = streamData;
-          buffer.push(...value);
+          const { value } = streamData; // Destructure the stream data to get its value
+          buffer.push(...value); // Add the incoming data to the buffer
         }
 
+        // Process packets while the buffer contains at least one full packet
         while (buffer.length >= PACKET_LENGTH) {
-          // Process packets while the buffer contains at least one full packet
+          // Find the index of the synchronization bytes in the buffer
           const syncIndex = buffer.findIndex(
             (byte, index) =>
               byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2
           );
 
           if (syncIndex === -1) {
-            // If no sync bytes are found, clear the buffer
-            buffer.length = 0;
+            // If no sync bytes are found, clear the buffer and continue
+            buffer.length = 0; // Clear the buffer
             continue;
           }
 
@@ -320,25 +320,26 @@ const Connection: React.FC<ConnectionProps> = ({
               buffer[syncIndex + 1] === SYNC_BYTE2 &&
               buffer[endByteIndex] === END_BYTE
             ) {
+              // Validate the packet by checking the sync and end bytes
               const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
               const channelData: string[] = []; // Array to store the extracted channel data
               for (let channel = 0; channel < NUM_CHANNELS; channel++) {
                 // Loop through each channel in the packet
-                const highByte = packet[channel * 2 + HEADER_LENGTH];
+                const highByte = packet[channel * 2 + HEADER_LENGTH]; // Extract the high byte for the channel
                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1]; // Extract the low byte for the channel
-                const value = (highByte << 8) | lowByte;
+                const value = (highByte << 8) | lowByte; // Combine high and low bytes to get the channel value
                 channelData.push(value.toString()); // Convert the value to string and store it in the array
               }
               const counter = packet[2]; // Extract the counter value from the packet
-              channelData.push(counter.toString());
+              channelData.push(counter.toString()); // Add the counter to the channel data
               LineData(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
                 // Check if recording is enabled
-                bufferRef.current.push(channelData);
+                bufferRef.current.push(channelData); // Store the channel data in the recording buffer
               }
 
               if (previousCounter !== null) {
-                // If there was a previous counter value
+                // If there was a previous counter value, check for data loss
                 const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
                 if (counter !== expectedCounter) {
                   // Check for data loss by comparing the current counter with the expected counter
@@ -348,9 +349,9 @@ const Connection: React.FC<ConnectionProps> = ({
                 }
               }
               previousCounter = counter; // Update the previous counter with the current counter
-              buffer.splice(0, endByteIndex + 1);
+              buffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
             } else {
-              buffer.splice(0, syncIndex + 1);
+              buffer.splice(0, syncIndex + 1); // If packet is incomplete, remove bytes up to the sync byte
             }
           } else {
             break; // If a full packet is not available, exit the loop and wait for more data
@@ -381,30 +382,37 @@ const Connection: React.FC<ConnectionProps> = ({
     return [header.join(","), ...rows].join("\n");
   };
 
+  // Function to handle the recording process
   const handleRecord = async () => {
+    // Check if a device is connected
     if (isConnected) {
+      // If recording is already in progress, stop it
       if (isRecordingRef.current) {
         stopRecording(); // Stop the recording if it is already on
       } else {
+        // Start a new recording session
         isRecordingRef.current = true; // Set the recording state to true
-        const now = new Date();
-        const nowTime = now.getTime();
-        startTimeRef.current = nowTime;
-        setElapsedTime(0);
-        timerIntervalRef.current = setInterval(checkRecordingTime, 1000);
-        setrecData(true);
+        const now = new Date(); // Get the current date and time
+        const nowTime = now.getTime(); // Get the current time in milliseconds
+        startTimeRef.current = nowTime; // Store the start time of the recording
+        setElapsedTime(0); // Reset elapsed time for display
+        timerIntervalRef.current = setInterval(checkRecordingTime, 1000); // Start a timer to check recording duration every second
+        setrecData(true); // Set the state indicating recording data is being collected
+
         // Initialize IndexedDB for this recording session
         try {
-          const db = await initIndexedDB();
-          indexedDBRef.current = db; // Store the database connection in a ref
+          const db = await initIndexedDB(); // Attempt to initialize the IndexedDB
+          indexedDBRef.current = db; // Store the database connection in a ref for later use
         } catch (error) {
+          // Handle any errors during the IndexedDB initialization
           console.error("Failed to initialize IndexedDB:", error);
           toast.error(
-            "Failed to initialize storage. Recording may not be saved."
+            "Failed to initialize storage. Recording may not be saved." // Show an error message if initialization fails
           );
         }
       }
     } else {
+      // Notify the user if no device is connected
       toast.warning("No device is connected");
     }
   };
@@ -433,38 +441,48 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Updated stopRecording function
   const stopRecording = async () => {
+    // Clear the timer if it is currently set
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
 
+    // Check if the start time was set correctly
     if (startTimeRef.current === null) {
       toast.error("Start time was not set properly.");
-      return;
+      return; // Exit the function if start time is not valid
     }
 
+    // Record the end time and format it for display
     const endTime = new Date();
     const endTimeString = endTime.toLocaleTimeString();
     const startTimeString = new Date(startTimeRef.current).toLocaleTimeString();
+
+    // Calculate the recording duration in seconds
     const durationInSeconds = Math.round(
       (endTime.getTime() - startTimeRef.current) / 1000
     );
 
+    // If there is recorded data in the buffer, save it
     if (bufferRef.current.length > 0) {
       await saveDataDuringRecording(bufferRef.current);
-      bufferRef.current = [];
+      bufferRef.current = []; // Clear the buffer after saving
     }
 
+    // Retrieve all recorded data from IndexedDB
     const allData = await getAllDataFromIndexedDB();
-    setHasData(allData.length > 0);
-    const recordedFilesCount = allData.length;
+    setHasData(allData.length > 0); // Update state to reflect if data exists
+    const recordedFilesCount = allData.length; // Count of recorded files
 
+    // Close the IndexedDB connection if it's open
     if (indexedDBRef.current) {
       indexedDBRef.current.close();
-      indexedDBRef.current = null;
+      indexedDBRef.current = null; // Reset the reference
     }
-    setrecData(false);
 
+    setrecData(false); // Reset recording data state
+
+    // Display a success message with recording details
     toast.success("Recording completed Successfully", {
       description: (
         <div className="mt-2 flex flex-col mb-4">
@@ -477,12 +495,13 @@ const Connection: React.FC<ConnectionProps> = ({
       ),
     });
 
-    isRecordingRef.current = false;
-    startTimeRef.current = null;
-    endTimeRef.current = null;
-    setElapsedTime(0);
+    // Reset recording states
+    isRecordingRef.current = false; // Indicate recording has stopped
+    startTimeRef.current = null; // Clear the start time
+    endTimeRef.current = null; // Clear the end time
+    setElapsedTime(0); // Reset the elapsed time display
 
-    setIsRecordButtonDisabled(true);
+    setIsRecordButtonDisabled(true); // Disable the record button
   };
 
   const checkDataAvailability = async () => {
@@ -517,91 +536,120 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
+  // Function to format time from seconds into a "MM:SS" string format
   const formatTime = (seconds: number): string => {
+    // Calculate the number of minutes by dividing seconds by 60
     const mins = Math.floor(seconds / 60);
+
+    // Calculate the remaining seconds after extracting minutes
     const secs = seconds % 60;
+
+    // Return the formatted time string, ensuring two digits for minutes and seconds
     return `${mins.toString().padStart(2, "0")}:${secs
       .toString()
       .padStart(2, "0")}`;
   };
 
-  // Initialize IndexedDB
+  // Function to initialize the IndexedDB and return a promise with the database instance
   const initIndexedDB = async (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
+      // Open a connection to the IndexedDB database named "adcReadings", version 1
       const request = indexedDB.open("adcReadings", 1);
 
+      // Event handler for when the database needs to be upgraded (e.g., first creation)
       request.onupgradeneeded = (event) => {
+        // Access the database instance from the event target
         const db = (event.target as IDBOpenDBRequest).result;
 
-        // Create the object store (if it doesn't already exist)
+        // Create the object store "adcReadings" if it doesn't already exist
         if (!db.objectStoreNames.contains("adcReadings")) {
           const store = db.createObjectStore("adcReadings", {
-            keyPath: "id",
-            autoIncrement: true,
+            keyPath: "id", // Set the key path for the object store
+            autoIncrement: true, // Enable auto-increment for the key
           });
-          // Define a flexible data structure, like an array for channels
+          // Create an index for timestamps, allowing for easy querying
           store.createIndex("timestamp", "timestamp", { unique: false });
-          store.createIndex("channels", "channels", { unique: false }); // Channels stored as an array
+          // Create an index for channels, allowing for flexible data storage as an array
+          store.createIndex("channels", "channels", { unique: false });
         }
       };
 
+      // Event handler for successful opening of the database
       request.onsuccess = () => {
-        resolve(request.result);
+        resolve(request.result); // Resolve the promise with the database instance
       };
 
+      // Event handler for any errors that occur during the request
       request.onerror = () => {
-        reject(request.error);
+        reject(request.error); // Reject the promise with the error
       };
     });
   };
 
   // Delete all data from IndexedDB
+  // Function to delete all data from the IndexedDB
   const deleteDataFromIndexedDB = async () => {
     try {
+      // Initialize the IndexedDB
       const db = await initIndexedDB();
+
+      // Start a readwrite transaction on the "adcReadings" object store
       const tx = db.transaction(["adcReadings"], "readwrite");
-      const store = tx.objectStore("adcReadings");
+      const store = tx.objectStore("adcReadings"); // Access the object store
 
-      // Clear the store
+      // Clear the store to remove all records
       const clearRequest = store.clear();
-      clearRequest.onsuccess = async () => {
-        console.log("All data deleted from IndexedDB");
-        toast.success("Recorded file is deleted.");
-        setOpen(false);
 
-        // Check if there is any data left after deletion
+      // Event handler for successful clearing of the store
+      clearRequest.onsuccess = async () => {
+        console.log("All data deleted from IndexedDB"); // Log success to console
+        toast.success("Recorded file is deleted."); // Notify user of successful deletion
+        setOpen(false); // Close any open modal or dialog
+
+        // Check if there is any data left in the database after deletion
         const allData = await getAllDataFromIndexedDB();
-        setHasData(allData.length > 0);
+        setHasData(allData.length > 0); // Update state to reflect if data exists
 
         setIsRecordButtonDisabled(false); // Enable the record button after deletion
       };
 
+      // Event handler for any errors that occur during the clear request
       clearRequest.onerror = (error) => {
-        console.error("Error deleting data from IndexedDB:", error);
-        toast.error("Failed to delete data. Please try again.");
+        console.error("Error deleting data from IndexedDB:", error); // Log the error
+        toast.error("Failed to delete data. Please try again."); // Notify user of the failure
       };
     } catch (error) {
+      // Handle any errors that occur during IndexedDB initialization
       console.error("Error initializing IndexedDB for deletion:", error);
     }
   };
 
-  // New function to retrieve all data from IndexedDB
+  // Function to retrieve all data from the IndexedDB
   const getAllDataFromIndexedDB = async (): Promise<any[]> => {
     return new Promise(async (resolve, reject) => {
       try {
+        // Initialize the IndexedDB
         const db = await initIndexedDB();
-        const tx = db.transaction(["adcReadings"], "readonly");
-        const store = tx.objectStore("adcReadings");
 
+        // Start a readonly transaction on the "adcReadings" object store
+        const tx = db.transaction(["adcReadings"], "readonly");
+        const store = tx.objectStore("adcReadings"); // Access the object store
+
+        // Create a request to get all records from the store
         const request = store.getAll();
+
+        // Event handler for successful retrieval of data
         request.onsuccess = () => {
-          resolve(request.result);
+          resolve(request.result); // Resolve the promise with the retrieved data
         };
+
+        // Event handler for any errors that occur during the request
         request.onerror = (error) => {
-          reject(error);
+          reject(error); // Reject the promise with the error
         };
       } catch (error) {
-        reject(error);
+        // Handle any errors that occur during IndexedDB initialization
+        reject(error); // Reject the promise with the initialization error
       }
     });
   };

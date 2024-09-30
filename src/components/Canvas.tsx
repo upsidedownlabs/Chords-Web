@@ -92,90 +92,108 @@ const Canvas: React.FC<CanvasProps> = ({
     return bits === "auto";
   }, []);
 
+  // Function to resize canvases based on their parent elements
   const resizeCanvas = () => {
     channels.forEach((_, index) => {
+      // Loop through each channel and its corresponding index
       const canvas = document.getElementById(
-        `smoothie-chart-${index + 1}`
+        `smoothie-chart-${index + 1}` // Get the canvas element for the current channel
       ) as HTMLCanvasElement;
 
-      const parentDiv = canvas?.parentElement;
+      const parentDiv = canvas?.parentElement; // Get the parent element of the canvas
       if (parentDiv) {
-        canvas.height = parentDiv.offsetHeight - 2;
-        canvas.width = parentDiv.offsetWidth;
+        // If the parent element exists
+        canvas.height = parentDiv.offsetHeight - 2; // Set the canvas height to the parent’s height minus 2 pixels
+        canvas.width = parentDiv.offsetWidth; // Set the canvas width to the parent’s width
       }
     });
   };
 
-  // Update chart options (colors and scaling)
+  // Callback function to update chart colors and options based on the current theme and settings
   const updateChartColors = useCallback(() => {
-    const colors = getThemeColors();
+    const colors = getThemeColors(); // Retrieve the current theme colors
     chartRef.current.forEach((chart, index) => {
+      // Loop through each chart and its corresponding index
       if (chart) {
+        // Check if the chart instance exists
         chart.options.grid = {
-          ...chart.options.grid,
-          fillStyle: colors.background,
-          strokeStyle: colors.grid,
+          // Update grid options for the chart
+          ...chart.options.grid, // Preserve existing grid options
+          fillStyle: colors.background, // Set the grid background color
+          strokeStyle: colors.grid, // Set the grid stroke color
         };
 
         if (chart.options.labels) {
-          chart.options.labels.fillStyle = colors.text;
+          // Check if labels are defined in the chart options
+          chart.options.labels.fillStyle = colors.text; // Set the label text color
         }
 
-        // Set scaling options for the chart
+        // Set scaling options for the chart based on selectedBits
         if (shouldAutoScale(selectedBits)) {
-          chart.options.maxValue = undefined;
-          chart.options.minValue = undefined;
+          // If auto-scaling is enabled
+          chart.options.maxValue = undefined; // Remove max value limit
+          chart.options.minValue = undefined; // Remove min value limit
         } else {
-          chart.options.maxValue = getMaxValue(selectedBits);
+          // If auto-scaling is not enabled
+          chart.options.maxValue = getMaxValue(selectedBits); // Set max value based on selectedBits
           chart.options.minValue = shouldAutoScale(selectedBits)
-            ? undefined
-            : 0;
+            ? undefined // Set min value to undefined if auto-scaling is enabled
+            : 0; // Set min value to 0 otherwise
         }
 
-        const series = seriesRef.current[index];
+        const series = seriesRef.current[index]; // Get the corresponding time series for the chart
         if (series) {
-          chart.removeTimeSeries(series);
+          // Check if the series instance exists
+          chart.removeTimeSeries(series); // Remove the existing time series from the chart
           chart.addTimeSeries(series, {
-            strokeStyle: getChannelColor(index),
-            lineWidth: 1,
+            // Add the time series back with updated styling
+            strokeStyle: getChannelColor(index), // Set the stroke color based on the channel index
+            lineWidth: 1, // Set the line width
           });
         }
 
         const canvas = document.getElementById(
-          `smoothie-chart-${index + 1}`
+          `smoothie-chart-${index + 1}` // Get the canvas element for the current chart
         ) as HTMLCanvasElement;
 
         if (canvas) {
-          chart.streamTo(canvas, 500);
+          // Check if the canvas element exists
+          chart.streamTo(canvas, 500); // Start streaming chart data to the canvas with a 500 ms interval
         }
       }
     });
   }, [
-    getThemeColors,
-    selectedBits,
-    getMaxValue,
-    shouldAutoScale,
-    getChannelColor,
+    getThemeColors, // Dependency: function to get theme colors
+    selectedBits, // Dependency: currently selected bits for scaling
+    getMaxValue, // Dependency: function to get the maximum value
+    shouldAutoScale, // Dependency: function to check if auto-scaling should be applied
+    getChannelColor, // Dependency: function to get the color for a specific channel
   ]);
 
-  const processBatch = useCallback(() => {
-    if (batchBuffer.length === 0 || isGlobalPaused) return;
+ // Callback function to process a batch of data and append it to the corresponding time series
+const processBatch = useCallback(() => { 
+  // Exit early if the batch buffer is empty or the global state is paused
+  if (batchBuffer.length === 0 || isGlobalPaused) return;
 
-    batchBuffer.forEach((batch: Batch) => {
-      channels.forEach((_, index) => {
-        const series = seriesRef.current[index];
-        if (
-          series &&
-          batch.values[index] !== undefined &&
-          !isNaN(batch.values[index])
-        ) {
-          series.append(batch.time, batch.values[index]);
-        }
-      });
+  // Iterate over each batch in the batch buffer
+  batchBuffer.forEach((batch: Batch) => {
+    // Iterate over each channel to update the corresponding time series
+    channels.forEach((_, index) => {
+      const series = seriesRef.current[index]; // Get the time series for the current channel
+      if (
+        series && // Check if the series exists
+        batch.values[index] !== undefined && // Ensure the batch has a value for the current channel
+        !isNaN(batch.values[index]) // Check that the value is a valid number
+      ) {
+        series.append(batch.time, batch.values[index]); // Append the time and value to the series
+      }
     });
+  });
 
-    batchBuffer.length = 0;
-  }, [channels, batchBuffer, isGlobalPaused]);
+  // Clear the batch buffer after processing
+  batchBuffer.length = 0; 
+}, [channels, batchBuffer, isGlobalPaused]); // Dependencies for the useCallback
+
 
   // Improve the data update to handle data flow more consistently
   const handleDataUpdate = useCallback(
@@ -203,64 +221,70 @@ const Canvas: React.FC<CanvasProps> = ({
   useEffect(() => {
     // Initialize charts only when the number of channels (canvasCount) changes
     const initializeCharts = () => {
-      const colors = getThemeColors();
-
+      const colors = getThemeColors(); // Get the current theme colors
+  
       // Clean up existing charts before initializing new ones
       chartRef.current.forEach((chart, index) => {
         if (chart) {
-          chart.stop(); // Stop the chart streaming
-          const series = seriesRef.current[index];
+          chart.stop(); // Stop the chart streaming to prevent data overlap
+          const series = seriesRef.current[index]; // Get the corresponding time series for the chart
           if (series) {
-            chart.removeTimeSeries(series);
+            chart.removeTimeSeries(series); // Remove the existing time series from the chart
           }
         }
       });
-
+  
       // Re-initialize all channels
       channels.forEach((_, index) => {
+        // Loop through each channel to create a new chart
         const canvas = document.getElementById(
-          `smoothie-chart-${index + 1}`
+          `smoothie-chart-${index + 1}` // Get the canvas element for the current channel
         ) as HTMLCanvasElement;
         if (canvas) {
+          // Check if the canvas element exists
           const chart = new SmoothieChart({
-            responsive: true,
-            millisPerPixel: 4,
-            interpolation: "bezier",
-            limitFPS: 100,
+            // Create a new SmoothieChart instance with the specified options
+            responsive: true, // Make the chart responsive to parent container
+            millisPerPixel: 4, // Define the time interval in milliseconds per pixel
+            interpolation: "bezier", // Set the interpolation style for the chart lines
+            limitFPS: 100, // Limit the frames per second for performance
             grid: {
-              fillStyle: colors.background,
-              strokeStyle: colors.grid,
-              borderVisible: true,
-              millisPerLine: 1000,
-              lineWidth: 1,
+              // Define grid options
+              fillStyle: colors.background, // Set the grid background color
+              strokeStyle: colors.grid, // Set the grid line color
+              borderVisible: true, // Make the grid border visible
+              millisPerLine: 1000, // Set the time interval for grid lines
+              lineWidth: 1, // Set the grid line width
             },
             labels: {
-              fillStyle: colors.text,
+              // Define label options
+              fillStyle: colors.text, // Set the label text color
             },
-            minValue: shouldAutoScale(selectedBits) ? undefined : 0,
+            minValue: shouldAutoScale(selectedBits) ? undefined : 0, // Set minimum value based on auto-scaling
             maxValue: shouldAutoScale(selectedBits)
               ? undefined
-              : getMaxValue(selectedBits),
+              : getMaxValue(selectedBits), // Set maximum value based on auto-scaling
           });
-
-          const series = new TimeSeries();
-          chartRef.current[index] = chart; // Store the chart
-          seriesRef.current[index] = series; // Store the series
-
+  
+          const series = new TimeSeries(); // Create a new TimeSeries instance
+          chartRef.current[index] = chart; // Store the chart in the ref array
+          seriesRef.current[index] = series; // Store the series in the ref array
+  
           chart.addTimeSeries(series, {
-            strokeStyle: getChannelColor(index),
-            lineWidth: 1,
+            // Add the time series to the chart with specified styling
+            strokeStyle: getChannelColor(index), // Set the stroke color based on the channel index
+            lineWidth: 1, // Set the line width
           });
-
-          chart.streamTo(canvas, 100); // Stream data to the canvas
+  
+          chart.streamTo(canvas, 100); // Stream data to the canvas at 100 ms intervals
         }
       });
-      setIsChartInitialized(true);
+      setIsChartInitialized(true); // Update state to indicate charts have been initialized
     };
-
-    initializeCharts(); // Initialize when canvasCount changes
-  }, [canvasCount]); // Initialize charts only when canvasCount changes
-
+  
+    initializeCharts(); // Call the initialize function when canvasCount changes
+  }, [canvasCount]); // Dependency array: re-run the effect only when canvasCount changes
+  
   // Update chart properties (theme, selectedBits) without reinitializing the charts
   useEffect(() => {
     if (isChartInitialized) {
