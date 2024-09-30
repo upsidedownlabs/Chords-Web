@@ -27,7 +27,7 @@ const HeadSection: React.FC = () => {
     if (mounted) {
       const timer = setTimeout(() => {
         setCurrentTheme(resolvedTheme);
-      }, 50); // Add a delay of 50ms
+      },50 ); // Add a delay of 50ms
       return () => clearTimeout(timer); // Clean up the timer on unmount
     }
   }, [mounted, resolvedTheme]);
@@ -83,7 +83,7 @@ const HeadSection: React.FC = () => {
                   </Button>
                 </Link>
                 <Link
-                  href="https://github.com/upsidedownlabs/Chords-Web"
+                  href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware"
                   target="_blank"
                 >
                   <Button
@@ -91,7 +91,7 @@ const HeadSection: React.FC = () => {
                     className="flex justify-center items-center"
                   >
                     <GitHubLogoIcon className="mr-2 h-4 w-4" />
-                    <span>Source Code</span>
+                    <span>Arduino-Firmware</span>
                   </Button>
                 </Link>
               </div>
