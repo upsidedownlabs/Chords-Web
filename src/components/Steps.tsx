@@ -56,7 +56,7 @@ const Steps: React.FC = () => {
               </TableRow>
             </TableBody>
           </Table>
-          <p className="text-destructive mt-4 text-sm font-semibold">
+          <p className="text-red-500 mt-4 text-sm font-semibold">
             Warning: If power pins are swapped, your BioAmp hardware will be
             fried and become unusable (DIE).
           </p>
@@ -71,7 +71,7 @@ const Steps: React.FC = () => {
       title: "BioAmp Cable Connections",
       content: (
         <div className="flex flex-col items-center">
-          <ol className="list-decimal pl-4 text-sm sm:text-base mb-4">
+          <ol className="list-decimal pl-4 text-sm sm:text-base mb-4 mt-4">
             <li>
               Connect the BioAmp cable to BioAmp hardware by inserting the cable
               end in the JST PH connector.
@@ -108,7 +108,7 @@ const Steps: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col justify-center items-center gap-4 min-h-[calc(100vh-6rem)] px-4 mb-2">
+    <div className="flex flex-col justify-center items-center gap-2 min-h-[calc(100vh-6rem)] px-4 ">
       <div className="flex items-center justify-center text-sm sm:text-xl text-center">
         <span className="flex flex-row gap-2">
           Click{" "}
@@ -127,7 +127,7 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl mt-4">
+      <div className="relative w-full max-w-7xl ">
         <Carousel
           opts={{
             align: "start",

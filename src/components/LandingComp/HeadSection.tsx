@@ -7,16 +7,30 @@ import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import Chords from "./Chords";
+import Navbar from "../Navbar";
 
 const HeadSection: React.FC = () => {
   const { resolvedTheme } = useTheme();
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [mounted, setMounted] = useState(false); // Ensures the theme detection works after mounting
+  const [currentTheme, setCurrentTheme] = useState<string | undefined>(
+    undefined
+  );
 
   // Set mounted to true after the client has mounted
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Update theme with 50ms delay to ensure proper theme matching
+  useEffect(() => {
+    if (mounted) {
+      const timer = setTimeout(() => {
+        setCurrentTheme(resolvedTheme);
+      },50 ); // Add a delay of 50ms
+      return () => clearTimeout(timer); // Clean up the timer on unmount
+    }
+  }, [mounted, resolvedTheme]);
 
   // Preload dark and light images to avoid delay on theme switch
   const preloadImage = (src: string) => {
@@ -33,8 +47,14 @@ const HeadSection: React.FC = () => {
   // If the component is not mounted yet, avoid rendering to prevent flickering
   if (!mounted) return null;
 
+  const imageSrc =
+    currentTheme === "dark"
+      ? "./assets/dark/HeroSignalsClean.png"
+      : "./assets/light/HeroSignalsClean.png";
+
   return (
     <>
+      <Navbar isDisplay={true} />
       <section className="w-full pt-24">
         <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
           <div className="flex flex-col justify-center gap-8 items-center">
@@ -50,7 +70,7 @@ const HeadSection: React.FC = () => {
                   <Button>
                     <Image
                       src={
-                        resolvedTheme === "dark"
+                        currentTheme === "dark"
                           ? "./assets/dark/favicon.ico"
                           : "./assets/light/favicon.ico"
                       }
@@ -63,7 +83,7 @@ const HeadSection: React.FC = () => {
                   </Button>
                 </Link>
                 <Link
-                  href="https://github.com/upsidedownlabs/Chords-Web"
+                  href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware"
                   target="_blank"
                 >
                   <Button
@@ -71,7 +91,7 @@ const HeadSection: React.FC = () => {
                     className="flex justify-center items-center"
                   >
                     <GitHubLogoIcon className="mr-2 h-4 w-4" />
-                    <span>Source Code</span>
+                    <span>Arduino-Firmware</span>
                   </Button>
                 </Link>
               </div>
@@ -88,11 +108,7 @@ const HeadSection: React.FC = () => {
 
         {/* Image */}
         <Image
-          src={
-            resolvedTheme === "dark"
-              ? "./assets/dark/HeroSignalsClean.png"
-              : "./assets/light/HeroSignalsClean.png"
-          }
+          src={imageSrc}
           alt="Plotter"
           width={1000}
           height={1000}
