@@ -92,7 +92,7 @@ const Canvas= forwardRef( ({
       canvas.height = canvasHeight;
 
       canvas.className = "border border-secondary-foreground w-full";
-
+ 
       canvas.style.height = `${canvasHeight}px`;
       canvas.style.border="0.5px solid #ccc";
 
@@ -227,5 +227,5 @@ const Canvas= forwardRef( ({
 </div>
   );
 });
-
+Canvas.displayName = "Canvas";
 export default Canvas;
