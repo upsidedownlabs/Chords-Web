@@ -43,7 +43,8 @@ import {
 } from "../components/ui/popover";
 
 interface ConnectionProps {
-  LineData: (data: any) => void;
+  onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
+  dataSteam: (data: number[]) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
@@ -52,10 +53,13 @@ interface ConnectionProps {
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
   channelCount: number;
+  SetZoom:React.Dispatch<React.SetStateAction<number>>;
+  Zoom: number;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
-  LineData,
+  onPauseChange,
+  dataSteam,
   Connection,
   selectedBits,
   setSelectedBits,
@@ -63,6 +67,8 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsDisplay,
   setCanvasCount,
   canvasCount,
+  SetZoom,
+  Zoom,
 }) => {
   const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
@@ -79,7 +85,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
-  const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
+  const bufferRef = useRef<number[][]>([]); // Ref to store the data temporary buffer during recording
   const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
@@ -91,7 +97,11 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
-
+  const togglePause = () => {
+    const newPauseState = !isDisplay;
+    setIsDisplay(newPauseState);
+    onPauseChange(newPauseState); // Notify parent about the change
+  };
   const increaseCanvas = () => {
     if (canvasCount < 6) {
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
@@ -110,6 +120,25 @@ const Connection: React.FC<ConnectionProps> = ({
     } else {
       setCanvasCount(6); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
+    }
+  };
+
+  const increaseZoom = () => {
+    if (Zoom < 10) {
+      SetZoom(Zoom + 1); // Increase canvas count up to 6
+    }
+  };
+
+  const decreaseZoom = () => {
+    if (Zoom > 1) {
+      SetZoom(Zoom - 1); // Decrease canvas count but not below 1
+    }
+  };
+  const toggleZoom = () => {
+    if (Zoom === 10) {
+      SetZoom(1); // If canvasCount is 6, reduce it to 1
+    } else {
+      SetZoom(10); // Otherwise, show all 6 canvases
     }
   };
 
@@ -322,17 +351,17 @@ const Connection: React.FC<ConnectionProps> = ({
             ) {
               // Validate the packet by checking the sync and end bytes
               const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
-              const channelData: string[] = []; // Array to store the extracted channel data
+              const channelData: number[] = []; // Array to store the extracted channel data
               for (let channel = 0; channel < NUM_CHANNELS; channel++) {
                 // Loop through each channel in the packet
                 const highByte = packet[channel * 2 + HEADER_LENGTH]; // Extract the high byte for the channel
                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1]; // Extract the low byte for the channel
                 const value = (highByte << 8) | lowByte; // Combine high and low bytes to get the channel value
-                channelData.push(value.toString()); // Convert the value to string and store it in the array
+                channelData.push(value); // Convert the value to string and store it in the array
               }
               const counter = packet[2]; // Extract the counter value from the packet
-              channelData.push(counter.toString()); // Add the counter to the channel data
-              LineData(channelData); // Pass the channel data to the LineData function for further processing
+              channelData.push(counter); // Add the counter to the channel data
+              dataSteam(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
                 // Check if recording is enabled
                 bufferRef.current.push(channelData); // Store the channel data in the recording buffer
@@ -515,7 +544,7 @@ const Connection: React.FC<ConnectionProps> = ({
   }, []);
 
   // Add this function to save data to IndexedDB during recording
-  const saveDataDuringRecording = async (data: string[][]) => {
+  const saveDataDuringRecording = async (data: number[][]) => {
     if (!isRecordingRef.current || !indexedDBRef.current) return;
 
     try {
@@ -826,46 +855,70 @@ const Connection: React.FC<ConnectionProps> = ({
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger asChild>
-                {ifBits ? (
-                  <Button
-                    variant={selectedBits === "auto" ? "default" : "outline"}
-                    className="w-36 flex justify-center items-center overflow-hidden p-0 m-0 select-none"
-                    onClick={() =>
-                      setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
-                    }
-                    aria-label="Toggle Autoscale"
-                    disabled={!isDisplay}
-                  >
-                    Autoscale
-                  </Button>
-                ) : (
-                  <Select
-                    onValueChange={(value) =>
-                      setSelectedBits(value as BitSelection)
-                    }
-                    value={selectedBits}
-                    disabled={!isDisplay}
-                  >
-                    <SelectTrigger className="w-32 p-0 m-0">
-                      <SelectValue placeholder="Select bits" />
-                    </SelectTrigger>
-                    <SelectContent side="top">
-                      <SelectItem value="ten">10 bits</SelectItem>
-                      <SelectItem value="twelve">12 bits</SelectItem>
-                      <SelectItem value="fourteen">14 bits</SelectItem>
-                      <SelectItem value="auto">Auto Scale</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {selectedBits === "auto"
-                    ? "Auto Scaling Enabled"
-                    : "Manual Bit Selection"}
-                </p>
-              </TooltipContent>
+              <div className="flex items-center mx-0 px-0">
+                {/* Decrease Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-r-none"
+                      onClick={decreaseZoom}
+                      disabled={Zoom === 1 }
+                    >
+                      <Minus size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {canvasCount === 1
+                        ? "At Least One Canvas Required"
+                        : "Decrease Channel"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-full" />
+
+                {/* Toggle All Channels Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
+                      onClick={toggleZoom}
+                    >
+                      Zoom
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {showAllChannels
+                        ? "Hide All Channels"
+                        : "Show All Channels"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-full" />
+
+                {/* Increase Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-l-none"
+                      onClick={increaseZoom}
+                      disabled={Zoom === 10}
+                    >
+                      <Plus size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {canvasCount >= 6
+                        ? "Maximum Channels Reached"
+                        : "Increase Channel"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             </Tooltip>
           </TooltipProvider>
         )}
@@ -875,7 +928,7 @@ const Connection: React.FC<ConnectionProps> = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button onClick={() => setIsDisplay(!isDisplay)}>
+                <Button onClick={togglePause}>
                   {isDisplay ? (
                     <Pause className="h-5 w-5" />
                   ) : (
