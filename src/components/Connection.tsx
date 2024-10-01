@@ -97,6 +97,10 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
+  const bufferdRef = useRef<number[][]>([]);
+  const [bufferFull, setBufferFull] = useState(false);
+  const bufferSize = 10; // Maximum size for each channel buffer
+  const channelCount = 7; // Number of channels
   const togglePause = () => {
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
@@ -362,6 +366,8 @@ const Connection: React.FC<ConnectionProps> = ({
               const counter = packet[2]; // Extract the counter value from the packet
               channelData.push(counter); // Add the counter to the channel data
               dataSteam(channelData); // Pass the channel data to the LineData function for further processing
+              addToBuffer(channelData); // Add the new data to the buffer
+
               if (isRecordingRef.current) {
                 // Check if recording is enabled
                 bufferRef.current.push(channelData); // Store the channel data in the recording buffer
@@ -393,6 +399,31 @@ const Connection: React.FC<ConnectionProps> = ({
       await disconnectDevice(); // Ensure the device is disconnected when finished
     }
   };
+
+  
+ // Function to add channel data to the buffer
+ const addToBuffer = (channelData: number[]) => {
+  if (channelData.length !== channelCount) {
+    console.error(`Expected ${channelCount} channels, but got ${channelData.length}`);
+    return;
+  }
+
+  // Add the channel data to the buffer
+  bufferdRef.current.push(channelData);
+
+  // Check if the buffer is full
+  if (bufferdRef.current.length === bufferSize) {
+    setBufferFull(true);
+
+    // Process the buffer data (e.g., plot or save)
+    // console.log("Buffer is full and ready for use:", bufferdRef.current);
+
+    // Reset the buffer for reuse
+    bufferdRef.current = [];
+    setBufferFull(false); // Reset the flag after processing
+  }
+};
+
 
   const convertToCSV = (data: any[]): string => {
     if (data.length === 0) return "";
