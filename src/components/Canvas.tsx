@@ -45,18 +45,14 @@ const Canvas= forwardRef( ({
   const slidePoints = Math.floor(samplingRate / fps); // Set how many points to slide
   let numX: number;
   numX=samplingRate*4;
-  // Update singleNumber whenever canvasCount changes
-  const canvasbufferRef = useRef<number[][]>([]);
-  const [bufferFull, setBufferFull] = useState(false);
-  const bufferSize = 10; // Maximum size for each channel buffer
-  const channelCount = 7; // Number of channels
+ 
   useEffect(() => {
     setNumChannels(canvasCount);
   }, [canvasCount]);
 
   useImperativeHandle(ref, () => ({
     updateData(data: number[]) {
-      addToBuffer(data);
+      updatePlots(data,Zoom);
       if (previousCounter !== null) {
         // If there was a previous counter value
         const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
@@ -71,82 +67,69 @@ const Canvas= forwardRef( ({
     }
   }),[Zoom]);
 
-   // Function to add channel data to the buffer
- const addToBuffer = (channelData: number[]) => {
-  if (channelData.length !== channelCount) {
-    console.error(`Expected ${channelCount} channels, but got ${channelData.length}`);
-    return;
+  
+
+const createCanvases = () => {
+  if (!canvasContainerRef.current) return;
+
+  // Clean up all existing canvases and their WebGL contexts
+  while (canvasContainerRef.current.firstChild) {
+    const canvas = canvasContainerRef.current.firstChild as HTMLCanvasElement;
+    const gl = canvas.getContext("webgl");
+
+    // Lose the WebGL context if available
+    if (gl) {
+      const loseContext = gl.getExtension("WEBGL_lose_context");
+      if (loseContext) {
+        loseContext.loseContext();
+      }
+    }
+
+    // Remove the canvas element from the container
+    canvasContainerRef.current.removeChild(canvas);
   }
 
-  // Add the channel data to the buffer
-  canvasbufferRef.current.push(channelData);
-  updatePlots(channelData,Zoom);
-  // Check if the buffer is full
-  if (canvasbufferRef.current.length === bufferSize) {
-    setBufferFull(true);
+  // Clear the arrays holding canvases, WebGL plots, and lines
+  setCanvases([]);
+  setWglPlots([]);
+  linesRef.current = [];
 
-    // Process the buffer data (e.g., plot or save)
-    // console.log("Buffer is full and ready for use:", canvasbufferRef.current);
-    const processedData: number[][] = Array.from({ length: 6 }, () => []);
+  const fixedCanvasWidth = canvasContainerRef.current.clientWidth;
+  const containerHeight = canvasContainerRef.current.clientHeight || window.innerHeight - 50;
+  const canvasHeight = containerHeight / numChannels;
 
-    // Distribute data points from the buffer into their respective channels
-    canvasbufferRef.current.forEach((data) => {
-      data.slice(0, 6).forEach((value, channelIndex) => {
-        processedData[channelIndex].push(value);
-      });
-    });
-    
-    // console.log("Processed Data (6x10 array):", processedData);
+  const newCanvases: HTMLCanvasElement[] = [];
+  const newWglPlots: WebglPlot[] = [];
+  const newLines: WebglLine[] = [];
 
+  for (let i = 0; i < numChannels; i++) {
+    const canvas = document.createElement("canvas");
 
-    // Reset the buffer for reuse
-    canvasbufferRef.current = [];
-    setBufferFull(false); // Reset the flag after processing
+    canvas.width = fixedCanvasWidth;
+    canvas.height = canvasHeight;
+
+    canvas.className = "border border-secondary-foreground w-full";
+    canvas.style.height = `${canvasHeight}px`;
+    canvas.style.border = "0.5px solid #ccc";
+
+    canvasContainerRef.current.appendChild(canvas);
+    newCanvases.push(canvas);
+
+    const wglp = new WebglPlot(canvas);
+    newWglPlots.push(wglp);
+
+    const line = new WebglLine(getRandomColor(i), numX);
+    line.lineSpaceX(-1, 2 / numX);
+    wglp.addLine(line);
+    newLines.push(line);
   }
+
+  linesRef.current = newLines;
+  setCanvases(newCanvases);
+  setWglPlots(newWglPlots);
+  setLines(newLines);
 };
 
-  const createCanvases = () => {
-    if (!canvasContainerRef.current) return;
-
-    // Clear existing canvases
-    canvasContainerRef.current.innerHTML = '';
-
-    const fixedCanvasWidth = canvasContainerRef.current.clientWidth;
-    const containerHeight = canvasContainerRef.current.clientHeight || window.innerHeight - 50;
-    const canvasHeight = containerHeight / numChannels;
-
-    const newCanvases: HTMLCanvasElement[] = [];
-    const newWglPlots: WebglPlot[] = [];
-    const newLines: WebglLine[] = [];
-
-    for (let i = 0; i < numChannels; i++) {
-      const canvas = document.createElement("canvas");
-
-      canvas.width = fixedCanvasWidth;
-      canvas.height = canvasHeight;
-
-      canvas.className = "border border-secondary-foreground w-full";
- 
-      canvas.style.height = `${canvasHeight}px`;
-      canvas.style.border="0.5px solid #ccc";
-
-      canvasContainerRef.current.appendChild(canvas);
-      newCanvases.push(canvas);
-
-      const wglp = new WebglPlot(canvas);
-      newWglPlots.push(wglp);
-      
-      const line = new WebglLine(getRandomColor(i), numX);
-      line.lineSpaceX(-1, 2 / numX);
-      wglp.addLine(line);
-      newLines.push(line);
-
-    }
-    linesRef.current = newLines;
-    setCanvases(newCanvases);
-    setWglPlots(newWglPlots);
-    setLines(newLines);
-  };
  
 
   const getRandomColor = (i: number): ColorRGBA => {
