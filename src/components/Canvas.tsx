@@ -253,7 +253,7 @@ const Canvas= forwardRef( ({
 
 
   const animate = useCallback(() => {
-    if (pauseRef.current && previousCounter%10 == 0) {
+    if (pauseRef.current) {
       wglPlots.forEach((wglp) => wglp.update());
       requestAnimationFrame(animate);
     }
@@ -265,25 +265,6 @@ const Canvas= forwardRef( ({
     }
   }, [pauseRef.current, animate]);
   
-
-  const getHeightClass = (count: number) => {
-    switch (count) {
-      case 1:
-        return "h-[70vh]"; // Full height of the container for one canvas
-      case 2:
-        return "h-[35vh]"; // 50% of the container height for two canvases
-      case 3:
-        return "h-[23.33vh]"; // Approximately 1/3rd for three canvases
-      case 4:
-        return "h-[17.5vh]"; // Approximately 1/4th for four canvases
-      case 5:
-        return "h-[14vh]"; // For five canvases, slightly smaller
-      case 6:
-        return "h-[11.67vh]"; // 1/6th of the container
-      default:
-        return "h-[70vh]"; // Default for a single canvas
-    }
-  };
 
   return (
     <div className="flex justify-center items-center h-[85vh] mx-4">
