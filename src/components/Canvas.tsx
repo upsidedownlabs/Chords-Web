@@ -48,19 +48,15 @@ const Canvas= forwardRef( ({
   // Update singleNumber whenever canvasCount changes
   const canvasbufferRef = useRef<number[][]>([]);
   const [bufferFull, setBufferFull] = useState(false);
-  const bufferSize = 5; // Maximum size for each channel buffer
+  const bufferSize = 10; // Maximum size for each channel buffer
   const channelCount = 7; // Number of channels
   useEffect(() => {
     setNumChannels(canvasCount);
   }, [canvasCount]);
 
-
   useImperativeHandle(ref, () => ({
     updateData(data: number[]) {
-
-      
       addToBuffer(data);
-
       if (previousCounter !== null) {
         // If there was a previous counter value
         const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
@@ -84,7 +80,7 @@ const Canvas= forwardRef( ({
 
   // Add the channel data to the buffer
   canvasbufferRef.current.push(channelData);
-
+  updatePlots(channelData,Zoom);
   // Check if the buffer is full
   if (canvasbufferRef.current.length === bufferSize) {
     setBufferFull(true);
@@ -99,8 +95,8 @@ const Canvas= forwardRef( ({
         processedData[channelIndex].push(value);
       });
     });
-    updatePlots(processedData);
-    console.log("Processed Data (6x10 array):", processedData);
+    
+    // console.log("Processed Data (6x10 array):", processedData);
 
 
     // Reset the buffer for reuse
@@ -168,47 +164,7 @@ const Canvas= forwardRef( ({
     return colors[i % colors.length]; // Ensure to always return a valid ColorRGBA
   };
 
-  const updatePlots = useCallback((processedData: number[][]) => {
-    wglPlots.forEach((wglp, index) => {
-      if (wglp) {
-        try {
-          wglp.gScaleY = Zoom; // Adjust this value as needed
-        } catch (error) {
-          console.error(`Error setting gScaleY for WebglPlot instance at index ${index}:`, error);
-        }
-      } else {
-        console.warn(`WebglPlot instance at index ${index} is undefined.`);
-      }
-    });
-  
-    linesRef.current.forEach((line, channelIndex) => {
-      // Shift existing data points to make room for the 10 new points
-      const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
-      const yScale = 2 / bitsPoints;
-  
-      // The 10 points for this particular channel
-      const newPoints = processedData[channelIndex].map(value => (value - bitsPoints / 2) * yScale);
-  
-      // Shift data points to the left by 10 positions
-      for (let j = newPoints.length; j < line.numPoints; j++) {
-        line.setY(j - newPoints.length, line.getY(j));
-      }
-      // for (let i = 1; i < numX; i++) {
-      //   line.setY(i - 1, line.getY(i)); // Shift data to the left
-      // }
-  
-  
-      // Set the last 10 points with the new data
-      for (let j = 0; j < newPoints.length; j++) {
-        line.setY(line.numPoints - newPoints.length + j, newPoints[j]);
-      }
-
-      
-    });
-  }, [linesRef, wglPlots, selectedBits,Zoom]); // Ensure dependencies are correctly referenced
-  
-
-  // const updatePlots = useCallback((data: number[],Zoom:number) => {
+  // const updatePlots = useCallback((processedData: number[][]) => {
   //   wglPlots.forEach((wglp, index) => {
   //     if (wglp) {
   //       try {
@@ -220,18 +176,55 @@ const Canvas= forwardRef( ({
   //       console.warn(`WebglPlot instance at index ${index} is undefined.`);
   //     }
   //   });
-  //   linesRef.current.forEach((line, i) => {
-  //     // Shift the data points efficiently using a single operation
+  
+  //   linesRef.current.forEach((line, channelIndex) => {
+  //     // Shift existing data points to make room for the 10 new points
   //     const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
   //     const yScale = 2 / bitsPoints;
-  //     const chData = (data[i] - bitsPoints / 2) * yScale;
   
-      // for (let j = 1; j < line.numPoints; j++) {
-      //   line.setY(j - 1, line.getY(j));
-      // }
-      // line.setY(line.numPoints - 1, chData);
+  //     // The 10 points for this particular channel
+  //     const newPoints = processedData[channelIndex].map(value => (value - bitsPoints / 2) * yScale);
+  
+  //     // Shift data points to the left by 10 positions
+  //     // for (let j = newPoints.length; j < line.numPoints; j++) {
+  //     //   line.setY(j - newPoints.length, line.getY(j));
+  //     // }
+  //     let yArray = new Float32Array(newPoints);
+      
+  //     // for (let j = 0; j < newPoints.length; j++) {
+  //     //   line.setY(line.numPoints - newPoints.length + j, newPoints[j]);
+  //     // }
+  //     line.shiftAdd(yArray);
+      
   //   });
-  // }, [lines,wglPlots]); // Add dependencies here
+  // }, [linesRef, wglPlots, selectedBits,Zoom]); // Ensure dependencies are correctly referenced
+  
+
+  const updatePlots = useCallback((data: number[],Zoom:number) => {
+    wglPlots.forEach((wglp, index) => {
+      if (wglp) {
+        try {
+          wglp.gScaleY = Zoom; // Adjust this value as needed
+        } catch (error) {
+          console.error(`Error setting gScaleY for WebglPlot instance at index ${index}:`, error);
+        }
+      } else {
+        console.warn(`WebglPlot instance at index ${index} is undefined.`);
+      }
+    });
+    linesRef.current.forEach((line, i) => {
+      // Shift the data points efficiently using a single operation
+      const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
+      const yScale = 2 / bitsPoints;
+      const chData = (data[i] - bitsPoints / 2) * yScale;
+  
+      for (let j = 1; j < line.numPoints; j++) {
+        line.setY(j - 1, line.getY(j));
+      }
+      line.setY(line.numPoints - 1, chData);
+    });
+
+  }, [lines,wglPlots]); // Add dependencies here
 
 
   
@@ -260,7 +253,7 @@ const Canvas= forwardRef( ({
 
 
   const animate = useCallback(() => {
-    if (pauseRef.current) {
+    if (pauseRef.current && previousCounter%10 == 0) {
       wglPlots.forEach((wglp) => wglp.update());
       requestAnimationFrame(animate);
     }
