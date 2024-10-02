@@ -16,6 +16,9 @@ import {
   Play,
   Plus,
   Minus,
+  ZoomIn, // For magnify/zoom in functionality
+  ZoomOut, // For zoom out functionality
+
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -91,6 +94,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
+  const [FullZoom, setFullZoom] = useState(false);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -141,8 +145,10 @@ const Connection: React.FC<ConnectionProps> = ({
   const toggleZoom = () => {
     if (Zoom === 10) {
       SetZoom(1); // If canvasCount is 6, reduce it to 1
+      setFullZoom(false);
     } else {
       SetZoom(10); // Otherwise, show all 6 canvases
+      setFullZoom(true);
     }
   };
 
@@ -305,7 +311,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
-    let bufferIndex = 0; // Index for tracking the current position in the buffer
     const buffer: number[] = []; // Buffer to store incoming data
     const HEADER_LENGTH = 3; // Length of the packet header
     const NUM_CHANNELS = 6; // Number of channels in the data packet
@@ -314,7 +319,6 @@ const Connection: React.FC<ConnectionProps> = ({
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    let hasRemovedInitialElements = false; // Flag to track if initial elements have been removed
 
     try {
       // Loop while the device is connected
@@ -895,14 +899,15 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={decreaseZoom}
                       disabled={Zoom === 1 }
                     >
-                      <Minus size={16} />
+                      <ZoomOut size={16} />
+
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {canvasCount === 1
-                        ? "At Least One Canvas Required"
-                        : "Decrease Channel"}
+                      {Zoom === 1
+                        ? "We can't shrinkage"
+                        : "Decrease Zoom"}
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -916,14 +921,14 @@ const Connection: React.FC<ConnectionProps> = ({
                       className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
                       onClick={toggleZoom}
                     >
-                      Zoom
+                      {Zoom}x
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {showAllChannels
-                        ? "Hide All Channels"
-                        : "Show All Channels"}
+                      {FullZoom
+                        ? "Remove Full Zoom"
+                        : "Full Zoom"}
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -938,14 +943,14 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={increaseZoom}
                       disabled={Zoom === 10}
                     >
-                      <Plus size={16} />
+                      <ZoomIn size={16} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {canvasCount >= 6
-                        ? "Maximum Channels Reached"
-                        : "Increase Channel"}
+                      {Zoom >= 10
+                        ? "Maximum Zoom Reached"
+                        : "Increase Zoom"}
                     </p>
                   </TooltipContent>
                 </Tooltip>

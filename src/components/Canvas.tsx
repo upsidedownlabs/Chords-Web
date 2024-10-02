@@ -44,8 +44,18 @@ const Canvas= forwardRef( ({
   const samplingRate = 500; // Set the sampling rate in Hz
   const slidePoints = Math.floor(samplingRate / fps); // Set how many points to slide
   let numX: number;
-  numX=samplingRate*4;
- 
+
+  const getpoints = useCallback((bits: BitSelection): number => {
+    switch (bits) {
+      case "ten":
+        return samplingRate*2;
+      case "fourteen":
+        return samplingRate*4;
+      default:
+      return 0; // Or any other fallback value you'd like
+    }
+  }, []);
+  numX=getpoints(selectedBits);
   useEffect(() => {
     setNumChannels(canvasCount);
   }, [canvasCount]);
