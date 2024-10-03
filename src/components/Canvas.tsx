@@ -170,30 +170,29 @@ const Canvas: React.FC<CanvasProps> = ({
     getChannelColor, // Dependency: function to get the color for a specific channel
   ]);
 
- // Callback function to process a batch of data and append it to the corresponding time series
-const processBatch = useCallback(() => { 
-  // Exit early if the batch buffer is empty or the global state is paused
-  if (batchBuffer.length === 0 || isGlobalPaused) return;
+  // Callback function to process a batch of data and append it to the corresponding time series
+  const processBatch = useCallback(() => {
+    // Exit early if the batch buffer is empty or the global state is paused
+    if (batchBuffer.length === 0 || isGlobalPaused) return;
 
-  // Iterate over each batch in the batch buffer
-  batchBuffer.forEach((batch: Batch) => {
-    // Iterate over each channel to update the corresponding time series
-    channels.forEach((_, index) => {
-      const series = seriesRef.current[index]; // Get the time series for the current channel
-      if (
-        series && // Check if the series exists
-        batch.values[index] !== undefined && // Ensure the batch has a value for the current channel
-        !isNaN(batch.values[index]) // Check that the value is a valid number
-      ) {
-        series.append(batch.time, batch.values[index]); // Append the time and value to the series
-      }
+    // Iterate over each batch in the batch buffer
+    batchBuffer.forEach((batch: Batch) => {
+      // Iterate over each channel to update the corresponding time series
+      channels.forEach((_, index) => {
+        const series = seriesRef.current[index]; // Get the time series for the current channel
+        if (
+          series && // Check if the series exists
+          batch.values[index] !== undefined && // Ensure the batch has a value for the current channel
+          !isNaN(batch.values[index]) // Check that the value is a valid number
+        ) {
+          series.append(batch.time, batch.values[index]); // Append the time and value to the series
+        }
+      });
     });
-  });
 
-  // Clear the batch buffer after processing
-  batchBuffer.length = 0; 
-}, [channels, batchBuffer, isGlobalPaused]); // Dependencies for the useCallback
-
+    // Clear the batch buffer after processing
+    batchBuffer.length = 0;
+  }, [channels, batchBuffer, isGlobalPaused]); // Dependencies for the useCallback
 
   // Improve the data update to handle data flow more consistently
   const handleDataUpdate = useCallback(
@@ -222,7 +221,7 @@ const processBatch = useCallback(() => {
     // Initialize charts only when the number of channels (canvasCount) changes
     const initializeCharts = () => {
       const colors = getThemeColors(); // Get the current theme colors
-  
+
       // Clean up existing charts before initializing new ones
       chartRef.current.forEach((chart, index) => {
         if (chart) {
@@ -233,7 +232,7 @@ const processBatch = useCallback(() => {
           }
         }
       });
-  
+
       // Re-initialize all channels
       channels.forEach((_, index) => {
         // Loop through each channel to create a new chart
@@ -265,26 +264,26 @@ const processBatch = useCallback(() => {
               ? undefined
               : getMaxValue(selectedBits), // Set maximum value based on auto-scaling
           });
-  
+
           const series = new TimeSeries(); // Create a new TimeSeries instance
           chartRef.current[index] = chart; // Store the chart in the ref array
           seriesRef.current[index] = series; // Store the series in the ref array
-  
+
           chart.addTimeSeries(series, {
             // Add the time series to the chart with specified styling
             strokeStyle: getChannelColor(index), // Set the stroke color based on the channel index
             lineWidth: 1, // Set the line width
           });
-  
+
           chart.streamTo(canvas, 100); // Stream data to the canvas at 100 ms intervals
         }
       });
       setIsChartInitialized(true); // Update state to indicate charts have been initialized
     };
-  
+
     initializeCharts(); // Call the initialize function when canvasCount changes
   }, [canvasCount]); // Dependency array: re-run the effect only when canvasCount changes
-  
+
   // Update chart properties (theme, selectedBits) without reinitializing the charts
   useEffect(() => {
     if (isChartInitialized) {
@@ -386,6 +385,11 @@ const processBatch = useCallback(() => {
                 channels.length
               )} relative bg-white dark:bg-gray-900`}
             >
+              {/* Badge for Channel Number */}
+              <span className="absolute top-1 left-1 transform -translate-y-1/20 translate-x-1/6 text-gray-500 text-sm rounded-full">
+                {`CH${index + 1}`}
+              </span>
+
               <canvas
                 id={`smoothie-chart-${index + 1}`}
                 className="w-full h-full m-0 p-0"
