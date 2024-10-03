@@ -4,11 +4,10 @@ import React, {
   useState,
   useCallback,
   useMemo,
-  useImperativeHandle, 
+  useImperativeHandle,
   forwardRef,
 } from "react";
-import { SmoothieChart, TimeSeries } from "smoothie";
-import { useTheme } from "next-themes";
+
 import { BitSelection } from "./DataPass";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 
@@ -18,257 +17,245 @@ interface CanvasProps {
   isDisplay: boolean;
   canvasCount?: number;
   Zoom: number;
-
 }
 interface Batch {
   time: number;
   values: number[];
 }
 
-const Canvas= forwardRef( ({
-  pauseRef,
-  selectedBits,
-  isDisplay,
-  canvasCount = 6, // default value in case not provided
-  Zoom,
+const Canvas = forwardRef(
+  (
+    {
+      pauseRef,
+      selectedBits,
+      isDisplay,
+      canvasCount = 6, // default value in case not provided
+      Zoom,
 }:CanvasProps, ref) => {
 
-  let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-  const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const [numChannels, setNumChannels] = useState<number>(canvasCount);
-  const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
-  const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
-  const [lines, setLines] = useState<WebglLine[]>([]);
-  const linesRef = useRef<WebglLine[]>([]);
-  const fps = 60;
-  const samplingRate = 500; // Set the sampling rate in Hz
-  const slidePoints = Math.floor(samplingRate / fps); // Set how many points to slide
-  let numX: number;
+    let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+    const canvasContainerRef = useRef<HTMLDivElement>(null);
+    const [numChannels, setNumChannels] = useState<number>(canvasCount);
+    const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
+    const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
+    const [lines, setLines] = useState<WebglLine[]>([]);
+    const linesRef = useRef<WebglLine[]>([]);
+    const fps = 60;
+    const samplingRate = 500; // Set the sampling rate in Hz
+    const slidePoints = Math.floor(samplingRate / fps); // Set how many points to slide
+    let numX: number;
 
-  const getpoints = useCallback((bits: BitSelection): number => {
-    switch (bits) {
-      case "ten":
+    const getpoints = useCallback((bits: BitSelection): number => {
+      switch (bits) {
+        case "ten":
         return samplingRate*2;
-      case "fourteen":
+        case "fourteen":
         return samplingRate*4;
-      default:
-      return 0; // Or any other fallback value you'd like
-    }
-  }, []);
+        default:
+          return 0; // Or any other fallback value you'd like
+      }
+    }, []);
   numX=getpoints(selectedBits);
-  useEffect(() => {
-    setNumChannels(canvasCount);
-  }, [canvasCount]);
+    useEffect(() => {
+      setNumChannels(canvasCount);
+    }, [canvasCount]);
 
-  useImperativeHandle(ref, () => ({
-    updateData(data: number[]) {
-      updatePlots(data,Zoom);
-      if (previousCounter !== null) {
-        // If there was a previous counter value
-        const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
-        if (data[6] !== expectedCounter) {
-          // Check for data loss by comparing the current counter with the expected counter
-          console.warn(
-            `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[6]}`
-          );
+    useImperativeHandle(
+      ref,
+      () => ({
+        updateData(data: number[]) {
+          updatePlots(data, Zoom);
+          if (previousCounter !== null) {
+            // If there was a previous counter value
+            const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
+            if (data[6] !== expectedCounter) {
+              // Check for data loss by comparing the current counter with the expected counter
+              console.warn(
+                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[6]}`
+              );
+            }
+          }
+          previousCounter = data[6]; // Update the previous counter with the current counter
+        },
+      }),
+      [Zoom]
+    );
+
+    const createCanvases = () => {
+      if (!canvasContainerRef.current) return;
+
+      // Clean up all existing canvases and their WebGL contexts
+      while (canvasContainerRef.current.firstChild) {
+        const firstChild = canvasContainerRef.current.firstChild;
+
+        // Ensure it's an HTMLCanvasElement before trying to get the context
+        if (firstChild instanceof HTMLCanvasElement) {
+          const gl = firstChild.getContext("webgl");
+
+          // Lose the WebGL context if available
+          if (gl) {
+            const loseContext = gl.getExtension("WEBGL_lose_context");
+            if (loseContext) {
+              loseContext.loseContext();
+            }
+          }
+
+          // Remove the canvas element from the container
+          canvasContainerRef.current.removeChild(firstChild);
+        } else {
+          // Remove the badge or any other non-canvas element
+          canvasContainerRef.current.removeChild(firstChild);
         }
       }
-      previousCounter =data[6]; // Update the previous counter with the current counter
-    }
-  }),[Zoom]);
 
-  
+      // Clear the arrays holding canvases, WebGL plots, and lines
+      setCanvases([]);
+      setWglPlots([]);
+      linesRef.current = [];
 
-const createCanvases = () => {
-  if (!canvasContainerRef.current) return;
+      const fixedCanvasWidth = canvasContainerRef.current.clientWidth;
+      const containerHeight =
+        canvasContainerRef.current.clientHeight || window.innerHeight - 50;
+      const canvasHeight = containerHeight / numChannels;
 
-  // Clean up all existing canvases and their WebGL contexts
-  while (canvasContainerRef.current.firstChild) {
-    const canvas = canvasContainerRef.current.firstChild as HTMLCanvasElement;
-    const gl = canvas.getContext("webgl");
+      const newCanvases: HTMLCanvasElement[] = [];
+      const newWglPlots: WebglPlot[] = [];
+      const newLines: WebglLine[] = [];
 
-    // Lose the WebGL context if available
-    if (gl) {
-      const loseContext = gl.getExtension("WEBGL_lose_context");
-      if (loseContext) {
-        loseContext.loseContext();
+      for (let i = 0; i < numChannels; i++) {
+        const canvas = document.createElement("canvas");
+
+        canvas.width = fixedCanvasWidth;
+        canvas.height = canvasHeight;
+
+        canvas.className = "border border-secondary-foreground w-full";
+        canvas.style.height = `${canvasHeight}px`;
+        canvas.style.border = "0.5px solid #ccc";
+
+        // Create a badge for the channel number
+        const badge = document.createElement("div");
+        badge.className =
+          "absolute top-1 left-1 transform -translate-y-1/20 translate-x-1/6 text-gray-500 text-sm rounded-full";
+        badge.innerText = `CH${i + 1}`; // Display channel number starting from 1
+
+        // Append the canvas and badge to the container
+        const canvasWrapper = document.createElement("div");
+        canvasWrapper.className = "relative"; // Ensure the badge is positioned relative to the canvas
+        canvasWrapper.appendChild(canvas);
+        canvasWrapper.appendChild(badge);
+
+        canvasContainerRef.current.appendChild(canvasWrapper); // Append the wrapper to the container
+
+        newCanvases.push(canvas);
+
+        const wglp = new WebglPlot(canvas);
+        newWglPlots.push(wglp);
+
+        const line = new WebglLine(getRandomColor(i), numX);
+        line.lineSpaceX(-1, 2 / numX);
+        wglp.addLine(line);
+        newLines.push(line);
       }
-    }
 
-    // Remove the canvas element from the container
-    canvasContainerRef.current.removeChild(canvas);
+      linesRef.current = newLines;
+      setCanvases(newCanvases);
+      setWglPlots(newWglPlots);
+      setLines(newLines);
+    };
+
+    const getRandomColor = (i: number): ColorRGBA => {
+      // Define bright colors
+      const colors: ColorRGBA[] = [
+        new ColorRGBA(1, 0.286, 0.529, 1), // Bright Pink
+        new ColorRGBA(0.475, 0.894, 0.952, 1), // Light Blue
+        new ColorRGBA(0, 1, 0.753, 1), // Bright Cyan
+        new ColorRGBA(0.431, 0.761, 0.031, 1), // Bright Green
+        new ColorRGBA(0.678, 0.286, 0.882, 1), // Bright Purple
+        new ColorRGBA(0.914, 0.361, 0.051, 1), // Bright Orange
+      ];
+
+      // Return color based on the index, cycling through if necessary
+      return colors[i % colors.length]; // Ensure to always return a valid ColorRGBA
+    };
+
+    const updatePlots = useCallback(
+      (data: number[], Zoom: number) => {
+        wglPlots.forEach((wglp, index) => {
+          if (wglp) {
+            try {
+              wglp.gScaleY = Zoom; // Adjust this value as needed
+            } catch (error) {
+              console.error(
+                `Error setting gScaleY for WebglPlot instance at index ${index}:`,
+                error
+              );
+            }
+          } else {
+            console.warn(`WebglPlot instance at index ${index} is undefined.`);
+          }
+        });
+        linesRef.current.forEach((line, i) => {
+          // Shift the data points efficiently using a single operation
+          const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
+          const yScale = 2 / bitsPoints;
+          const chData = (data[i] - bitsPoints / 2) * yScale;
+
+          for (let j = 1; j < line.numPoints; j++) {
+            line.setY(j - 1, line.getY(j));
+          }
+          line.setY(line.numPoints - 1, chData);
+        });
+      },
+      [lines, wglPlots]
+    ); // Add dependencies here
+
+    useEffect(() => {
+      createCanvases();
+    }, [numChannels]);
+
+    const getValue = useCallback((bits: BitSelection): number => {
+      switch (bits) {
+        case "ten":
+          return 10;
+        case "twelve":
+          return 12;
+        case "fourteen":
+          return 14;
+        default:
+          return 0; // Or any other fallback value you'd like
+      }
+    }, []);
+
+    const animate = useCallback(() => {
+      if (pauseRef.current) {
+        wglPlots.forEach((wglp) => wglp.update());
+        requestAnimationFrame(animate);
+      }
+    }, [wglPlots, pauseRef]);
+
+    useEffect(() => {
+      if (pauseRef.current) {
+        requestAnimationFrame(animate);
+      }
+    }, [pauseRef.current, animate]);
+
+    return (
+      <div className="flex justify-center items-center h-[85vh] mx-4">
+        {/* Canvas container taking 70% of the screen height */}
+        <div className="flex flex-col justify-center items-start w-full px-4">
+          <div className="grid w-full h-full relative">
+            {/* Badge for Channel Number */}
+            <span className="absolute top-1 left-1 transform -translate-y-1/20 translate-x-1/6 text-gray-500 text-sm rounded-full"></span>
+
+            <div
+              className="canvas-container flex flex-wrap justify-center items-center h-[80vh] w-full"
+              ref={canvasContainerRef}
+            ></div>
+          </div>
+        </div>
+      </div>
+    );
   }
-
-  // Clear the arrays holding canvases, WebGL plots, and lines
-  setCanvases([]);
-  setWglPlots([]);
-  linesRef.current = [];
-
-  const fixedCanvasWidth = canvasContainerRef.current.clientWidth;
-  const containerHeight = canvasContainerRef.current.clientHeight || window.innerHeight - 50;
-  const canvasHeight = containerHeight / numChannels;
-
-  const newCanvases: HTMLCanvasElement[] = [];
-  const newWglPlots: WebglPlot[] = [];
-  const newLines: WebglLine[] = [];
-
-  for (let i = 0; i < numChannels; i++) {
-    const canvas = document.createElement("canvas");
-
-    canvas.width = fixedCanvasWidth;
-    canvas.height = canvasHeight;
-
-    canvas.className = "border border-secondary-foreground w-full";
-    canvas.style.height = `${canvasHeight}px`;
-    canvas.style.border = "0.5px solid #ccc";
-
-    canvasContainerRef.current.appendChild(canvas);
-    newCanvases.push(canvas);
-
-    const wglp = new WebglPlot(canvas);
-    newWglPlots.push(wglp);
-
-    const line = new WebglLine(getRandomColor(i), numX);
-    line.lineSpaceX(-1, 2 / numX);
-    wglp.addLine(line);
-    newLines.push(line);
-  }
-
-  linesRef.current = newLines;
-  setCanvases(newCanvases);
-  setWglPlots(newWglPlots);
-  setLines(newLines);
-};
-
- 
-
-  const getRandomColor = (i: number): ColorRGBA => {
-    // Define bright colors
-    const colors: ColorRGBA[] = [
-      new ColorRGBA(1, 0.286, 0.529, 1), // Bright Pink
-      new ColorRGBA(0.475, 0.894, 0.952, 1), // Light Blue
-      new ColorRGBA(0, 1, 0.753, 1), // Bright Cyan
-      new ColorRGBA(0.431, 0.761, 0.031, 1), // Bright Green
-      new ColorRGBA(0.678, 0.286, 0.882, 1), // Bright Purple
-      new ColorRGBA(0.914, 0.361, 0.051, 1)  // Bright Orange
-    ];
-  
-    // Return color based on the index, cycling through if necessary
-    return colors[i % colors.length]; // Ensure to always return a valid ColorRGBA
-  };
-
-  // const updatePlots = useCallback((processedData: number[][]) => {
-  //   wglPlots.forEach((wglp, index) => {
-  //     if (wglp) {
-  //       try {
-  //         wglp.gScaleY = Zoom; // Adjust this value as needed
-  //       } catch (error) {
-  //         console.error(`Error setting gScaleY for WebglPlot instance at index ${index}:`, error);
-  //       }
-  //     } else {
-  //       console.warn(`WebglPlot instance at index ${index} is undefined.`);
-  //     }
-  //   });
-  
-  //   linesRef.current.forEach((line, channelIndex) => {
-  //     // Shift existing data points to make room for the 10 new points
-  //     const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
-  //     const yScale = 2 / bitsPoints;
-  
-  //     // The 10 points for this particular channel
-  //     const newPoints = processedData[channelIndex].map(value => (value - bitsPoints / 2) * yScale);
-  
-  //     // Shift data points to the left by 10 positions
-  //     // for (let j = newPoints.length; j < line.numPoints; j++) {
-  //     //   line.setY(j - newPoints.length, line.getY(j));
-  //     // }
-  //     let yArray = new Float32Array(newPoints);
-      
-  //     // for (let j = 0; j < newPoints.length; j++) {
-  //     //   line.setY(line.numPoints - newPoints.length + j, newPoints[j]);
-  //     // }
-  //     line.shiftAdd(yArray);
-      
-  //   });
-  // }, [linesRef, wglPlots, selectedBits,Zoom]); // Ensure dependencies are correctly referenced
-  
-
-  const updatePlots = useCallback((data: number[],Zoom:number) => {
-    wglPlots.forEach((wglp, index) => {
-      if (wglp) {
-        try {
-          wglp.gScaleY = Zoom; // Adjust this value as needed
-        } catch (error) {
-          console.error(`Error setting gScaleY for WebglPlot instance at index ${index}:`, error);
-        }
-      } else {
-        console.warn(`WebglPlot instance at index ${index} is undefined.`);
-      }
-    });
-    linesRef.current.forEach((line, i) => {
-      // Shift the data points efficiently using a single operation
-      const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
-      const yScale = 2 / bitsPoints;
-      const chData = (data[i] - bitsPoints / 2) * yScale;
-  
-      for (let j = 1; j < line.numPoints; j++) {
-        line.setY(j - 1, line.getY(j));
-      }
-      line.setY(line.numPoints - 1, chData);
-    });
-
-  }, [lines,wglPlots]); // Add dependencies here
-
-
-  
-
-  useEffect(() => {
-    createCanvases();
-  }, [numChannels]);
-
-
-
-
-  const getValue = useCallback((bits: BitSelection): number => {
-    switch (bits) {
-      case "ten":
-        return 10;
-      case "twelve":
-        return 12;
-      case "fourteen":
-        return 14;
-      default:
-      return 0; // Or any other fallback value you'd like
-    }
-  }, []);
-
-
-
-
-  const animate = useCallback(() => {
-    if (pauseRef.current) {
-      wglPlots.forEach((wglp) => wglp.update());
-      requestAnimationFrame(animate);
-    }
-  }, [wglPlots, pauseRef]);
-
-  useEffect(() => {
-    if (pauseRef.current) {
-      requestAnimationFrame(animate);
-    }
-  }, [pauseRef.current, animate]);
-  
-
-  return (
-    <div className="flex justify-center items-center h-[85vh] mx-4">
-    {/* Canvas container taking 70% of the screen height */}
-    <div className="flex flex-col justify-center items-start w-full px-4">
-      <div className="grid w-full h-full relative">
-    <div className="canvas-container flex flex-wrap justify-center items-center h-[80vh] w-full" ref={canvasContainerRef} ></div>
-    </div>
-  </div>
-</div>
-  );
-});
+);
 Canvas.displayName = "Canvas";
 export default Canvas;
