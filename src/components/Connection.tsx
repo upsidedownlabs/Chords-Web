@@ -897,7 +897,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-r-none"
                       onClick={decreaseZoom}
-                      disabled={Zoom === 1 }
+                      disabled={Zoom === 1  || !isDisplay }
                     >
                       <ZoomOut size={16} />
 
@@ -920,6 +920,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
                       onClick={toggleZoom}
+                      disabled={!isDisplay}
                     >
                       {Zoom}x
                     </Button>
@@ -941,7 +942,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-l-none"
                       onClick={increaseZoom}
-                      disabled={Zoom === 10}
+                      disabled={Zoom === 10  || !isDisplay}
                     >
                       <ZoomIn size={16} />
                     </Button>

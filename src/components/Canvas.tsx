@@ -105,8 +105,14 @@ const createCanvases = () => {
   linesRef.current = [];
 
   const fixedCanvasWidth = canvasContainerRef.current.clientWidth;
-  const containerHeight = canvasContainerRef.current.clientHeight || window.innerHeight - 50;
-  const canvasHeight = containerHeight / numChannels;
+  // const containerHeight = canvasContainerRef.current.clientHeight || window.innerHeight - 50;
+ 
+  const containerHeightPx = canvasContainerRef.current.clientHeight || window.innerHeight -50;
+  const canvasHeight = containerHeightPx / numChannels;
+  const containerHeightVh = (containerHeightPx / window.innerHeight) * 100; // Convert pixels to vh
+  const canvasHeightVh = containerHeightVh / numChannels; // Each channel's height in vh
+  
+
 
   const newCanvases: HTMLCanvasElement[] = [];
   const newWglPlots: WebglPlot[] = [];
@@ -119,7 +125,7 @@ const createCanvases = () => {
     canvas.height = canvasHeight;
 
     canvas.className = "border border-secondary-foreground w-full";
-    canvas.style.height = `${canvasHeight}px`;
+    canvas.style.height = `${canvasHeightVh}vh`;
     canvas.style.border = "0.5px solid #ccc";
 
     canvasContainerRef.current.appendChild(canvas);
@@ -157,42 +163,7 @@ const createCanvases = () => {
     return colors[i % colors.length]; // Ensure to always return a valid ColorRGBA
   };
 
-  // const updatePlots = useCallback((processedData: number[][]) => {
-  //   wglPlots.forEach((wglp, index) => {
-  //     if (wglp) {
-  //       try {
-  //         wglp.gScaleY = Zoom; // Adjust this value as needed
-  //       } catch (error) {
-  //         console.error(`Error setting gScaleY for WebglPlot instance at index ${index}:`, error);
-  //       }
-  //     } else {
-  //       console.warn(`WebglPlot instance at index ${index} is undefined.`);
-  //     }
-  //   });
   
-  //   linesRef.current.forEach((line, channelIndex) => {
-  //     // Shift existing data points to make room for the 10 new points
-  //     const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
-  //     const yScale = 2 / bitsPoints;
-  
-  //     // The 10 points for this particular channel
-  //     const newPoints = processedData[channelIndex].map(value => (value - bitsPoints / 2) * yScale);
-  
-  //     // Shift data points to the left by 10 positions
-  //     // for (let j = newPoints.length; j < line.numPoints; j++) {
-  //     //   line.setY(j - newPoints.length, line.getY(j));
-  //     // }
-  //     let yArray = new Float32Array(newPoints);
-      
-  //     // for (let j = 0; j < newPoints.length; j++) {
-  //     //   line.setY(line.numPoints - newPoints.length + j, newPoints[j]);
-  //     // }
-  //     line.shiftAdd(yArray);
-      
-  //   });
-  // }, [linesRef, wglPlots, selectedBits,Zoom]); // Ensure dependencies are correctly referenced
-  
-
   const updatePlots = useCallback((data: number[],Zoom:number) => {
     wglPlots.forEach((wglp, index) => {
       if (wglp) {
@@ -260,9 +231,9 @@ const createCanvases = () => {
   
 
   return (
-    <div className="flex justify-center items-center h-[85vh] mx-4">
+    <div className="flex justify-center items-center h-[84vh] mb-3">
     {/* Canvas container taking 70% of the screen height */}
-    <div className="flex flex-col justify-center items-start w-full px-4">
+    <div className="flex flex-col justify-center items-start w-full ">
       <div className="grid w-full h-full relative">
     <div className="canvas-container flex flex-wrap justify-center items-center h-[80vh] w-full" ref={canvasContainerRef} ></div>
     </div>
