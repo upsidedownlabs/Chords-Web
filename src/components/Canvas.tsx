@@ -40,6 +40,7 @@ const Canvas= forwardRef( ({
   const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
   const [lines, setLines] = useState<WebglLine[]>([]);
   const linesRef = useRef<WebglLine[]>([]);
+  const [marginBottom, setMarginBottom] = useState(0);
   const fps = 60;
   const samplingRate = 500; // Set the sampling rate in Hz
   const slidePoints = Math.floor(samplingRate / fps); // Set how many points to slide
@@ -79,6 +80,15 @@ const Canvas= forwardRef( ({
 
   
 
+
+  useEffect(() => {
+    const containerHeightPx = canvasContainerRef.current?.clientHeight || window.innerHeight;
+
+    // Calculate dynamic margin-bottom based on container height
+    const dynamicMarginBottom = containerHeightPx * 0.04; // Example: 5% of container height
+    setMarginBottom(dynamicMarginBottom);
+  }, []);
+
 const createCanvases = () => {
   if (!canvasContainerRef.current) return;
 
@@ -107,12 +117,10 @@ const createCanvases = () => {
   const fixedCanvasWidth = canvasContainerRef.current.clientWidth;
   // const containerHeight = canvasContainerRef.current.clientHeight || window.innerHeight - 50;
  
-  const containerHeightPx = canvasContainerRef.current.clientHeight || window.innerHeight -50;
+  const containerHeightPx = canvasContainerRef.current.clientHeight || window.innerHeight;
   const canvasHeight = containerHeightPx / numChannels;
   const containerHeightVh = (containerHeightPx / window.innerHeight) * 100; // Convert pixels to vh
   const canvasHeightVh = containerHeightVh / numChannels; // Each channel's height in vh
-  
-
 
   const newCanvases: HTMLCanvasElement[] = [];
   const newWglPlots: WebglPlot[] = [];
@@ -133,7 +141,7 @@ const createCanvases = () => {
 
     const wglp = new WebglPlot(canvas);
     newWglPlots.push(wglp);
-
+    wglp.gScaleY = Zoom;
     const line = new WebglLine(getRandomColor(i), numX);
     line.lineSpaceX(-1, 2 / numX);
     wglp.addLine(line);
@@ -145,8 +153,6 @@ const createCanvases = () => {
   setWglPlots(newWglPlots);
   setLines(newLines);
 };
-
- 
 
   const getRandomColor = (i: number): ColorRGBA => {
     // Define bright colors
@@ -190,9 +196,6 @@ const createCanvases = () => {
 
   }, [lines,wglPlots]); // Add dependencies here
 
-
-  
-
   useEffect(() => {
     createCanvases();
   }, [numChannels]);
@@ -231,11 +234,13 @@ const createCanvases = () => {
   
 
   return (
-    <div className="flex justify-center items-center h-[84vh] mb-3">
+    <div 
+    style={{ marginBottom: `${marginBottom}px` }} // Apply the dynamic margin-bottom here
+    className="flex justify-center items-center h-[80vh] mb-5 mt-3">
     {/* Canvas container taking 70% of the screen height */}
-    <div className="flex flex-col justify-center items-start w-full ">
+    <div className="flex flex-col justify-center items-start w-full px-3">
       <div className="grid w-full h-full relative">
-    <div className="canvas-container flex flex-wrap justify-center items-center h-[80vh] w-full" ref={canvasContainerRef} ></div>
+    <div className="canvas-container flex flex-wrap justify-center items-center h-[80vh]  w-full" ref={canvasContainerRef} ></div>
     </div>
   </div>
 </div>

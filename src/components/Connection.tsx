@@ -29,15 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
 import { BitSelection } from "./DataPass";
-
 import { Separator } from "./ui/separator";
 import {
   Popover,
@@ -89,7 +81,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
   const bufferRef = useRef<number[][]>([]); // Ref to store the data temporary buffer during recording
-  const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
@@ -101,8 +92,8 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
-  const bufferdRef = useRef<number[][]>([]);
-  const [bufferFull, setBufferFull] = useState(false);
+  const bufferdRef =useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
+  // const [bufferFull, setBufferFull] = useState(false);
   const bufferSize = 10; // Maximum size for each channel buffer
   const channelCount = 7; // Number of channels
   const togglePause = () => {
@@ -137,6 +128,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
+  
   const decreaseZoom = () => {
     if (Zoom > 1) {
       SetZoom(Zoom - 1); // Decrease canvas count but not below 1
@@ -370,10 +362,10 @@ const Connection: React.FC<ConnectionProps> = ({
               const counter = packet[2]; // Extract the counter value from the packet
               channelData.push(counter); // Add the counter to the channel data
               dataSteam(channelData); // Pass the channel data to the LineData function for further processing
-              addToBuffer(channelData); // Add the new data to the buffer
 
               if (isRecordingRef.current) {
                 // Check if recording is enabled
+                addToBuffer(channelData);
                 bufferRef.current.push(channelData); // Store the channel data in the recording buffer
               }
 
@@ -404,32 +396,58 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  
- // Function to add channel data to the buffer
- const addToBuffer = (channelData: number[]) => {
-  if (channelData.length !== channelCount) {
-    console.error(`Expected ${channelCount} channels, but got ${channelData.length}`);
-    return;
-  }
 
-  // Add the channel data to the buffer
-  bufferdRef.current.push(channelData);
 
-  // Check if the buffer is full
-  if (bufferdRef.current.length === bufferSize) {
-    setBufferFull(true);
+const bufferSize1 = 500; // Number of arrays to store per buffer
+// const bufferdRef1 = useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
+const activeBufferIndex = useRef(0); // Ref instead of state
+// const [bufferFull, setBufferFull] = useState([false, false]); // Flags to check if buffers are full
+const [isProcessing, setIsProcessing] = useState(false); // Track if a buffer is currently being processed
 
-    // Process the buffer data (e.g., plot or save)
-    // console.log("Buffer is full and ready for use:", bufferdRef.current);
 
-    // Reset the buffer for reuse
-    bufferdRef.current = [];
-    setBufferFull(false); // Reset the flag after processing
+
+const processBuffer = (bufferIndex: number) => {
+  console.log(`Processing buffer ${bufferIndex}...`);
+
+  // Simulate asynchronous processing (replace this with actual processing logic)
+  setTimeout(() => {
+    console.log(`Finished processing buffer ${bufferIndex}.`);
+
+    // Clear the processed buffer after completion
+    bufferdRef.current[bufferIndex] = [];
+
+    // Mark processing as finished
+    setIsProcessing(false);
+  }, 1000); // Simulated delay for processing
+};
+
+const addToBuffer = (channelData: number[]) => {
+  const currentBuffer = bufferdRef.current[activeBufferIndex.current]; // Get the active buffer
+
+  // Add the channel data to the active buffer
+  currentBuffer.push(channelData);
+
+  // Check if the active buffer is full
+  if (currentBuffer.length === bufferSize1 && !isProcessing) {
+    console.log(`Buffer ${activeBufferIndex.current} is full, preparing to switch buffers.`);
+    console.log(bufferdRef.current[activeBufferIndex.current]);
+    // Set processing to true to prevent duplicate processing
+    setIsProcessing(true);
+
+    // Process the full buffer in the background
+    processBuffer(activeBufferIndex.current);
+
+    // Immediately switch to the next buffer for new data using ref
+    const nextBufferIndex = activeBufferIndex.current === 0 ? 1 : 0;
+    activeBufferIndex.current = nextBufferIndex; // Update the ref directly
+    console.log(`Switched to buffer ${nextBufferIndex}`);
   }
 };
 
 
-  const convertToCSV = (data: any[]): string => {
+
+
+const convertToCSV = (data: any[]): string => {
     if (data.length === 0) return "";
 
     const header = Object.keys(data[0]);
@@ -785,7 +803,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-center h-4 mb-2 px-4 z-50">
+    <div className="fixed bottom-0 left-0 right-0 relative flex items-center justify-center h-4  px-4 z-50">
       {/* Left-aligned section */}
       <div className="absolute left-4 flex items-center space-x-1">
         {isRecordingRef.current && (
@@ -861,12 +879,12 @@ const Connection: React.FC<ConnectionProps> = ({
       </div>
 
       {/* Center-aligned buttons */}
-      <div className="flex gap-3 items-center">
+      <div className="  relative flex gap-3 items-center ">
         {/* Connection button with tooltip */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button className="bg-primary gap-2" onClick={handleClick}>
+              <Button className="bg-primary gap-2 bottom-0" onClick={handleClick}>
                 {isConnected ? (
                   <>
                     Disconnect
@@ -890,7 +908,7 @@ const Connection: React.FC<ConnectionProps> = ({
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <div className="flex items-center mx-0 px-0">
+              <div className="flex items-center mx-0 px-0 ">
                 {/* Decrease Canvas Button */}
                 <Tooltip>
                   <TooltipTrigger asChild>
