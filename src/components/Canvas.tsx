@@ -4,11 +4,10 @@ import React, {
   useState,
   useCallback,
   useMemo,
-  useImperativeHandle, 
+  useImperativeHandle,
   forwardRef,
 } from "react";
-import { SmoothieChart, TimeSeries } from "smoothie";
-import { useTheme } from "next-themes";
+
 import { BitSelection } from "./DataPass";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 
@@ -18,19 +17,20 @@ interface CanvasProps {
   isDisplay: boolean;
   canvasCount?: number;
   Zoom: number;
-
 }
 interface Batch {
   time: number;
   values: number[];
 }
 
-const Canvas= forwardRef( ({
-  pauseRef,
-  selectedBits,
-  isDisplay,
-  canvasCount = 6, // default value in case not provided
-  Zoom,
+const Canvas = forwardRef(
+  (
+    {
+      pauseRef,
+      selectedBits,
+      isDisplay,
+      canvasCount = 6, // default value in case not provided
+      Zoom,
 }:CanvasProps, ref) => {
 
   let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
@@ -46,39 +46,41 @@ const Canvas= forwardRef( ({
   const slidePoints = Math.floor(samplingRate / fps); // Set how many points to slide
   let numX: number;
 
-  const getpoints = useCallback((bits: BitSelection): number => {
-    switch (bits) {
-      case "ten":
+    const getpoints = useCallback((bits: BitSelection): number => {
+      switch (bits) {
+        case "ten":
         return samplingRate*2;
-      case "fourteen":
+        case "fourteen":
         return samplingRate*4;
-      default:
-      return 0; // Or any other fallback value you'd like
-    }
-  }, []);
-  numX=getpoints(selectedBits);
-  useEffect(() => {
-    setNumChannels(canvasCount);
-  }, [canvasCount]);
-
-  useImperativeHandle(ref, () => ({
-    updateData(data: number[]) {
-      updatePlots(data,Zoom);
-      if (previousCounter !== null) {
-        // If there was a previous counter value
-        const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
-        if (data[6] !== expectedCounter) {
-          // Check for data loss by comparing the current counter with the expected counter
-          console.warn(
-            `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[6]}`
-          );
-        }
+        default:
+          return 0; // Or any other fallback value you'd like
       }
-      previousCounter =data[6]; // Update the previous counter with the current counter
-    }
-  }),[Zoom]);
+    }, []);
+  numX=getpoints(selectedBits);
+    useEffect(() => {
+      setNumChannels(canvasCount);
+    }, [canvasCount]);
 
-  
+    useImperativeHandle(
+      ref,
+      () => ({
+        updateData(data: number[]) {
+          updatePlots(data, Zoom);
+          if (previousCounter !== null) {
+            // If there was a previous counter value
+            const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
+            if (data[6] !== expectedCounter) {
+              // Check for data loss by comparing the current counter with the expected counter
+              console.warn(
+                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[6]}`
+              );
+            }
+          }
+          previousCounter = data[6]; // Update the previous counter with the current counter
+        },
+      }),
+      [Zoom]
+    );
 
 
   useEffect(() => {
@@ -92,27 +94,34 @@ const Canvas= forwardRef( ({
 const createCanvases = () => {
   if (!canvasContainerRef.current) return;
 
-  // Clean up all existing canvases and their WebGL contexts
-  while (canvasContainerRef.current.firstChild) {
-    const canvas = canvasContainerRef.current.firstChild as HTMLCanvasElement;
-    const gl = canvas.getContext("webgl");
+      // Clean up all existing canvases and their WebGL contexts
+      while (canvasContainerRef.current.firstChild) {
+        const firstChild = canvasContainerRef.current.firstChild;
 
-    // Lose the WebGL context if available
-    if (gl) {
-      const loseContext = gl.getExtension("WEBGL_lose_context");
-      if (loseContext) {
-        loseContext.loseContext();
+        // Ensure it's an HTMLCanvasElement before trying to get the context
+        if (firstChild instanceof HTMLCanvasElement) {
+          const gl = firstChild.getContext("webgl");
+
+          // Lose the WebGL context if available
+          if (gl) {
+            const loseContext = gl.getExtension("WEBGL_lose_context");
+            if (loseContext) {
+              loseContext.loseContext();
+            }
+          }
+
+          // Remove the canvas element from the container
+          canvasContainerRef.current.removeChild(firstChild);
+        } else {
+          // Remove the badge or any other non-canvas element
+          canvasContainerRef.current.removeChild(firstChild);
+        }
       }
-    }
 
-    // Remove the canvas element from the container
-    canvasContainerRef.current.removeChild(canvas);
-  }
-
-  // Clear the arrays holding canvases, WebGL plots, and lines
-  setCanvases([]);
-  setWglPlots([]);
-  linesRef.current = [];
+      // Clear the arrays holding canvases, WebGL plots, and lines
+      setCanvases([]);
+      setWglPlots([]);
+      linesRef.current = [];
 
   const fixedCanvasWidth = canvasContainerRef.current.clientWidth;
   // const containerHeight = canvasContainerRef.current.clientHeight || window.innerHeight - 50;
@@ -122,22 +131,35 @@ const createCanvases = () => {
   const containerHeightVh = (containerHeightPx / window.innerHeight) * 100; // Convert pixels to vh
   const canvasHeightVh = containerHeightVh / numChannels; // Each channel's height in vh
 
-  const newCanvases: HTMLCanvasElement[] = [];
-  const newWglPlots: WebglPlot[] = [];
-  const newLines: WebglLine[] = [];
+      const newCanvases: HTMLCanvasElement[] = [];
+      const newWglPlots: WebglPlot[] = [];
+      const newLines: WebglLine[] = [];
 
-  for (let i = 0; i < numChannels; i++) {
-    const canvas = document.createElement("canvas");
+      for (let i = 0; i < numChannels; i++) {
+        const canvas = document.createElement("canvas");
 
-    canvas.width = fixedCanvasWidth;
-    canvas.height = canvasHeight;
+        canvas.width = fixedCanvasWidth;
+        canvas.height = canvasHeight;
 
     canvas.className = "border border-secondary-foreground w-full";
     canvas.style.height = `${canvasHeightVh}vh`;
     canvas.style.border = "0.5px solid #ccc";
 
-    canvasContainerRef.current.appendChild(canvas);
-    newCanvases.push(canvas);
+        // Create a badge for the channel number
+        const badge = document.createElement("div");
+        badge.className =
+          "absolute top-1 left-1 transform -translate-y-1/20 translate-x-1/6 text-gray-500 text-sm rounded-full";
+        badge.innerText = `CH${i + 1}`; // Display channel number starting from 1
+
+        // Append the canvas and badge to the container
+        const canvasWrapper = document.createElement("div");
+        canvasWrapper.className = "relative"; // Ensure the badge is positioned relative to the canvas
+        canvasWrapper.appendChild(canvas);
+        canvasWrapper.appendChild(badge);
+
+        canvasContainerRef.current.appendChild(canvasWrapper); // Append the wrapper to the container
+
+        newCanvases.push(canvas);
 
     const wglp = new WebglPlot(canvas);
     newWglPlots.push(wglp);
@@ -203,35 +225,31 @@ const createCanvases = () => {
 
 
 
-  const getValue = useCallback((bits: BitSelection): number => {
-    switch (bits) {
-      case "ten":
-        return 10;
-      case "twelve":
-        return 12;
-      case "fourteen":
-        return 14;
-      default:
-      return 0; // Or any other fallback value you'd like
-    }
-  }, []);
+    const getValue = useCallback((bits: BitSelection): number => {
+      switch (bits) {
+        case "ten":
+          return 10;
+        case "twelve":
+          return 12;
+        case "fourteen":
+          return 14;
+        default:
+          return 0; // Or any other fallback value you'd like
+      }
+    }, []);
 
+    const animate = useCallback(() => {
+      if (pauseRef.current) {
+        wglPlots.forEach((wglp) => wglp.update());
+        requestAnimationFrame(animate);
+      }
+    }, [wglPlots, pauseRef]);
 
-
-
-  const animate = useCallback(() => {
-    if (pauseRef.current) {
-      wglPlots.forEach((wglp) => wglp.update());
-      requestAnimationFrame(animate);
-    }
-  }, [wglPlots, pauseRef]);
-
-  useEffect(() => {
-    if (pauseRef.current) {
-      requestAnimationFrame(animate);
-    }
-  }, [pauseRef.current, animate]);
-  
+    useEffect(() => {
+      if (pauseRef.current) {
+        requestAnimationFrame(animate);
+      }
+    }, [pauseRef.current, animate]);
 
   return (
     <div 
