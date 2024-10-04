@@ -69,7 +69,6 @@ const Connection: React.FC<ConnectionProps> = ({
   SetZoom,
   Zoom,
 }) => {
-  const [open, setOpen] = useState(false); // State to track if the recording popover is open
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
@@ -98,9 +97,7 @@ const Connection: React.FC<ConnectionProps> = ({
     null
   );
   const bufferdRef =useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
-  // const [bufferFull, setBufferFull] = useState(false);
-  const bufferSize = 10; // Maximum size for each channel buffer
-  const channelCount = 7; // Number of channels
+  
   const togglePause = () => {
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
@@ -225,6 +222,8 @@ const Connection: React.FC<ConnectionProps> = ({
       await port.open({ baudRate: 230400 });
       Connection(true);
       setIsConnected(true);
+      onPauseChange(true); // Notify parent about the change
+      setIsDisplay(true);
       isConnectedRef.current = true;
       portRef.current = port;
       
@@ -369,7 +368,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
               if (isRecordingRef.current) {
                 // Check if recording is enabled
-                addToBuffer(channelData);
                 bufferRef.current.push(channelData); // Store the channel data in the recording buffer
               }
 
@@ -399,57 +397,6 @@ const Connection: React.FC<ConnectionProps> = ({
       await disconnectDevice(); // Ensure the device is disconnected when finished
     }
   };
-
-
-
-const bufferSize1 = 500; // Number of arrays to store per buffer
-// const bufferdRef1 = useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
-const activeBufferIndex = useRef(0); // Ref instead of state
-// const [bufferFull, setBufferFull] = useState([false, false]); // Flags to check if buffers are full
-const [isProcessing, setIsProcessing] = useState(false); // Track if a buffer is currently being processed
-
-
-
-const processBuffer = (bufferIndex: number) => {
-  console.log(`Processing buffer ${bufferIndex}...`);
-
-  // Simulate asynchronous processing (replace this with actual processing logic)
-  setTimeout(() => {
-    console.log(`Finished processing buffer ${bufferIndex}.`);
-
-    // Clear the processed buffer after completion
-    bufferdRef.current[bufferIndex] = [];
-
-    // Mark processing as finished
-    setIsProcessing(false);
-  }, 1000); // Simulated delay for processing
-};
-
-const addToBuffer = (channelData: number[]) => {
-  const currentBuffer = bufferdRef.current[activeBufferIndex.current]; // Get the active buffer
-
-  // Add the channel data to the active buffer
-  currentBuffer.push(channelData);
-
-  // Check if the active buffer is full
-  if (currentBuffer.length === bufferSize1 && !isProcessing) {
-    console.log(`Buffer ${activeBufferIndex.current} is full, preparing to switch buffers.`);
-    console.log(bufferdRef.current[activeBufferIndex.current]);
-    // Set processing to true to prevent duplicate processing
-    setIsProcessing(true);
-
-    // Process the full buffer in the background
-    processBuffer(activeBufferIndex.current);
-
-    // Immediately switch to the next buffer for new data using ref
-    const nextBufferIndex = activeBufferIndex.current === 0 ? 1 : 0;
-    activeBufferIndex.current = nextBufferIndex; // Update the ref directly
-    console.log(`Switched to buffer ${nextBufferIndex}`);
-  }
-};
-
-
-
 
 const convertToCSV = (data: any[]): string => {
     if (data.length === 0) return "";
