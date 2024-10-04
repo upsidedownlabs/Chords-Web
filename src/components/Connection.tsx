@@ -96,6 +96,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
+  const buffer: number[] = []; // Buffer to store incoming data
   const bufferdRef =useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
   
   const togglePause = () => {
@@ -238,12 +239,13 @@ const Connection: React.FC<ConnectionProps> = ({
       
       const reader = port.readable?.getReader();
       readerRef.current = reader;
-      
       const writer = port.writable?.getWriter();
       if (writer) {
-        writerRef.current = writer;
-        const message = new TextEncoder().encode("START\n");
-        await writer.write(message);
+         setTimeout(function () {
+          writerRef.current = writer;
+          const message = new TextEncoder().encode("START\n");
+          writerRef.current.write(message);
+        }, 2000);
       } else {
         console.error("Writable stream not available");
       }
@@ -306,7 +308,7 @@ const Connection: React.FC<ConnectionProps> = ({
  
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
-    const buffer: number[] = []; // Buffer to store incoming data
+    
     const HEADER_LENGTH = 3; // Length of the packet header
     const NUM_CHANNELS = 6; // Number of channels in the data packet
     const PACKET_LENGTH = 16; // Total length of each packet
