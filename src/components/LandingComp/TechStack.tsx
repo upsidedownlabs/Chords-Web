@@ -49,6 +49,15 @@ const Stack = () => {
       url: "https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API",
       description: "For connecting to the serial port of the device.",
     },
+    {
+      name: "IndexedDB API",
+      logo:
+        theme === "light"
+          ? "./assets/dark/favicon.ico"
+          : "./assets/light/favicon.ico",
+      url: "https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API",
+      description: "IndexedDB is a low-level API for client-side storage.",
+    },
   ];
   return (
     <section className="w-full py-12">
