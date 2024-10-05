@@ -35,6 +35,12 @@ import {
   PopoverTrigger,
 } from "../components/ui/popover";
 
+interface FormattedData {
+  timestamp: string;
+  counter: number | null;
+  [key: string]: number | null | string;
+}
+
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
   dataSteam: (data: number[]) => void;
@@ -72,6 +78,8 @@ const Connection: React.FC<ConnectionProps> = ({
   const [hasData, setHasData] = useState(false);
   const [recData, setrecData] = useState(false);
   const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Type for Node.js environment
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Type for Node.js environment
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
@@ -180,6 +188,7 @@ const Connection: React.FC<ConnectionProps> = ({
       if (!info || !info.usbVendorId) {
         return "Port with no info";
       }
+      // console.log(info);
 
       // First, check if the board exists in BoardsList
       const board = BoardsList.find(
@@ -313,6 +322,7 @@ const Connection: React.FC<ConnectionProps> = ({
     try {
       // Loop while the device is connected
       while (isConnectedRef.current) {
+        // Loop while the device is connected
         const streamData = await readerRef.current?.read(); // Read data from the device
         if (streamData?.done) {
           // Check if the data stream has ended
@@ -393,7 +403,8 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const convertToCSV = (data: any[]): string => {
+  // Function to convert data to CSV format
+  const convertToCSV = (data: FormattedData[]): string => {
     if (data.length === 0) return "";
 
     const header = Object.keys(data[0]);
@@ -418,14 +429,13 @@ const Connection: React.FC<ConnectionProps> = ({
       if (isRecordingRef.current) {
         stopRecording(); // Stop the recording if it is already on
       } else {
-        // Start a new recording session
-        isRecordingRef.current = true; // Set the recording state to true
-        const now = new Date(); // Get the current date and time
-        const nowTime = now.getTime(); // Get the current time in milliseconds
-        startTimeRef.current = nowTime; // Store the start time of the recording
-        setElapsedTime(0); // Reset elapsed time for display
-        timerIntervalRef.current = setInterval(checkRecordingTime, 1000); // Start a timer to check recording duration every second
-        setrecData(true); // Set the state indicating recording data is being collected
+        isRecordingRef.current = true; // Start recording
+        const now = new Date();
+        startTimeRef.current = now.getTime();
+        setElapsedTime(0);
+        timerIntervalRef.current = setInterval(checkRecordingTime, 1000);
+
+        setrecData(true);
 
         // Initialize IndexedDB for this recording session
         try {
@@ -435,6 +445,16 @@ const Connection: React.FC<ConnectionProps> = ({
           // Handle any errors during the IndexedDB initialization
           console.error("Failed to initialize IndexedDB:", error);
           toast.error(
+            "Failed to initialize storage. Recording may not be saved."
+          );
+        }
+
+        // Start reading and saving data
+        recordingIntervalRef.current = setInterval(() => {
+          const data = bufferRef.current; // Use bufferRef which stores actual data
+          saveDataDuringRecording(data); // Save the data to IndexedDB
+          bufferRef.current = []; // Clear the buffer after saving
+        }, 1000); // Save data every 1 second or adjust the interval as needed
             "Failed to initialize storage. Recording may not be saved."
           );
         }
@@ -492,7 +512,21 @@ const Connection: React.FC<ConnectionProps> = ({
         startTimeRef.current
       ).toLocaleTimeString();
       const endTimeString = endTime.toLocaleTimeString();
+    const endTime = new Date(); // Capture the end time
+    const recordedFilesCount = (await getAllDataFromIndexedDB()).length;
 
+    // Check if startTimeRef.current is not null before using it
+    if (startTimeRef.current !== null) {
+      // Format the start and end times as readable strings
+      const startTimeString = new Date(
+        startTimeRef.current
+      ).toLocaleTimeString();
+      const endTimeString = endTime.toLocaleTimeString();
+
+      // Calculate the duration of the recording
+      const durationInSeconds = Math.floor(
+        (endTime.getTime() - startTimeRef.current) / 1000
+      );
       // Calculate the duration of the recording
       const durationInSeconds = Math.floor(
         (endTime.getTime() - startTimeRef.current) / 1000
@@ -503,10 +537,53 @@ const Connection: React.FC<ConnectionProps> = ({
         indexedDBRef.current.close();
         indexedDBRef.current = null; // Reset the reference
       }
+      // Close IndexedDB reference
+      if (indexedDBRef.current) {
+        indexedDBRef.current.close();
+        indexedDBRef.current = null; // Reset the reference
+      }
 
       const allData = await getAllDataFromIndexedDB();
       setHasData(allData.length > 0);
+      const allData = await getAllDataFromIndexedDB();
+      setHasData(allData.length > 0);
 
+      // Display the toast with all the details
+      toast.success("Recording completed successfully", {
+        description: (
+          <div>
+            <p>Start Time: {startTimeString}</p>
+            <p>End Time: {endTimeString}</p>
+            <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
+            <p>Samples Recorded: {recordedFilesCount}</p>
+          </div>
+        ),
+      });
+    } else {
+      console.error("Start time is null. Unable to calculate duration.");
+      toast.error("Recording start time was not captured.");
+    }
+
+    // Reset the recording state
+    isRecordingRef.current = false;
+    setElapsedTime(0);
+    setrecData(false);
+    setIsRecordButtonDisabled(true);
+  };
+
+  // Call this function when your component mounts or when you suspect the data might change
+  useEffect(() => {
+    const checkDataAndConnection = async () => {
+      // Check if data exists in IndexedDB
+      const allData = await getAllDataFromIndexedDB();
+      setHasData(allData.length > 0);
+
+      // Disable the record button if there is data in IndexedDB and device is connected
+      setIsRecordButtonDisabled(allData.length > 0 || !isConnected);
+    };
+
+    checkDataAndConnection();
+  }, [isConnected]);
       // Display the toast with all the details
       toast.success("Recording completed successfully", {
         description: (
@@ -547,7 +624,7 @@ const Connection: React.FC<ConnectionProps> = ({
   // Add this function to save data to IndexedDB during recording
   const saveDataDuringRecording = async (data: number[][]) => {
     if (!isRecordingRef.current || !indexedDBRef.current) return;
-
+  
     try {
       const tx = indexedDBRef.current.transaction(["adcReadings"], "readwrite");
       const store = tx.objectStore("adcReadings");
@@ -570,7 +647,7 @@ const Connection: React.FC<ConnectionProps> = ({
       console.error("Error saving data during recording:", error);
     }
   };
-
+  
   // Function to format time from seconds into a "MM:SS" string format
 
   const formatTime = (seconds: number): string => {
@@ -631,7 +708,11 @@ const Connection: React.FC<ConnectionProps> = ({
       // Start a readwrite transaction on the "adcReadings" object store
       const tx = db.transaction(["adcReadings"], "readwrite");
       const store = tx.objectStore("adcReadings");
+      const store = tx.objectStore("adcReadings");
 
+      await store.clear();
+      console.log("All data deleted from IndexedDB");
+      toast.success("Recorded file is deleted.");
       await store.clear();
       console.log("All data deleted from IndexedDB");
       toast.success("Recorded file is deleted.");
@@ -640,7 +721,13 @@ const Connection: React.FC<ConnectionProps> = ({
       const allData = await getAllDataFromIndexedDB();
       setHasData(allData.length > 0);
       setIsRecordButtonDisabled(false);
+      // Check if there is any data left in the database after deletion
+      const allData = await getAllDataFromIndexedDB();
+      setHasData(allData.length > 0);
+      setIsRecordButtonDisabled(false);
     } catch (error) {
+      console.error("Error deleting data from IndexedDB:", error);
+      toast.error("Failed to delete data. Please try again.");
       console.error("Error deleting data from IndexedDB:", error);
       toast.error("Failed to delete data. Please try again.");
     }
@@ -694,13 +781,16 @@ const Connection: React.FC<ConnectionProps> = ({
         // Loop through the channels array based on canvasCount
         for (let i = 0; i < canvasCount; i++) {
           const channelKey = `channel_${i + 1}`; // Create a dynamic key for each channel
+          const channelKey = `channel_${i + 1}`; // Create a dynamic key for each channel
           dynamicChannels[channelKey] =
             channels[i] !== undefined ? channels[i] : null; // Handle missing data
+            channels[i] !== undefined ? channels[i] : null; // Handle missing data
         }
-
+  
         return {
           timestamp: item.timestamp,
           ...dynamicChannels, // Spread the dynamic channels into the result object
+          counter: item.counter || null, // Include the counter if available
           counter: item.counter || null, // Include the counter if available
         };
       });
@@ -718,7 +808,7 @@ const Connection: React.FC<ConnectionProps> = ({
       ).padStart(2, "0")}-${String(now.getMinutes()).padStart(2, "0")}-${String(
         now.getSeconds()
       ).padStart(2, "0")}`;
-
+  
       // Use the timestamp in the filename
       const filename = `recorded_data_${formattedTimestamp}.csv`;
       saveAs(blob, filename); // Trigger download
@@ -735,6 +825,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to save data. Please try again.");
     }
   };
+  
 
   return (
     <div className="flex items-center justify-center w-full h-4 mb-2 px-4 z-50">

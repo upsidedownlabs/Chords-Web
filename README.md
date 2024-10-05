@@ -1,6 +1,5 @@
 ![Chords Default](public/assets/dark/HeroSignalsClean.png)
 
-</p>
 
 Chords is an application based on Web Serial connection, you can connect boards like Arduino Uno, Arduino Nano after uploading the ArduinoFirmware.ino code to it, you'll recieve data signals from the board which can be visualized on web using Chords. Users can visualize ECG and EMG signals.
 
@@ -19,12 +18,14 @@ Chords is an application based on Web Serial connection, you can connect boards 
 2.  Open the Arduino IDE and flash the provided firmware onto the Arduino.
 3.  Open Chords in a web browser.
 4.  Click the "Connect" button to establish a connection with the Arduino and stream.
-5.  Click the "Grid/List" button to chnage the view.
+5.  Click "Autoscale" button to zoomin data visualization.
 6.  Click the "Play/Pause" button to stop and start data on screen.
-7.  Click "Autoscale" button to zoomin data visualization.
-8.  Click the "Record" button to record data.
-9.  To download the recorded data, click the "download" button.
-10. Click the "Delete" button to delete recorded data.
+7.  Click the "Record" button to record data.
+8.  Click the "download" button to download the recorded data.
+9.  Click the "Delete" button to delete recorded data.
+10. Click the "Plus/Minus" button to increase/decrease channel.
+11. Click "Theme" button which is present in navbar to change theme.
+12. Click the "Disconnect" button to terminate the connection with the Arduino and stop the data stream.
 
 ## Technologies Used
 
