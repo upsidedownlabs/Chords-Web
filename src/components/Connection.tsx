@@ -301,7 +301,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
-    const buffer: number[] = []; // Buffer to store incoming data
+   
     const HEADER_LENGTH = 3; // Length of the packet header
     const NUM_CHANNELS = 6; // Number of channels in the data packet
     const PACKET_LENGTH = 16; // Total length of each packet

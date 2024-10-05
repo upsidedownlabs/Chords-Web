@@ -92,7 +92,7 @@ const FAQSection = () => {
             rel="noopener noreferrer"
             className="text-blue-500 hover:underline underline-offset-4"
           >
-            IndexedDB API
+            IndexedDB
           </Link>
           , which allows to store upto 80% of the disk space of your laptop.
           <br />
@@ -103,10 +103,10 @@ const FAQSection = () => {
       question: "What data format does Chords support?",
       answer: (
         <>
-          Chords supports an array format: [counter, A0, A1, ..., A4], where
-          counter is a uint8_t (0-255) and A0-A4 are raw signal values. Array
-          example : [10, 468, 472, 463, 466, 465]. For implementation details,
-          see our{" "}
+          Chords supports an array format: [A0, A1, ..., A5, counter], where
+           A0-A5 are raw signal values and counter is a uint8_t (0-255). Array
+          example : [468, 472, 463, 466, 465, 434, 10]. For implementation
+          details, see our{" "}
           <Link
             href="https://github.com/upsidedownlabs/Chords-Web/blob/main/ArduinoFirmware/ArduinoFirmware.ino"
             target="_blank"
@@ -145,7 +145,7 @@ const FAQSection = () => {
         <>
           There are two checks for dropped samples, first is the counter value,
           if it is not incrementing by 1 then there are dropped samples. Second
-          if data rate is below 245 samples per second. In both cases you can
+          if data rate is below sampling rate. In both cases you can
           find how much data you lost in console.
         </>
       ),
@@ -154,12 +154,13 @@ const FAQSection = () => {
       question: "How to check the drift of my recorded data?",
       answer: (
         <>
-          The default sampling rate we are using is 250 samples/second. The
-          number of samples which were expected in the given time and the number
-          of samples which were actually recorded can be used to calculate the
-          drift in data. For example for 10 mintues of recording we should have
-          250*60*10 = 150000 samples. If we have less than 150000 samples then
-          we have a drift in our data.
+          If we record for 10 minutes, we should expect to capture 500 samples
+          per second, which totals 500 * 60 * 10 = 300,000 samples. If the
+          actual number of samples recorded is less than 300,000, this indicates
+          a data drift. To verify the supported sampling rate of the board,
+          please refer to our Arduino firmware code. By comparing the expected
+          number of samples with the actual number recorded, we can calculate
+          the extent of data drift.
         </>
       ),
     },
