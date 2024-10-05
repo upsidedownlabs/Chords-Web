@@ -35,10 +35,10 @@ const Stack = () => {
       description: "Built with amazing components from shadcn/ui.",
     },
     {
-      name: "Smoothie Charts",
-      logo: "./assets/smoothie-logo.png",
-      url: "http://smoothiecharts.org/",
-      description: "Timeseries charts for plotting the data real time.",
+      name: "webGl Plot",
+      logo: "./assets/dark/favicon.ico",
+      url: "https://webgl-plot.vercel.app",
+      description: "Charts for plotting the data real time.",
     },
     {
       name: "Web Serial Api",
@@ -48,15 +48,6 @@ const Stack = () => {
           : "./assets/light/favicon.ico",
       url: "https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API",
       description: "For connecting to the serial port of the device.",
-    },
-    {
-      name: "JSZip",
-      logo:
-        theme === "light"
-          ? "./assets/dark/favicon.ico"
-          : "./assets/light/favicon.ico",
-      url: "https://stuk.github.io/jszip/",
-      description: "For creating and downloading the recorded data zip files.",
     },
   ];
   return (
