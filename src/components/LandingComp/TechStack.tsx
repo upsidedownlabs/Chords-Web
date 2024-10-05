@@ -36,7 +36,7 @@ const Stack = () => {
     },
     {
       name: "webGl Plot",
-      logo: "./assets/dark/favicon.ico",
+      logo: "./assets/logo.svg",
       url: "https://webgl-plot.vercel.app",
       description: "Charts for plotting the data real time.",
     },

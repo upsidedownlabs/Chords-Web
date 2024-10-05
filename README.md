@@ -9,7 +9,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 ## Features
 
 - **Connection**: Experience a smooth connection/disconnection with board in single click.
-- **Real-time Visualization**: Visualize incoming data without any jitter from the board in real-time on SmoothieCharts.
+- **Real-time Visualization**: Visualize incoming data without any jitter from the board in real-time
 - **Recording**: Record the signals data and download data in csv file.
 
 ## How to use
@@ -18,7 +18,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 2.  Open the Arduino IDE and flash the provided firmware onto the Arduino.
 3.  Open Chords in a web browser.
 4.  Click the "Connect" button to establish a connection with the Arduino and stream.
-5.  Click "Autoscale" button to zoomin data visualization.
+5.  Click "Zoom" button to zoomin data visualization.
 6.  Click the "Play/Pause" button to stop and start data on screen.
 7.  Click the "Record" button to record data.
 8.  Click the "download" button to download the recorded data.
@@ -33,7 +33,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 - [TypeScript](https://www.typescriptlang.org/): Statically typed superset of JavaScript.
 - [Tailwind CSS](https://tailwindcss.com/): Utility-first CSS framework.
 - [Shadcn UI](https://tailwindcss.com/): Provides Reusable and customizable components, built with radix UI.
-- [Smoothie Js](http://smoothiecharts.org/): Real time charting library.
+- [webGl Plot](https://webgl-plot.vercel.app/): Real time charting library.
 - [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) Browser-based database for storing recorded data.
 
 ## Resources
