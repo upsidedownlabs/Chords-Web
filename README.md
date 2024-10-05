@@ -9,7 +9,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 ## Features
 
 - **Connection**: Experience a smooth connection/disconnection with board in single click.
-- **Real-time Visualization**: Visualize incoming data without any jitter from the board in real-time
+- **Real-time Visualization**: Visualize incoming data without any jitter from the board in real-time.
 - **Recording**: Record the signals data and download data in csv file.
 
 ## How to use
@@ -33,7 +33,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 - [TypeScript](https://www.typescriptlang.org/): Statically typed superset of JavaScript.
 - [Tailwind CSS](https://tailwindcss.com/): Utility-first CSS framework.
 - [Shadcn UI](https://tailwindcss.com/): Provides Reusable and customizable components, built with radix UI.
-- [webGl Plot](https://webgl-plot.vercel.app/): Real time charting library.
+- [WebGl Plot](https://webgl-plot.vercel.app/): Real time charting library.
 - [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) Browser-based database for storing recorded data.
 
 ## Resources
