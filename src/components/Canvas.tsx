@@ -135,6 +135,8 @@ const createCanvases = () => {
       const newWglPlots: WebglPlot[] = [];
       const newLines: WebglLine[] = [];
 
+
+
       for (let i = 0; i < numChannels; i++) {
         const canvas = document.createElement("canvas");
 
@@ -253,8 +255,8 @@ const createCanvases = () => {
 
   return (
     <div 
-    style={{ marginBottom: `${marginBottom}px` }} // Apply the dynamic margin-bottom here
-    className="flex justify-center items-center h-[80vh] mb-5 mt-3">
+    // style={{ marginBottom: `${marginBottom}px` }} // Apply the dynamic margin-bottom here
+    className="flex justify-center items-center min-h-[calc(100vh-8rem)]  mb-5 mt-3">
     {/* Canvas container taking 70% of the screen height */}
     <div className="flex flex-col justify-center items-start w-full px-3">
       <div className="grid w-full h-full relative">
