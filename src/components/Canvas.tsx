@@ -41,7 +41,7 @@ const Canvas = forwardRef(
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
     const [lines, setLines] = useState<WebglLine[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
-    const [marginBottom, setMarginBottom] = useState(0);
+
     const fps = 60;
     const samplingRate = 500; // Set the sampling rate in Hz
     const slidePoints = Math.floor(samplingRate / fps); // Set how many points to slide
@@ -83,18 +83,9 @@ const Canvas = forwardRef(
       [Zoom]
     );
 
-    useEffect(() => {
-      const containerHeightPx =
-        canvasContainerRef.current?.clientHeight || window.innerHeight;
-
-      // Calculate dynamic margin-bottom based on container height
-      const dynamicMarginBottom = containerHeightPx * 0.04; // Example: 5% of container height
-      setMarginBottom(dynamicMarginBottom);
-    }, []);
-
     const createCanvases = () => {
       if (!canvasContainerRef.current) return;
-    
+
       // Clean up all existing canvases and their WebGL contexts
       while (canvasContainerRef.current.firstChild) {
         const firstChild = canvasContainerRef.current.firstChild;
@@ -109,60 +100,58 @@ const Canvas = forwardRef(
         }
         canvasContainerRef.current.removeChild(firstChild);
       }
-    
+
       setCanvases([]);
       setWglPlots([]);
       linesRef.current = [];
-    
-      const fixedCanvasWidth = canvasContainerRef.current.clientWidth;
-      const containerHeightPx = canvasContainerRef.current.clientHeight || window.innerHeight;
-      const canvasHeight = containerHeightPx / numChannels;
-      const containerHeightVh = (containerHeightPx / window.innerHeight) * 100;
-      const canvasHeightVh = containerHeightVh / numChannels;
-    
+
+      const containerHeight = canvasContainerRef.current.clientHeight || window.innerHeight;
+      const canvasHeight = containerHeight / numChannels;
+
       const newCanvases = [];
       const newWglPlots = [];
       const newLines = [];
-    
+
       for (let i = 0; i < numChannels; i++) {
         const canvas = document.createElement("canvas");
-        canvas.width = fixedCanvasWidth;
+        canvas.width = canvasContainerRef.current.clientWidth;
         canvas.height = canvasHeight;
-    
+
         canvas.className = "border border-secondary-foreground w-full";
-        canvas.style.height = `${canvasHeightVh}vh`;
-        canvas.style.border = "0.5px solid #ccc";
-    
+        canvas.style.height = `${canvasHeight}px`;
+       
+        
         // Create a badge for the channel number
         const badge = document.createElement("div");
         badge.className = "absolute top-1 left-1 text-gray-500 text-sm rounded-full";
         badge.innerText = `CH${i + 1}`;
-    
+
         // Append the canvas and badge to the container
         const canvasWrapper = document.createElement("div");
         canvasWrapper.className = "relative";
         canvasWrapper.appendChild(canvas);
         canvasWrapper.appendChild(badge);
-    
+
         canvasContainerRef.current.appendChild(canvasWrapper);
-    
+
         newCanvases.push(canvas);
-    
+
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
+
         const line = new WebglLine(getRandomColor(i), numX);
         line.lineSpaceX(-1, 2 / numX);
         wglp.addLine(line);
         newLines.push(line);
       }
-    
+
       linesRef.current = newLines;
       setCanvases(newCanvases);
       setWglPlots(newWglPlots);
       setLines(newLines);
     };
-    
+
 
     const getRandomColor = (i: number): ColorRGBA => {
       // Define bright colors
@@ -240,25 +229,48 @@ const Canvas = forwardRef(
       }
     }, [pauseRef.current, animate]);
 
+    useEffect(() => {
+      const handleResize = () => {
+        createCanvases();
+      };
+
+      window.addEventListener("resize", handleResize);
+
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    }, [createCanvases]);
+
     return (
-      <div
-    style={{ marginBottom: `${marginBottom}px` }}
-    className="flex justify-center items-center h-[84vh] mx-4">
-    <div className="flex flex-col justify-center items-start w-full">
-      <div className="grid w-full h-full relative">
+      <div className="flex-grow flex justify-center items-center  my-2 mx-2 sm:my-4 sm:mx-4 md:my-6 md:mx-6 lg:my-8 lg:mx-8">
+      <div className="flex flex-col justify-center items-start w-full  box-border p-0 m-0">
         <div
           className="canvas-container flex flex-wrap justify-center items-center w-full"
           style={{
-            height: "80vh",
+            height: "70vh", // Default for larger screens
             minHeight: "40vh",
-            maxHeight: "80vh",
-            padding: "10px",
+            maxHeight: "70vh",
+            maxWidth: "100%",
           }}
           ref={canvasContainerRef}
-        ></div>
+        >
+          <canvas
+            className="
+              w-full 
+              sm:h-[50vh]   /* Height for small screens */
+              md:h-[60vh]   /* Height for medium screens */
+              lg:h-[70vh]   /* Height for large screens */
+              xl:h-[80vh]   /* Height for extra large screens */
+              sm:w-[90%]    /* Width adjustments based on screen size */
+              md:w-[85%]
+              lg:w-[80%]
+              xl:w-[75%]
+              p-0 m-0 box-border"
+          ></canvas>
+        </div>
       </div>
     </div>
-  </div>
+    
     
     );
   }

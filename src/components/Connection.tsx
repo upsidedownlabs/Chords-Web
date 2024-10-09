@@ -301,7 +301,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
-   
     const HEADER_LENGTH = 3; // Length of the packet header
     const NUM_CHANNELS = 6; // Number of channels in the data packet
     const PACKET_LENGTH = 16; // Total length of each packet
@@ -737,8 +736,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-center w-full h-4 mb-2 px-4 z-50">
-      {/* Left-aligned section */}
+    <div className="flex flex-col justify-center gap-2 sm:flex-row w-full shrink-0 px-2 md:px-4 items-center h-10 mt-[0.5rem] mb-1">
       <div className="absolute left-4 flex items-center space-x-1">
         {isRecordingRef.current && (
           <div className="flex items-center space-x-1 w-min ml-2">
@@ -811,9 +809,8 @@ const Connection: React.FC<ConnectionProps> = ({
           </div>
         )}
       </div>
-
       {/* Center-aligned buttons */}
-      <div className="flex gap-3 items-center justify-center">
+      <div className="flex flex-row gap-2 justify-center items-center">
         {/* Connection button with tooltip */}
         <TooltipProvider>
           <Tooltip>
@@ -885,7 +882,6 @@ const Connection: React.FC<ConnectionProps> = ({
                       className="rounded-l-none"
                       onClick={increaseZoom}
                       disabled={Zoom === 10 || !isDisplay}
-                      
                     >
                       <ZoomIn size={16} />
                     </Button>

@@ -56,12 +56,17 @@ const HeadSection: React.FC = () => {
     <>
       <Navbar isDisplay={true} />
       <section className="w-full pt-24">
-        <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
-          <div className="flex flex-col justify-center gap-8 items-center">
-            <div>
-              <h1 className="lg:leading-tighter text-[1.90rem] font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] text-center">
-                <span className="text-7xl">Tune Into Your EXG Data</span>
-                <br /> With <Chords />
+      <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
+    <div className="flex flex-col justify-center gap-8 items-center">
+      <div>
+        <h1 className="lg:leading-tighter text-[1.90rem] font-bold tracking-tighter font-lobster sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] text-center">
+          <span className=" bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all text-7xl">
+            Tune Into Your EXG Data
+          </span>
+          <br /> With{" "}
+          <span className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all">
+            Chords
+          </span>
               </h1>
             </div>
             <div className="flex flex-col items-center space-y-4 text-center mt-4">

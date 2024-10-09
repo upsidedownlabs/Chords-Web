@@ -40,7 +40,7 @@ const DataPass = () => {
     previousCounter =data[6]; // Update the previous counter with the current counter
   }, []);
   return (
-    <>
+    <div className="flex flex-col h-screen m-0 p-0">
       <Navbar isDisplay={isDisplay} />
       {isConnected ? (
         <Canvas
@@ -68,7 +68,7 @@ const DataPass = () => {
         SetZoom={SetZoom}
         Zoom={Zoom}
       />
-    </>
+    </div>
   );
 };
 
