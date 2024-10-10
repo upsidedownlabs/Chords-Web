@@ -242,29 +242,27 @@ const Canvas = forwardRef(
     }, [createCanvases]);
 
     return (
-      <div className="flex-grow flex justify-center items-center  my-2 mx-2 sm:my-4 sm:mx-4 md:my-6 md:mx-6 lg:my-8 lg:mx-8">
-      <div className="flex flex-col justify-center items-start w-full  box-border p-0 m-0">
+      <div className="flex-grow flex justify-center items-center m-4">
+      <div className="flex flex-col justify-center items-start w-full box-border p-0 m-0">
         <div
           className="canvas-container flex flex-wrap justify-center items-center w-full"
           style={{
-            height: "70vh", // Default for larger screens
-            minHeight: "40vh",
-            maxHeight: "70vh",
-            maxWidth: "100%",
+            height: "70vh", // Increase default height
+            minHeight: "50vh",
           }}
           ref={canvasContainerRef}
         >
           <canvas
             className="
               w-full 
-              sm:h-[50vh]   /* Height for small screens */
-              md:h-[60vh]   /* Height for medium screens */
-              lg:h-[70vh]   /* Height for large screens */
-              xl:h-[80vh]   /* Height for extra large screens */
-              sm:w-[90%]    /* Width adjustments based on screen size */
-              md:w-[85%]
-              lg:w-[80%]
-              xl:w-[75%]
+              sm:h-[50vh]   /* Increase height for small screens */
+              md:h-[60vh]   /* Increase height for medium screens */
+              lg:h-[70vh]   /* Increase height for large screens */
+              xl:h-[70vh]   /* Increase height for extra large screens */
+              sm:w-[95%]    /* Width adjustments based on screen size */
+              md:w-[90%]
+              lg:w-[85%]
+              xl:w-[80%]
               p-0 m-0 box-border"
           ></canvas>
         </div>

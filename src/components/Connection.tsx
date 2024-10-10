@@ -736,7 +736,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex flex-col justify-center gap-2 sm:flex-row w-full shrink-0 px-2 md:px-4 items-center h-10 mt-[0.5rem] mb-1">
+    <div className="flex flex-col justify-center gap-2 sm:flex-row w-full shrink-1 px-2 md:px-4 items-center h-10 mt-[0.5rem] my-4">
       <div className="absolute left-4 flex items-center space-x-1">
         {isRecordingRef.current && (
           <div className="flex items-center space-x-1 w-min ml-2">
@@ -815,7 +815,7 @@ const Connection: React.FC<ConnectionProps> = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button className="bg-primary gap-2" onClick={handleClick}>
+              <Button className="bg-primary gap-2 " onClick={handleClick}>
                 {isConnected ? (
                   <>
                     Disconnect

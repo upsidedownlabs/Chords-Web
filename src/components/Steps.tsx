@@ -108,64 +108,63 @@ const Steps: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col justify-center items-center gap-2 min-h-[calc(100vh-7rem)] px-4">
+    <div className="flex flex-col justify-center items-center gap-2 min-h-[calc(100vh-7.5rem)] px-4">
   <div className="flex items-center justify-center text-sm sm:text-lg md:text-xl text-center">
-    <span className="flex flex-row gap-2">
-      Click{" "}
-      <Badge className="cursor-default">
-        <p className="text-sm sm:text-base md:text-lg">Connect</p>
-      </Badge>{" "}
-      For Board Connection.
-    </span>
-  </div>
-  <div className="text-sm sm:text-base md:text-lg text-muted-foreground text-center">
-    For More Detailed Steps Please Refer{" "}
-    <Link
-      href="https://docs.upsidedownlabs.tech/hardware/bioamp/bioamp-exg-pill/index.html"
-      className="underline underline-offset-4"
-    >
-      Official Documentation
-    </Link>
-  </div>
-  <div className="relative w-full max-w-7xl">
-    <Carousel
-      opts={{
-        align: "start",
-      }}
-      className="w-full select-none px-6 sm:px-10 md:px-12"
-    >
-      <CarouselContent>
-        {carouselItems.map((item, index) => (
-          <CarouselItem key={index} className="sm:basis-full lg:basis-1/2">
-            <Card className="border-primary h-full">
-              <CardContent className="flex flex-col h-[300px] sm:h-[400px] md:h-[500px] p-4 sm:p-6">
-                <h3 className="text-lg sm:text-xl md:text-2xl font-semibold mb-4 text-left">
-                  {item.title}
-                </h3>
-                <div className="flex-grow flex flex-col items-center justify-center overflow-y-auto">
-                  {item.image ? (
-                    <Image
-                      alt={item.title}
-                      width={500}
-                      height={500}
-                      src={item.image}
-                      className="rounded-xl h-full w-full object-contain"
-                    />
-                  ) : (
-                    item.content
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </CarouselItem>
-        ))}
-      </CarouselContent>
-      <CarouselPrevious className="border-primary border-2 left-2 absolute" />
-      <CarouselNext className="border-primary border-2 right-2 absolute" />
-    </Carousel>
-  </div>
-</div>
-
+  <span className="flex flex-row gap-2">
+          Click{" "}
+          <Badge className="cursor-default">
+            <p className="text-sm sm:text-base">Connect</p>
+          </Badge>{" "}
+          For Board Connection.
+        </span>
+      </div>
+      <div className="text-sm sm:text-base text-muted-foreground text-center">
+        For More Detailed Steps Please Refer{" "}
+        <Link
+          href="https://docs.upsidedownlabs.tech/hardware/bioamp/bioamp-exg-pill/index.html"
+          className="underline underline-offset-4"
+        >
+          Official Documentation
+        </Link>
+      </div>
+      <div className="relative w-full max-w-7xl ">
+        <Carousel
+          opts={{
+            align: "start",
+          }}
+          className="w-full select-none px-12"
+        >
+          <CarouselContent>
+            {carouselItems.map((item, index) => (
+              <CarouselItem key={index} className="sm:basis-1/1 lg:basis-1/2">
+                <Card className="border-primary h-full">
+                  <CardContent className="flex flex-col h-[400px] p-4 sm:p-6">
+                    <h3 className="text-lg sm:text-xl font-semibold mb-4 text-left">
+                      {item.title}
+                    </h3>
+                    <div className="flex-grow flex flex-col items-center justify-center overflow-y-auto">
+                      {item.image ? (
+                        <Image
+                          alt={item.title}
+                          width={500}
+                          height={500}
+                          src={item.image}
+                          className="rounded-xl h-full w-full object-contain"
+                        />
+                      ) : (
+                        item.content
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="border-primary border-2 left-2 absolute" />
+          <CarouselNext className="border-primary border-2 right-2 absolute" />
+        </Carousel>
+      </div>
+    </div>
   );
 };
 
