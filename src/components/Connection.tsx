@@ -736,11 +736,11 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex flex-col justify-center gap-2 sm:flex-row w-full shrink-0 px-2 border-t md:px-4 items-center h-10 ">
+    <div className="flex flex-col justify-center gap-2 sm:flex-row w-full shrink-0 px-2 border md:px-4 items-center h-10">
       {/* Left-aligned timer and separator */}
-      <div className="absolute left-4 flex items-center space-x-1 mt-4">
+      <div className="relative flex items-center justify-center space-x-1 h-10 w-full border-b">
         {isRecordingRef.current && (
-          <div className="flex items-center space-x-1 w-min ml-2 ">
+          <div className="flex items-center space-x-1 w-min ml-2">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
@@ -809,12 +809,9 @@ const Connection: React.FC<ConnectionProps> = ({
             </div>
           </div>
         )}
-      </div>
-      {/* Center-aligned buttons */}
-      <div
-        className="flex flex-col gap-2 justify-center items-center h-auto
-    sm:flex sm:flex-row sm:justify-center sm:items-center
-    [max-width:643px]:grid [max-width:643px]:grid-cols-3"
+        {/* Center-aligned buttons */}
+         <div
+        className="flex flex-row gap-2 justify-center items-center m-4"
       >
         {/* Connection button with tooltip */}
         <TooltipProvider>
@@ -843,7 +840,7 @@ const Connection: React.FC<ConnectionProps> = ({
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <div className="flex items-center mx-0 px-0">
+              <div className="flex items-center mx-auto px-auto">
                 {/* Decrease Canvas Button */}
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -851,6 +848,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       className="rounded-r-none"
                       onClick={decreaseZoom}
                       disabled={Zoom === 1 || !isDisplay}
+                      
                     >
                       <ZoomOut size={16} />
                     </Button>
@@ -1080,6 +1078,9 @@ const Connection: React.FC<ConnectionProps> = ({
           </TooltipProvider>
         )}
       </div>
+      </div>
+      
+     
     </div>
   );
 };
