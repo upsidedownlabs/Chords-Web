@@ -736,10 +736,11 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex flex-col justify-center gap-2 sm:flex-row w-full shrink-1 px-2 md:px-4 items-center h-10 mt-[0.5rem] my-4">
-      <div className="absolute left-4 flex items-center space-x-1">
+    <div className="flex flex-col justify-center gap-2 sm:flex-row w-full shrink-0 px-2 border-t md:px-4 items-center h-10 ">
+      {/* Left-aligned timer and separator */}
+      <div className="absolute left-4 flex items-center space-x-1 mt-4">
         {isRecordingRef.current && (
-          <div className="flex items-center space-x-1 w-min ml-2">
+          <div className="flex items-center space-x-1 w-min ml-2 ">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
@@ -810,7 +811,11 @@ const Connection: React.FC<ConnectionProps> = ({
         )}
       </div>
       {/* Center-aligned buttons */}
-      <div className="flex flex-row gap-2 justify-center items-center">
+      <div
+        className="flex flex-col gap-2 justify-center items-center h-auto
+    sm:flex sm:flex-row sm:justify-center sm:items-center
+    [max-width:643px]:grid [max-width:643px]:grid-cols-3"
+      >
         {/* Connection button with tooltip */}
         <TooltipProvider>
           <Tooltip>

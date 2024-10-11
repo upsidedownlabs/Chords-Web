@@ -105,25 +105,29 @@ const Canvas = forwardRef(
       setWglPlots([]);
       linesRef.current = [];
 
-      const containerHeight = canvasContainerRef.current.clientHeight || window.innerHeight;
+      const containerHeightPx = canvasContainerRef.current.clientHeight || window.innerHeight;
+      const containerHeight =
+        canvasContainerRef.current.clientHeight || window.innerHeight;
+        const containerHeightVh = (containerHeightPx / window.innerHeight) * 100; // Convert pixels to vh
+
       const canvasHeight = containerHeight / numChannels;
 
       const newCanvases = [];
       const newWglPlots = [];
       const newLines = [];
 
-      for (let i = 0; i < numChannels; i++) {
+      for (let i = 0; i < numChannels; i++) { 
         const canvas = document.createElement("canvas");
         canvas.width = canvasContainerRef.current.clientWidth;
         canvas.height = canvasHeight;
 
-        canvas.className = "border border-secondary-foreground w-full";
-        canvas.style.height = `${canvasHeight}px`;
-       
-        
+        canvas.className = "w-full";
+        // canvas.style.height = `${containerHeightVh}vh`;
+
         // Create a badge for the channel number
         const badge = document.createElement("div");
-        badge.className = "absolute top-1 left-1 text-gray-500 text-sm rounded-full";
+        badge.className =
+          "absolute top-1 left-1 text-gray-500 text-sm rounded-full";
         badge.innerText = `CH${i + 1}`;
 
         // Append the canvas and badge to the container
@@ -151,7 +155,6 @@ const Canvas = forwardRef(
       setWglPlots(newWglPlots);
       setLines(newLines);
     };
-
 
     const getRandomColor = (i: number): ColorRGBA => {
       // Define bright colors
@@ -242,34 +245,29 @@ const Canvas = forwardRef(
     }, [createCanvases]);
 
     return (
-      <div className="flex-grow flex justify-center items-center m-4">
-      <div className="flex flex-col justify-center items-start w-full box-border p-0 m-0">
-        <div
-          className="canvas-container flex flex-wrap justify-center items-center w-full"
-          style={{
-            height: "70vh", // Increase default height
-            minHeight: "50vh",
-          }}
-          ref={canvasContainerRef}
-        >
-          <canvas
-            className="
-              w-full 
-              sm:h-[50vh]   /* Increase height for small screens */
-              md:h-[60vh]   /* Increase height for medium screens */
-              lg:h-[70vh]   /* Increase height for large screens */
-              xl:h-[70vh]   /* Increase height for extra large screens */
-              sm:w-[95%]    /* Width adjustments based on screen size */
-              md:w-[90%]
-              lg:w-[85%]
-              xl:w-[80%]
-              p-0 m-0 box-border"
-          ></canvas>
+      <div className="flex-grow flex justify-center items-center">
+        <div className="flex flex-col justify-center items-start w-full  p-0 m-0">
+          <div
+            className="canvas-container flex flex-wrap justify-center items-center w-full"
+            style={{
+              height: "90vh", // Default height
+              minHeight: "50vh", // Ensure it doesn't shrink below this
+            }}
+            ref={canvasContainerRef}
+          >
+            <canvas
+              className="
+        w-full
+        h-[70vh]   /* Base height for all screens */
+        sm:h-[70vh] /* Adjust for small screens */
+        md:h-[80vh] /* Adjust for medium screens */
+        lg:h-[80vh] /* Adjust for large screens */
+        xl:h-[80vh] /* Adjust for extra large screens */
+        p-0 m-0 "
+            ></canvas>
+          </div>
         </div>
       </div>
-    </div>
-    
-    
     );
   }
 );
