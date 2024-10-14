@@ -89,9 +89,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
-  
-  const bufferdRef =useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
-  
+ 
   const togglePause = () => {
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
