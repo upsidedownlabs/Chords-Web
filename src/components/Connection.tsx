@@ -92,6 +92,8 @@ const Connection: React.FC<ConnectionProps> = ({
   const buffer: number[] = []; // Buffer to store incoming data
   const bufferdRef = useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
 
+  const bufferdRef =useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
+  
   const togglePause = () => {
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
@@ -301,6 +303,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
+    const buffer: number[] = []; // Buffer to store incoming data
     const HEADER_LENGTH = 3; // Length of the packet header
     const NUM_CHANNELS = 6; // Number of channels in the data packet
     const PACKET_LENGTH = 16; // Total length of each packet
