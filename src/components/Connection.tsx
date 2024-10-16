@@ -735,9 +735,9 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex flex-col justify-center gap-2 sm:flex-row w-full shrink-0 px-2 border md:px-4 items-center h-10">
+    <div className="flex flex-col justify-center gap-2 sm:flex-row w-full shrink-0 px-2  md:px-4 items-center h-10 mb-0" >
       {/* Left-aligned timer and separator */}
-      <div className="relative flex items-center justify-center space-x-1 h-10 w-full border-b">
+      <div className="relative flex items-center justify-center space-x-1 h-10 w-full ">
         {isRecordingRef.current && (
           <div className="flex items-center space-x-1 w-min ml-2">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">

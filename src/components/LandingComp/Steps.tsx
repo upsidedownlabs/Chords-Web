@@ -101,11 +101,7 @@ const Steps = () => {
           </Card>
         ))}
       </div>
-      <div className="flex justify-center pt-8">
-        <Link href="/stream">
-          <Button>Start Visualizing &rarr;</Button>
-        </Link>
-      </div>
+     
     </div>
   </section>
   

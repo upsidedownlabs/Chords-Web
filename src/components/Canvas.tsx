@@ -108,7 +108,7 @@ const Canvas = forwardRef(
       const containerHeightPx = canvasContainerRef.current.clientHeight || window.innerHeight;
       const containerHeight =
         canvasContainerRef.current.clientHeight || window.innerHeight;
-        const containerHeightVh = (containerHeightPx / window.innerHeight) * 100; // Convert pixels to vh
+      const containerHeightVh = (containerHeightPx / window.innerHeight) * 100; // Convert pixels to vh
 
       const canvasHeight = containerHeight / numChannels;
 
@@ -118,13 +118,12 @@ const Canvas = forwardRef(
 
 
 
-      for (let i = 0; i < numChannels; i++) { 
+      for (let i = 0; i < numChannels; i++) {
         const canvas = document.createElement("canvas");
         canvas.width = canvasContainerRef.current.clientWidth;
         canvas.height = canvasHeight;
 
         canvas.className = "w-full";
-        // canvas.style.height = `${containerHeightVh}vh`;
 
         // Create a badge for the channel number
         const badge = document.createElement("div");
@@ -234,18 +233,18 @@ const Canvas = forwardRef(
       }
     }, [pauseRef.current, animate]);
 
-  return (
-    <div 
-    // style={{ marginBottom: `${marginBottom}px` }} // Apply the dynamic margin-bottom here
-    className="flex justify-center items-center min-h-[calc(100vh-8rem)]  mb-5 mt-3">
-    {/* Canvas container taking 70% of the screen height */}
-    <div className="flex flex-col justify-center items-start w-full px-3">
-      <div className="grid w-full h-full relative">
-    <div className="canvas-container flex flex-wrap justify-center items-center h-[80vh]  w-full" ref={canvasContainerRef} ></div>
-    </div>
-  </div>
-</div>
-  );
-});
+    return (
+      <div
+        // style={{ marginBottom: `${marginBottom}px` }} // Apply the dynamic margin-bottom here
+        className="flex justify-center items-center min-h-[calc(100vh-8.9rem)]  mb-5 mt-3 w-full">
+        {/* Canvas container taking 70% of the screen height */}
+        <div className="flex flex-col justify-center items-start w-full px-3">
+          <div className="grid w-full h-full relative">
+            <div className="canvas-container flex flex-wrap justify-center items-center h-[80vh]  w-full" ref={canvasContainerRef} ></div>
+          </div>
+        </div>
+      </div>
+    );
+  });
 Canvas.displayName = "Canvas";
 export default Canvas;

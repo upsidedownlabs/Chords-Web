@@ -93,19 +93,7 @@ const Stack = () => {
         ))}
       </div>
     </div>
-    <div className="flex justify-center space-x-4 mt-8">
-      <Link href="/stream">
-        <Button>Visualize Now &rarr;</Button>
-      </Link>
-      <Link
-        href="https://github.com/upsidedownlabs/Chords-Web"
-        target="_blank"
-      >
-        <Button variant="outline">
-          <GitHubLogoIcon className="mr-2 h-4 w-4" /> Source Code
-        </Button>
-      </Link>
-    </div>
+    
   </div>
 </section>
 
