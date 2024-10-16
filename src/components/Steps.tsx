@@ -1,4 +1,5 @@
-import * as React from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+
 import { Card, CardContent } from "./ui/card";
 import {
   Carousel,
@@ -106,12 +107,34 @@ const Steps: React.FC = () => {
       image: ImageLinks[5],
     },
   ];
-  const stepsHeightInVh = 
-  window.innerHeight > 945 ? (91* window.innerHeight) / 100 :
-  window.innerHeight > 585 ? (85* window.innerHeight) / 100 :
-  window.innerHeight <= 483 ? (76* window.innerHeight) / 100 : 
-  (75* window.innerHeight) / 100;
+  
+  // Function to calculate height
+  const calculateHeight = () => {
+    if (window.innerHeight > 945) return 90;
+    if (window.innerHeight > 585) return 88;
+    if (window.innerHeight <= 483) return 100;
+    return 80; // Default case
+  };
+  const [stepsHeightInVh, setStepsHeightInVh] = useState(calculateHeight());
 
+
+  useEffect(() => {
+    // Update height on window resize
+    const handleResize = () => {
+      setStepsHeightInVh(calculateHeight());
+    };
+
+    // Set the initial height
+    setStepsHeightInVh(calculateHeight());
+    
+    // Add event listener for window resize
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup event listener on unmount
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
   return (
     <div className={`flex flex-col justify-center items-center gap-2 px-4 `}
     style={{ height: `calc(${stepsHeightInVh}vh)` }}>

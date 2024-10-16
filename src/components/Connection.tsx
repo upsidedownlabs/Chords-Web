@@ -736,354 +736,349 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="mt-2 flex flex-col justify-center gap-2 sm:flex-row w-full shrink-0 px-2 md:px-4 items-center">
-      {/* Left-aligned timer and separator */}
-      <div className="relative flex items-center justify-start space-x-1 h-10 ">
-        {isRecordingRef.current && (
-          <div className="flex items-center space-x-1 w-min ml-2 justify-start">
-            <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
-              {formatTime(elapsedTime)}
-            </div>
-            <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
-            <div>
-              <Popover
-                open={isEndTimePopoverOpen}
-                onOpenChange={setIsEndTimePopoverOpen}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    className="text-lg w-16 h-9 font-medium p-2"
-                    variant="destructive"
-                  >
-                    {endTimeRef.current === null ? (
-                      <Infinity className="h-5 w-5 text-primary" />
-                    ) : (
-                      <div className="text-sm text-primary font-medium">
-                        {formatTime(endTimeRef.current)}
-                      </div>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-4 mx-4">
-                  <div className="flex flex-col space-y-4">
-                    <div className="text-sm font-medium">
-                      Set End Time (minutes)
+    <div className="flex items-center justify-center w-full h-4 mt-5 px-4 z-50">
+    {/* Left-aligned section */}
+    <div className="absolute left-4 flex items-center space-x-1">
+      {isRecordingRef.current && (
+        <div className="flex items-center space-x-1 w-min ml-2">
+          <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
+            {formatTime(elapsedTime)}
+          </div>
+          <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
+          <div>
+            <Popover
+              open={isEndTimePopoverOpen}
+              onOpenChange={setIsEndTimePopoverOpen}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  className="text-lg w-16 h-9 font-medium p-2"
+                  variant="destructive"
+                >
+                  {endTimeRef.current === null ? (
+                    <Infinity className="h-5 w-5 text-primary" />
+                  ) : (
+                    <div className="text-sm text-primary font-medium">
+                      {formatTime(endTimeRef.current)}
                     </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[1, 10, 20, 30].map((time) => (
-                        <Button
-                          key={time}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleTimeSelection(time)}
-                        >
-                          {time}
-                        </Button>
-                      ))}
-                    </div>
-                    <div className="flex space-x-2 items-center">
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        placeholder="Custom"
-                        value={customTime}
-                        onBlur={handleCustomTimeSet}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" && handleCustomTimeSet()
-                        }
-                        onChange={handleCustomTimeChange}
-                        className="w-20"
-                      />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-4 mx-4">
+                <div className="flex flex-col space-y-4">
+                  <div className="text-sm font-medium">
+                    Set End Time (minutes)
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[1, 10, 20, 30].map((time) => (
                       <Button
+                        key={time}
                         variant="outline"
                         size="sm"
-                        onClick={() => handleTimeSelection(null)}
+                        onClick={() => handleTimeSelection(time)}
                       >
-                        <Infinity className="h-4 w-4" />
+                        {time}
                       </Button>
-                    </div>
+                    ))}
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+                  <div className="flex space-x-2 items-center">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Custom"
+                      value={customTime}
+                      onBlur={handleCustomTimeSet}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleCustomTimeSet()
+                      }
+                      onChange={handleCustomTimeChange}
+                      className="w-20"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTimeSelection(null)}
+                    >
+                      <Infinity className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
-        )}
         </div>
-        <div className="relative flex items-center justify-center space-x-1 h-10 w-full ">
-        {/* Center-aligned buttons */}
-         <div
-        className="flex flex-row gap-2 justify-center items-center "
-      >
-        {/* Connection button with tooltip */}
+      )}
+    </div>
+
+    {/* Center-aligned buttons */}
+    <div className="flex gap-3 items-center justify-center">
+      {/* Connection button with tooltip */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button className="bg-primary gap-2" onClick={handleClick}>
+              {isConnected ? (
+                <>
+                  Disconnect
+                  <CircleX size={17} />
+                </>
+              ) : (
+                <>
+                  Connect
+                  <Cable size={17} />
+                </>
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{isConnected ? "Disconnect Device" : "Connect Device"}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {/* Autoscale/Bit selection */}
+      {isConnected && (
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button className="bg-primary gap-2 " onClick={handleClick}>
-                {isConnected ? (
-                  <>
-                    Disconnect
-                    <CircleX size={17} />
-                  </>
-                ) : (
-                  <>
-                    Connect
-                    <Cable size={17} />
-                  </>
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{isConnected ? "Disconnect Device" : "Connect Device"}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        {/* Autoscale/Bit selection */}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-auto px-auto">
-                {/* Decrease Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-r-none"
-                      onClick={decreaseZoom}
-                      disabled={Zoom === 1 || !isDisplay}
-                      
-                    >
-                      <ZoomOut size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{Zoom === 1 ? "We can't shrinkage" : "Decrease Zoom"}</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
-                      onClick={toggleZoom}
-                      disabled={!isDisplay}
-                    >
-                      {Zoom}x
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{FullZoom ? "Remove Full Zoom" : "Full Zoom"}</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-l-none"
-                      onClick={increaseZoom}
-                      disabled={Zoom === 10 || !isDisplay}
-                    >
-                      <ZoomIn size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {Zoom >= 10 ? "Maximum Zoom Reached" : "Increase Zoom"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {/* Display (Play/Pause) button with tooltip */}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={togglePause}>
-                  {isDisplay ? (
-                    <Pause className="h-5 w-5" />
-                  ) : (
-                    <Play className="h-5 w-5" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {/* Record button with tooltip */}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={handleRecord}
-                  disabled={isRecordButtonDisabled || !isDisplay}
-                >
-                  {isRecordingRef.current ? (
-                    <CircleStop />
-                  ) : (
-                    <Circle fill="red" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {!isRecordingRef.current
-                    ? "Start Recording"
-                    : "Stop Recording"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {/* Save/Delete data buttons with tooltip */}
-        {isConnected && (
-          <TooltipProvider>
-            <div className="flex">
-              {hasData && datasets.length === 1 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-r-none"
-                      onClick={saveData}
-                      disabled={!hasData}
-                    >
-                      <Download size={16} className="mr-1" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Save Data as CSV</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-
-              <Separator orientation="vertical" className="h-full" />
-
+            <div className="flex items-center mx-0 px-0">
+              {/* Decrease Canvas Button */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-r-none mr-1"
-                    onClick={saveData}
-                    disabled={!hasData}
+                    className="rounded-r-none"
+                    onClick={decreaseZoom}
+                    disabled={Zoom === 1 || !isDisplay}
                   >
-                    <Download size={16} />
+                    <ZoomOut size={16} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Save Data as Zip</p>
+                  <p>{Zoom === 1 ? "We can't shrinkage" : "Decrease Zoom"}</p>
                 </TooltipContent>
               </Tooltip>
 
+              <Separator orientation="vertical" className="h-full" />
+
+              {/* Toggle All Channels Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
+                    onClick={toggleZoom}
+                    disabled={!isDisplay}
+                  >
+                    {Zoom}x
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{FullZoom ? "Remove Full Zoom" : "Full Zoom"}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Separator orientation="vertical" className="h-full" />
+
+              {/* Increase Canvas Button */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     className="rounded-l-none"
-                    onClick={deleteDataFromIndexedDB}
-                    disabled={!hasData}
+                    onClick={increaseZoom}
+                    disabled={Zoom === 10 || !isDisplay}
+                    
                   >
-                    <Trash2 size={20} />
+                    <ZoomIn size={16} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Delete All Data</p>
+                  <p>
+                    {Zoom >= 10 ? "Maximum Zoom Reached" : "Increase Zoom"}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </div>
-          </TooltipProvider>
-        )}
+          </Tooltip>
+        </TooltipProvider>
+      )}
 
-        {/* Canvas control buttons with tooltip */}
-        {isConnected && (
-          <TooltipProvider>
+      {/* Display (Play/Pause) button with tooltip */}
+      {isConnected && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button onClick={togglePause}>
+                {isDisplay ? (
+                  <Pause className="h-5 w-5" />
+                ) : (
+                  <Play className="h-5 w-5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* Record button with tooltip */}
+      {isConnected && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={handleRecord}
+                disabled={isRecordButtonDisabled || !isDisplay}
+              >
+                {isRecordingRef.current ? (
+                  <CircleStop />
+                ) : (
+                  <Circle fill="red" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                {!isRecordingRef.current
+                  ? "Start Recording"
+                  : "Stop Recording"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* Save/Delete data buttons with tooltip */}
+      {isConnected && (
+        <TooltipProvider>
+          <div className="flex">
+            {hasData && datasets.length === 1 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-r-none"
+                    onClick={saveData}
+                    disabled={!hasData}
+                  >
+                    <Download size={16} className="mr-1" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save Data as CSV</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            <Separator orientation="vertical" className="h-full" />
+
             <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-r-none"
-                      onClick={decreaseCanvas}
-                      disabled={canvasCount === 1 || !isDisplay || recData}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount === 1
-                        ? "At Least One Canvas Required"
-                        : "Decrease Channel"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
-                      onClick={toggleShowAllChannels}
-                      disabled={!isDisplay || recData}
-                    >
-                      CH
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {showAllChannels
-                        ? "Hide All Channels"
-                        : "Show All Channels"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-l-none"
-                      onClick={increaseCanvas}
-                      disabled={canvasCount >= 6 || !isDisplay || recData}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount >= 6
-                        ? "Maximum Channels Reached"
-                        : "Increase Channel"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
+              <TooltipTrigger asChild>
+                <Button
+                  className="rounded-r-none mr-1"
+                  onClick={saveData}
+                  disabled={!hasData}
+                >
+                  <Download size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Save Data as Zip</p>
+              </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
-      </div>
-      
-     
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="rounded-l-none"
+                  onClick={deleteDataFromIndexedDB}
+                  disabled={!hasData}
+                >
+                  <Trash2 size={20} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete All Data</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+      )}
+
+      {/* Canvas control buttons with tooltip */}
+      {isConnected && (
+        <TooltipProvider>
+          <Tooltip>
+            <div className="flex items-center mx-0 px-0">
+              {/* Decrease Canvas Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-r-none"
+                    onClick={decreaseCanvas}
+                    disabled={canvasCount === 1 || !isDisplay || recData}
+                  >
+                    <Minus size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {canvasCount === 1
+                      ? "At Least One Canvas Required"
+                      : "Decrease Channel"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Separator orientation="vertical" className="h-full" />
+
+              {/* Toggle All Channels Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
+                    onClick={toggleShowAllChannels}
+                    disabled={!isDisplay || recData}
+                  >
+                    CH
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {showAllChannels
+                      ? "Hide All Channels"
+                      : "Show All Channels"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Separator orientation="vertical" className="h-full" />
+
+              {/* Increase Canvas Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-l-none"
+                    onClick={increaseCanvas}
+                    disabled={canvasCount >= 6 || !isDisplay || recData}
+                  >
+                    <Plus size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {canvasCount >= 6
+                      ? "Maximum Channels Reached"
+                      : "Increase Channel"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
+  </div>
   );
 };
 
