@@ -84,7 +84,7 @@ const Steps: React.FC = () => {
             width={320}
             height={320}
             src={ImageLinks[1]}
-            className="rounded-xl object-contain max-h-[200px]"
+            className="rounded-xl object-contain max-h-[200px] w-full" // Ensure the image is responsive
           />
         </div>
       ),
@@ -106,16 +106,18 @@ const Steps: React.FC = () => {
       image: ImageLinks[5],
     },
   ];
+  const stepsHeightInVh = 
+  window.innerHeight > 945 ? (91* window.innerHeight) / 100 :
+  window.innerHeight > 585 ? (85* window.innerHeight) / 100 :
+  window.innerHeight <= 483 ? (76* window.innerHeight) / 100 : 
+  (75* window.innerHeight) / 100;
 
   return (
-    <div className="flex flex-col justify-center items-center gap-2 min-h-[calc(100vh-6rem)] px-4 ">
-      <div className="flex items-center justify-center text-sm sm:text-xl text-center">
+    <div className={`flex flex-col justify-center items-center gap-2 px-4 `}
+    style={{ height: `calc(${stepsHeightInVh}vh)` }}>
+      <div className="flex items-center justify-center text-sm sm:text-lg md:text-xl text-center">
         <span className="flex flex-row gap-2">
-          Click{" "}
-          <Badge className="cursor-default">
-            <p className="text-sm sm:text-base">Connect</p>
-          </Badge>{" "}
-          For Board Connection.
+          Click Connect For Board Connection.
         </span>
       </div>
       <div className="text-sm sm:text-base text-muted-foreground text-center">
@@ -127,12 +129,12 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl ">
+      <div className="relative w-full max-w-7xl">
         <Carousel
           opts={{
             align: "start",
           }}
-          className="w-full select-none px-12"
+          className="w-full select-none px-4 sm:px-6 md:px-8" // Adjusting padding for responsiveness
         >
           <CarouselContent>
             {carouselItems.map((item, index) => (
@@ -149,7 +151,7 @@ const Steps: React.FC = () => {
                           width={500}
                           height={500}
                           src={item.image}
-                          className="rounded-xl h-full w-full object-contain"
+                          className="rounded-xl h-full w-full object-contain" // Ensure image fits well
                         />
                       ) : (
                         item.content
@@ -160,8 +162,8 @@ const Steps: React.FC = () => {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="border-primary border-2 left-2 absolute" />
-          <CarouselNext className="border-primary border-2 right-2 absolute" />
+          <CarouselPrevious className="border-primary border-2 left-1 absolute" />
+          <CarouselNext className="border-primary border-2 right-1 absolute" />
         </Carousel>
       </div>
     </div>

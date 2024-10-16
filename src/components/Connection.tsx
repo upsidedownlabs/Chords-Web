@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
-import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
 
 import {
@@ -35,12 +34,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../components/ui/popover";
-
-interface FormattedData {
-  timestamp: string;
-  counter: number | null;
-  [key: string]: number | null | string;
-}
 
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
@@ -96,8 +89,9 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
-  const bufferdRef =useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
-  
+  const buffer: number[] = []; // Buffer to store incoming data
+  const bufferdRef = useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
+
   const togglePause = () => {
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
@@ -130,7 +124,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  
   const decreaseZoom = () => {
     if (Zoom > 1) {
       SetZoom(Zoom - 1); // Decrease canvas count but not below 1
@@ -217,16 +210,16 @@ const Connection: React.FC<ConnectionProps> = ({
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-      
+
       const port = await navigator.serial.requestPort();
       await port.open({ baudRate: 230400 });
       Connection(true);
       setIsConnected(true);
-      onPauseChange(true); // Notify parent about the change
+      onPauseChange(true);
       setIsDisplay(true);
       isConnectedRef.current = true;
       portRef.current = port;
-      
+
       toast.success("Connection Successful", {
         description: (
           <div className="mt-2 flex flex-col space-y-1">
@@ -235,12 +228,13 @@ const Connection: React.FC<ConnectionProps> = ({
           </div>
         ),
       });
-      
+
       const reader = port.readable?.getReader();
       readerRef.current = reader;
+
       const writer = port.writable?.getWriter();
       if (writer) {
-         setTimeout(function () {
+        setTimeout(function () {
           writerRef.current = writer;
           const message = new TextEncoder().encode("START\n");
           writerRef.current.write(message);
@@ -248,9 +242,9 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Writable stream not available");
       }
-      
+
       readData();
-      
+
       await navigator.wakeLock.request("screen");
     } catch (error) {
       await disconnectDevice();
@@ -258,7 +252,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to connect to device.");
     }
   };
-  
+
   const disconnectDevice = async (): Promise<void> => {
     try {
       if (portRef.current) {
@@ -272,7 +266,7 @@ const Connection: React.FC<ConnectionProps> = ({
           writerRef.current.releaseLock();
           writerRef.current = null;
         }
-        
+
         if (readerRef.current) {
           try {
             await readerRef.current.cancel();
@@ -282,12 +276,12 @@ const Connection: React.FC<ConnectionProps> = ({
           readerRef.current.releaseLock();
           readerRef.current = null;
         }
-        
+
         if (portRef.current.readable) {
           await portRef.current.close();
         }
         portRef.current = null;
-        
+
         toast("Disconnected from device", {
           action: {
             label: "Reconnect",
@@ -304,10 +298,9 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
- 
+
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
-    const buffer: number[] = []; // Buffer to store incoming data
     const HEADER_LENGTH = 3; // Length of the packet header
     const NUM_CHANNELS = 6; // Number of channels in the data packet
     const PACKET_LENGTH = 16; // Total length of each packet
@@ -399,7 +392,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-const convertToCSV = (data: any[]): string => {
+  const convertToCSV = (data: any[]): string => {
     if (data.length === 0) return "";
 
     const header = Object.keys(data[0]);
@@ -743,11 +736,11 @@ const convertToCSV = (data: any[]): string => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 relative flex items-center justify-center h-4  px-4 z-50">
-      {/* Left-aligned section */}
-      <div className="absolute left-4 flex items-center space-x-1">
+    <div className="mt-2 flex flex-col justify-center gap-2 sm:flex-row w-full shrink-0 px-2 md:px-4 items-center">
+      {/* Left-aligned timer and separator */}
+      <div className="relative flex items-center justify-start space-x-1 h-10 ">
         {isRecordingRef.current && (
-          <div className="flex items-center space-x-1 w-min ml-2">
+          <div className="flex items-center space-x-1 w-min ml-2 justify-start">
             <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
               {formatTime(elapsedTime)}
             </div>
@@ -816,15 +809,17 @@ const convertToCSV = (data: any[]): string => {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Center-aligned buttons */}
-      <div className="  relative flex gap-3 items-center ">
+        </div>
+        <div className="relative flex items-center justify-center space-x-1 h-10 w-full ">
+        {/* Center-aligned buttons */}
+         <div
+        className="flex flex-row gap-2 justify-center items-center "
+      >
         {/* Connection button with tooltip */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button className="bg-primary gap-2 bottom-0" onClick={handleClick}>
+              <Button className="bg-primary gap-2 " onClick={handleClick}>
                 {isConnected ? (
                   <>
                     Disconnect
@@ -843,19 +838,19 @@ const convertToCSV = (data: any[]): string => {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-
         {/* Autoscale/Bit selection */}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
-              <div className="flex items-center mx-0 px-0 ">
+              <div className="flex items-center mx-auto px-auto">
                 {/* Decrease Canvas Button */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       className="rounded-r-none"
                       onClick={decreaseZoom}
-                      disabled={Zoom === 1  || !isDisplay }
+                      disabled={Zoom === 1 || !isDisplay}
+                      
                     >
                       <ZoomOut size={16} />
                     </Button>
@@ -891,7 +886,7 @@ const convertToCSV = (data: any[]): string => {
                     <Button
                       className="rounded-l-none"
                       onClick={increaseZoom}
-                      disabled={Zoom === 10  || !isDisplay}
+                      disabled={Zoom === 10 || !isDisplay}
                     >
                       <ZoomIn size={16} />
                     </Button>
@@ -1085,6 +1080,9 @@ const convertToCSV = (data: any[]): string => {
           </TooltipProvider>
         )}
       </div>
+      </div>
+      
+     
     </div>
   );
 };
