@@ -89,7 +89,9 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
- 
+  const buffer: number[] = []; // Buffer to store incoming data
+  const bufferdRef = useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
+
   const togglePause = () => {
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
@@ -299,7 +301,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
-    const buffer: number[] = []; // Buffer to store incoming data
     const HEADER_LENGTH = 3; // Length of the packet header
     const NUM_CHANNELS = 6; // Number of channels in the data packet
     const PACKET_LENGTH = 16; // Total length of each packet
@@ -735,7 +736,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-center w-full h-4 mb-2 px-4 z-50">
+    <div className="flex items-center justify-center w-full h-4 mt-5 px-4 z-50">
     {/* Left-aligned section */}
     <div className="absolute left-4 flex items-center space-x-1">
       {isRecordingRef.current && (

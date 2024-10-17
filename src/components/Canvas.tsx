@@ -3,7 +3,6 @@ import React, {
   useRef,
   useState,
   useCallback,
-  useMemo,
   useImperativeHandle,
   forwardRef,
 } from "react";
@@ -41,10 +40,8 @@ const Canvas = forwardRef(
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
     const [lines, setLines] = useState<WebglLine[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
-
-    const fps = 60;
     const samplingRate = 500; // Set the sampling rate in Hz
-    const slidePoints = Math.floor(samplingRate / fps); // Set how many points to slide
+
     let numX: number;
 
     const getpoints = useCallback((bits: BitSelection): number => {
@@ -104,31 +101,29 @@ const Canvas = forwardRef(
       setCanvases([]);
       setWglPlots([]);
       linesRef.current = [];
-
-      const containerHeightPx = canvasContainerRef.current.clientHeight || window.innerHeight;
-      const containerHeight =
-        canvasContainerRef.current.clientHeight || window.innerHeight;
-      const containerHeightVh = (containerHeightPx / window.innerHeight) * 100; // Convert pixels to vh
-
-      const canvasHeight = containerHeight / numChannels;
-
-      const newCanvases: HTMLCanvasElement[] = [];
-      const newWglPlots: WebglPlot[] = [];
-      const newLines: WebglLine[] = [];
-
-
-
-      for (let i = 0; i < numChannels; i++) {
+      const newCanvases = [];
+      const newWglPlots = [];
+      const newLines = [];483
+      for (let i = 0; i < numChannels; i++) { 
         const canvas = document.createElement("canvas");
         canvas.width = canvasContainerRef.current.clientWidth;
-        canvas.height = canvasHeight;
+        const canvasHeightInVh = 
+        window.innerHeight > 945 ? 91 :
+        window.innerHeight > 585 ? 87 :
+        window.innerHeight <= 483 ? 76 : 
+        80;
+      
+      const canvasHeight = (canvasHeightInVh * window.innerHeight) / 100 / numChannels;
+      canvas.height = canvasHeight;
+        
 
-        canvas.className = "w-full";
+        canvas.className = "w-full h-full border-b";
+
 
         // Create a badge for the channel number
         const badge = document.createElement("div");
         badge.className =
-          "absolute top-1 left-1 text-gray-500 text-sm rounded-full";
+          "absolute top-3 left-3 text-gray-500 text-sm rounded-full";
         badge.innerText = `CH${i + 1}`;
 
         // Append the canvas and badge to the container
@@ -233,18 +228,28 @@ const Canvas = forwardRef(
       }
     }, [pauseRef.current, animate]);
 
+    useEffect(() => {
+      const handleResize = () => {
+        createCanvases();
+      };
+
+      window.addEventListener("resize", handleResize);
+
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    }, [createCanvases]);
+
     return (
-      <div
-        // style={{ marginBottom: `${marginBottom}px` }} // Apply the dynamic margin-bottom here
-        className="flex justify-center items-center min-h-[calc(100vh-8.9rem)]  mb-5 mt-3 w-full">
-        {/* Canvas container taking 70% of the screen height */}
-        <div className="flex flex-col justify-center items-start w-full px-3">
-          <div className="grid w-full h-full relative">
-            <div className="canvas-container flex flex-wrap justify-center items-center h-[80vh]  w-full" ref={canvasContainerRef} ></div>
+        <div className="flex flex-col justify-center items-start w-full  p-0 m-0">
+          <div
+            className="canvas-container flex flex-wrap justify-center items-center w-full "
+            ref={canvasContainerRef}
+          >
           </div>
         </div>
-      </div>
     );
-  });
+  }
+);
 Canvas.displayName = "Canvas";
 export default Canvas;
