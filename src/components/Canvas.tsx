@@ -103,39 +103,32 @@ const Canvas = forwardRef(
       linesRef.current = [];
       const newCanvases = [];
       const newWglPlots = [];
-      const newLines = [];483
+      const newLines = [];
       for (let i = 0; i < numChannels; i++) { 
-        const canvas = document.createElement("canvas");
-        canvas.width = canvasContainerRef.current.clientWidth;
-        const canvasHeightInVh = 
-        window.innerHeight > 945 ? 91 :
-        window.innerHeight > 585 ? 87 :
-        window.innerHeight <= 483 ? 76 : 
-        80;
-      
-      const canvasHeight = (canvasHeightInVh * window.innerHeight) / 100 / numChannels;
-      canvas.height = canvasHeight;
-        
-
-        canvas.className = "w-full h-full border-b";
-
-
-        // Create a badge for the channel number
-        const badge = document.createElement("div");
-        badge.className =
-          "absolute top-3 left-3 text-gray-500 text-sm rounded-full";
-        badge.innerText = `CH${i + 1}`;
-
-        // Append the canvas and badge to the container
         const canvasWrapper = document.createElement("div");
-        canvasWrapper.className = "relative";
+        canvasWrapper.className = "canvas-container border-b border-gray-300 flex-[1_1_0%] min-h-0";
+        const video = document.createElement("video");
+        video.id = `player${i + 1}`;
+        video.className = "w-0 h-0";
+        const canvas = document.createElement("canvas");
+        canvas.id = `canvas${i + 1}`;
+        canvas.width = canvasContainerRef.current.clientWidth;
+        canvas.height = canvasContainerRef.current.clientHeight;
+        canvas.className = "w-full h-full block";
+        
+        // Create a badge for the channel number
+        // const badge = document.createElement("div");
+        // badge.className =
+        //   " top-3 left-3 text-gray-500 text-sm rounded-full";
+        // badge.innerText = `CH${i + 1}`;
+
+        // // Append the canvas and badge to the container
+        
+        // canvasWrapper.appendChild(badge);
+        canvasWrapper.appendChild(video);
         canvasWrapper.appendChild(canvas);
-        canvasWrapper.appendChild(badge);
-
         canvasContainerRef.current.appendChild(canvasWrapper);
-
         newCanvases.push(canvas);
-
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
@@ -241,13 +234,10 @@ const Canvas = forwardRef(
     }, [createCanvases]);
 
     return (
-        <div className="flex flex-col justify-center items-start w-full  p-0 m-0">
-          <div
-            className="canvas-container flex flex-wrap justify-center items-center w-full "
-            ref={canvasContainerRef}
-          >
-          </div>
-        </div>
+      <main className="flex flex-col flex-[1_1_0%] min-h-0 " 
+      ref={canvasContainerRef}
+      >
+      </main>
     );
   }
 );

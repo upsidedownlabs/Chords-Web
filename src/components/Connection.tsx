@@ -734,9 +734,9 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to save data. Please try again.");
     }
   };
-
+// bg-gray-100 text-white p-2 flex-none flex items-center justify-center
   return (
-    <div className="flex items-center justify-center w-full h-4 mt-5 px-4 z-50">
+    <div className="flex-none items-center justify-center  ">
     {/* Left-aligned section */}
     <div className="absolute left-4 flex items-center space-x-1">
       {isRecordingRef.current && (
