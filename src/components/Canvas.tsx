@@ -107,9 +107,7 @@ const Canvas = forwardRef(
       for (let i = 0; i < numChannels; i++) { 
         const canvasWrapper = document.createElement("div");
         canvasWrapper.className = "canvas-container border-b border-gray-300 flex-[1_1_0%] min-h-0";
-        const video = document.createElement("video");
-        video.id = `player${i + 1}`;
-        video.className = "w-0 h-0";
+       
         const canvas = document.createElement("canvas");
         canvas.id = `canvas${i + 1}`;
         canvas.width = canvasContainerRef.current.clientWidth;
@@ -117,15 +115,17 @@ const Canvas = forwardRef(
         canvas.className = "w-full h-full block";
         
         // Create a badge for the channel number
-        // const badge = document.createElement("div");
-        // badge.className =
-        //   " top-3 left-3 text-gray-500 text-sm rounded-full";
-        // badge.innerText = `CH${i + 1}`;
+        const badge = document.createElement("div");
+        badge.className =
+        "absolute top-240 left-1 text-gray-500 text-sm rounded-full  p-1"; // Set absolute positioning and styles
+        // top-0 left-0 text-gray-500 text-sm rounded-full
+                // "absolute top-2 left-2 text-gray-500 text-sm rounded-full bg-white p-1"; // Set absolute positioning and styles
 
-        // // Append the canvas and badge to the container
+        badge.innerText = `CH${i + 1}`;
+
+        // Append the canvas and badge to the container
         
-        // canvasWrapper.appendChild(badge);
-        canvasWrapper.appendChild(video);
+        canvasWrapper.appendChild(badge);
         canvasWrapper.appendChild(canvas);
         canvasContainerRef.current.appendChild(canvasWrapper);
         newCanvases.push(canvas);
