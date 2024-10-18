@@ -82,8 +82,8 @@ const Canvas = forwardRef(
 
     const createCanvases = () => {
       if (!canvasContainerRef.current) return;
-
-      // Clean up all existing canvases and their WebGL contexts
+    
+      // Clean up existing canvases
       while (canvasContainerRef.current.firstChild) {
         const firstChild = canvasContainerRef.current.firstChild;
         if (firstChild instanceof HTMLCanvasElement) {
@@ -97,60 +97,59 @@ const Canvas = forwardRef(
         }
         canvasContainerRef.current.removeChild(firstChild);
       }
-
+    
       setCanvases([]);
       setWglPlots([]);
       linesRef.current = [];
+    
       const newCanvases = [];
       const newWglPlots = [];
-      const newLines = [];483
-      for (let i = 0; i < numChannels; i++) { 
+      const newLines = [];
+    
+      // Create a wrapper for each canvas and set height according to the number of channels
+      for (let i = 0; i < numChannels; i++) {
+        const canvasWrapper = document.createElement("div");
+        canvasWrapper.className = "canvas-wrapper h-[100%]";
+    
         const canvas = document.createElement("canvas");
         canvas.width = canvasContainerRef.current.clientWidth;
-        const canvasHeightInVh = 
-        window.innerHeight > 945 ? 91 :
-        window.innerHeight > 585 ? 87 :
-        window.innerHeight <= 483 ? 76 : 
-        80;
-      
-      const canvasHeight = (canvasHeightInVh * window.innerHeight) / 100 / numChannels;
-      canvas.height = canvasHeight;
+        canvas.height = canvasContainerRef.current.clientHeight / numChannels; // Divide container height equally
         
-
-        canvas.className = "w-full h-full border-b";
-
-
-        // Create a badge for the channel number
+        canvas.className = "w-full border-b";
+        
+        // Create badge for the channel number
         const badge = document.createElement("div");
-        badge.className =
-          "absolute top-3 left-3 text-gray-500 text-sm rounded-full";
+        badge.className = "absolute top-3 left-3 text-gray-500 text-sm rounded-full";
         badge.innerText = `CH${i + 1}`;
-
-        // Append the canvas and badge to the container
-        const canvasWrapper = document.createElement("div");
-        canvasWrapper.className = "relative";
+    
+        // Append the canvas and badge to the canvas wrapper
         canvasWrapper.appendChild(canvas);
         canvasWrapper.appendChild(badge);
-
+        
+        // Append the canvas wrapper to the container
         canvasContainerRef.current.appendChild(canvasWrapper);
-
-        newCanvases.push(canvas);
-
+    
+        // Initialize WebGL plot
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
-
+    
+        // Create and add line to WebGL plot
         const line = new WebglLine(getRandomColor(i), numX);
         line.lineSpaceX(-1, 2 / numX);
         wglp.addLine(line);
         newLines.push(line);
+        newCanvases.push(canvas);
       }
-
+    
+      // Update state
       linesRef.current = newLines;
       setCanvases(newCanvases);
       setWglPlots(newWglPlots);
       setLines(newLines);
     };
+    
+    
 
     const getRandomColor = (i: number): ColorRGBA => {
       // Define bright colors
@@ -241,13 +240,10 @@ const Canvas = forwardRef(
     }, [createCanvases]);
 
     return (
-        <div className="flex flex-col justify-center items-start w-full  p-0 m-0">
-          <div
-            className="canvas-container flex flex-wrap justify-center items-center w-full "
-            ref={canvasContainerRef}
-          >
-          </div>
-        </div>
+      <div className="canvas-container  h-[80vh] sm:h-[60vh] md:h-[70vh] lg:h-[80vh] flex flex-col" ref={canvasContainerRef}>
+      {/* Individual canvases will be appended here  */}
+    </div>
+    
     );
   }
 );
