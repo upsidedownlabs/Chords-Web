@@ -6,7 +6,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from "react";
-
+import { useTheme } from "next-themes";
 import { BitSelection } from "./DataPass";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 
@@ -33,6 +33,7 @@ const Canvas = forwardRef(
     }: CanvasProps,
     ref
   ) => {
+    const { theme } = useTheme();
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const [numChannels, setNumChannels] = useState<number>(canvasCount);
@@ -110,17 +111,20 @@ const Canvas = forwardRef(
        
         const canvas = document.createElement("canvas");
         canvas.id = `canvas${i + 1}`;
+        
+    
         canvas.width = canvasContainerRef.current.clientWidth;
-        canvas.height = canvasContainerRef.current.clientHeight;
+  
+      const canvasHeight = canvasContainerRef.current.clientHeight / numChannels;
+      console.log(canvasHeight);
+      canvas.height = canvasHeight;
+
         canvas.className = "w-full h-full block";
         
         // Create a badge for the channel number
         const badge = document.createElement("div");
         badge.className =
         "absolute top-240 left-1 text-gray-500 text-sm rounded-full  p-1"; // Set absolute positioning and styles
-        // top-0 left-0 text-gray-500 text-sm rounded-full
-                // "absolute top-2 left-2 text-gray-500 text-sm rounded-full bg-white p-1"; // Set absolute positioning and styles
-
         badge.innerText = `CH${i + 1}`;
 
         // Append the canvas and badge to the container
@@ -132,9 +136,11 @@ const Canvas = forwardRef(
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
-
-        const line = new WebglLine(getRandomColor(i), numX);
+        const line = new WebglLine(getRandomColor(i,theme), numX);
+        wglp.gOffsetY = 0;
+        line.offsetY = 0;
         line.lineSpaceX(-1, 2 / numX);
+
         wglp.addLine(line);
         newLines.push(line);
       }
@@ -145,9 +151,9 @@ const Canvas = forwardRef(
       setLines(newLines);
     };
 
-    const getRandomColor = (i: number): ColorRGBA => {
+    const getRandomColor = (i: number,theme:string| undefined): ColorRGBA => {
       // Define bright colors
-      const colors: ColorRGBA[] = [
+      const colorsDark: ColorRGBA[] = [
         new ColorRGBA(1, 0.286, 0.529, 1), // Bright Pink
         new ColorRGBA(0.475, 0.894, 0.952, 1), // Light Blue
         new ColorRGBA(0, 1, 0.753, 1), // Bright Cyan
@@ -155,9 +161,21 @@ const Canvas = forwardRef(
         new ColorRGBA(0.678, 0.286, 0.882, 1), // Bright Purple
         new ColorRGBA(0.914, 0.361, 0.051, 1), // Bright Orange
       ];
+      const colorsLight: ColorRGBA[] = [
+        new ColorRGBA(0.820, 0.000, 0.329, 1), // #D10054 - Bright Pink
+        new ColorRGBA(0.000, 0.478, 0.549, 1), // #007A8C - Light Blue
+        new ColorRGBA(0.039, 0.408, 0.278, 1), // #0A6847 - Dark Green
+        new ColorRGBA(0.404, 0.255, 0.533, 1), // #674188 - Bright Purple
+        new ColorRGBA(0.902, 0.361, 0.098, 1), // #E65C19 - Bright Orange
+        new ColorRGBA(0.180, 0.027, 0.247, 1), // #2E073F - Dark Purple
+    ];
+    
 
       // Return color based on the index, cycling through if necessary
-      return colors[i % colors.length]; // Ensure to always return a valid ColorRGBA
+      // return colors[i % colors.length]; // Ensure to always return a valid ColorRGBA
+      return theme === "dark"
+      ? colorsDark[i % colorsDark.length]
+      : colorsLight[i % colorsLight.length];
     };
 
     const updatePlots = useCallback(
@@ -193,7 +211,7 @@ const Canvas = forwardRef(
 
     useEffect(() => {
       createCanvases();
-    }, [numChannels]);
+    }, [numChannels,theme]);
 
     const getValue = useCallback((bits: BitSelection): number => {
       switch (bits) {
