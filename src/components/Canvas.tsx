@@ -113,12 +113,10 @@ const Canvas = forwardRef(
         canvas.id = `canvas${i + 1}`;
         
     
-        canvas.width = canvasContainerRef.current.clientWidth;
+        canvas.width = canvasContainerRef.current.clientWidth*2;
   
-      const canvasHeight = canvasContainerRef.current.clientHeight / numChannels;
-      console.log(canvasHeight);
+      const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels)*2;
       canvas.height = canvasHeight;
-
         canvas.className = "w-full h-full block";
         
         // Create a badge for the channel number
@@ -178,36 +176,81 @@ const Canvas = forwardRef(
       : colorsLight[i % colorsLight.length];
     };
 
-    const updatePlots = useCallback(
-      (data: number[], Zoom: number) => {
-        wglPlots.forEach((wglp, index) => {
-          if (wglp) {
-            try {
-              wglp.gScaleY = Zoom; // Adjust this value as needed
-            } catch (error) {
-              console.error(
-                `Error setting gScaleY for WebglPlot instance at index ${index}:`,
-                error
-              );
-            }
-          } else {
-            console.warn(`WebglPlot instance at index ${index} is undefined.`);
-          }
-        });
-        linesRef.current.forEach((line, i) => {
-          // Shift the data points efficiently using a single operation
-          const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
-          const yScale = 2 / bitsPoints;
-          const chData = (data[i] - bitsPoints / 2) * yScale;
 
-          for (let j = 1; j < line.numPoints; j++) {
-            line.setY(j - 1, line.getY(j));
-          }
-          line.setY(line.numPoints - 1, chData);
-        });
-      },
-      [lines, wglPlots]
-    ); // Add dependencies here
+    const gapWidth = 5; // Width of the gap in pixels
+    const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
+
+const updatePlots = useCallback(
+  (data: number[], Zoom: number) => {
+    wglPlots.forEach((wglp, index) => {
+      if (wglp) {
+        try {
+          wglp.gScaleY = Zoom; // Adjust the zoom value
+        } catch (error) {
+          console.error(
+            `Error setting gScaleY for WebglPlot instance at index ${index}:`,
+            error
+          );
+        }
+      } else {
+        console.warn(`WebglPlot instance at index ${index} is undefined.`);
+      }
+    });
+
+    linesRef.current.forEach((line, i) => {
+      const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust according to your ADC resolution
+      const yScale = 2 / bitsPoints;
+      const chData = (data[i] - bitsPoints / 2) * yScale;
+
+      // Use a separate sweep position for each line
+      const currentSweepPos = sweepPositions.current[i];
+
+      // Plot the new data at the current sweep position
+      line.setY(currentSweepPos % line.numPoints, chData);
+
+      // Clear the next point to create a gap (optional, for visual effect)
+      const clearPosition = (currentSweepPos + 8) % line.numPoints;
+      line.setY(clearPosition, 0);
+
+      // Increment the sweep position for the current line
+      sweepPositions.current[i] = (currentSweepPos + 1) % line.numPoints;
+    });
+  },
+  [lines, wglPlots]
+);
+
+    
+
+    // const updatePlots = useCallback(
+    //   (data: number[], Zoom: number) => {
+    //     wglPlots.forEach((wglp, index) => {
+    //       if (wglp) {
+    //         try {
+    //           wglp.gScaleY = Zoom; // Adjust this value as needed
+    //         } catch (error) {
+    //           console.error(
+    //             `Error setting gScaleY for WebglPlot instance at index ${index}:`,
+    //             error
+    //           );
+    //         }
+    //       } else {
+    //         console.warn(`WebglPlot instance at index ${index} is undefined.`);
+    //       }
+    //     });
+    //     linesRef.current.forEach((line, i) => {
+    //       // Shift the data points efficiently using a single operation
+    //       const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
+    //       const yScale = 2 / bitsPoints;
+    //       const chData = (data[i] - bitsPoints / 2) * yScale;
+
+    //       for (let j = 1; j < line.numPoints; j++) {
+    //         line.setY(j - 1, line.getY(j));
+    //       }
+    //       line.setY(line.numPoints - 1, chData);
+    //     });
+    //   },
+    //   [lines, wglPlots]
+    // ); // Add dependencies here
 
     useEffect(() => {
       createCanvases();
