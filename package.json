@@ -47,7 +47,8 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
-    "tailwindcss-textshadow": "^2.1.3"
+    "tailwindcss-textshadow": "^2.1.3",
+    "webgl-plot": "^0.7.1"
   },
   "devDependencies": {
     "@types/esc-pos-encoder": "^1.3.4",

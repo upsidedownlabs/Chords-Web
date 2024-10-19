@@ -9,7 +9,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 ## Features
 
 - **Connection**: Experience a smooth connection/disconnection with board in single click.
-- **Real-time Visualization**: Visualize incoming data without any jitter from the board in real-time on SmoothieCharts.
+- **Real-time Visualization**: Visualize incoming data without any jitter from the board in real-time.
 - **Recording**: Record the signals data and download data in csv file.
 
 ## How to use
@@ -18,12 +18,14 @@ Chords is an application based on Web Serial connection, you can connect boards 
 2.  Open the Arduino IDE and flash the provided firmware onto the Arduino.
 3.  Open Chords in a web browser.
 4.  Click the "Connect" button to establish a connection with the Arduino and stream.
-5.  Click the "Grid/List" button to chnage the view.
+5.  Click the "Zoom" button to zoom in on data visualization.
 6.  Click the "Play/Pause" button to stop and start data on screen.
-7.  Click "Autoscale" button to zoomin data visualization.
-8.  Click the "Record" button to record data.
-9.  To download the recorded data, click the "download" button.
-10. Click the "Delete" button to delete recorded data.
+7.  Click the "Record" button to record data.
+8.  Click the "download" button to download the recorded data.
+9.  Click the "Delete" button to delete recorded data.
+10. Click the "Plus/Minus" button to increase/decrease channel.
+11. Click "Theme" button which is present in navbar to change theme.
+12. Click the "Disconnect" button to terminate the connection with the Arduino and stop the data stream.
 
 ## Technologies Used
 
@@ -31,7 +33,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 - [TypeScript](https://www.typescriptlang.org/): Statically typed superset of JavaScript.
 - [Tailwind CSS](https://tailwindcss.com/): Utility-first CSS framework.
 - [Shadcn UI](https://tailwindcss.com/): Provides Reusable and customizable components, built with radix UI.
-- [Smoothie Js](http://smoothiecharts.org/): Real time charting library.
+- [WebGl Plot](https://webgl-plot.vercel.app/): Real time charting library.
 - [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) Browser-based database for storing recorded data.
 
 ## Resources

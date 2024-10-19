@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
-import { SmoothieChart } from "smoothie";
 import { Input } from "./ui/input";
 
 import {
@@ -16,6 +15,8 @@ import {
   Play,
   Plus,
   Minus,
+  ZoomIn, // For magnify/zoom in functionality
+  ZoomOut, // For zoom out functionality
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -26,15 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
 import { BitSelection } from "./DataPass";
-
 import { Separator } from "./ui/separator";
 import {
   Popover,
@@ -42,14 +35,9 @@ import {
   PopoverTrigger,
 } from "../components/ui/popover";
 
-interface FormattedData {
-  timestamp: string;
-  counter: number | null;
-  [key: string]: number | null | string;
-}
-
 interface ConnectionProps {
-  LineData: (data: any) => void;
+  onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
+  dataSteam: (data: number[]) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
@@ -58,17 +46,21 @@ interface ConnectionProps {
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
   channelCount: number;
+  SetZoom: React.Dispatch<React.SetStateAction<number>>;
+  Zoom: number;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
-  LineData,
+  onPauseChange,
+  dataSteam,
   Connection,
-  selectedBits,
   setSelectedBits,
   isDisplay,
   setIsDisplay,
   setCanvasCount,
   canvasCount,
+  SetZoom,
+  Zoom,
 }) => {
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
@@ -85,19 +77,26 @@ const Connection: React.FC<ConnectionProps> = ({
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
-  const bufferRef = useRef<string[][]>([]); // Ref to store the data temporary buffer during recording
-  const chartRef = useRef<SmoothieChart[]>([]); // Define chartRef using useRef
+  const bufferRef = useRef<number[][]>([]); // Ref to store the data temporary buffer during recording
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
+  const [FullZoom, setFullZoom] = useState(false);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
+  const buffer: number[] = []; // Buffer to store incoming data
+  const bufferdRef = useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
 
+  const togglePause = () => {
+    const newPauseState = !isDisplay;
+    setIsDisplay(newPauseState);
+    onPauseChange(newPauseState); // Notify parent about the change
+  };
   const increaseCanvas = () => {
     if (canvasCount < 6) {
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
@@ -116,6 +115,27 @@ const Connection: React.FC<ConnectionProps> = ({
     } else {
       setCanvasCount(6); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
+    }
+  };
+
+  const increaseZoom = () => {
+    if (Zoom < 10) {
+      SetZoom(Zoom + 1); // Increase canvas count up to 6
+    }
+  };
+
+  const decreaseZoom = () => {
+    if (Zoom > 1) {
+      SetZoom(Zoom - 1); // Decrease canvas count but not below 1
+    }
+  };
+  const toggleZoom = () => {
+    if (Zoom === 10) {
+      SetZoom(1); // If canvasCount is 6, reduce it to 1
+      setFullZoom(false);
+    } else {
+      SetZoom(10); // Otherwise, show all 6 canvases
+      setFullZoom(true);
     }
   };
 
@@ -160,7 +180,6 @@ const Connection: React.FC<ConnectionProps> = ({
       if (!info || !info.usbVendorId) {
         return "Port with no info";
       }
-      // console.log(info);
 
       // First, check if the board exists in BoardsList
       const board = BoardsList.find(
@@ -188,10 +207,16 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const connectToDevice = async () => {
     try {
-      const port = await navigator.serial.requestPort(); // Request the serial port
+      if (portRef.current && portRef.current.readable) {
+        await disconnectDevice();
+      }
+
+      const port = await navigator.serial.requestPort();
       await port.open({ baudRate: 230400 });
-      Connection(true); // Set the connection state to true, enabling the data visualization
+      Connection(true);
       setIsConnected(true);
+      onPauseChange(true);
+      setIsDisplay(true);
       isConnectedRef.current = true;
       portRef.current = port;
 
@@ -204,11 +229,9 @@ const Connection: React.FC<ConnectionProps> = ({
         ),
       });
 
-      // Get the reader from the port
       const reader = port.readable?.getReader();
       readerRef.current = reader;
 
-      // Get the writer from the port (check if it's available)
       const writer = port.writable?.getWriter();
       if (writer) {
         setTimeout(function () {
@@ -220,67 +243,64 @@ const Connection: React.FC<ConnectionProps> = ({
         console.error("Writable stream not available");
       }
 
-      // Start reading the data from the device
       readData();
 
-      // Request the wake lock to keep the screen on
       await navigator.wakeLock.request("screen");
     } catch (error) {
-      // If there is an error during connection, disconnect the device
-      disconnectDevice();
-      isConnectedRef.current = false;
-      setIsConnected(false);
+      await disconnectDevice();
       console.error("Error connecting to device:", error);
+      toast.error("Failed to connect to device.");
     }
   };
 
   const disconnectDevice = async (): Promise<void> => {
-    // Function to disconnect the device
     try {
-      if (portRef.current && portRef.current.readable) {
-        // Check if the writer is available to send the STOP command
+      if (portRef.current) {
         if (writerRef.current) {
-          const stopMessage = new TextEncoder().encode("STOP\n"); // Prepare the STOP command
-          console.log(stopMessage);
-          await writerRef.current.write(stopMessage); // Send the STOP command to the device
+          const stopMessage = new TextEncoder().encode("STOP\n");
+          try {
+            await writerRef.current.write(stopMessage);
+          } catch (error) {
+            console.error("Failed to send STOP command:", error);
+          }
           writerRef.current.releaseLock();
-          writerRef.current = null; // Reset the writer reference
+          writerRef.current = null;
         }
 
-        // Cancel the reader to stop data flow
         if (readerRef.current) {
-          await readerRef.current.cancel(); // Cancel the reader
+          try {
+            await readerRef.current.cancel();
+          } catch (error) {
+            console.error("Failed to cancel reader:", error);
+          }
           readerRef.current.releaseLock();
-          readerRef.current = null; // Reset the reader reference
+          readerRef.current = null;
         }
 
-        await portRef.current.close(); // Close the port to disconnect the device
+        if (portRef.current.readable) {
+          await portRef.current.close();
+        }
         portRef.current = null;
 
-        // Notify the user of successful disconnection with a reconnect option
         toast("Disconnected from device", {
           action: {
             label: "Reconnect",
-            onClick: () => connectToDevice(), // Reconnect when the "Reconnect" button is clicked
+            onClick: () => connectToDevice(),
           },
         });
       }
     } catch (error) {
-      // Handle any errors that occur during disconnection
       console.error("Error during disconnection:", error);
     } finally {
-      // Ensure the connection state is properly updated
-      setIsConnected(false); // Update state to indicate the device is disconnected
-      Connection(false);
+      setIsConnected(false);
       isConnectedRef.current = false;
-      isRecordingRef.current = false; // Ensure recording is stopped
+      isRecordingRef.current = false;
+      Connection(false);
     }
   };
 
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
-    let bufferIndex = 0; // Index for tracking the current position in the buffer
-    const buffer: number[] = []; // Buffer to store incoming data
     const HEADER_LENGTH = 3; // Length of the packet header
     const NUM_CHANNELS = 6; // Number of channels in the data packet
     const PACKET_LENGTH = 16; // Total length of each packet
@@ -288,12 +308,10 @@ const Connection: React.FC<ConnectionProps> = ({
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    let hasRemovedInitialElements = false; // Flag to track if initial elements have been removed
 
     try {
       // Loop while the device is connected
       while (isConnectedRef.current) {
-        // Loop while the device is connected
         const streamData = await readerRef.current?.read(); // Read data from the device
         if (streamData?.done) {
           // Check if the data stream has ended
@@ -330,17 +348,18 @@ const Connection: React.FC<ConnectionProps> = ({
             ) {
               // Validate the packet by checking the sync and end bytes
               const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
-              const channelData: string[] = []; // Array to store the extracted channel data
+              const channelData: number[] = []; // Array to store the extracted channel data
               for (let channel = 0; channel < NUM_CHANNELS; channel++) {
                 // Loop through each channel in the packet
                 const highByte = packet[channel * 2 + HEADER_LENGTH]; // Extract the high byte for the channel
                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1]; // Extract the low byte for the channel
                 const value = (highByte << 8) | lowByte; // Combine high and low bytes to get the channel value
-                channelData.push(value.toString()); // Convert the value to string and store it in the array
+                channelData.push(value); // Convert the value to string and store it in the array
               }
               const counter = packet[2]; // Extract the counter value from the packet
-              channelData.push(counter.toString()); // Add the counter to the channel data
-              LineData(channelData); // Pass the channel data to the LineData function for further processing
+              channelData.push(counter); // Add the counter to the channel data
+              dataSteam(channelData); // Pass the channel data to the LineData function for further processing
+
               if (isRecordingRef.current) {
                 // Check if recording is enabled
                 bufferRef.current.push(channelData); // Store the channel data in the recording buffer
@@ -373,8 +392,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  // Function to convert data to CSV format
-  const convertToCSV = (data: FormattedData[]): string => {
+  const convertToCSV = (data: any[]): string => {
     if (data.length === 0) return "";
 
     const header = Object.keys(data[0]);
@@ -399,13 +417,14 @@ const Connection: React.FC<ConnectionProps> = ({
       if (isRecordingRef.current) {
         stopRecording(); // Stop the recording if it is already on
       } else {
-        isRecordingRef.current = true; // Start recording
-        const now = new Date();
-        startTimeRef.current = now.getTime();
-        setElapsedTime(0);
-        timerIntervalRef.current = setInterval(checkRecordingTime, 1000);
-
-        setrecData(true);
+        // Start a new recording session
+        isRecordingRef.current = true; // Set the recording state to true
+        const now = new Date(); // Get the current date and time
+        const nowTime = now.getTime(); // Get the current time in milliseconds
+        startTimeRef.current = nowTime; // Store the start time of the recording
+        setElapsedTime(0); // Reset elapsed time for display
+        timerIntervalRef.current = setInterval(checkRecordingTime, 1000); // Start a timer to check recording duration every second
+        setrecData(true); // Set the state indicating recording data is being collected
 
         // Initialize IndexedDB for this recording session
         try {
@@ -525,33 +544,34 @@ const Connection: React.FC<ConnectionProps> = ({
   }, [isConnected]);
 
   // Add this function to save data to IndexedDB during recording
-  const saveDataDuringRecording = async (data: string[][]) => {
+  const saveDataDuringRecording = async (data: number[][]) => {
     if (!isRecordingRef.current || !indexedDBRef.current) return;
-  
+
     try {
       const tx = indexedDBRef.current.transaction(["adcReadings"], "readwrite");
       const store = tx.objectStore("adcReadings");
-  
+
       console.log(`Saving data for ${canvasCount} channels.`);
-  
+
       for (const row of data) {
         // Ensure all channels are present by filling missing values with null
-        const channels = row.slice(0, canvasCount).map((value) =>
-          value !== undefined ? Number(value) : null
-        );
-  
+        const channels = row
+          .slice(0, canvasCount)
+          .map((value) => (value !== undefined ? value : null));
+
         await store.add({
           timestamp: new Date().toISOString(),
           channels, // Save the array of channels
-          counter: Number(row[6]), // Adjust based on counter location
+          counter: row[6], // Adjust based on counter location
         });
       }
     } catch (error) {
       console.error("Error saving data during recording:", error);
     }
   };
-  
+
   // Function to format time from seconds into a "MM:SS" string format
+
   const formatTime = (seconds: number): string => {
     // Calculate the number of minutes by dividing seconds by 60
     const mins = Math.floor(seconds / 60);
@@ -624,7 +644,6 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to delete data. Please try again.");
     }
   };
-
   // Function to retrieve all data from the IndexedDB
   const getAllDataFromIndexedDB = async (): Promise<any[]> => {
     return new Promise(async (resolve, reject) => {
@@ -654,42 +673,41 @@ const Connection: React.FC<ConnectionProps> = ({
       }
     });
   };
-
   // Updated saveData function
   const saveData = async () => {
     try {
       const allData = await getAllDataFromIndexedDB(); // Fetch data from IndexedDB
-  
+
       if (allData.length === 0) {
         toast.error("No data available to download.");
         return;
       }
-  
+
       // Ensure all channel data is formatted properly and missing data is handled
       const formattedData = allData.map((item) => {
         const dynamicChannels: { [key: string]: number | null } = {};
-        
+
         // Assume channels are stored as an array in `item.channels`
         const channels = item.channels || [];
-  
+
         // Loop through the channels array based on canvasCount
         for (let i = 0; i < canvasCount; i++) {
           const channelKey = `channel_${i + 1}`; // Create a dynamic key for each channel
           dynamicChannels[channelKey] =
             channels[i] !== undefined ? channels[i] : null; // Handle missing data
         }
-  
+
         return {
           timestamp: item.timestamp,
           ...dynamicChannels, // Spread the dynamic channels into the result object
           counter: item.counter || null, // Include the counter if available
         };
       });
-  
+
       // Convert the formatted data to CSV
       const csvData = convertToCSV(formattedData);
       const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-  
+
       // Get the current date and time for the filename
       const now = new Date();
       const formattedTimestamp = `${now.getFullYear()}-${String(
@@ -699,15 +717,15 @@ const Connection: React.FC<ConnectionProps> = ({
       ).padStart(2, "0")}-${String(now.getMinutes()).padStart(2, "0")}-${String(
         now.getSeconds()
       ).padStart(2, "0")}`;
-  
+
       // Use the timestamp in the filename
       const filename = `recorded_data_${formattedTimestamp}.csv`;
       saveAs(blob, filename); // Trigger download
-  
+
       // Delete the data from IndexedDB after saving
       await deleteDataFromIndexedDB(); // Clear the IndexedDB
       toast.success("Data downloaded and cleared from storage."); // Success notification
-  
+
       // Check if any data remains after deletion
       const remainingData = await getAllDataFromIndexedDB();
       setHasData(remainingData.length > 0); // Update hasData state
@@ -716,356 +734,351 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to save data. Please try again.");
     }
   };
-  
-
+// bg-gray-100 text-white p-2 flex-none flex items-center justify-center
   return (
-    <div className="flex items-center justify-center h-4 mb-2 px-4 z-50">
-      {/* Left-aligned section */}
-      <div className="absolute left-4 flex items-center space-x-1">
-        {isRecordingRef.current && (
-          <div className="flex items-center space-x-1 w-min ml-2">
-            <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
-              {formatTime(elapsedTime)}
-            </div>
-            <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
-            <div>
-              <Popover
-                open={isEndTimePopoverOpen}
-                onOpenChange={setIsEndTimePopoverOpen}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    className="text-lg w-16 h-9 font-medium p-2"
-                    variant="destructive"
-                  >
-                    {endTimeRef.current === null ? (
-                      <Infinity className="h-5 w-5 text-primary" />
-                    ) : (
-                      <div className="text-sm text-primary font-medium">
-                        {formatTime(endTimeRef.current)}
-                      </div>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-4 mx-4">
-                  <div className="flex flex-col space-y-4">
-                    <div className="text-sm font-medium">
-                      Set End Time (minutes)
+    <div className="flex-none items-center justify-center  ">
+    {/* Left-aligned section */}
+    <div className="absolute left-4 flex items-center space-x-1">
+      {isRecordingRef.current && (
+        <div className="flex items-center space-x-1 w-min ml-2">
+          <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
+            {formatTime(elapsedTime)}
+          </div>
+          <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
+          <div>
+            <Popover
+              open={isEndTimePopoverOpen}
+              onOpenChange={setIsEndTimePopoverOpen}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  className="text-lg w-16 h-9 font-medium p-2"
+                  variant="destructive"
+                >
+                  {endTimeRef.current === null ? (
+                    <Infinity className="h-5 w-5 text-primary" />
+                  ) : (
+                    <div className="text-sm text-primary font-medium">
+                      {formatTime(endTimeRef.current)}
                     </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[1, 10, 20, 30].map((time) => (
-                        <Button
-                          key={time}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleTimeSelection(time)}
-                        >
-                          {time}
-                        </Button>
-                      ))}
-                    </div>
-                    <div className="flex space-x-2 items-center">
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        placeholder="Custom"
-                        value={customTime}
-                        onBlur={handleCustomTimeSet}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" && handleCustomTimeSet()
-                        }
-                        onChange={handleCustomTimeChange}
-                        className="w-20"
-                      />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-4 mx-4">
+                <div className="flex flex-col space-y-4">
+                  <div className="text-sm font-medium">
+                    Set End Time (minutes)
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[1, 10, 20, 30].map((time) => (
                       <Button
+                        key={time}
                         variant="outline"
                         size="sm"
-                        onClick={() => handleTimeSelection(null)}
+                        onClick={() => handleTimeSelection(time)}
                       >
-                        <Infinity className="h-4 w-4" />
+                        {time}
                       </Button>
-                    </div>
+                    ))}
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+                  <div className="flex space-x-2 items-center">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Custom"
+                      value={customTime}
+                      onBlur={handleCustomTimeSet}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleCustomTimeSet()
+                      }
+                      onChange={handleCustomTimeChange}
+                      className="w-20"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTimeSelection(null)}
+                    >
+                      <Infinity className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
 
-      {/* Center-aligned buttons */}
-      <div className="flex gap-3 items-center">
-        {/* Connection button with tooltip */}
+    {/* Center-aligned buttons */}
+    <div className="flex gap-3 items-center justify-center">
+      {/* Connection button with tooltip */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button className="bg-primary gap-2" onClick={handleClick}>
+              {isConnected ? (
+                <>
+                  Disconnect
+                  <CircleX size={17} />
+                </>
+              ) : (
+                <>
+                  Connect
+                  <Cable size={17} />
+                </>
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{isConnected ? "Disconnect Device" : "Connect Device"}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {/* Autoscale/Bit selection */}
+      {isConnected && (
+        <TooltipProvider>
+          <Tooltip>
+            <div className="flex items-center mx-0 px-0">
+              {/* Decrease Canvas Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-r-none"
+                    onClick={decreaseZoom}
+                    disabled={Zoom === 1 || !isDisplay}
+                  >
+                    <ZoomOut size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{Zoom === 1 ? "We can't shrinkage" : "Decrease Zoom"}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Separator orientation="vertical" className="h-full" />
+
+              {/* Toggle All Channels Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
+                    onClick={toggleZoom}
+                    disabled={!isDisplay}
+                  >
+                    {Zoom}x
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{FullZoom ? "Remove Full Zoom" : "Full Zoom"}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Separator orientation="vertical" className="h-full" />
+
+              {/* Increase Canvas Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-l-none"
+                    onClick={increaseZoom}
+                    disabled={Zoom === 10 || !isDisplay}
+                    
+                  >
+                    <ZoomIn size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {Zoom >= 10 ? "Maximum Zoom Reached" : "Increase Zoom"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* Display (Play/Pause) button with tooltip */}
+      {isConnected && (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button className="bg-primary gap-2" onClick={handleClick}>
-                {isConnected ? (
-                  <>
-                    Disconnect
-                    <CircleX size={17} />
-                  </>
+              <Button onClick={togglePause}>
+                {isDisplay ? (
+                  <Pause className="h-5 w-5" />
                 ) : (
-                  <>
-                    Connect
-                    <Cable size={17} />
-                  </>
+                  <Play className="h-5 w-5" />
                 )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{isConnected ? "Disconnect Device" : "Connect Device"}</p>
+              <p>
+                {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+              </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+      )}
 
-        {/* Autoscale/Bit selection */}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                {ifBits ? (
-                  <Button
-                    variant={selectedBits === "auto" ? "default" : "outline"}
-                    className="w-36 flex justify-center items-center overflow-hidden p-0 m-0 select-none"
-                    onClick={() =>
-                      setSelectedBits(selectedBits === "auto" ? ifBits : "auto")
-                    }
-                    aria-label="Toggle Autoscale"
-                    disabled={!isDisplay}
-                  >
-                    Autoscale
-                  </Button>
+      {/* Record button with tooltip */}
+      {isConnected && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={handleRecord}
+                disabled={isRecordButtonDisabled || !isDisplay}
+              >
+                {isRecordingRef.current ? (
+                  <CircleStop />
                 ) : (
-                  <Select
-                    onValueChange={(value) =>
-                      setSelectedBits(value as BitSelection)
-                    }
-                    value={selectedBits}
-                    disabled={!isDisplay}
-                  >
-                    <SelectTrigger className="w-32 p-0 m-0">
-                      <SelectValue placeholder="Select bits" />
-                    </SelectTrigger>
-                    <SelectContent side="top">
-                      <SelectItem value="ten">10 bits</SelectItem>
-                      <SelectItem value="twelve">12 bits</SelectItem>
-                      <SelectItem value="fourteen">14 bits</SelectItem>
-                      <SelectItem value="auto">Auto Scale</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Circle fill="red" />
                 )}
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {selectedBits === "auto"
-                    ? "Auto Scaling Enabled"
-                    : "Manual Bit Selection"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                {!isRecordingRef.current
+                  ? "Start Recording"
+                  : "Stop Recording"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
 
-        {/* Display (Play/Pause) button with tooltip */}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={() => setIsDisplay(!isDisplay)}>
-                  {isDisplay ? (
-                    <Pause className="h-5 w-5" />
-                  ) : (
-                    <Play className="h-5 w-5" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+      {/* Save/Delete data buttons with tooltip */}
+      {isConnected && (
+        <TooltipProvider>
+          <div className="flex">
+            {hasData && datasets.length === 1 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-r-none"
+                    onClick={saveData}
+                    disabled={!hasData}
+                  >
+                    <Download size={16} className="mr-1" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save Data as CSV</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
 
-        {/* Record button with tooltip */}
-        {isConnected && (
-          <TooltipProvider>
+            <Separator orientation="vertical" className="h-full" />
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  onClick={handleRecord}
-                  disabled={isRecordButtonDisabled || !isDisplay}
+                  className="rounded-r-none mr-1"
+                  onClick={saveData}
+                  disabled={!hasData}
                 >
-                  {isRecordingRef.current ? (
-                    <CircleStop />
-                  ) : (
-                    <Circle fill="red" />
-                  )}
+                  <Download size={16} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>
-                  {!isRecordingRef.current
-                    ? "Start Recording"
-                    : "Stop Recording"}
-                </p>
+                <p>Save Data as Zip</p>
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-        )}
 
-        {/* Save/Delete data buttons with tooltip */}
-        {isConnected && (
-          <TooltipProvider>
-            <div className="flex">
-              {hasData && datasets.length === 1 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-r-none"
-                      onClick={saveData}
-                      disabled={!hasData}
-                    >
-                      <Download size={16} className="mr-1" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Save Data as CSV</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="rounded-l-none"
+                  onClick={deleteDataFromIndexedDB}
+                  disabled={!hasData}
+                >
+                  <Trash2 size={20} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete All Data</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+      )}
+
+      {/* Canvas control buttons with tooltip */}
+      {isConnected && (
+        <TooltipProvider>
+          <Tooltip>
+            <div className="flex items-center mx-0 px-0">
+              {/* Decrease Canvas Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-r-none"
+                    onClick={decreaseCanvas}
+                    disabled={canvasCount === 1 || !isDisplay || recData}
+                  >
+                    <Minus size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {canvasCount === 1
+                      ? "At Least One Canvas Required"
+                      : "Decrease Channel"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
 
               <Separator orientation="vertical" className="h-full" />
 
-              {hasData && datasets.length === 1 ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-l-none"
-                      onClick={deleteDataFromIndexedDB}
-                      disabled={!hasData}
-                    >
-                      <Trash2 size={20} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Delete Data</p>
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        className="rounded-r-none mr-1"
-                        onClick={saveData}
-                        disabled={!hasData}
-                      >
-                        <Download size={16} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Save Data as Zip</p>
-                    </TooltipContent>
-                  </Tooltip>
+              {/* Toggle All Channels Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
+                    onClick={toggleShowAllChannels}
+                    disabled={!isDisplay || recData}
+                  >
+                    CH
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {showAllChannels
+                      ? "Hide All Channels"
+                      : "Show All Channels"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
 
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        className="rounded-l-none"
-                        onClick={deleteDataFromIndexedDB}
-                        disabled={!hasData}
-                      >
-                        <Trash2 size={20} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Delete All Data</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </>
-              )}
+              <Separator orientation="vertical" className="h-full" />
+
+              {/* Increase Canvas Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-l-none"
+                    onClick={increaseCanvas}
+                    disabled={canvasCount >= 6 || !isDisplay || recData}
+                  >
+                    <Plus size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {canvasCount >= 6
+                      ? "Maximum Channels Reached"
+                      : "Increase Channel"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-          </TooltipProvider>
-        )}
-
-        {/* Canvas control buttons with tooltip */}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-r-none"
-                      onClick={decreaseCanvas}
-                      disabled={canvasCount === 1 || !isDisplay || recData}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount === 1
-                        ? "At Least One Canvas Required"
-                        : "Decrease Channel"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
-                      onClick={toggleShowAllChannels}
-                      disabled={!isDisplay || recData}
-                    >
-                      CH
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {showAllChannels
-                        ? "Hide All Channels"
-                        : "Show All Channels"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-l-none"
-                      onClick={increaseCanvas}
-                      disabled={canvasCount >= 6 || !isDisplay || recData}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount >= 6
-                        ? "Maximum Channels Reached"
-                        : "Increase Channel"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
+  </div>
   );
 };
 
