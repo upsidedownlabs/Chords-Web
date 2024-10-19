@@ -18,7 +18,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 2.  Open the Arduino IDE and flash the provided firmware onto the Arduino.
 3.  Open Chords in a web browser.
 4.  Click the "Connect" button to establish a connection with the Arduino and stream.
-5.  Click "Zoom" button to zoomin data visualization.
+5.  Click the "Zoom" button to zoom in on data visualization.
 6.  Click the "Play/Pause" button to stop and start data on screen.
 7.  Click the "Record" button to record data.
 8.  Click the "download" button to download the recorded data.
