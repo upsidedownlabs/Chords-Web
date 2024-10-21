@@ -240,7 +240,7 @@ const Canvas = forwardRef(
     }, [createCanvases]);
 
     return (
-      <div className="canvas-container  h-[80vh] sm:h-[60vh] md:h-[70vh] lg:h-[80vh] flex flex-col" ref={canvasContainerRef}>
+      <div className="canvas-container  h-[80vh] sm:h-[60vh] md:h-[70vh] lg:h-[80vh] flex flex-col m-2" ref={canvasContainerRef}>
       {/* Individual canvases will be appended here  */}
     </div>
     

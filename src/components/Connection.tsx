@@ -736,7 +736,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   return (
-    <footer className="flex flex-col gap-2 sm:flex-row w-full shrink-0 items-center justify-center px-4 md:px-16 border-t">
+    <footer className="flex flex-col gap-2 sm:flex-row w-full shrink-0 items-center justify-center px-4 md:px-16">
    <div className="absolute left-4 flex items-center space-x-1">
       {isRecordingRef.current && (
         <div className="flex items-center space-x-1 w-min ml-2">
