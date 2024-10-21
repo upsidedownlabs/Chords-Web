@@ -42,6 +42,7 @@ const Canvas = forwardRef(
     const [lines, setLines] = useState<WebglLine[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
     const samplingRate = 500; // Set the sampling rate in Hz
+    const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
 
     let numX: number;
 
@@ -81,6 +82,31 @@ const Canvas = forwardRef(
       [Zoom]
     );
 
+
+    // //
+    // updateGrid();
+
+    // function addGridLine(coords: Float32Array) {
+    //   const color = new ColorRGBA(0.5, 0.5, 0.5, 1);
+    //   const line = new WebglLine(color, 2);
+    //   line.xy = coords;
+    //   wglp.addLine(line);
+    // }
+    // function updateGrid(): void {
+    //   wglp.removeAllLines();
+    //   wglp.addLine(lineMain);
+    //   const ngX = 5;
+    //   const ngY = 5;
+    //   for (let i = 0; i < ngX; i++) {
+    //     const divPoint = (2 * i) / (ngX - 1) - 1;
+    //     addGridLine(new Float32Array([divPoint, -1, divPoint, 1]));
+    //   }
+    //   for (let i = 0; i < ngY; i++) {
+    //     const divPoint = (2 * i) / (ngY - 1) - 1;
+    //     addGridLine(new Float32Array([-1, divPoint, 1, divPoint]));
+    //   }
+    // }
+
     const createCanvases = () => {
       if (!canvasContainerRef.current) return;
 
@@ -105,28 +131,26 @@ const Canvas = forwardRef(
       const newCanvases = [];
       const newWglPlots = [];
       const newLines = [];
-      for (let i = 0; i < numChannels; i++) { 
+      for (let i = 0; i < numChannels; i++) {
         const canvasWrapper = document.createElement("div");
-        canvasWrapper.className = "canvas-container border-b border-gray-300 flex-[1_1_0%] min-h-0";
-       
+        canvasWrapper.className = "canvas-container  flex-[1_1_0%] min-h-";//border-b border-gray-300
+
         const canvas = document.createElement("canvas");
         canvas.id = `canvas${i + 1}`;
-        
-    
-        canvas.width = canvasContainerRef.current.clientWidth*2;
-  
-      const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels)*2;
-      canvas.height = canvasHeight;
+        canvas.width = canvasContainerRef.current.clientWidth ;
+
+        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels);
+        canvas.height = canvasHeight;
         canvas.className = "w-full h-full block";
-        
+
         // Create a badge for the channel number
         const badge = document.createElement("div");
         badge.className =
-        "absolute top-240 left-1 text-gray-500 text-sm rounded-full  p-1"; // Set absolute positioning and styles
+          "absolute text-gray-500 text-sm rounded-full p-2 m-2"; // Set absolute positioning and styles
         badge.innerText = `CH${i + 1}`;
 
         // Append the canvas and badge to the container
-        
+
         canvasWrapper.appendChild(badge);
         canvasWrapper.appendChild(canvas);
         canvasContainerRef.current.appendChild(canvasWrapper);
@@ -134,11 +158,29 @@ const Canvas = forwardRef(
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
-        const line = new WebglLine(getRandomColor(i,theme), numX);
+        const line = new WebglLine(getRandomColor(i, theme), numX);
         wglp.gOffsetY = 0;
         line.offsetY = 0;
         line.lineSpaceX(-1, 2 / numX);
-
+        //grid
+        // const ngX = 5;
+        // const ngY = 5;
+        // for (let i = 0; i < ngX; i++) {
+        //   const divPoint = (2 * i) / (ngX - 1) - 1;
+        //   const color = new ColorRGBA(0.5, 0.5, 0.5, 1);
+        //   const line = new WebglLine(color, 2);
+        //   const coords = new Float32Array([divPoint, -1, divPoint, 1])
+        //   line.xy = coords;
+        //   wglp.addLine(line);;
+        // }
+        // for (let i = 0; i < ngY; i++) {
+        //   const divPoint = (2 * i) / (ngY - 1) - 1;
+        //   const color = new ColorRGBA(0.5, 0.5, 0.5, 1);
+        //   const line = new WebglLine(color, 2);
+        //   const coords = new Float32Array([divPoint, -1, divPoint, 1])
+        //   line.xy = coords;
+        //   wglp.addLine(line);
+        // }
         wglp.addLine(line);
         newLines.push(line);
       }
@@ -149,7 +191,7 @@ const Canvas = forwardRef(
       setLines(newLines);
     };
 
-    const getRandomColor = (i: number,theme:string| undefined): ColorRGBA => {
+    const getRandomColor = (i: number, theme: string | undefined): ColorRGBA => {
       // Define bright colors
       const colorsDark: ColorRGBA[] = [
         new ColorRGBA(1, 0.286, 0.529, 1), // Bright Pink
@@ -166,95 +208,62 @@ const Canvas = forwardRef(
         new ColorRGBA(0.404, 0.255, 0.533, 1), // #674188 - Bright Purple
         new ColorRGBA(0.902, 0.361, 0.098, 1), // #E65C19 - Bright Orange
         new ColorRGBA(0.180, 0.027, 0.247, 1), // #2E073F - Dark Purple
-    ];
-    
+      ];
+
 
       // Return color based on the index, cycling through if necessary
       // return colors[i % colors.length]; // Ensure to always return a valid ColorRGBA
       return theme === "dark"
-      ? colorsDark[i % colorsDark.length]
-      : colorsLight[i % colorsLight.length];
+        ? colorsDark[i % colorsDark.length]
+        : colorsLight[i % colorsLight.length];
     };
 
 
-    const gapWidth = 5; // Width of the gap in pixels
-    const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
 
-const updatePlots = useCallback(
-  (data: number[], Zoom: number) => {
-    wglPlots.forEach((wglp, index) => {
-      if (wglp) {
-        try {
-          wglp.gScaleY = Zoom; // Adjust the zoom value
-        } catch (error) {
-          console.error(
-            `Error setting gScaleY for WebglPlot instance at index ${index}:`,
-            error
-          );
-        }
-      } else {
-        console.warn(`WebglPlot instance at index ${index} is undefined.`);
-      }
-    });
+    const updatePlots = useCallback(
+      (data: number[], Zoom: number) => {
+        wglPlots.forEach((wglp, index) => {
+          if (wglp) {
+            try {
+              wglp.gScaleY = Zoom; // Adjust the zoom value
+            } catch (error) {
+              console.error(
+                `Error setting gScaleY for WebglPlot instance at index ${index}:`,
+                error
+              );
+            }
+          } else {
+            console.warn(`WebglPlot instance at index ${index} is undefined.`);
+          }
+        });
 
-    linesRef.current.forEach((line, i) => {
-      const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust according to your ADC resolution
-      const yScale = 2 / bitsPoints;
-      const chData = (data[i] - bitsPoints / 2) * yScale;
+        linesRef.current.forEach((line, i) => {
+          const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust according to your ADC resolution
+          const yScale = 2 / bitsPoints;
+          const chData = (data[i] - bitsPoints / 2) * yScale;
 
-      // Use a separate sweep position for each line
-      const currentSweepPos = sweepPositions.current[i];
+          // Use a separate sweep position for each line
+          const currentSweepPos = sweepPositions.current[i];
 
-      // Plot the new data at the current sweep position
-      line.setY(currentSweepPos % line.numPoints, chData);
+          // Plot the new data at the current sweep position
+          line.setY(currentSweepPos % line.numPoints, chData);
 
-      // Clear the next point to create a gap (optional, for visual effect)
-      const clearPosition = (currentSweepPos + 8) % line.numPoints;
-      line.setY(clearPosition, 0);
+          // Clear the next point to create a gap (optional, for visual effect)
+          const clearPosition = (currentSweepPos + 1) % line.numPoints;
+          line.setY(clearPosition, 0);
 
-      // Increment the sweep position for the current line
-      sweepPositions.current[i] = (currentSweepPos + 1) % line.numPoints;
-    });
-  },
-  [lines, wglPlots]
-);
+          // Increment the sweep position for the current line
+          sweepPositions.current[i] = (currentSweepPos + 1) % line.numPoints;
+        });
+      },
+      [lines, wglPlots,numChannels,theme]
+    );
 
-    
 
-    // const updatePlots = useCallback(
-    //   (data: number[], Zoom: number) => {
-    //     wglPlots.forEach((wglp, index) => {
-    //       if (wglp) {
-    //         try {
-    //           wglp.gScaleY = Zoom; // Adjust this value as needed
-    //         } catch (error) {
-    //           console.error(
-    //             `Error setting gScaleY for WebglPlot instance at index ${index}:`,
-    //             error
-    //           );
-    //         }
-    //       } else {
-    //         console.warn(`WebglPlot instance at index ${index} is undefined.`);
-    //       }
-    //     });
-    //     linesRef.current.forEach((line, i) => {
-    //       // Shift the data points efficiently using a single operation
-    //       const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust this according to your ADC resolution
-    //       const yScale = 2 / bitsPoints;
-    //       const chData = (data[i] - bitsPoints / 2) * yScale;
-
-    //       for (let j = 1; j < line.numPoints; j++) {
-    //         line.setY(j - 1, line.getY(j));
-    //       }
-    //       line.setY(line.numPoints - 1, chData);
-    //     });
-    //   },
-    //   [lines, wglPlots]
-    // ); // Add dependencies here
 
     useEffect(() => {
       createCanvases();
-    }, [numChannels,theme]);
+    }, [numChannels, theme]);
 
     const getValue = useCallback((bits: BitSelection): number => {
       switch (bits) {
@@ -295,8 +304,8 @@ const updatePlots = useCallback(
     }, [createCanvases]);
 
     return (
-      <main className="flex flex-col flex-[1_1_0%] min-h-0 " 
-      ref={canvasContainerRef}
+      <main className="flex flex-col flex-[1_1_0%] min-h-100"
+        ref={canvasContainerRef}
       >
       </main>
     );

@@ -736,7 +736,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 // bg-gray-100 text-white p-2 flex-none flex items-center justify-center
   return (
-    <div className="flex-none items-center justify-center  ">
+    <div className="flex-none items-center justify-center m-b-2 ">
     {/* Left-aligned section */}
     <div className="absolute left-4 flex items-center space-x-1">
       {isRecordingRef.current && (
@@ -863,7 +863,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
+                    className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none min-w-12"
                     onClick={toggleZoom}
                     disabled={!isDisplay}
                   >
