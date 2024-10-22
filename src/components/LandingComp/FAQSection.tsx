@@ -108,7 +108,7 @@ const FAQSection = () => {
           example : [468, 472, 463, 466, 465, 434, 10]. For implementation
           details, see our{" "}
           <Link
-            href="https://github.com/upsidedownlabs/Chords-Web/blob/main/ArduinoFirmware/ArduinoFirmware.ino"
+            href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 hover:underline underline-offset-4"

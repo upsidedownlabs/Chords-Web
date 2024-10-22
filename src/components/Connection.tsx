@@ -736,7 +736,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 // bg-gray-100 text-white p-2 flex-none flex items-center justify-center
   return (
-    <div className="flex-none items-center justify-center pb-4 ">
+    <div className="flex-none items-center justify-center pb-4 bg-g">
     {/* Left-aligned section */}
     <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
       {isRecordingRef.current && (
