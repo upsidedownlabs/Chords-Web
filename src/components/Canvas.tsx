@@ -43,7 +43,7 @@ const Canvas = forwardRef(
     const linesRef = useRef<WebglLine[]>([]);
     const samplingRate = 500; // Set the sampling rate in Hz
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
-
+    const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     let numX: number;
 
     const getpoints = useCallback((bits: BitSelection): number => {
@@ -65,6 +65,11 @@ const Canvas = forwardRef(
       ref,
       () => ({
         updateData(data: number[]) {
+          // Reset the sweep positions if the number of channels has changed
+          if (currentSweepPos.current.length !== numChannels) {
+            currentSweepPos.current = new Array(numChannels).fill(0);
+            sweepPositions.current = new Array(numChannels).fill(0);
+          }
           updatePlots(data, Zoom);
           if (previousCounter !== null) {
             // If there was a previous counter value
@@ -79,7 +84,7 @@ const Canvas = forwardRef(
           previousCounter = data[6]; // Update the previous counter with the current counter
         },
       }),
-      [Zoom]
+      [Zoom, numChannels]
     );
 
 
@@ -137,9 +142,9 @@ const Canvas = forwardRef(
 
         const canvas = document.createElement("canvas");
         canvas.id = `canvas${i + 1}`;
-        canvas.width = canvasContainerRef.current.clientWidth ;
+        canvas.width = canvasContainerRef.current.clientWidth*2;
 
-        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels);
+        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels)*2;
         canvas.height = canvasHeight;
         canvas.className = "w-full h-full block";
 
@@ -218,10 +223,9 @@ const Canvas = forwardRef(
         : colorsLight[i % colorsLight.length];
     };
 
-
-
     const updatePlots = useCallback(
       (data: number[], Zoom: number) => {
+
         wglPlots.forEach((wglp, index) => {
           if (wglp) {
             try {
@@ -243,23 +247,20 @@ const Canvas = forwardRef(
           const chData = (data[i] - bitsPoints / 2) * yScale;
 
           // Use a separate sweep position for each line
-          const currentSweepPos = sweepPositions.current[i];
-
+          currentSweepPos.current[i] = sweepPositions.current[i];
           // Plot the new data at the current sweep position
-          line.setY(currentSweepPos % line.numPoints, chData);
+          line.setY(currentSweepPos.current[i] % line.numPoints, chData);
 
           // Clear the next point to create a gap (optional, for visual effect)
-          const clearPosition = (currentSweepPos + 1) % line.numPoints;
-          line.setY(clearPosition, 0);
+          const clearPosition = (currentSweepPos.current[i] + 20) % line.numPoints;
+          line.setY(clearPosition, NaN);
 
           // Increment the sweep position for the current line
-          sweepPositions.current[i] = (currentSweepPos + 1) % line.numPoints;
+          sweepPositions.current[i] = (currentSweepPos.current[i] + 1) % line.numPoints;
         });
       },
-      [lines, wglPlots,numChannels,theme]
+      [lines, wglPlots, numChannels, theme]
     );
-
-
 
     useEffect(() => {
       createCanvases();
