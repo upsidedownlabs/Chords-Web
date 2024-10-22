@@ -736,14 +736,15 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 // bg-gray-100 text-white p-2 flex-none flex items-center justify-center
   return (
-    <div className="flex-none items-center justify-center m-b-2 ">
+    <div className="flex-none items-center justify-center pb-4 ">
     {/* Left-aligned section */}
-    <div className="absolute left-4 flex items-center space-x-1">
+    <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
       {isRecordingRef.current && (
         <div className="flex items-center space-x-1 w-min ml-2">
-          <div className="font-medium p-2 w-16 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm ring-offset-background transition-colors bg-primary text-destructive hover:bg-primary/90">
+          <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded"
+          >
             {formatTime(elapsedTime)}
-          </div>
+          </button>
           <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
           <div>
             <Popover
@@ -752,7 +753,7 @@ const Connection: React.FC<ConnectionProps> = ({
             >
               <PopoverTrigger asChild>
                 <Button
-                  className="text-lg w-16 h-9 font-medium p-2"
+                 className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded"
                   variant="destructive"
                 >
                   {endTimeRef.current === null ? (
@@ -863,7 +864,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none min-w-12"
+                    className="flex items-center justify-center px-3 py-2  rounded-none select-none min-w-12"
                     onClick={toggleZoom}
                     disabled={!isDisplay}
                   >
@@ -1036,7 +1037,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="flex items-center justify-center px-3 py-2 m-1 rounded-none select-none"
+                    className="flex items-center justify-center px-3 py-2 rounded-none select-none"
                     onClick={toggleShowAllChannels}
                     disabled={!isDisplay || recData}
                   >
