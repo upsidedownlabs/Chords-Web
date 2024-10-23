@@ -13,7 +13,7 @@ import {
 
 const Steps = () => {
   return (
-    <section className="w-full py-6 md:py-12 lg:py-16 mb-4">
+    <section className="flex flex-col">
     <div className="container grid items-center justify-center px-4 text-center md:px-6 lg:gap-6 max-w-7xl"> {/* Ensured max-w is the same */}
       <div className="space-y-4">
         <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl pb-8">

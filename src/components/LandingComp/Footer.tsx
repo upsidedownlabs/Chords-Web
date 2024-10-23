@@ -3,7 +3,7 @@ import Link from "next/link";
 import Chords from "./Chords";
 const Footer = () => {
   return (
-    <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-16 border-t">
+    <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-2  md:px-4 border-t">
     <p className="text-sm text-muted-foreground"> 
       <Chords /> | &copy; {new Date().getFullYear()}{" "}
       <Link href="https://upsidedownlabs.tech/" target="_blank">
