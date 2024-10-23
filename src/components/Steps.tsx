@@ -1,5 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
-
+import * as React from "react";
 import { Card, CardContent } from "./ui/card";
 import {
   Carousel,
@@ -85,7 +84,7 @@ const Steps: React.FC = () => {
             width={320}
             height={320}
             src={ImageLinks[1]}
-            className="rounded-xl object-contain max-h-[200px] w-full" // Ensure the image is responsive
+            className="rounded-xl object-contain max-h-[200px]"
           />
         </div>
       ),
@@ -107,39 +106,11 @@ const Steps: React.FC = () => {
       image: ImageLinks[5],
     },
   ];
-  
-  // Function to calculate height
-  const calculateHeight = () => {
-    if (window.innerHeight > 945) return 90;
-    if (window.innerHeight > 585) return 88;
-    if (window.innerHeight <= 483) return 100;
-    return 80; // Default case
-  };
-  const [stepsHeightInVh, setStepsHeightInVh] = useState(calculateHeight());
 
-
-  useEffect(() => {
-    // Update height on window resize
-    const handleResize = () => {
-      setStepsHeightInVh(calculateHeight());
-    };
-
-    // Set the initial height
-    setStepsHeightInVh(calculateHeight());
-    
-    // Add event listener for window resize
-    window.addEventListener('resize', handleResize);
-
-    // Cleanup event listener on unmount
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
   return (
-    <div className={`flex flex-col justify-center items-center gap-2 px-4 `}
-    style={{ height: `calc(${stepsHeightInVh}vh)` }}>
-      <div className="flex items-center justify-center text-sm sm:text-lg md:text-xl text-center">
-        <span className="flex flex-row gap-2">
+    <div className="flex flex-col flex-[1_1_0%] min-h-100 justify-center items-center gap-2 min-h-[calc(80vh)]  bg-g ">
+      <div className="flex items-center justify-center text-sm sm:text-xl text-center">
+      <span className="flex flex-row gap-2">
           Click Connect For Board Connection.
         </span>
       </div>
@@ -152,18 +123,18 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl">
+      <div className="relative w-full max-w-7xl ">
         <Carousel
           opts={{
             align: "start",
           }}
-          className="w-full select-none px-4 sm:px-6 md:px-8" // Adjusting padding for responsiveness
+          className="w-full select-none px-12"
         >
           <CarouselContent>
             {carouselItems.map((item, index) => (
               <CarouselItem key={index} className="sm:basis-1/1 lg:basis-1/2">
                 <Card className="border-primary h-full">
-                  <CardContent className="flex flex-col h-[400px] p-4 sm:p-6">
+                  <CardContent className="flex flex-col h-[calc(60vh)] p-4 sm:p-6">
                     <h3 className="text-lg sm:text-xl font-semibold mb-4 text-left">
                       {item.title}
                     </h3>
@@ -174,7 +145,7 @@ const Steps: React.FC = () => {
                           width={500}
                           height={500}
                           src={item.image}
-                          className="rounded-xl h-full w-full object-contain" // Ensure image fits well
+                          className="rounded-xl h-full w-full object-contain"
                         />
                       ) : (
                         item.content
@@ -185,8 +156,8 @@ const Steps: React.FC = () => {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="border-primary border-2 left-1 absolute" />
-          <CarouselNext className="border-primary border-2 right-1 absolute" />
+          <CarouselPrevious className="border-primary border-2 left-2 absolute" />
+          <CarouselNext className="border-primary border-2 right-2 absolute" />
         </Carousel>
       </div>
     </div>
