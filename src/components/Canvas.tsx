@@ -86,32 +86,7 @@ const Canvas = forwardRef(
       }),
       [Zoom, numChannels]
     );
-
-
-    // //
-    // updateGrid();
-
-    // function addGridLine(coords: Float32Array) {
-    //   const color = new ColorRGBA(0.5, 0.5, 0.5, 1);
-    //   const line = new WebglLine(color, 2);
-    //   line.xy = coords;
-    //   wglp.addLine(line);
-    // }
-    // function updateGrid(): void {
-    //   wglp.removeAllLines();
-    //   wglp.addLine(lineMain);
-    //   const ngX = 5;
-    //   const ngY = 5;
-    //   for (let i = 0; i < ngX; i++) {
-    //     const divPoint = (2 * i) / (ngX - 1) - 1;
-    //     addGridLine(new Float32Array([divPoint, -1, divPoint, 1]));
-    //   }
-    //   for (let i = 0; i < ngY; i++) {
-    //     const divPoint = (2 * i) / (ngY - 1) - 1;
-    //     addGridLine(new Float32Array([-1, divPoint, 1, divPoint]));
-    //   }
-    // }
-
+   
     const createCanvases = () => {
       if (!canvasContainerRef.current) return;
 
@@ -163,29 +138,52 @@ const Canvas = forwardRef(
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
-        const line = new WebglLine(getRandomColor(i, theme), numX);
+        const line = new WebglLine(getLineColor(i, theme), numX);
         wglp.gOffsetY = 0;
         line.offsetY = 0;
         line.lineSpaceX(-1, 2 / numX);
-        //grid
-        // const ngX = 5;
-        // const ngY = 5;
-        // for (let i = 0; i < ngX; i++) {
-        //   const divPoint = (2 * i) / (ngX - 1) - 1;
-        //   const color = new ColorRGBA(0.5, 0.5, 0.5, 1);
-        //   const line = new WebglLine(color, 2);
-        //   const coords = new Float32Array([divPoint, -1, divPoint, 1])
-        //   line.xy = coords;
-        //   wglp.addLine(line);;
-        // }
-        // for (let i = 0; i < ngY; i++) {
-        //   const divPoint = (2 * i) / (ngY - 1) - 1;
-        //   const color = new ColorRGBA(0.5, 0.5, 0.5, 1);
-        //   const line = new WebglLine(color, 2);
-        //   const coords = new Float32Array([divPoint, -1, divPoint, 1])
-        //   line.xy = coords;
-        //   wglp.addLine(line);
-        // }
+        let rgbvalue=theme === "dark"//rgb value for grid
+        ? 0.5
+        : 0.4;
+     
+        let opacity;
+
+        const distanceminor=samplingRate*0.04;
+        const numpartsminor=numX/distanceminor;
+        const stepsminor=2/numpartsminor;
+        for (let i = 1; i < numpartsminor; i++) {
+          let divPoint=-1+i*stepsminor;
+          divPoint = parseFloat(divPoint.toFixed(3));
+          if(i % 5 == 0){
+            opacity=theme==="dark"? 0.7: 0.8;
+          }
+          else{
+            opacity=theme==="dark"?0.4:0.6;
+          }
+          const color = new ColorRGBA(rgbvalue, rgbvalue, rgbvalue, opacity);
+          const line = new WebglLine(color, 2);
+          const coords = new Float32Array([divPoint, -1, divPoint, 1])
+          line.xy = coords;
+          wglp.addLine(line);;
+        }
+        
+        const stepsminory=2/25;
+        for (let i = 1; i <25; i++) {
+          let divPoint=-1+i*stepsminory;
+          divPoint = parseFloat(divPoint.toFixed(3));
+          if(i % 5 == 0){
+            opacity=theme==="dark"? 0.2: 0.8;
+          }
+          else{
+            opacity=theme==="dark"?0.1:0.6;
+          }
+          const color = new ColorRGBA(rgbvalue, rgbvalue, rgbvalue, opacity);
+          const line = new WebglLine(color, 2);
+          const coords = new Float32Array([-1, divPoint, 1, divPoint])
+          line.xy = coords;
+          wglp.addLine(line);
+        }
+
         wglp.addLine(line);
         newLines.push(line);
       }
@@ -196,7 +194,7 @@ const Canvas = forwardRef(
       setLines(newLines);
     };
 
-    const getRandomColor = (i: number, theme: string | undefined): ColorRGBA => {
+    const getLineColor = (i: number, theme: string | undefined): ColorRGBA => {
       // Define bright colors
       const colorsDark: ColorRGBA[] = [
         new ColorRGBA(1, 0.286, 0.529, 1), // Bright Pink
