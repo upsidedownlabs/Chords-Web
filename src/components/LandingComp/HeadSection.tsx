@@ -48,26 +48,30 @@ const HeadSection: React.FC = () => {
     <>
       <Navbar isDisplay={true} />
       <section className="w-full  min-h-[60vh] flex items-center justify-center mt-20">
-        <div className="px-4 md:px-6 space-y-10 xl:space-y-16 max-w-7xl mx-auto flex items-center justify-center"> {/* Center vertically and horizontally */}
+        <div className="px-2 md:px-6 space-y-10 xl:space-y-16 max-w-6xl mx-auto flex items-center justify-center"> {/* Center vertically and horizontally */}
           <div className="flex flex-col lg:flex-row justify-center items-center gap-8 w-full"> {/* Center content */}
             {/* Text Section */}
             <div className="w-full lg:w-1/2 text-center lg:text-left"> {/* Center text for small screens, left-align for large screens */}
               <div className="lg:leading-tighter text-[1rem] sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] font-bold tracking-tighter font-lobster">
-                <span className="block text-xl text-gray-500 transition mb-4 tracking-wider word-spacing">
+                <span className="block text-xl text-gray-500 transition mb-2 tracking-wider word-spacing">
                   Hi, Welcome to Chords
                 </span>
 
-                <span className="block bg-clip-text text-gray-600 font-lobster cursor-default tracking-wide duration-300 transition-all text-4xl sm:text-4xl">
-                  Tune Into Your EXG Data
-                </span>
+                <span className="inline-block bg-clip-text text-gray-600 font-lobster cursor-default tracking-wide duration-300 transition-all text-[2.5rem] leading-none">
+  Tune Into Your EXG Data
+</span>
 
-                <span className="inline-block text-4xl mr-2  tracking-wide duration-300 transition-all text-gray-600">With</span>
+<span className="inline-block text-[2.5rem] mr-2 tracking-wide duration-300 transition-all text-gray-600 leading-none">
+  With
+</span>
 
-                <span className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent text-4xl bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all mb-4">
-                  Chords
-                </span>
+<span className="inline-block bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent text-[2.5rem] bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all leading-none">
+  Chords
+</span>
 
-                <div className="w-full text-xl text-gray-500 dark:text-gray-500 font-medium transition-all line-height-2 duration-300 mt-4 tracking-wide">
+
+
+                <div className="w-full text-sm text-gray-500 dark:text-gray-500 font-medium transition-all line-height-1 duration-300 mt-4 tracking-wide">
                   <span className="block">Transform bio signals into clear, insightful visuals,</span>
                   <span className="block">enabling deeper understanding of physiological patterns and processes.</span>
                 </div>
@@ -133,6 +137,7 @@ const HeadSection: React.FC = () => {
           </div>
         </div>
       </section>
+
     </>
   );
 };
