@@ -47,37 +47,35 @@ const HeadSection: React.FC = () => {
   return (
     <>
       <Navbar isDisplay={true} />
-      <section className="w-full pt-24 min-h-[70vh]">
-        <div className="px-4 md:px-6 space-y-10 xl:space-y-16 max-w-7xl mx-auto">
-          <div className="flex flex-col lg:flex-row justify-start items-start gap-8">
+      <section className="w-full  min-h-[60vh] flex items-center justify-center mt-20">
+        <div className="px-4 md:px-6 space-y-10 xl:space-y-16 max-w-7xl mx-auto flex items-center justify-center"> {/* Center vertically and horizontally */}
+          <div className="flex flex-col lg:flex-row justify-center items-center gap-8 w-full"> {/* Center content */}
             {/* Text Section */}
-            <div className="w-full lg:w-1/2">
-              <div className="lg:leading-tighter text-[1rem] sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] font-bold tracking-tighter text-left font-lobster ml-[5rem]">
+            <div className="w-full lg:w-1/2 text-center lg:text-left"> {/* Center text for small screens, left-align for large screens */}
+              <div className="lg:leading-tighter text-[1rem] sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] font-bold tracking-tighter font-lobster">
                 <span className="block text-xl text-gray-500 transition mb-4 tracking-wider word-spacing">
                   Hi, Welcome to Chords
                 </span>
 
-
-                <span className="block bg-clip-text text-gray-800 font-lobster cursor-default tracking-wide duration-300 transition-all text-4xl sm:text-4xl">
+                <span className="block bg-clip-text text-gray-600 font-lobster cursor-default tracking-wide duration-300 transition-all text-4xl sm:text-4xl">
                   Tune Into Your EXG Data
                 </span>
 
-                <span className="inline-block text-4xl mr-2 text-gray-800">With</span>
+                <span className="inline-block text-4xl mr-2  tracking-wide duration-300 transition-all text-gray-600">With</span>
 
                 <span className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent text-4xl bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all mb-4">
                   Chords
                 </span>
 
-                <div className="w-full text-xl text-gray-500 dark:text-gray-500 font-medium transition-all line-height-2 duration-300 mt-4 tracking-wide"> {/* Added tracking-wide */}
-                  <span className="block ">Transform bio signals into clear, insightful visuals,</span>
+                <div className="w-full text-xl text-gray-500 dark:text-gray-500 font-medium transition-all line-height-2 duration-300 mt-4 tracking-wide">
+                  <span className="block">Transform bio signals into clear, insightful visuals,</span>
                   <span className="block">enabling deeper understanding of physiological patterns and processes.</span>
                 </div>
-
               </div>
 
 
-              <div className="flex flex-col items-center space-y-4 text-center mt-[4rem]">
-                <div className="flex space-x-4 ">
+              <div className="flex flex-col  space-y-4 text-center mt-[4rem]">
+                <div className="flex space-x-4">
                   <Link href="/stream">
                     <Button className="py-3 px-6 rounded-full "> {/* Applied gradient and rounded border */}
                       <Image
@@ -108,22 +106,17 @@ const HeadSection: React.FC = () => {
                   </Link>
                 </div>
               </div>
-
-
             </div>
-
-
-
             {/* Image Section */}
-            <div className="lg:w-1/2 mt-[2rem] lg:mt-[3rem]">
+            <div className="w-full lg:w-1/2 m-auto">
               {/* Loader */}
               {!isImageLoaded && (
-                <div className="loader">
+                <div className="loader flex justify-center items-center">
                   <div className="spinner"></div>
                 </div>
               )}
               {/* Image */}
-              <div className="mx-auto">
+              <div className="flex justify-center">
                 <Image
                   src={imageSrc}
                   alt="Plotter"
@@ -136,6 +129,7 @@ const HeadSection: React.FC = () => {
                 />
               </div>
             </div>
+
           </div>
         </div>
       </section>
