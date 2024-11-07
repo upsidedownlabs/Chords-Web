@@ -132,8 +132,7 @@ const Canvas = forwardRef(
         gridLineX.style.height = "100%";
         const divPoint = (j / numGridLines) * 100
         const a = parseFloat(divPoint.toFixed(3));
-        gridLineX.style.left = `${a}%`;
-        console.log(gridLineX.style.left);
+        gridLineX.style.left = `${a}%`
         gridLineX.style.top = "0";
         gridLineX.style.opacity = j % 5 === 0 ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor) : (theme === "dark" ? opacityDarkMinor : opacityLightMinor);
 

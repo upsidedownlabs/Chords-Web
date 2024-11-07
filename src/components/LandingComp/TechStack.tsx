@@ -35,13 +35,13 @@ const Stack = () => {
       description: "Built with amazing components from shadcn/ui.",
     },
     {
-      name: "webGl Plot",
+      name: "WebGl Plot",
       logo: "./assets/logo.svg",
       url: "https://github.com/danchitnis/webgl-plot",
       description: "Charts for plotting the data real time.",
     },
     {
-      name: "Web Serial Api",
+      name: "Web Serial API",
       logo:
         theme === "light"
           ? "./assets/dark/favicon.ico"
