@@ -75,13 +75,13 @@ const CardSlider = () => {
         <ol className="relative z-10 flex justify-between text-sm font-medium text-primary">
             {Array.from({ length: 4 }).map((_, index) => (
               <li className="flex items-center  bg-background p-2" key={index}>
-                <button className={`size-6 rounded-full text-center text-[15px]/6 font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-300'
+                <button className={`size-6 rounded-full text-center text-[15px]/6 font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-400'
                   }`}
                   onMouseEnter={() => setIndex(index)}
                   onMouseLeave={() => setIsPaused(false)}
               >
                   <span
-                    className={`size-6 rounded-full text-center text-[15px]/6 font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-300'
+                    className={`size-6 rounded-full text-center text-[15px]/6 font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-400'
                       }`}
                   >
                     {index + 1}
