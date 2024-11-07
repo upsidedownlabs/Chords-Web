@@ -7,22 +7,22 @@ import { Card, CardContent } from '../ui/card';
 const CardSlider = () => {
   const cards = [
     {
-      title: "Gather Hardware",
+      title: "Hardware",
       description: "Take a development board, BioAmp hardware, cables & electrodes. Make the connections.",
       image: "/steps/step1.png",
     },
     {
-      title: "Upload The Code",
+      title: "Firmware",
       description: "Upload the provided code to your development board using Arduino IDE.",
       image: "/steps/step2.png",
     },
     {
-      title: "Start Visualizing",
+      title: "Connection",
       description: "Open Chords, click connect, choose COM port and start visualizing the signals.",
       image: "/steps/step3.png",
     },
     {
-      title: "Monitor Performance",
+      title: "Visualization",
       description: "Keep an eye on the system performance and make necessary adjustments.",
       image: "/steps/step4.png",
     },
