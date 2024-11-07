@@ -40,7 +40,7 @@ const page = () => {
     <>
       <div className="flex flex-col">
         <HeadSection />
-        <Separator className="mt-20" />
+        <Separator className="" />
         <Steps />
         <Separator className="mt-20" />
         <Features />
