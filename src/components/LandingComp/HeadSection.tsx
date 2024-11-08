@@ -12,7 +12,6 @@ import '../../app/globals.css'
 
 const HeadSection: React.FC = () => {
   const { resolvedTheme } = useTheme();
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<string | undefined>(undefined);
 
