@@ -88,29 +88,7 @@ const Canvas = forwardRef(
     );
 
 
-    // //
-    // updateGrid();
 
-    // function addGridLine(coords: Float32Array) {
-    //   const color = new ColorRGBA(0.5, 0.5, 0.5, 1);
-    //   const line = new WebglLine(color, 2);
-    //   line.xy = coords;
-    //   wglp.addLine(line);
-    // }
-    // function updateGrid(): void {
-    //   wglp.removeAllLines();
-    //   wglp.addLine(lineMain);
-    //   const ngX = 5;
-    //   const ngY = 5;
-    //   for (let i = 0; i < ngX; i++) {
-    //     const divPoint = (2 * i) / (ngX - 1) - 1;
-    //     addGridLine(new Float32Array([divPoint, -1, divPoint, 1]));
-    //   }
-    //   for (let i = 0; i < ngY; i++) {
-    //     const divPoint = (2 * i) / (ngY - 1) - 1;
-    //     addGridLine(new Float32Array([-1, divPoint, 1, divPoint]));
-    //   }
-    // }
 
     const createCanvases = () => {
       if (!canvasContainerRef.current) return;
@@ -136,56 +114,77 @@ const Canvas = forwardRef(
       const newCanvases = [];
       const newWglPlots = [];
       const newLines = [];
+
+
+      // // Create grid lines
+      const canvasWrapper = document.createElement("div");
+      canvasWrapper.className = "absolute inset-0"; // Make the wrapper fill the parent container
+      const opacityDarkMajor = "0.2"; // Opacity for every 5th line in dark theme
+      const opacityDarkMinor = "0.05"; // Opacity for other lines in dark theme
+      const opacityLightMajor = "0.4"; // Opacity for every 5th line in light theme
+      const opacityLightMinor = "0.1"; // Opacity for other lines in light theme
+      const distanceminor = samplingRate * 0.04;
+      const numGridLines = numX / distanceminor;
+      for (let j = 1; j < numGridLines; j++) {
+        const gridLineX = document.createElement("div");
+        gridLineX.className = "absolute bg-[rgb(128,128,128)]";
+        gridLineX.style.width = "1px";
+        gridLineX.style.height = "100%";
+        const divPoint = (j / numGridLines) * 100
+        const a = parseFloat(divPoint.toFixed(3));
+        gridLineX.style.left = `${a}%`
+        gridLineX.style.top = "0";
+        gridLineX.style.opacity = j % 5 === 0 ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor) : (theme === "dark" ? opacityDarkMinor : opacityLightMinor);
+
+        // Append grid lines to the wrapper
+        canvasWrapper.appendChild(gridLineX);
+      }
+      const horizontalline=50;
+      for (let j = 1; j < horizontalline; j++) {
+        const gridLineY = document.createElement("div");
+        gridLineY.className = "absolute bg-[rgb(128,128,128)]";
+        gridLineY.style.height = "1px";
+        gridLineY.style.width = "100%";
+        const distance = (j / horizontalline) * 100
+        const distancetop = parseFloat(distance.toFixed(3));
+        gridLineY.style.top = `${distancetop}%`;
+        gridLineY.style.left = "0";
+        gridLineY.style.opacity = j % 5 === 0 ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor) : (theme === "dark" ? opacityDarkMinor : opacityLightMinor);
+
+        // Append grid lines to the wrapper
+        canvasWrapper.appendChild(gridLineY);
+      }
+      canvasContainerRef.current.appendChild(canvasWrapper);
       for (let i = 0; i < numChannels; i++) {
         const canvasWrapper = document.createElement("div");
-        canvasWrapper.className = "canvas-container  flex-[1_1_0%] ";//border-b border-gray-300
+        canvasWrapper.className = "canvas-container relative flex-[1_1_0%]"; // Add relative positioning for absolute grid positioning
 
         const canvas = document.createElement("canvas");
         canvas.id = `canvas${i + 1}`;
-        canvas.width = canvasContainerRef.current.clientWidth*2;
-
-        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels)*2;
+        canvas.width = canvasContainerRef.current.clientWidth ;
+        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels) ;
         canvas.height = canvasHeight;
         canvas.className = "w-full h-full block rounded-2xl";
 
         // Create a badge for the channel number
         const badge = document.createElement("div");
-        badge.className =
-          "absolute text-gray-500 text-sm rounded-full p-2 m-2"; // Set absolute positioning and styles
+        badge.className = "absolute text-gray-500 text-sm rounded-full p-2 m-2";
         badge.innerText = `CH${i + 1}`;
 
         // Append the canvas and badge to the container
-
         canvasWrapper.appendChild(badge);
         canvasWrapper.appendChild(canvas);
         canvasContainerRef.current.appendChild(canvasWrapper);
+
         newCanvases.push(canvas);
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
-        const line = new WebglLine(getRandomColor(i, theme), numX);
+        const line = new WebglLine(getLineColor(i, theme), numX);
         wglp.gOffsetY = 0;
         line.offsetY = 0;
         line.lineSpaceX(-1, 2 / numX);
-        //grid
-        // const ngX = 5;
-        // const ngY = 5;
-        // for (let i = 0; i < ngX; i++) {
-        //   const divPoint = (2 * i) / (ngX - 1) - 1;
-        //   const color = new ColorRGBA(0.5, 0.5, 0.5, 1);
-        //   const line = new WebglLine(color, 2);
-        //   const coords = new Float32Array([divPoint, -1, divPoint, 1])
-        //   line.xy = coords;
-        //   wglp.addLine(line);;
-        // }
-        // for (let i = 0; i < ngY; i++) {
-        //   const divPoint = (2 * i) / (ngY - 1) - 1;
-        //   const color = new ColorRGBA(0.5, 0.5, 0.5, 1);
-        //   const line = new WebglLine(color, 2);
-        //   const coords = new Float32Array([divPoint, -1, divPoint, 1])
-        //   line.xy = coords;
-        //   wglp.addLine(line);
-        // }
+
         wglp.addLine(line);
         newLines.push(line);
       }
@@ -196,7 +195,8 @@ const Canvas = forwardRef(
       setLines(newLines);
     };
 
-    const getRandomColor = (i: number, theme: string | undefined): ColorRGBA => {
+
+    const getLineColor = (i: number, theme: string | undefined): ColorRGBA => {
       // Define bright colors
       const colorsDark: ColorRGBA[] = [
         new ColorRGBA(1, 0.286, 0.529, 1), // Bright Pink
@@ -217,7 +217,6 @@ const Canvas = forwardRef(
 
 
       // Return color based on the index, cycling through if necessary
-      // return colors[i % colors.length]; // Ensure to always return a valid ColorRGBA
       return theme === "dark"
         ? colorsDark[i % colorsDark.length]
         : colorsLight[i % colorsLight.length];
@@ -252,7 +251,7 @@ const Canvas = forwardRef(
           line.setY(currentSweepPos.current[i] % line.numPoints, chData);
 
           // Clear the next point to create a gap (optional, for visual effect)
-          const clearPosition = (currentSweepPos.current[i] + (numX/100)) % line.numPoints;
+          const clearPosition = (currentSweepPos.current[i] + (numX / 100)) % line.numPoints;
           line.setY(clearPosition, NaN);
 
           // Increment the sweep position for the current line
@@ -302,10 +301,10 @@ const Canvas = forwardRef(
       return () => {
         window.removeEventListener("resize", handleResize);
       };
-    }, [createCanvases]);
+    }, [createCanvases,]);
 
     return (
-      <main className="flex flex-col flex-[1_1_0%] min-h-100 bg-highlight  rounded-2xl m-4"
+      <main className=" flex flex-col flex-[1_1_0%] min-h-100 bg-highlight  rounded-2xl m-4 relative"
         ref={canvasContainerRef}
       >
       </main>
