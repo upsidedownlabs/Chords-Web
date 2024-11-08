@@ -59,11 +59,11 @@ const HeadSection: React.FC = () => {
                   Hi, Welcome to Chords
                 </span>
 
-                <span className="inline-block bg-clip-text text-gray-600 font-lobster cursor-default tracking-wide duration-300 transition-all text-[2.5rem] leading-none">
+                <span className="inline-block bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all text-[2.5rem] leading-none">
                   Tune Into Your EXG Data
                 </span>
 
-                <span className="inline-block text-[2.5rem] mr-2 tracking-wide duration-300 transition-all text-gray-600 leading-none">
+                <span className="inline-block text-[2.5rem] mr-2 tracking-wide duration-300 transition-all leading-none">
                   With
                 </span>
 

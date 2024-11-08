@@ -71,15 +71,15 @@ const CardSlider = () => {
             Get Started in Few Steps
           </h2>
         </div>
-        <div className="relative mx-10 pr-3 after:absolute after:left-8 after:right-8 after:top-1/2 after:block after:h-0.5 after:-translate-y-1/2 after:rounded-lg after:bg-primary max-w-7xl items-center ">
-        <ol className="relative z-10 flex justify-between text-sm font-medium text-primary">
+        <div className="relative mx-16  after:absolute after:left-8 after:right-8 after:top-1/2 after:block after:h-0.5 after:-translate-y-1/2 after:rounded-lg after:bg-primary max-w-7xl items-center ">
+          <ol className="relative z-10 flex justify-between text-sm font-medium text-primary">
             {Array.from({ length: 4 }).map((_, index) => (
               <li className="flex items-center  bg-background p-2" key={index}>
                 <button className={`size-6 rounded-full text-center text-[15px]/6 font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-400'
                   }`}
                   onMouseEnter={() => setIndex(index)}
                   onMouseLeave={() => setIsPaused(false)}
-              >
+                >
                   <span
                     className={`size-6 rounded-full text-center text-[15px]/6 font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-400'
                       }`}
@@ -91,45 +91,46 @@ const CardSlider = () => {
             ))}
           </ol>
         </div>
-    <div className="flex px-6 justify-between w-full max-w-7xl ">
-        <div className="text-center">
-            <p className="text-muted-foreground pl-2">
-                Hardware
+        <div className="flex justify-between w-full max-w-7xl ">
+          <div className="text-center pl-10">
+            <p className="text-muted-foreground hidden sm:block">
+              Hardware
             </p>
-        </div>
+          </div>
 
-        <div className="text-center pl-8">
-            <p className="text-muted-foreground">
-                Firmware
+          <div className="text-center pl-10">
+            <p className="text-muted-foreground hidden sm:block">
+              Firmware
             </p>
-        </div>
+          </div>
 
-        <div className="text-center pl-6">
-            <p className="text-muted-foreground">
+          <div className="text-center pl-7">
+            <p className="text-muted-foreground hidden sm:block">
               Connection
             </p>
+          </div>
+
+          <div className="text-center">
+            <p className="text-muted-foreground pr-10 hidden sm:block">
+              Visualization
+            </p>
+          </div>
         </div>
 
-        <div className="text-center">
-            <p className="text-muted-foreground pr-1">
-               Visualization
-            </p>
-        </div>
-    </div>
-        <div className="container flex flex-col md:flex-row items-center justify-center text-center max-w-7xl">
-              {/* Left Side - Image */}
-              <div className=" w-full h-auto mt-10">
-                <Image
-                  src={currentCard.image}
-                  alt={currentCard.title}
-                  width={1150}
-                  height={400}
-                  className="rounded-md object-cover  cursor-pointer"
-                  onMouseEnter={() => setIsPaused(true)}
-                  onMouseLeave={() => setIsPaused(false)}
-                  onClick={handleImageClick}
-                />
-              </div>
+        <div className="container flex flex-col sm:flex-row md:flex-row items-center justify-center text-center max-w-7xl">
+          {/* Left Side - Image */}
+          <div className=" w-full h-auto mt-10">
+            <Image
+              src={currentCard.image}
+              alt={currentCard.title}
+              width={1150}
+              height={400}
+              className="rounded-md object-cover  cursor-pointer"
+              onMouseEnter={() => setIsPaused(true)}
+              onMouseLeave={() => setIsPaused(false)}
+              onClick={handleImageClick}
+            />
+          </div>
         </div>
         {/* Modal for Enlarged Image */}
         {isModalOpen && (
@@ -143,7 +144,7 @@ const CardSlider = () => {
                 alt={currentCard.title}
                 width={1200}
                 height={1000}
-                className="rounded-md object-cover"
+                className="rounded-md object-cover cursor-pointer"
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}
               />
