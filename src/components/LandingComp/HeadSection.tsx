@@ -53,7 +53,7 @@ const HeadSection: React.FC = () => {
     <div className="flex flex-col lg:flex-row justify-center items-center gap-6 sm:gap-8 w-full">
       
       {/* Text Section */}
-      <div className="w-full lg:w-1/2 text-center lg:text-left">
+      <div className="w-full lg:w-1/2  lg:text-left">
         <div className="text-lg sm:text-xl lg:text-[1rem] sm:leading-none md:text-6xl xl:text-[3.5rem] font-bold tracking-tighter font-lobster">
           <span className="block text-lg sm:text-xl text-gray-500 transition tracking-wider">
             Hi, Welcome to Chords
