@@ -87,9 +87,6 @@ const Canvas = forwardRef(
       [Zoom, numChannels]
     );
 
-
-
-
     const createCanvases = () => {
       if (!canvasContainerRef.current) return;
 
