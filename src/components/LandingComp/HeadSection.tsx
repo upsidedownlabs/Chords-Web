@@ -28,22 +28,12 @@ const HeadSection: React.FC = () => {
     }
   }, [mounted, resolvedTheme]);
 
-  const preloadImage = (src: string) => {
-    const img = new window.Image();
-    img.src = src;
-  };
 
-  useEffect(() => {
-    preloadImage("./assets/dark/HeroSignalsClean.png");
-    preloadImage("./assets/light/HeroSignalsClean.png");
-  }, []);
+
 
   if (!mounted) return null;
 
-  const imageSrc =
-    currentTheme === "dark"
-      ? "./assets/dark/HeroSignalsClean.png"
-      : "./assets/light/HeroSignalsClean.png";
+
 
   return (
     <>
