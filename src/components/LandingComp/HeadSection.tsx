@@ -28,12 +28,7 @@ const HeadSection: React.FC = () => {
     }
   }, [mounted, resolvedTheme]);
 
-
-
-
   if (!mounted) return null;
-
-
 
   return (
     <>
