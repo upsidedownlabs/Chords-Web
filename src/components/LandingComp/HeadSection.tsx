@@ -104,14 +104,17 @@ c 1.4089684,-1.39202 2.8179419,-2.78405 4.4681851,-4.13231 1.6502432,-1.34827 3.
                 </path>
 
                 {/* <!-- Sweeping Vertical Line matching background color --> */}
-                <line x1="0" y1="0" x2="0" y2="200" className="stroke-background" stroke-width="10">
+                <line x1="0" y1="0" x2="0" y2="200" className="stroke-background" stroke-width="10" transform="translateZ(0)">
                   <animateTransform
                     attributeName="transform"
                     type="translate"
                     from="-20,0"
                     to="400,0"
                     dur="4s"
-                    repeatCount="indefinite" />
+                    begin="0s"
+                    repeatCount="indefinite" 
+                    keySplines="0.4 0 0.2 1"
+                    keyTimes="0; 1"/>
                 </line>
               </svg>
             </div>
