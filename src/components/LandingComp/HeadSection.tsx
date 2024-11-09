@@ -12,7 +12,6 @@ import '../../app/globals.css'
 
 const HeadSection: React.FC = () => {
   const { resolvedTheme } = useTheme();
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<string | undefined>(undefined);
 
@@ -50,61 +49,60 @@ const HeadSection: React.FC = () => {
     <>
       <Navbar isDisplay={true} />
       <section className="w-full flex items-center justify-center px-4 sm:px-8 mt-10 sm:mt-20">
-  <div className="px-2 sm:px-6 space-y-6 sm:space-y-10 md:space-y-16 max-w-6xl mx-auto flex flex-col items-center justify-center">
-    <div className="flex flex-col lg:flex-row justify-center items-center gap-6 sm:gap-8 w-full">
-      
-      {/* Text Section */}
-      <div className="w-full lg:w-1/2 text-center lg:text-left">
-        <div className="text-lg sm:text-xl lg:text-[1rem] sm:leading-none md:text-6xl xl:text-[3.5rem] font-bold tracking-tighter font-lobster">
-          <span className="block text-lg sm:text-xl text-gray-500 transition tracking-wider">
-            Hi, Welcome to Chords
-          </span>
+        <div className="px-2 sm:px-6 space-y-6 sm:space-y-10 md:space-y-16 max-w-6xl mx-auto flex flex-col items-center justify-center">
+          <div className="flex flex-col lg:flex-row justify-center items-center gap-6 sm:gap-8 w-full">
 
-          <span className="inline-block bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all text-2xl sm:text-3xl lg:text-[2.5rem] leading-none">
-            Tune Into Your EXG Data
-          </span>
+            {/* Text Section */}
+            <div className="w-full lg:w-1/2 lg:text-left">
+              <div className="text-lg sm:text-xl lg:text-[1rem] sm:leading-none md:text-6xl xl:text-[3.5rem] font-bold tracking-tighter font-lobster">
+                <span className="block text-lg sm:text-xl text-gray-500 transition tracking-wider">
+                  Hi, Welcome to Chords
+                </span>
 
-          <span className="inline-block text-2xl sm:text-3xl lg:text-[2.5rem] mr-2 tracking-wide duration-300 transition-all leading-none">
-            With
-          </span>
+                <span className="inline-block bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all text-2xl sm:text-3xl lg:text-[2.5rem] leading-none">
+                  Tune Into Your EXG Data
+                </span>
 
-          <span className="inline-block bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent text-2xl sm:text-3xl lg:text-[2.5rem] bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all leading-none">
-            Chords
-          </span>
+                <span className="inline-block text-2xl sm:text-3xl lg:text-[2.5rem] mr-2 tracking-wide duration-300 transition-all leading-none">
+                  With
+                </span>
 
-          <div className="w-full text-sm text-gray-500 dark:text-gray-500 font-medium transition-all mt-2 sm:mt-4 tracking-wide">
-            <span className="block">Transform bio signals into clear, insightful visuals, enabling deeper</span>
-            <span className="block">understanding of physiological patterns and processes.</span>
-          </div>
-        </div>
+                <span className="inline-block bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent text-2xl sm:text-3xl lg:text-[2.5rem] bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all leading-none">
+                  Chords
+                </span>
 
-        <div className="flex flex-col space-y-4 text-center mt-6 sm:mt-12">
-  <div className="flex flex-col sm:flex-row justify-start gap-4 sm:gap-6 space-y-4 sm:space-y-0">
-    <Link href="/stream">
-      <Button className="flex items-center justify-center py-2 px-6 sm:py-3 sm:px-8 rounded-full  font-semibold">
-        <Image
-          src={currentTheme === "dark" ? "./assets/dark/favicon.ico" : "./assets/light/favicon.ico"}
-          width={16}
-          height={16}
-          alt="logo"
-          className="mr-2"
-        />
-        <span>Visualize Now</span>
-      </Button>
-    </Link>
-    <Link href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware" target="_blank">
-      <Button
-        variant="outline"
-        className="flex items-center justify-center py-2 px-6 sm:py-3 sm:px-8 rounded-full border border-gray-300 text-gray-600 font-semibold"
-      >
-        <GitHubLogoIcon className="mr-2 h-5 w-5" />
-        <span>Arduino Firmware</span>
-      </Button>
-    </Link>
-  </div>
-</div>
+                <div className="w-full text-sm text-gray-500 dark:text-gray-500 font-medium transition-all mt-2 sm:mt-4 tracking-wide">
+                  <span className="block">Transform bio signals into clear, insightful visuals, enabling deeper</span>
+                  <span className="block">understanding of physiological patterns and processes.</span>
+                </div>
+              </div>
 
-      </div>
+              <div className="flex flex-col space-y-4 text-center mt-6 sm:mt-12">
+                <div className="flex flex-col sm:flex-row justify-center items-center sm:justify-start  md:justify-start gap-4 gap-4 sm:gap-6 space-y-0 sm:space-y-0">
+                  <Link href="/stream">
+                    <Button className="flex items-center justify-center py-2 px-6 sm:py-3 sm:px-8 rounded-full font-semibold">
+                      <Image
+                        src={currentTheme === "dark" ? "./assets/dark/favicon.ico" : "./assets/light/favicon.ico"}
+                        width={16}
+                        height={16}
+                        alt="logo"
+                        className="mr-2"
+                      />
+                      <span>Visualize Now</span>
+                    </Button>
+                  </Link>
+                  <Link href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware" target="_blank">
+                    <Button
+                      variant="outline"
+                      className="flex items-center justify-center py-2 px-6 sm:py-3 sm:px-8 rounded-full border border-gray-300 text-gray-600 font-semibold"
+                    >
+                      <GitHubLogoIcon className="mr-2 h-5 w-5" />
+                      <span>Arduino Firmware</span>
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
 
             {/* Animation Section */}
             <div className="w-full lg:w-1/2 flex flex-row justify-center items-center">
