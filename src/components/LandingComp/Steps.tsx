@@ -93,7 +93,7 @@ const CardSlider = () => {
       </div>
   
       {/* Labels for each step (shown on small and medium screens) */}
-      <div className="flex justify-between w-full max-w-7xl lg:hidden">
+      <div className="flex justify-between w-full max-w-7xl lg:hidden mb-6">
         <div className="text-center pl-10">
           <p className="text-muted-foreground hidden sm:block">Hardware</p>
         </div>
@@ -172,9 +172,7 @@ const CardSlider = () => {
     </div>
   </section>
   
-  
-  
-  );
+ );
 };
 
 export default CardSlider;
