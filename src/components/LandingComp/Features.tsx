@@ -40,72 +40,58 @@ export function Features() {
   const [selectedFeature, setSelectedFeature] = useState(features[0]);
   return (
     <section className="w-full py-12">
-      <div className="container px-4 md:px-6 max-w-7xl">
-        {/* Heading */}
-        <div className="flex flex-col items-center justify-center space-y-2 text-center">
-          <div className="space-y-2 flex flex-col justify-center items-center">
-            <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center">
-              <Chords /> is packed with features
-            </h1>
-            <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed text-center">
-              An overview of all the core features <Chords /> provides.
-            </p>
-          </div>
-        </div>
-
-        {/* Main Content: Sidebar and Feature Display */}
-        <div className="flex pt-5 max-w-6xl mx-auto">
-          {/* Sidebar with Icon Buttons Only */}
-          <aside className="w-1/6  pr-4">
-            <ul className="flex flex-col items-center space-y-4">
-              {features.map((feature, index) => (
-                <li
+    <div className="container px-4 md:px-6 max-w-6xl">
+      <div className="flex flex-col items-center justify-center space-y-2 text-center">
+        <div className="space-y-2 flex flex-col justify-center items-center">
+          <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center">
+            <span className="inline-block overflow-hidden whitespace-nowrap animate-typewriter space-x-4">
+              {["Chords", "is", "packed", "with", "features"].map((word, index) => (
+                <span
                   key={index}
-                  className={`w-12 h-12 flex items-center justify-center rounded-full cursor-pointer ${selectedFeature.title === feature.title
-                    ? "bg-primary text-white"
-                    : "bg-gray-200 text-primary"
-                    }`}
-                  onClick={() => setSelectedFeature(feature)}
+                  className="inline-block "
+                  style={{
+                    animationDelay: `${index * 1.5}s`, // Stagger delay between each word
+                  }}
                 >
-                  <Image
-                    src={feature.image} // Use `image` property instead of `icon`
-                    alt={feature.title}
-                    width={24}
-                    height={24}
-                    className="invert dark:invert-0"
-                  />
-                </li>
+                  {word}
+                </span>
               ))}
-            </ul>
-          </aside>
-
-          {/* Feature Display Area */}
-          <div className="w-5/6 p-6 ">
-            <Card className="flex flex-col items-center justify-center space-y-4 p-6 shadow-none">
-              {/* Feature Icon */}
-              <div className="w-16 h-16 p-4 text-background bg-primary rounded-full mb-4">
+            </span>
+          </h1>
+          <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed text-center">
+            An overview of all the core features <Chords /> provides.
+          </p>
+        </div>
+      </div>
+  
+      {/* Grid Layout for Cards */}
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12">
+        {features.map((feature, index) => (
+          <Card
+            key={index}
+            className="flex flex-col items-center justify-center space-y-2 p-3 min-h-40 shadow-none"
+          >
+            <div className="flex justify-center gap-2 items-center flex-col">
+              <div className="flex items-center justify-center w-12 h-12 p-2 text-background bg-primary rounded-full">
                 <Image
-                  src={selectedFeature.image}
-                  alt={`${selectedFeature.title} icon`}
-                  width={48}
-                  height={48}
+                  src={feature.image}
+                  alt="Icon"
+                  width={36}
+                  height={36}
                   className="invert dark:invert-0"
                 />
               </div>
-
-              {/* Feature Title */}
-              <h2 className="text-xl font-bold text-center">
-                {selectedFeature.title}
-              </h2>
-
-              {/* Feature Description */}
-              <p className="text-primary/50 text-sm text-center max-w-md">
-                {selectedFeature.description}
-              </p>
-            </Card>
-          </div>
-        </div>
+              <h2 className="text-lg font-bold text-center">{feature.title}</h2>
+            </div>
+            <p className="text-primary/50 text-sm text-center max-w-xs">
+              {feature.description}
+            </p>
+          </Card>
+        ))}
       </div>
-    </section>
+    </div>
+  </section>
+  
+
   );
 }

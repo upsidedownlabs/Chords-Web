@@ -44,7 +44,7 @@ const page = () => {
         <Steps />
         <Separator className="mt-20" />
         <Features />
-        <Separator className="mt-20" />
+        <Separator className="mt-12" />
         <TechStack />
         <Separator className="mt-20" />
         <FAQSection />
