@@ -81,9 +81,11 @@ const Stack = () => {
         </p>
       </div>
       <div className="pt-14 w-60">
+      <Link href="https://github.com/upsidedownlabs/Chords-Web" target="_blank">
       <Button className="flex items-center w-full justify-center py-2 px-6 sm:py-3 sm:px-8 rounded-full  font-semibold">
         <span>Source Code</span>
       </Button>
+      </Link>
       </div>
     </div>
 

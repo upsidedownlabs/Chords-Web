@@ -65,10 +65,10 @@ const CardSlider = () => {
 
   return (
     <section className="flex flex-col mt-12">
-      <div className="container grid items-center justify-center text-center max-w-7xl">
+      <div className="container grid items-center justify-center text-left max-w-7xl">
         {/* Heading */}
         <div className="space-y-4">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl pb-8">
+          <h2 className="text-2xl font-bold tracking-wide pl-8 sm:text-3xl md:text-3xl pb-8">
             Get Started in Few Steps
           </h2>
         </div>

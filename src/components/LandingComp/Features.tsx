@@ -41,9 +41,9 @@ export function Features() {
   return (
     <section className="w-full py-12">
     <div className="container px-4 md:px-6 max-w-6xl">
-      <div className="flex flex-col items-center justify-center space-y-2 text-center">
-        <div className="space-y-2 flex flex-col justify-center items-center">
-          <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center">
+      <div className="flex flex-col items-left justify-start space-y-2 text-left">
+        <div className="space-y-2 flex flex-col justify-start items-left pl-2">
+          <h1 className="text-2xl font-bold tracking-wide sm:text-3xl lg:text-[2.5rem] text-left">
             <span className="inline-block overflow-hidden whitespace-nowrap animate-typewriter space-x-4">
               {["Chords", "is", "packed", "with", "features"].map((word, index) => (
                 <span
@@ -58,14 +58,14 @@ export function Features() {
               ))}
             </span>
           </h1>
-          <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed text-center">
+          <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed text-left">
             An overview of all the core features <Chords /> provides.
           </p>
         </div>
       </div>
   
       {/* Grid Layout for Cards */}
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12 pl-2">
         {features.map((feature, index) => (
           <Card
             key={index}
