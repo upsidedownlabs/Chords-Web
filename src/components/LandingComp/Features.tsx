@@ -39,18 +39,18 @@ export function Features() {
     ];
  
   return (
-    <section className="w-full py-12">
-    <div className="container px-4 md:px-6 max-w-6xl">
-      <div className="flex flex-col items-left justify-start space-y-2 text-left">
-        <div className="space-y-2 flex flex-col justify-start items-left pl-2">
-          <h1 className="text-2xl font-bold tracking-wide sm:text-3xl lg:text-[2.5rem] text-left">
+    <section className="w-full py-12 px-4 sm:px-8 lg:py-20">
+    <div className="container max-w-6xl mx-auto">
+      <div className="flex flex-col items-start justify-start space-y-4 lg:space-y-6 text-left">
+        <div className="space-y-2 flex flex-col justify-start items-start pl-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-[2.5rem] font-bold tracking-wide">
             <span className="inline-block overflow-hidden whitespace-nowrap animate-typewriter space-x-4">
               {["Chords", "is", "packed", "with", "features"].map((word, index) => (
                 <span
                   key={index}
-                  className="inline-block "
+                  className="inline-block"
                   style={{
-                    animationDelay: `${index * 1.5}s`, // Stagger delay between each word
+                    animationDelay: `${index * 1.5}s`,
                   }}
                 >
                   {word}
@@ -58,21 +58,21 @@ export function Features() {
               ))}
             </span>
           </h1>
-          <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed text-left">
+          <p className="max-w-lg md:text-xl text-muted-foreground">
             An overview of all the core features <Chords /> provides.
           </p>
         </div>
       </div>
   
       {/* Grid Layout for Cards */}
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12 pl-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pt-12 pl-2">
         {features.map((feature, index) => (
           <Card
             key={index}
-            className="flex flex-col items-center justify-center space-y-2 p-3 min-h-40 shadow-none"
+            className="flex flex-col items-center justify-center p-4 shadow-none"
           >
-            <div className="flex justify-center gap-2 items-center flex-col">
-              <div className="flex items-center justify-center w-12 h-12 p-2 text-background bg-primary rounded-full">
+            <div className="flex flex-col items-center space-y-2">
+              <div className="flex items-center justify-center w-12 h-12 p-2 bg-primary rounded-full">
                 <Image
                   src={feature.image}
                   alt="Icon"
@@ -82,15 +82,16 @@ export function Features() {
                 />
               </div>
               <h2 className="text-lg font-bold text-center">{feature.title}</h2>
+              <p className="text-primary/50 text-sm text-center max-w-xs">
+                {feature.description}
+              </p>
             </div>
-            <p className="text-primary/50 text-sm text-center max-w-xs">
-              {feature.description}
-            </p>
           </Card>
         ))}
       </div>
     </div>
   </section>
+  
   
 
   );
