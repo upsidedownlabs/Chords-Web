@@ -37,7 +37,7 @@ export function Features() {
         image: "./assets/Pause.png",
       },
     ];
-  const [selectedFeature, setSelectedFeature] = useState(features[0]);
+ 
   return (
     <section className="w-full py-12">
     <div className="container px-4 md:px-6 max-w-6xl">
