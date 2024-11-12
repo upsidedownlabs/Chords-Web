@@ -1,11 +1,10 @@
 "use client";
 import Link from "next/link";
 import React from "react";
-import { Button } from "../ui/button";
 import Image from "next/image";
-import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
 import Chords from "./Chords";
+import { Button } from "../../components/ui/button";
 
 const Stack = () => {
   const { theme } = useTheme();
@@ -60,42 +59,64 @@ const Stack = () => {
     },
   ];
   return (
-    <section className="w-full py-12">
-  <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6 max-w-7xl">
-    <div className="space-y-3">
-      <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-        <Chords /> is open-source, and free to use.
-      </h2>
-      <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-        It is powered by the following technologies, that makes it super fast, efficient, and reliable.
-      </p>
-    </div>
-    <div className="max-w-6xl mx-auto">
-      <div className="grid gap-8 mt-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-        {stack.map((item, index) => (
-          <Link
-            key={index}
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center justify-center p-6 space-y-4 transition-transform transform rounded-lg border border-gray-900 shadow-md hover:shadow-lg hover:scale-[1.05] hover:border-gray-500 hover:shadow-muted-foreground"
-          >
-            <Image
-              src={item.logo}
-              alt={item.name}
-              width={60}
-              height={60}
-              className="w-16 h-16"
-            />
-            <h3 className="text-lg font-semibold">{item.name}</h3>
-            <p className="text-sm text-muted-foreground">{item.description}</p>
-          </Link>
-        ))}
+    <section className="w-full pt-12">
+  <div className="container grid grid-cols-1 md:grid-cols-2 items-center gap-8 px-4 md:px-6 max-w-7xl">
+    
+    {/* Left Side (Text Content) */}
+    <div className="space-y-6 text-left md:pl-20">
+      <div className="space-y-3">
+        <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
+        <span className="block"> {/* Use block to force line break */}
+        <Chords /> is
+      </span>
+      <span className="block"> {/* Use block to force line break */}
+        open-source,
+      </span>
+      <span className="block"> {/* Use block to force line break */}
+        and free to use.
+      </span>
+        </h2>
+        <p className="max-w-md pt-14 text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+          It is powered by the following technologies, making it super fast, efficient, and reliable.
+        </p>
+      </div>
+      <div className="pt-14 w-60">
+      <Button className="flex items-center w-full justify-center py-2 px-6 sm:py-3 sm:px-8 rounded-full  font-semibold">
+        <span>Source Code</span>
+      </Button>
       </div>
     </div>
+
+    {/* Right Side (Images) */}
+    <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-2">
+  {stack.map((item, index) => (
+    <Link
+      key={index}
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex flex-row items-start p-6 space-x-4 transition-transform transform rounded-lg"
+    >
+      <Image
+        src={item.logo}
+        alt={item.name}
+        width={60}
+        height={60}
+        className="w-8 h-8"
+      />
+      <div className="flex flex-col">
+        <h3 className="text-lg font-semibold">{item.name}</h3>
+        <p className="text-sm text-muted-foreground">{item.description}</p>
+      </div>
+    </Link>
+  ))}
+</div>
+
+
     
   </div>
 </section>
+
 
   );
 };

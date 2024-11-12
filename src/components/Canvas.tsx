@@ -304,7 +304,7 @@ const Canvas = forwardRef(
     }, [createCanvases,]);
 
     return (
-      <main className=" flex flex-col flex-[1_1_0%] min-h-100 bg-highlight  rounded-2xl m-4 relative"
+      <main className=" flex flex-col flex-[1_1_0%] min-h-80 bg-highlight  rounded-2xl m-4 relative"
         ref={canvasContainerRef}
       >
       </main>

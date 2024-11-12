@@ -204,6 +204,7 @@ const Connection: React.FC<ConnectionProps> = ({
       connectToDevice();
     }
   };
+  let lastConnectedPort: SerialPort | null = null;
 
   const connectToDevice = async () => {
     try {
@@ -211,7 +212,7 @@ const Connection: React.FC<ConnectionProps> = ({
         await disconnectDevice();
       }
 
-      const port = await navigator.serial.requestPort();
+      const port = lastConnectedPort || await navigator.serial.requestPort();
       await port.open({ baudRate: 230400 });
       Connection(true);
       setIsConnected(true);
@@ -219,7 +220,7 @@ const Connection: React.FC<ConnectionProps> = ({
       setIsDisplay(true);
       isConnectedRef.current = true;
       portRef.current = port;
-
+      lastConnectedPort = port;
       toast.success("Connection Successful", {
         description: (
           <div className="mt-2 flex flex-col space-y-1">

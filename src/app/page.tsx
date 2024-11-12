@@ -46,7 +46,7 @@ const page = () => {
         <Features />
         <Separator className="mt-20" />
         <TechStack />
-        <Separator className="mt-20" />
+        <Separator className="mt-12" />
         <FAQSection />
         <Footer />
       </div>
