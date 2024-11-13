@@ -37,61 +37,62 @@ export function Features() {
         image: "./assets/Pause.png",
       },
     ];
- 
+
   return (
     <section className="w-full py-12">
-    <div className="container px-4 md:px-6 lg:px-8 max-w-6xl">
-      <div className="flex flex-col items-left justify-start space-y-2 text-left">
-        <div className="space-y-2 flex flex-col justify-start items-left">
-          <h1 className="text-2xl font-bold tracking-wide sm:text-3xl lg:text-[2.5rem] text-left">
-            <span className="inline-block overflow-hidden whitespace-nowrap animate-typewriter space-x-4">
-              {["Chords", "is", "packed", "with", "features"].map((word, index) => (
-                <span
-                  key={index}
-                  className="inline-block "
-                  style={{
-                    animationDelay: `${index * 1.5}s`, // Stagger delay between each word
-                  }}
-                >
-                  {word}
-                </span>
-              ))}
-            </span>
-          </h1>
-          <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed text-left">
-            An overview of all the core features <Chords /> provides.
-          </p>
+      <div className="container px-8 md:px-16 lg:px-16 xl:px-8 max-w-6xl">
+        <div className="flex flex-col items-left justify-start space-y-2 text-left">
+          <div className="space-y-2 flex flex-col justify-start items-left">
+            <h1 className="text-2xl font-bold tracking-wide sm:text-3xl lg:text-[2.5rem] text-left">
+              <span className="inline-block overflow-hidden whitespace-normal sm:whitespace-nowrap animate-typewriter space-x-4">
+                {["Chords", "is", "packed", "with", "features"].map((word, index) => (
+                  <span
+                    key={index}
+                    className="inline-block"
+                    style={{
+                      animationDelay: `${index * 1.5}s`, // Stagger delay between each word
+                    }}
+                  >
+                    {word}
+                  </span>
+                ))}
+              </span>
+            </h1>
+
+            <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed text-left">
+              An overview of all the core features <Chords /> provides.
+            </p>
+          </div>
+        </div>
+
+        {/* Grid Layout for Cards */}
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12 pl-2">
+          {features.map((feature, index) => (
+            <Card
+              key={index}
+              className="flex flex-col items-center justify-center space-y-2 p-3 min-h-40 shadow-none"
+            >
+              <div className="flex justify-center gap-2 items-center flex-col">
+                <div className="flex items-center justify-center w-12 h-12 p-2 text-background bg-primary rounded-full">
+                  <Image
+                    src={feature.image}
+                    alt="Icon"
+                    width={36}
+                    height={36}
+                    className="invert dark:invert-0"
+                  />
+                </div>
+                <h2 className="text-lg font-bold text-center">{feature.title}</h2>
+              </div>
+              <p className="text-primary/50 text-sm text-center max-w-xs">
+                {feature.description}
+              </p>
+            </Card>
+          ))}
         </div>
       </div>
-  
-      {/* Grid Layout for Cards */}
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12 pl-2">
-        {features.map((feature, index) => (
-          <Card
-            key={index}
-            className="flex flex-col items-center justify-center space-y-2 p-3 min-h-40 shadow-none"
-          >
-            <div className="flex justify-center gap-2 items-center flex-col">
-              <div className="flex items-center justify-center w-12 h-12 p-2 text-background bg-primary rounded-full">
-                <Image
-                  src={feature.image}
-                  alt="Icon"
-                  width={36}
-                  height={36}
-                  className="invert dark:invert-0"
-                />
-              </div>
-              <h2 className="text-lg font-bold text-center">{feature.title}</h2>
-            </div>
-            <p className="text-primary/50 text-sm text-center max-w-xs">
-              {feature.description}
-            </p>
-          </Card>
-        ))}
-      </div>
-    </div>
-  </section>
-  
+    </section>
+
 
   );
 }
