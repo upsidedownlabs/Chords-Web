@@ -25,7 +25,7 @@ export function Features() {
         image: "./assets/DownloadIcon.png",
       },
       {
-        title: "AutoScale & Board Detection",
+        title: "Auto Board Detection",
         description:
           "Automatically detects ADC of developement board to scale the graph accordingly. No need to manually set the scale.",
         image: "./assets/Arduino.png",
@@ -41,30 +41,59 @@ export function Features() {
   return (
     <section className="w-full py-12">
       <div className="container px-8 md:px-16 lg:px-16 xl:px-8 max-w-6xl">
-        <div className="flex flex-col items-left justify-start space-y-2 text-left">
-          <div className="space-y-2 flex flex-col justify-start items-left">
-            <h1 className="text-2xl font-bold tracking-wide sm:text-3xl lg:text-[2.5rem] text-left">
-              <span className="inline-block overflow-hidden whitespace-normal sm:whitespace-nowrap animate-typewriter space-x-4">
-                {["Chords", "is", "packed", "with", "features"].map((word, index) => (
-                  <span
-                    key={index}
-                    className="inline-block"
-                    style={{
-                      animationDelay: `${index * 1.5}s`, // Stagger delay between each word
-                    }}
-                  >
-                    {word}
-                  </span>
-                ))}
-              </span>
-            </h1>
+      <div className="flex flex-col items-start justify-start space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6 text-left">
+    <div className="space-y-2 sm:space-y-3 md:space-y-4 flex flex-col justify-start items-start pl-2">
+      <h1 className="text-2xl sm:text-3xl lg:text-[2.5rem] font-bold tracking-wide">
+        {/* Mobile View with explicit delays */}
+        <span className="inline-block sm:hidden overflow-hidden whitespace-nowrap animate-typewriter">
+          <span className="inline-block mr-2">Chords</span>
+          <span className="inline-block mr-2">is packed</span>
+          <br />
+          <span 
+            className="inline-block mr-2" 
+            style={{ 
+              animationDelay: '4.5s',
+              opacity: 0,
+              animation: 'fadeIn 0.5s forwards',
+              
+            }}
+          >
+            with
+          </span>
+          <span 
+            className="inline-block" 
+            style={{ 
+              animationDelay: '6s',
+              opacity: 0,
+              animation: 'fadeIn 0.5s forwards',
+              
+            }}
+          >
+            features
+          </span>
+        </span>
 
-            <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed text-left">
-              An overview of all the core features <Chords /> provides.
-            </p>
-          </div>
+        {/* Desktop View */}
+        <span className="hidden sm:inline-block overflow-hidden whitespace-nowrap animate-typewriter">
+          {["Chords", "is", "packed", "with", "features"].map((word, index) => (
+            <span
+              key={index}
+              className="inline-block mr-4"
+              style={{
+                animationDelay: `${index * 1.5}s`,
+              }}
+            >
+              {word}
+            </span>
+          ))}
+        </span>
+      </h1>
+      <p className="max-w-xs sm:max-w-lg md:max-w-xl lg:max-w-full text-sm sm:text-base md:text-xl text-muted-foreground">
+        An overview of all the core features <Chords /> provides.
+      </p>
+    </div>
+
         </div>
-
         {/* Grid Layout for Cards */}
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12 pl-2">
           {features.map((feature, index) => (
