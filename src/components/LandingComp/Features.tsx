@@ -37,93 +37,64 @@ export function Features() {
         image: "./assets/Pause.png",
       },
     ];
- 
+
   return (
     <section className="w-full py-12 px-4 sm:px-8 lg:py-20">
-    <div className="container max-w-6xl mx-auto">
-    <div className="flex flex-col items-start justify-start space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6 text-left">
-    <div className="space-y-2 sm:space-y-3 md:space-y-4 flex flex-col justify-start items-start pl-2">
-      <h1 className="text-2xl sm:text-3xl lg:text-[2.5rem] font-bold tracking-wide">
-        {/* Mobile View with explicit delays */}
-        <span className="inline-block sm:hidden overflow-hidden whitespace-nowrap animate-typewriter">
-          <span className="inline-block mr-2">Chords</span>
-          <span className="inline-block mr-2">is packed</span>
-          <br />
-          <span 
-            className="inline-block mr-2" 
-            style={{ 
-              animationDelay: '4.5s',
-              opacity: 0,
-              animation: 'fadeIn 0.5s forwards',
-              
-            }}
-          >
-            with
-          </span>
-          <span 
-            className="inline-block" 
-            style={{ 
-              animationDelay: '6s',
-              opacity: 0,
-              animation: 'fadeIn 0.5s forwards',
-              
-            }}
-          >
-            features
-          </span>
-        </span>
+      <div className="container max-w-6xl mx-auto">
+        <div className="flex flex-col items-start justify-start space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6 text-left">
+          <div className="space-y-2 sm:space-y-3 md:space-y-4 flex flex-col justify-start items-start pl-2">
+            <h1 className="text-2xl sm:text-3xl lg:text-[2.5rem] font-bold tracking-wide">
+              {/* Mobile View */}
+              <span className="inline-block sm:hidden overflow-hidden whitespace-nowrap">
+                <span className="inline-block mr-2">Chords</span>
+                <span className="inline-block mr-2">is packed</span>
+                <br />
+                <span className="inline-block mr-2">with</span>
+                <span className="inline-block">features</span>
+              </span>
 
-        {/* Desktop View */}
-        <span className="hidden sm:inline-block overflow-hidden whitespace-nowrap animate-typewriter">
-          {["Chords", "is", "packed", "with", "features"].map((word, index) => (
-            <span
-              key={index}
-              className="inline-block mr-4"
-              style={{
-                animationDelay: `${index * 1.5}s`,
-              }}
-            >
-              {word}
-            </span>
-          ))}
-        </span>
-      </h1>
-      <p className="max-w-xs sm:max-w-lg md:max-w-xl lg:max-w-full text-sm sm:text-base md:text-xl text-muted-foreground">
-        An overview of all the core features <Chords /> provides.
-      </p>
-    </div>
-
+              {/* Desktop View */}
+              <span className="hidden sm:inline-block overflow-hidden whitespace-nowrap">
+                {["Chords", "is", "packed", "with", "features"].map((word, index) => (
+                  <span key={index} className="inline-block mr-4">
+                    {word}
+                  </span>
+                ))}
+              </span>
+            </h1>
+            <p className="max-w-xs sm:max-w-lg md:max-w-xl lg:max-w-full text-sm sm:text-base md:text-xl text-muted-foreground">
+              An overview of all the core features <Chords /> provides.
+            </p>
+          </div>
         </div>
-  
-      {/* Grid Layout for Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pt-12 pl-2">
-        {features.map((feature, index) => (
-          <Card
-            key={index}
-            className="flex flex-col items-center justify-center p-4 shadow-none"
-          >
-            <div className="flex flex-col items-center space-y-2">
-              <div className="flex items-center justify-center w-12 h-12 p-2 bg-primary rounded-full">
-                <Image
-                  src={feature.image}
-                  alt="Icon"
-                  width={36}
-                  height={36}
-                  className="invert dark:invert-0"
-                />
+
+        {/* Grid Layout for Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pt-12 pl-2">
+          {features.map((feature, index) => (
+            <Card
+              key={index}
+              className="flex flex-col items-center justify-center p-4 shadow-none"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="flex items-center justify-center w-12 h-12 p-2 bg-primary rounded-full">
+                  <Image
+                    src={feature.image}
+                    alt="Icon"
+                    width={36}
+                    height={36}
+                    className="invert dark:invert-0"
+                  />
+                </div>
+                <h2 className="text-lg font-bold text-center">{feature.title}</h2>
+                <p className="text-primary/50 text-sm text-center max-w-xs">
+                  {feature.description}
+                </p>
               </div>
-              <h2 className="text-lg font-bold text-center">{feature.title}</h2>
-              <p className="text-primary/50 text-sm text-center max-w-xs">
-                {feature.description}
-              </p>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
-  
-  
+    </section>
 
   );
 }
