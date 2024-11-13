@@ -166,11 +166,11 @@ const FAQSection = () => {
     },
   ];
   return (
-    <section className="w-full py-8 pb-12 md:pb-24 lg:pb-24 mx-auto lg:md:sm:px-0 px-3">
-      <h1 className="text-3xl font-bold text-center text-foreground md:text-4xl lg:text-5xl">
+    <section className="w-full pb-8 pb-12 md:pb-24 lg:pb-24 mx-auto lg:md:sm:px-0 px-6 sm:px-24 md:px-24 lg:px-16 xl:px-24 2xl:px-10">
+      <div className="mx-auto mt-8 max-w-6xl xl:px-8 ">
+      <h1 className="text-3xl font-bold text-left text-foreground md:text-4xl lg:text-5xl pb-8">
         Frequently Asked Questions
       </h1>
-      <div className="mx-auto mt-8 max-w-6xl px-8 sm:px-10 md:px-10 lg:px-16 xl:px-12 2xl:px-10 ">
         <Accordion type="single" collapsible className=" max-w-7xl">
           {FAQs.map((faq, index) => (
             <AccordionItem value={`item-${index}`} key={index}>
