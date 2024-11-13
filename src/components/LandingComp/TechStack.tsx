@@ -60,10 +60,10 @@ const Stack = () => {
   ];
   return (
     <section className="w-full pt-12">
-  <div className="container grid grid-cols-1 md:grid-cols-2 items-center gap-8 px-4 md:px-6 max-w-7xl">
+  <div className="container grid grid-cols-1 md:grid-cols-2 items-center gap-8 px-8 sm:px-4 md:px-14 lg:px-24 2xl:px-26 max-w-7xl ">
     
     {/* Left Side (Text Content) */}
-    <div className="space-y-6 text-left md:pl-20">
+    <div className="space-y-6 text-left ">
       <div className="space-y-3">
         <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
         <span className="block"> {/* Use block to force line break */}

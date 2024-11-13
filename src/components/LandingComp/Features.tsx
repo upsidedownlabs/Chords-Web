@@ -40,9 +40,9 @@ export function Features() {
  
   return (
     <section className="w-full py-12">
-    <div className="container px-4 md:px-6 max-w-6xl">
+    <div className="container px-4 md:px-6 lg:px-8 max-w-6xl">
       <div className="flex flex-col items-left justify-start space-y-2 text-left">
-        <div className="space-y-2 flex flex-col justify-start items-left pl-2">
+        <div className="space-y-2 flex flex-col justify-start items-left">
           <h1 className="text-2xl font-bold tracking-wide sm:text-3xl lg:text-[2.5rem] text-left">
             <span className="inline-block overflow-hidden whitespace-nowrap animate-typewriter space-x-4">
               {["Chords", "is", "packed", "with", "features"].map((word, index) => (
