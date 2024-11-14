@@ -40,52 +40,16 @@ export function Features() {
 
   return (
     <section className="w-full py-12">
-      <div className="container px-8 md:px-16 lg:px-16 xl:px-8 max-w-6xl">
+      <div className="container px-4 md:px-24 lg:px-12 xl:px-6 max-w-6xl">
       <div className="flex flex-col items-start justify-start space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6 text-left">
     <div className="space-y-2 sm:space-y-3 md:space-y-4 flex flex-col justify-start items-start pl-2">
-      <h1 className="text-2xl sm:text-3xl lg:text-[2.5rem] font-bold tracking-wide">
-        {/* Mobile View with explicit delays */}
-        <span className="inline-block sm:hidden overflow-hidden whitespace-nowrap animate-typewriter">
-          <span className="inline-block mr-2">Chords</span>
-          <span className="inline-block mr-2">is packed</span>
-          <br />
-          <span 
-            className="inline-block mr-2" 
-            style={{ 
-              animationDelay: '4.5s',
-              opacity: 0,
-              animation: 'fadeIn 0.5s forwards',
-              
-            }}
-          >
-            with
-          </span>
-          <span 
-            className="inline-block" 
-            style={{ 
-              animationDelay: '6s',
-              opacity: 0,
-              animation: 'fadeIn 0.5s forwards',
-              
-            }}
-          >
-            features
-          </span>
-        </span>
-
-              {/* Desktop View */}
-              <span className="hidden sm:inline-block overflow-hidden whitespace-nowrap">
-                {["Chords", "is", "packed", "with", "features"].map((word, index) => (
-                  <span key={index} className="inline-block mr-4">
-                    {word}
-                  </span>
-                ))}
-              </span>
+    <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl text-left">
+              <Chords /> is packed with features
             </h1>
-            <p className="max-w-xs sm:max-w-lg md:max-w-xl lg:max-w-full text-sm sm:text-base md:text-xl text-muted-foreground">
-              An overview of all the core features <Chords /> provides.
-            </p>
-          </div>
+      <p className="max-w-xs sm:max-w-lg md:max-w-xl lg:max-w-full text-sm sm:text-base md:text-xl text-muted-foreground">
+        An overview of all the core features <Chords /> provides.
+      </p>
+    </div>
         </div>
         {/* Grid Layout for Cards */}
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12 pl-2">

@@ -21,73 +21,26 @@ import Image from "next/image";
 
 const Steps: React.FC = () => {
   const ImageLinks = [
-    "https://docs.upsidedownlabs.tech/_images/connections-with-arduino.png",
-    "https://docs.upsidedownlabs.tech/_images/connection-with-cable.png",
-    "https://docs.upsidedownlabs.tech/_images/emg.png",
-    "https://docs.upsidedownlabs.tech/_images/ecg.png",
-    "https://docs.upsidedownlabs.tech/_images/eog-horizontal.png",
-    "https://docs.upsidedownlabs.tech/_images/eog-vertical.png",
+    "./steps/1.png",
+    "./steps/2.png",
+    "./steps/3.png",
+    "./steps/4.png",
+    "./steps/5.png",
+    "./steps/6.png",
   ];
 
   const carouselItems = [
     {
       title: "BioAmp hardware to MCU/ADC Connection",
-      content: (
-        <>
-          <Table className="w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead>BioAmp</TableHead>
-                <TableHead className="text-right">MCU/ADC</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">VCC</TableCell>
-                <TableCell className="text-right">5V</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">GND</TableCell>
-                <TableCell className="text-right">GND</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">OUT</TableCell>
-                <TableCell className="text-right">ADC Input</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-          <p className="text-red-500 mt-4 text-sm font-semibold">
-            Warning: If power pins are swapped, your BioAmp hardware will be
-            fried and become unusable (DIE).
-          </p>
-        </>
-      ),
-    },
-    {
-      title: "Connection with Arduino",
       image: ImageLinks[0],
     },
     {
+      title: "Connection with Arduino",
+      image: ImageLinks[1],
+    },
+    {
       title: "BioAmp Cable Connections",
-      content: (
-        <div className="flex flex-col items-center">
-          <ol className="list-decimal pl-4 text-sm sm:text-base mb-4 mt-4">
-            <li>
-              Connect the BioAmp cable to BioAmp hardware by inserting the cable
-              end in the JST PH connector.
-            </li>
-            <li>Connect the BioAmp cable to gel electrodes.</li>
-            <li>Peel the plastic backing from electrodes.</li>
-          </ol>
-          <Image
-            alt="Cable connection"
-            width={320}
-            height={320}
-            src={ImageLinks[1]}
-            className="rounded-xl object-contain max-h-[200px]"
-          />
-        </div>
-      ),
+      image: ImageLinks[2],
     },
     {
       title: "Electrodes placement for EMG",
@@ -123,7 +76,7 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl ">
+      <div className="relative w-full max-w-7xl mt-6">
         <Carousel
           opts={{
             align: "start",
@@ -132,14 +85,11 @@ const Steps: React.FC = () => {
         >
           <CarouselContent>
             {carouselItems.map((item, index) => (
-              <CarouselItem key={index} className="sm:basis-1/1 lg:basis-1/2">
-                <Card className="border-primary h-full">
+              <CarouselItem key={index} className="sm:basis-1/1 md:basis-1/2 lg:basis-1/2 xl:basis-1/2 2xl:basis-1/3">
+                <Card className="border-primary h-[60vh]">
                   <CardContent className="flex flex-col h-[calc(60vh)] p-4 sm:p-6">
-                    <h3 className="text-lg sm:text-xl font-semibold mb-4 text-left">
-                      {item.title}
-                    </h3>
                     <div className="flex-grow flex flex-col items-center justify-center overflow-y-auto">
-                      {item.image ? (
+                      {item.image &&(
                         <Image
                           alt={item.title}
                           width={500}
@@ -147,10 +97,11 @@ const Steps: React.FC = () => {
                           src={item.image}
                           className="rounded-xl h-full w-full object-contain"
                         />
-                      ) : (
-                        item.content
-                      )}
+                    )}
                     </div>
+                    <h3 className="text-lg sm:text-xl font-semibold mb-4 text-left">
+                      {item.title}
+                    </h3>
                   </CardContent>
                 </Card>
               </CarouselItem>

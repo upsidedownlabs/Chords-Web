@@ -60,7 +60,7 @@ const Stack = () => {
   ];
   return (
     <section className="w-full pt-12">
-  <div className="container grid grid-cols-1 md:grid-cols-2 items-center gap-8 px-8 sm:px-4 md:px-14 lg:px-16 xl:px-24 max-w-7xl ">
+  <div className="container grid grid-cols-1 lg:grid-cols-2 items-center gap-8 px-6 sm:px-16 md:px-24 lg:px-16 xl:px-24 max-w-7xl ">
     
     {/* Left Side (Text Content) */}
     <div className="space-y-6 text-left ">
@@ -90,14 +90,14 @@ const Stack = () => {
     </div>
 
     {/* Right Side (Images) */}
-    <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-2">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 ">
   {stack.map((item, index) => (
     <Link
       key={index}
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex flex-row items-start p-6 space-x-4 transition-transform transform rounded-lg"
+      className="flex flex-row items-start p-6 space-x-4 transition-transform transform rounded-lg border"
     >
       <Image
         src={item.logo}
