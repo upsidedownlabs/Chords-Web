@@ -21,7 +21,7 @@ export function Features() {
       {
         title: "Record & Save Data",
         description:
-          "Record and save data for future reference. Export data in CSV/ZIP format for further analysis.",
+          "Record and save data for future reference. Export data in CSV format for further analysis.",
         image: "./assets/DownloadIcon.png",
       },
       {
@@ -39,20 +39,22 @@ export function Features() {
     ];
 
   return (
-    <section className="w-full py-12">
+    <section className="w-full pt-12">
       <div className="container px-4 md:px-24 lg:px-12 xl:px-6 max-w-6xl">
-      <div className="flex flex-col items-start justify-start space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6 text-left">
-    <div className="space-y-2 sm:space-y-3 md:space-y-4 flex flex-col justify-start items-start pl-2">
-    <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl text-left">
+        <div className="flex flex-col items-start justify-start space-y-3 text-left">
+          <div className="space-y-2 flex flex-col justify-start items-start pl-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-wide text-left">
               <Chords /> is packed with features
             </h1>
-      <p className="max-w-xs sm:max-w-lg md:max-w-xl lg:max-w-full text-sm sm:text-base md:text-xl text-muted-foreground">
-        An overview of all the core features <Chords /> provides.
-      </p>
-    </div>
+
+            <p className="text-xs sm:text-sm md:text-base lg:text-lg text-muted-foreground">
+              An overview of all the core features <Chords /> provides.
+            </p>
+          </div>
         </div>
+
         {/* Grid Layout for Cards */}
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12 pl-2">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-12 ">
           {features.map((feature, index) => (
             <Card
               key={index}

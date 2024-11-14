@@ -985,7 +985,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Save Data as Zip</p>
+                <p>Save Recording</p>
               </TooltipContent>
             </Tooltip>
 
@@ -1000,7 +1000,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Delete All Data</p>
+                <p>Delete Recording</p>
               </TooltipContent>
             </Tooltip>
           </div>

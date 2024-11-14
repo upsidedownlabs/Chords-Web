@@ -123,9 +123,8 @@ const CardSlider = () => {
               alt={currentCard.title}
               width={1500}
               height={500}
-              className={`${
-                fadeIn ? 'fade-in' : ''
-              } rounded-md object-cover cursor-pointer lg:max-h-[500px] transition-opacity duration-500 ease-in-out`}
+              className={`${fadeIn ? 'fade-in' : ''
+                } rounded-md object-cover cursor-pointer lg:max-h-[500px] transition-opacity duration-500 ease-in-out`}
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
               onClick={handleImageClick}
