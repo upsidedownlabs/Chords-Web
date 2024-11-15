@@ -60,7 +60,7 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl 2xl:max-w-[195vh] overflow-x-auto">
+      <div className="relative w-full max-w-7xl max-h-7xl 2xl:max-w-[195vh] overflow-x-auto">
         <Carousel
           opts={{
             align: "start",
@@ -79,11 +79,11 @@ const Steps: React.FC = () => {
                 >
                   <Image
                     alt={item.title}
-                    width={800}
-                    height={300}
+                    width={1000}
+                    height={1500}
                     src={item.image}
                     layout="responsive"
-                    className="rounded-xl md:max-h-[50vh] lg:max-h-[40vh] 2xl:w-[50vh] w-full object-contain h-auto"
+                    className="rounded-xl xl:max-h-[70vh] lg:max-h-[70vh] 2xl:w-[70vh] w-full object-contain "
                   />
                 </div>
               </CarouselItem>
