@@ -46,7 +46,7 @@ const Steps: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col flex-[1_1_0%] min-h-80 justify-center items-center gap-2">
+    <div className="flex flex-col flex-[1_1_0%] min-h-80 justify-center items-center gap-0 2xl:gap-2">
       <div className="flex items-center justify-center text-sm sm:text-xl text-center">
         <span className="flex flex-row gap-2 mt-6">
           Click Connect For Board Connection.
@@ -61,7 +61,7 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl md:w-[120vh] 2xl:max-w-[195vh] overflow-x-auto ">
+      <div className="relative w-full max-w-7xl 2xl:max-w-[195vh] overflow-x-auto ">
         <Carousel
           opts={{
             align: "start",
