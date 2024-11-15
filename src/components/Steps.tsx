@@ -72,7 +72,7 @@ const Steps: React.FC = () => {
             {carouselItems.map((item, index) => (
               <CarouselItem
                 key={index}
-                className="sm:basis-1/1 md:basis-1/3 lg:basis-1/2 xl:basis-1/1 2xl:basis-1/4"
+                className="sm:basis-1/1 md:basis-1/3 lg:basis-1/3 xl:basis-1/3 2xl:basis-1/4"
               >
                 <Card onClick={() => handleImageClick(item)}>
                   <CardContent>
@@ -81,10 +81,10 @@ const Steps: React.FC = () => {
                         <Image
                           alt={item.title}
                           width={800}
-                          height={800}
+                          height={400}
                           src={item.image}
                           layout="responsive"
-                          className="rounded-xl md:h-[50vh] md:w-[40vh] lg:h-[50vh] lg:w-[60vh] 2xl:h-[38vh] 2xl:w-[50vh] w-full object-contain"
+                          className="rounded-xl md:h-[40vh] md:w-[40vh] lg:h-[40vh] lg:w-[60vh] 2xl:h-[38vh] 2xl:w-[50vh] w-full object-contain"
                         />
                       )}
                     </div>
