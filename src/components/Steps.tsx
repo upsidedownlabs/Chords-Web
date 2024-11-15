@@ -72,7 +72,7 @@ const Steps: React.FC = () => {
             {carouselItems.map((item, index) => (
               <CarouselItem
                 key={index}
-                className="sm:basis-1/1 md:basis-1/3 lg:basis-1/3 xl:basis-1/3 2xl:basis-1/4"
+                className="sm:basis-1/1 md:basis-1/3 lg:basis-1/2 xl:basis-1/1 2xl:basis-1/4"
               >
                 <Card onClick={() => handleImageClick(item)}>
                   <CardContent>
