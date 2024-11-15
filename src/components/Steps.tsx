@@ -81,7 +81,7 @@ const Steps: React.FC = () => {
                         <Image
                           alt={item.title}
                           width={800}
-                          height={400}
+                          height={200}
                           src={item.image}
                           layout="responsive"
                           className="rounded-xl md:h-[20vh] md:w-[40vh] lg:h-[20vh] lg:w-[60vh] 2xl:h-[38vh] 2xl:w-[50vh] w-full object-contain"
@@ -108,7 +108,7 @@ const Steps: React.FC = () => {
               alt={selectedItem.title}
               src={selectedItem.image}
               width={800}
-              height={800}
+              height={400}
               layout="responsive"
               className="rounded-lg"
             />
