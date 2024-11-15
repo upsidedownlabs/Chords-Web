@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Card, CardContent } from "./ui/card";
 import {
   Carousel,
   CarouselContent,
@@ -61,7 +60,7 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl 2xl:max-w-[195vh] overflow-x-auto ">
+      <div className="relative w-full max-w-7xl 2xl:max-w-[195vh] overflow-x-auto">
         <Carousel
           opts={{
             align: "start",
@@ -74,35 +73,33 @@ const Steps: React.FC = () => {
                 key={index}
                 className="sm:basis-1/1 md:basis-1/4 lg:basis-1/4 xl:basis-1/4 2xl:basis-1/4"
               >
-                <Card onClick={() => handleImageClick(item)}>
-                  <CardContent>
-                    <div className="flex-grow flex flex-col items-center justify-center overflow-y-auto">
-                      {item.image && (
-                        <Image
-                          alt={item.title}
-                          width={800}
-                          height={300}
-                          src={item.image}
-                          layout="responsive"
-                          className="rounded-xl md:max-h-[50vh] lg:max-h-[40vh]  2xl:w-[50vh] w-full object-contain  h-auto"
-                        />
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <div
+                  onClick={() => handleImageClick(item)}
+                  className="cursor-pointer"
+                >
+                  <Image
+                    alt={item.title}
+                    width={800}
+                    height={300}
+                    src={item.image}
+                    layout="responsive"
+                    className="rounded-xl md:max-h-[50vh] lg:max-h-[40vh] 2xl:w-[50vh] w-full object-contain h-auto"
+                  />
+                </div>
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="border-primary border-2 left-2 absolute " />
-          <CarouselNext className="border-primary border-2 right-2 absolute " />
+          <CarouselPrevious className="border-primary border-2 left-2 absolute" />
+          <CarouselNext className="border-primary border-2 right-2 absolute" />
         </Carousel>
       </div>
 
       {/* Modal */}
       {selectedItem && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-        onClick={closeModal}
-       >
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+          onClick={closeModal}
+        >
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
             <Image
               alt={selectedItem.title}
