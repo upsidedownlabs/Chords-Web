@@ -84,7 +84,7 @@ const Steps: React.FC = () => {
                           height={300}
                           src={item.image}
                           layout="responsive"
-                          className="rounded-xl md:w-[40vh] lg:w-[60vh]  2xl:w-[50vh] w-full object-contain  h-auto"
+                          className="rounded-xl md:max-h-[50vh] lg:max-h-[40vh]  2xl:w-[50vh] w-full object-contain  h-auto"
                         />
                       )}
                     </div>
