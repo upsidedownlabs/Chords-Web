@@ -116,6 +116,7 @@
   height: 50px;
   animation: spin 1s linear infinite;
 }
+
 .fade-in {
   opacity: 0;
   animation: fadeIn 0.9s ease-in-out forwards;
