@@ -60,7 +60,7 @@ const Stack = () => {
   ];
   return (
     <section className="w-full pt-12">
-      <div className="container grid grid-cols-1 lg:grid-cols-2 items-center gap-8 px-6 sm:px-16 md:px-24 lg:px-16 xl:px-24 max-w-7xl ">
+      <div className="container grid grid-cols-1 lg:grid-cols-2 items-center gap-8 px-4 sm:px-16 md:px-24 lg:px-16 xl:px-24 max-w-7xl ">
 
         {/* Left Side (Text Content) */}
         <div className="space-y-6 text-left ">

@@ -34,7 +34,7 @@ const HeadSection: React.FC = () => {
     <>
       <Navbar isDisplay={true} />
       <section className="w-full flex items-center justify-center px-4 sm:px-10 md:px-8 lg:px-6 mt-20 sm:mt-10">
-        <div className="px-4 sm:px-6 md:px-8 space-y-4 sm:space-y-8 md:space-y-10 lg:space-y-12 max-w-6xl mx-auto flex flex-col items-center justify-center">
+        <div className="sm:px-6 md:px-8 space-y-4 sm:space-y-8 md:space-y-10 lg:space-y-12 max-w-6xl mx-auto flex flex-col items-center justify-center">
           <div className="flex flex-col lg:flex-row justify-center items-center gap-6 sm:gap-8 md:gap-10 lg:gap-12 w-full">
 
             {/* Text Section */}
