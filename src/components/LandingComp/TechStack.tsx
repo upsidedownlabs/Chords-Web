@@ -1,11 +1,10 @@
 "use client";
 import Link from "next/link";
 import React from "react";
-import { Button } from "../ui/button";
 import Image from "next/image";
-import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import { useTheme } from "next-themes";
 import Chords from "./Chords";
+import { Button } from "../../components/ui/button";
 
 const Stack = () => {
   const { theme } = useTheme();
@@ -35,13 +34,13 @@ const Stack = () => {
       description: "Built with amazing components from shadcn/ui.",
     },
     {
-      name: "Smoothie Charts",
-      logo: "./assets/smoothie-logo.png",
-      url: "http://smoothiecharts.org/",
-      description: "Timeseries charts for plotting the data real time.",
+      name: "WebGl Plot",
+      logo: "./assets/logo.svg",
+      url: "https://github.com/danchitnis/webgl-plot",
+      description: "Charts for plotting the data real time.",
     },
     {
-      name: "Web Serial Api",
+      name: "Web Serial API",
       logo:
         theme === "light"
           ? "./assets/dark/favicon.ico"
@@ -50,67 +49,78 @@ const Stack = () => {
       description: "For connecting to the serial port of the device.",
     },
     {
-      name: "JSZip",
+      name: "IndexedDB API",
       logo:
         theme === "light"
           ? "./assets/dark/favicon.ico"
           : "./assets/light/favicon.ico",
-      url: "https://stuk.github.io/jszip/",
-      description: "For creating and downloading the recorded data zip files.",
+      url: "https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API",
+      description: "IndexedDB is a low-level API for client-side storage.",
     },
   ];
   return (
-    <section className="w-full py-12">
-      <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
-        <div className="space-y-3">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-            <Chords /> is open-source, and free to use.
-          </h2>
-          <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-            It is powered by the following technologies, that makes it super
-            fast, efficient and reliable.
-          </p>
-        </div>
-        <div className="max-w-3xl mx-auto">
-          <div className="grid gap-6 mt-8 lg:md:sm:grid-cols-3 grid-cols-2">
-            {stack.map((item, index) => (
-              <Link
-                key={index}
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center justify-center p-4 space-y-2 transition-transform transform rounded-lg shadow-md shadow-muted hover:shadow-sm hover:shadow-muted-foreground hover:scale-[1.025]"
-              >
-                <Image
-                  src={item.logo}
-                  alt={item.name}
-                  width={48}
-                  height={48}
-                  className="w-12 h-12"
-                />
-                <h3 className="text-lg font-semibold">{item.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {item.description}
-                </p>
-              </Link>
-            ))}
+    <section className="w-full pt-12">
+      <div className="container grid grid-cols-1 lg:grid-cols-2 items-center gap-8 px-6 sm:px-16 md:px-24 lg:px-16 xl:px-24 max-w-7xl ">
+
+        {/* Left Side (Text Content) */}
+        <div className="space-y-6 text-left ">
+          <div className="space-y-3">
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold tracking-wide sm:text-3xl md:text-3xl">
+                <span className="block">{/* Force line break */}
+                  <Chords /> is open-source,
+                </span>
+
+                <span className="block">{/* Force line break */}
+                  and free to use.
+                </span>
+              </h2>
+            </div>
+
+            <p className="max-w-md pt-6 text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+              It is powered by the following technologies, making it super fast, efficient, and reliable.
+            </p>
+          </div>
+          <div className="pt-6 w-60">
+            <Link href="https://github.com/upsidedownlabs/Chords-Web" target="_blank">
+              <Button className="flex items-center w-full justify-center py-2 px-6 sm:py-3 sm:px-8 rounded-xl  font-semibold">
+                <span>Source Code</span>
+              </Button>
+            </Link>
           </div>
         </div>
-        <div className="flex justify-center space-x-4 mt-8">
-          <Link href="/stream">
-            <Button>Visualize Now &rarr;</Button>
-          </Link>
-          <Link
-            href="https://github.com/upsidedownlabs/Chords-Web"
-            target="_blank"
-          >
-            <Button variant="outline">
-              <GitHubLogoIcon className="mr-2 h-4 w-4" /> Source Code
-            </Button>
-          </Link>
+
+        {/* Right Side (Images) */}
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 ">
+          {stack.map((item, index) => (
+            <Link
+              key={index}
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-row items-start p-6 space-x-4 transition-transform transform rounded-lg border"
+            >
+              <Image
+                src={item.logo}
+                alt={item.name}
+                width={60}
+                height={60}
+                className="w-8 h-8"
+              />
+              <div className="flex flex-col">
+                <h3 className="text-lg font-semibold">{item.name}</h3>
+                <p className="text-sm text-muted-foreground">{item.description}</p>
+              </div>
+            </Link>
+          ))}
         </div>
+
+
+
       </div>
     </section>
+
+
   );
 };
 

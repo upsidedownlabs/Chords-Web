@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'export',  // This is key for static export
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -10,7 +11,6 @@ const nextConfig = {
       },
     ],
   },
-  output: "export",
 };
 /* module.exports = nextConfig*/
 export default nextConfig;

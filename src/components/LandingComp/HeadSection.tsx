@@ -6,118 +6,119 @@ import { Button } from "../../components/ui/button";
 import { GitHubLogoIcon } from "@radix-ui/react-icons";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import Chords from "./Chords";
 import Navbar from "../Navbar";
+import '../../app/globals.css'
+
 
 const HeadSection: React.FC = () => {
   const { resolvedTheme } = useTheme();
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const [mounted, setMounted] = useState(false); // Ensures the theme detection works after mounting
-  const [currentTheme, setCurrentTheme] = useState<string | undefined>(
-    undefined
-  );
+  const [mounted, setMounted] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState<string | undefined>(undefined);
 
-  // Set mounted to true after the client has mounted
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Update theme with 50ms delay to ensure proper theme matching
   useEffect(() => {
     if (mounted) {
       const timer = setTimeout(() => {
         setCurrentTheme(resolvedTheme);
-      },50 ); // Add a delay of 50ms
-      return () => clearTimeout(timer); // Clean up the timer on unmount
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [mounted, resolvedTheme]);
 
-  // Preload dark and light images to avoid delay on theme switch
-  const preloadImage = (src: string) => {
-    const img = new window.Image();
-    img.src = src;
-  };
-
-  // Preload images on component mount
-  useEffect(() => {
-    preloadImage("./assets/dark/HeroSignalsClean.png");
-    preloadImage("./assets/light/HeroSignalsClean.png");
-  }, []);
-
-  // If the component is not mounted yet, avoid rendering to prevent flickering
   if (!mounted) return null;
-
-  const imageSrc =
-    currentTheme === "dark"
-      ? "./assets/dark/HeroSignalsClean.png"
-      : "./assets/light/HeroSignalsClean.png";
 
   return (
     <>
       <Navbar isDisplay={true} />
-      <section className="w-full pt-24">
-        <div className="px-4 md:px-6 space-y-10 xl:space-y-16">
-          <div className="flex flex-col justify-center gap-8 items-center">
-            <div>
-              <h1 className="lg:leading-tighter text-[1.90rem] font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-[3.5rem] 2xl:text-[4rem] text-center">
-                <span className="text-7xl">Tune Into Your EXG Data</span>
-                <br /> With <Chords />
-              </h1>
-            </div>
-            <div className="flex flex-col items-center space-y-4 text-center mt-4">
-              <div className="space-x-4 flex">
+      <section className="w-full flex items-center justify-center px-4 sm:px-10 md:px-8 lg:px-6 mt-20 sm:mt-10">
+        <div className="px-4 sm:px-6 md:px-8 space-y-4 sm:space-y-8 md:space-y-10 lg:space-y-12 max-w-6xl mx-auto flex flex-col items-center justify-center">
+          <div className="flex flex-col lg:flex-row justify-center items-center gap-6 sm:gap-8 md:gap-10 lg:gap-12 w-full">
+
+            {/* Text Section */}
+            <div className="w-full lg:w-1/2 lg:text-left mb-4">
+              <div className="text-base sm:text-lg lg:text-[1rem] md:text-3xl xl:text-[2.5rem] font-bold tracking-tighter font-lobster">
+                <span className="block text-base sm:text-lg text-gray-500 transition tracking-wider">
+                  Hi, Welcome to Chords
+                </span>
+
+                <span className="inline-block bg-clip-text font-lobster cursor-default tracking-wide mr-1 duration-300 transition-all text-lg sm:text-xl lg:text-[2rem] leading-tight sm:leading-none">
+                  Tune Into Your EXG Data
+                </span>
+
+                <span className="inline-block text-lg sm:text-xl lg:text-[2rem] mr-2 tracking-wide duration-300 transition-all leading-tight sm:leading-none">
+                  With
+                </span>
+
+                <span className="inline-block bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent text-lg sm:text-xl lg:text-[2rem] bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all leading-tight sm:leading-none">
+                  Chords
+                </span>
+
+                <div className="w-full text-sm text-gray-500 dark:text-gray-500 font-medium transition-all mt-4 sm:mt-3 tracking-wide">
+                  <span className="inline">Transform bio signals into clear, insightful visuals, enabling deeper </span>
+                  <span className="inline">understanding of physiological patterns and processes.</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-center items-center sm:justify-start md:justify-start gap-3 sm:gap-5 space-y-0 my-10">
                 <Link href="/stream">
-                  <Button>
+                  <Button className="hidden sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-full font-semibold">
                     <Image
-                      src={
-                        currentTheme === "dark"
-                          ? "./assets/dark/favicon.ico"
-                          : "./assets/light/favicon.ico"
-                      }
+                      src={currentTheme === "dark" ? "./assets/dark/favicon.ico" : "./assets/light/favicon.ico"}
                       width={16}
                       height={16}
                       alt="logo"
                       className="mr-2"
                     />
-                    Visualize Now
+                    <span>Visualize Now</span>
                   </Button>
                 </Link>
-                <Link
-                  href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware"
-                  target="_blank"
-                >
+                <Link href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware" target="_blank">
                   <Button
-                    variant={"outline"}
-                    className="flex justify-center items-center"
+                    variant="outline"
+                    className="hidden sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-full border border-gray-300 text-gray-600 font-semibold"
                   >
-                    <GitHubLogoIcon className="mr-2 h-4 w-4" />
-                    <span>Arduino-Firmware</span>
+                    <GitHubLogoIcon className="mr-2 h-5 w-5" />
+                    <span>Arduino Firmware</span>
                   </Button>
                 </Link>
               </div>
             </div>
+
+            {/* Animation Section */}
+            <div className="w-full lg:w-1/2 flex flex-row justify-center items-center">
+              <svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
+                {/* <!-- Static ECG Path --> */}
+                <path id="ecgPath"
+                  fill="none"
+
+                  className="stroke-gray-600"
+                  stroke-width="2"
+                  d="m 0,151.91036
+c 1.4089684,-1.39202 2.8179419,-2.78405 4.4681851,-4.13231 1.6502432,-1.34827 3.5416817,-2.65272 5.8528189,-3.58815 2.311136,-0.93544 5.041824,-1.50181 8.026352,-1.9935 2.984527,-0.49169 6.222708,-0.90867 8.694494,-0.94351 2.471786,-0.0348 4.177047,0.31246 6.199305,0.0836 2.022258,-0.2289 4.361387,-1.03398 6.832335,-1.86309 2.470949,-0.82911 5.073566,-1.6822 7.177224,-2.40615 2.103658,-0.72394 3.708237,-1.31869 5.762729,-1.5884 2.054492,-0.26971 4.558759,-0.21435 6.498614,-0.41988 1.939854,-0.20554 3.31519,-0.67193 4.602769,-1.82816 1.287578,-1.15623 2.487324,-3.0022 3.530011,-4.75273 1.042687,-1.75054 1.928253,-3.40553 2.930166,-5.06322 1.001914,-1.65768 2.120116,-3.31797 3.025582,-4.36086 0.905467,-1.0429 1.598146,-1.46835 2.340165,-1.38478 0.742018,0.0836 1.533331,0.67613 2.358804,1.80648 0.825474,1.13035 1.685057,2.7984 2.532417,4.6308 0.847361,1.8324 1.682448,3.82904 2.421924,5.5969 0.739476,1.76787 1.383299,3.30686 2.169375,4.95085 0.786076,1.64399 1.714361,3.39289 2.473003,4.77641 0.758643,1.38353 1.347608,2.40162 1.833436,3.04871 0.485827,0.64708 0.868495,0.92314 1.238392,0.75947 0.369896,-0.16366 0.727004,-0.76703 1.059198,-2.09126 0.332194,-1.32423 0.639456,-3.36923 0.928193,-6.1011 0.288738,-2.73188 0.558934,-6.15045 0.868146,-10.64747 0.309213,-4.49703 0.657424,-10.07222 0.926815,-14.56848 0.269391,-4.49626 0.459946,-7.91333 0.564546,-11.864862 0.1046,-3.951531 0.12324,-8.437265 0.24807,-12.319313 0.12483,-3.882048 0.355841,-7.160189 0.594626,-11.246823 0.238785,-4.086634 0.485328,-8.9815 0.868959,-15.227791 0.383631,-6.246291 0.904324,-13.843606 1.270866,-20.242696 0.366542,-6.399089 0.578914,-11.599592 0.825642,-15.273484 0.246728,-3.673892 0.527796,-5.820983 0.743951,-7.450531 0.216157,-1.629547 0.367387,-2.741464 0.700637,-2.697678 0.33326,0.04379 0.84851,1.24325 1.2553,3.918753 0.40679,2.675504 0.70509,6.826856 1.04777,11.706554 0.34268,4.879699 0.72972,10.487438 1.10576,17.957982 0.37604,7.470544 0.74105,16.803407 1.07762,23.817415 0.33657,7.014009 0.64468,11.708788 0.82928,17.391016 0.18459,5.682228 0.24566,12.351548 0.46814,17.257868 0.22247,4.90633 0.60634,8.04941 0.98347,14.22494 0.37714,6.17552 0.74752,15.38307 1.21736,22.10594 0.46984,6.72286 1.0391,10.9607 1.5022,14.53279 0.46309,3.57209 0.81999,6.47823 1.16662,8.36498 0.34663,1.88676 0.68298,2.75404 1.12462,3.00595 0.44163,0.25191 0.98851,-0.11155 1.55014,-1.28942 0.56162,-1.17787 1.13795,-3.17006 1.93868,-6.87995 0.80073,-3.7099 1.8258,-9.13725 2.80452,-13.56605 0.97872,-4.4288 1.91103,-7.85881 2.64362,-10.29296 0.73259,-2.43415 1.26542,-3.87232 1.8567,-4.82241 0.59128,-0.95008 1.24096,-1.41204 1.86394,-1.51639 0.62298,-0.10435 1.21922,0.1489 1.83281,0.44756 0.61359,0.29866 1.24449,0.64271 2.08275,0.52793 0.83825,-0.11477 1.8838,-0.68834 3.30454,-3.03162 1.42075,-2.34328 3.21659,-6.45608 4.97147,-10.99867 1.75487,-4.5426 3.46867,-9.5147 5.00259,-14.00225 1.53392,-4.487552 2.88786,-8.490284 3.84014,-11.102991 0.95227,-2.612708 1.50283,-3.835259 2.05443,-4.712306 0.5516,-0.877046 1.1042,-1.408539 1.69746,-1.334752 0.59325,0.07379 1.22712,0.752841 1.96808,3.003871 0.74096,2.25103 1.58897,6.073869 2.593,11.707598 1.00403,5.63373 2.16403,13.07798 3.08806,19.31281 0.92404,6.23483 1.61206,11.25988 2.21371,15.2664 0.60166,4.00651 1.11692,6.99427 1.75325,9.80203 0.63632,2.80776 1.39367,5.43538 1.97584,7.2456 0.58217,1.81022 0.98912,2.80296 1.47237,3.45171 0.48326,0.64874 1.04278,0.95346 1.63677,0.97115 0.594,0.0177 1.22243,-0.25167 2.1727,-1.24317 0.95027,-0.99151 2.22232,-2.7051 3.44483,-4.26899 1.22252,-1.56389 2.39544,-2.97799 3.40604,-3.97841 1.01059,-1.00043 1.85881,-1.58714 2.77056,-1.68394 0.91175,-0.0968 1.88699,0.29633 2.90814,0.44724 1.02115,0.15092 2.08817,0.0596 3.23285,-0.28694 1.14467,-0.34656 2.36694,-0.94838 3.30891,-1.56253 0.94197,-0.61415 1.60358,-1.24061 2.73305,-1.58523 1.12946,-0.34462 2.7267,-0.40738 4.59882,-0.45684 1.87212,-0.0495 4.01899,-0.0856 5.61794,-0.33548 1.59894,-0.24987 2.64985,-0.71344 4.05227,-1.34899 1.40243,-0.63555 3.15626,-1.44303 4.57184,-2.08836 1.41558,-0.64532 2.49284,-1.12845 3.50633,-1.17734 1.01349,-0.0489 1.96316,0.33645 2.80166,0.63525 0.8385,0.2988 1.56578,0.51103 2.44837,0.44262 0.88259,-0.0684 1.92045,-0.41748 3.38571,-1.34269 1.46526,-0.92521 3.35783,-2.4265 5.3355,-4.3712 1.97767,-1.9447 4.04031,-4.33268 5.83434,-6.78245 1.79402,-2.44977 3.31932,-4.96116 4.37436,-6.58675 1.05504,-1.62559 1.63977,-2.3653 2.36626,-2.17635 0.72648,0.18895 1.59468,1.30651 3.10385,4.57937 1.50918,3.27286 3.65924,8.70078 5.15171,12.31497 1.49246,3.61419 2.32727,5.41448 3.12153,6.78414 0.79427,1.36965 1.54795,2.30859 2.12408,2.69433 0.57613,0.38575 0.97468,0.21828 1.42355,-1.34404 0.44887,-1.56231 0.94803,-4.51936 1.31556,-7.8305 0.36753,-3.31114 0.60341,-6.97619 0.78225,-10.03692 0.17885,-3.06074 0.30064,-5.517 0.64367,-10.56359 0.34303,-5.04659 0.90729,-12.68316 1.39442,-22.294541 0.48713,-9.61138 0.89712,-21.196955 1.46027,-33.478869 0.56314,-12.281913 1.2794,-25.259415 1.86178,-33.139148 0.58239,-7.879733 1.03085,-10.661327 1.47898,-10.901076 0.44813,-0.239748 0.89588,2.062317 1.54612,8.734983 0.65023,6.672666 1.5029,17.71545 2.13378,27.18548 0.63089,9.47003 1.03996,17.36677 1.53719,28.534393 0.49724,11.167623 1.0826,25.605398 1.74802,38.164268 0.66541,12.55887 1.41083,23.23812 1.98819,30.44353 0.57737,7.2054 0.98665,10.9366 1.54054,13.67813 0.5539,2.74152 1.25237,4.49324 2.05864,4.40281 0.80627,-0.0904 1.72029,-2.02295 2.6288,-5.20942 0.9085,-3.18647 1.81143,-7.62665 3.10339,-12.69331 1.29196,-5.06666 2.97286,-10.75947 4.11884,-13.65377 1.14598,-2.8943 1.75697,-2.98997 2.8881,-3.31013 1.13112,-0.32016 2.7823,-0.86478 4.6565,-2.78114 1.87421,-1.91637 3.97131,-5.20432 6.4053,-10.96413 2.43398,-5.7598 5.2047,-13.99105 7.02612,-19.629221 1.82141,-5.63817 2.69342,-8.682969 3.47491,-10.608802 0.78148,-1.925834 1.47239,-2.732606 2.18342,-2.516723 0.71102,0.215884 1.44211,1.454392 2.5786,5.791765 1.13649,4.337374 2.6783,11.773291 3.65564,17.530481 0.97734,5.75718 1.39015,9.83531 1.95739,14.54295 0.56724,4.70763 1.28887,10.04447 1.91043,13.98867 0.62157,3.9442 1.14304,6.49556 1.65044,8.66736 0.5074,2.17179 1.0007,3.96389 1.61637,5.524 0.61567,1.56011 1.35368,2.88814 2.2153,3.39299 0.86163,0.50485 1.84681,0.1865 3.35108,-1.06931 1.50427,-1.25582 3.52753,-3.44901 5.62056,-5.21377 2.09304,-1.76475 4.25573,-3.10097 6.08898,-3.92807 1.83324,-0.82709 3.33693,-1.14501 5.23016,-0.94456 1.89323,0.20045 4.17588,0.91925 6.15206,1.00161 1.97618,0.0823 3.64579,-0.47173 5.13936,-1.09221 1.49356,-0.62047 2.811,-1.30729 4.1581,-1.79069 1.3471,-0.48339 2.72378,-0.76333 3.86259,-0.60563 1.13882,0.1577 2.0397,0.75302 3.5206,0.93945 1.4809,0.18643 3.54172,-0.036 5.14366,-0.47132 1.60194,-0.43528 2.74492,-1.08334 3.88793,-1.73141">
+                  {/* <!-- Insert your ECG path data in d="" attribute here --> */}
+                </path>
+
+                {/* <!-- Sweeping Vertical Line matching background color --> */}
+                <line x1="0" y1="0" x2="0" y2="200" className="stroke-background" stroke-width="10" transform="translateZ(0)">
+                  <animateTransform
+                    attributeName="transform"
+                    type="translate"
+                    from="-20,0"
+                    to="400,0"
+                    dur="4s"
+                    begin="0s"
+                    repeatCount="indefinite"
+                    keySplines="0.4 0 0.2 1"
+                    keyTimes="0; 1" />
+                </line>
+              </svg>
+            </div>
+
           </div>
         </div>
-
-        {/* Loader */}
-        {!isImageLoaded && (
-          <div className="loader">
-            <div className="spinner"></div>
-          </div>
-        )}
-
-        {/* Image */}
-        <Image
-          src={imageSrc}
-          alt="Plotter"
-          width={1000}
-          height={1000}
-          priority // Use priority to preload the image
-          className={`mx-auto mt-20 rounded transition-opacity duration-300 ${
-            isImageLoaded ? "opacity-100" : "opacity-0"
-          }`}
-          onLoadingComplete={() => setIsImageLoaded(true)}
-        />
       </section>
     </>
   );

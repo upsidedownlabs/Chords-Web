@@ -3,403 +3,310 @@ import React, {
   useRef,
   useState,
   useCallback,
-  useMemo,
+  useImperativeHandle,
+  forwardRef,
 } from "react";
-import { SmoothieChart, TimeSeries } from "smoothie";
 import { useTheme } from "next-themes";
 import { BitSelection } from "./DataPass";
+import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 
 interface CanvasProps {
-  data: string;
+  pauseRef: React.RefObject<boolean>;
   selectedBits: BitSelection;
   isDisplay: boolean;
   canvasCount?: number;
+  Zoom: number;
 }
 interface Batch {
   time: number;
   values: number[];
 }
 
-const Canvas: React.FC<CanvasProps> = ({
-  data,
-  selectedBits,
-  isDisplay,
-  canvasCount = 6, // default value in case not provided
-}) => {
-  const { theme } = useTheme();
-  const chartRef = useRef<SmoothieChart[]>([]);
-  const seriesRef = useRef<(TimeSeries | null)[]>([]);
-  const [isChartInitialized, setIsChartInitialized] = useState(false);
-  const [isGlobalPaused, setIsGlobalPaused] = useState(true);
-  const batchBuffer = useMemo<Batch[]>(() => [], []);
-  const channels = useMemo(() => Array(canvasCount).fill(true), [canvasCount]);
+const Canvas = forwardRef(
+  (
+    {
+      pauseRef,
+      selectedBits,
+      isDisplay,
+      canvasCount = 6, // default value in case not provided
+      Zoom,
+    }: CanvasProps,
+    ref
+  ) => {
+    const { theme } = useTheme();
+    let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+    const canvasContainerRef = useRef<HTMLDivElement>(null);
+    const [numChannels, setNumChannels] = useState<number>(canvasCount);
+    const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
+    const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
+    const [lines, setLines] = useState<WebglLine[]>([]);
+    const linesRef = useRef<WebglLine[]>([]);
+    const samplingRate = 500; // Set the sampling rate in Hz
+    const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
+    const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
+    let numX: number;
 
-  const getChannelColor = useCallback(
-    (index: number) => {
-      const colorsDark = [
-        "#FF4985",
-        "#79E6F3",
-        "#00FFC1",
-        "#6EC207",
-        "#AD49E1",
-        "#E85C0D",
+    const getpoints = useCallback((bits: BitSelection): number => {
+      switch (bits) {
+        case "ten":
+          return samplingRate * 2;
+        case "fourteen":
+          return samplingRate * 4;
+        default:
+          return 0; // Or any other fallback value you'd like
+      }
+    }, []);
+    numX = getpoints(selectedBits);
+    useEffect(() => {
+      setNumChannels(canvasCount);
+    }, [canvasCount]);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        updateData(data: number[]) {
+          // Reset the sweep positions if the number of channels has changed
+          if (currentSweepPos.current.length !== numChannels) {
+            currentSweepPos.current = new Array(numChannels).fill(0);
+            sweepPositions.current = new Array(numChannels).fill(0);
+          }
+          updatePlots(data, Zoom);
+          if (previousCounter !== null) {
+            // If there was a previous counter value
+            const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
+            if (data[6] !== expectedCounter) {
+              // Check for data loss by comparing the current counter with the expected counter
+              console.warn(
+                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[6]}`
+              );
+            }
+          }
+          previousCounter = data[6]; // Update the previous counter with the current counter
+        },
+      }),
+      [Zoom, numChannels]
+    );
+
+    const createCanvases = () => {
+      if (!canvasContainerRef.current) return;
+
+      // Clean up all existing canvases and their WebGL contexts
+      while (canvasContainerRef.current.firstChild) {
+        const firstChild = canvasContainerRef.current.firstChild;
+        if (firstChild instanceof HTMLCanvasElement) {
+          const gl = firstChild.getContext("webgl");
+          if (gl) {
+            const loseContext = gl.getExtension("WEBGL_lose_context");
+            if (loseContext) {
+              loseContext.loseContext();
+            }
+          }
+        }
+        canvasContainerRef.current.removeChild(firstChild);
+      }
+
+      setCanvases([]);
+      setWglPlots([]);
+      linesRef.current = [];
+      const newCanvases = [];
+      const newWglPlots = [];
+      const newLines = [];
+
+
+      // // Create grid lines
+      const canvasWrapper = document.createElement("div");
+      canvasWrapper.className = "absolute inset-0"; // Make the wrapper fill the parent container
+      const opacityDarkMajor = "0.2"; // Opacity for every 5th line in dark theme
+      const opacityDarkMinor = "0.05"; // Opacity for other lines in dark theme
+      const opacityLightMajor = "0.4"; // Opacity for every 5th line in light theme
+      const opacityLightMinor = "0.1"; // Opacity for other lines in light theme
+      const distanceminor = samplingRate * 0.04;
+      const numGridLines = numX / distanceminor;
+      for (let j = 1; j < numGridLines; j++) {
+        const gridLineX = document.createElement("div");
+        gridLineX.className = "absolute bg-[rgb(128,128,128)]";
+        gridLineX.style.width = "1px";
+        gridLineX.style.height = "100%";
+        const divPoint = (j / numGridLines) * 100
+        const a = parseFloat(divPoint.toFixed(3));
+        gridLineX.style.left = `${a}%`
+        gridLineX.style.top = "0";
+        gridLineX.style.opacity = j % 5 === 0 ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor) : (theme === "dark" ? opacityDarkMinor : opacityLightMinor);
+
+        // Append grid lines to the wrapper
+        canvasWrapper.appendChild(gridLineX);
+      }
+      const horizontalline=50;
+      for (let j = 1; j < horizontalline; j++) {
+        const gridLineY = document.createElement("div");
+        gridLineY.className = "absolute bg-[rgb(128,128,128)]";
+        gridLineY.style.height = "1px";
+        gridLineY.style.width = "100%";
+        const distance = (j / horizontalline) * 100
+        const distancetop = parseFloat(distance.toFixed(3));
+        gridLineY.style.top = `${distancetop}%`;
+        gridLineY.style.left = "0";
+        gridLineY.style.opacity = j % 5 === 0 ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor) : (theme === "dark" ? opacityDarkMinor : opacityLightMinor);
+
+        // Append grid lines to the wrapper
+        canvasWrapper.appendChild(gridLineY);
+      }
+      canvasContainerRef.current.appendChild(canvasWrapper);
+      for (let i = 0; i < numChannels; i++) {
+        const canvasWrapper = document.createElement("div");
+        canvasWrapper.className = "canvas-container relative flex-[1_1_0%]"; // Add relative positioning for absolute grid positioning
+
+        const canvas = document.createElement("canvas");
+        canvas.id = `canvas${i + 1}`;
+        canvas.width = canvasContainerRef.current.clientWidth ;
+        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels) ;
+        canvas.height = canvasHeight;
+        canvas.className = "w-full h-full block rounded-xl";
+
+        // Create a badge for the channel number
+        const badge = document.createElement("div");
+        badge.className = "absolute text-gray-500 text-sm rounded-full p-2 m-2";
+        badge.innerText = `CH${i + 1}`;
+
+        // Append the canvas and badge to the container
+        canvasWrapper.appendChild(badge);
+        canvasWrapper.appendChild(canvas);
+        canvasContainerRef.current.appendChild(canvasWrapper);
+
+        newCanvases.push(canvas);
+        const wglp = new WebglPlot(canvas);
+        newWglPlots.push(wglp);
+        wglp.gScaleY = Zoom;
+        const line = new WebglLine(getLineColor(i, theme), numX);
+        wglp.gOffsetY = 0;
+        line.offsetY = 0;
+        line.lineSpaceX(-1, 2 / numX);
+
+        wglp.addLine(line);
+        newLines.push(line);
+      }
+
+      linesRef.current = newLines;
+      setCanvases(newCanvases);
+      setWglPlots(newWglPlots);
+      setLines(newLines);
+    };
+
+
+    const getLineColor = (i: number, theme: string | undefined): ColorRGBA => {
+      // Define bright colors
+      const colorsDark: ColorRGBA[] = [
+        new ColorRGBA(1, 0.286, 0.529, 1), // Bright Pink
+        new ColorRGBA(0.475, 0.894, 0.952, 1), // Light Blue
+        new ColorRGBA(0, 1, 0.753, 1), // Bright Cyan
+        new ColorRGBA(0.431, 0.761, 0.031, 1), // Bright Green
+        new ColorRGBA(0.678, 0.286, 0.882, 1), // Bright Purple
+        new ColorRGBA(0.914, 0.361, 0.051, 1), // Bright Orange
       ];
-      const colorsLight = [
-        "#D10054",
-        "#007A8C",
-        "#0A6847",
-        "#674188",
-        "#E65C19",
-        "#2E073F",
+      const colorsLight: ColorRGBA[] = [
+        new ColorRGBA(0.820, 0.000, 0.329, 1), // #D10054 - Bright Pink
+        new ColorRGBA(0.000, 0.478, 0.549, 1), // #007A8C - Light Blue
+        new ColorRGBA(0.039, 0.408, 0.278, 1), // #0A6847 - Dark Green
+        new ColorRGBA(0.404, 0.255, 0.533, 1), // #674188 - Bright Purple
+        new ColorRGBA(0.902, 0.361, 0.098, 1), // #E65C19 - Bright Orange
+        new ColorRGBA(0.180, 0.027, 0.247, 1), // #2E073F - Dark Purple
       ];
+
+
+      // Return color based on the index, cycling through if necessary
       return theme === "dark"
-        ? colorsDark[index] || colorsDark[colorsDark.length - 1]
-        : colorsLight[index] || colorsLight[colorsLight.length - 1];
-    },
-    [theme]
-  );
+        ? colorsDark[i % colorsDark.length]
+        : colorsLight[i % colorsLight.length];
+    };
 
-  const getThemeColors = useCallback(() => {
-    return theme === "dark"
-      ? {
-          background: "rgba(2, 8, 23)",
-          line: "rgba(0, 255, 0, 0.8)",
-          text: "#ffffff",
-          grid: "#333333",
-        }
-      : {
-          background: "rgba(255, 255, 255)",
-          line: "rgba(0, 100, 0, 0.8)",
-          text: "#000000",
-          grid: "#cccccc",
-        };
-  }, [theme]);
+    const updatePlots = useCallback(
+      (data: number[], Zoom: number) => {
 
-  const getMaxValue = useCallback((bits: BitSelection): number => {
-    switch (bits) {
-      case "ten":
-        return 1024;
-      case "twelve":
-        return 4096;
-      case "fourteen":
-        return 16384;
-      default:
-        return Infinity;
-    }
-  }, []);
-
-  const shouldAutoScale = useCallback((bits: BitSelection): boolean => {
-    return bits === "auto";
-  }, []);
-
-  // Function to resize canvases based on their parent elements
-  const resizeCanvas = () => {
-    channels.forEach((_, index) => {
-      // Loop through each channel and its corresponding index
-      const canvas = document.getElementById(
-        `smoothie-chart-${index + 1}` // Get the canvas element for the current channel
-      ) as HTMLCanvasElement;
-
-      const parentDiv = canvas?.parentElement; // Get the parent element of the canvas
-      if (parentDiv) {
-        // If the parent element exists
-        canvas.height = parentDiv.offsetHeight - 2; // Set the canvas height to the parent’s height minus 2 pixels
-        canvas.width = parentDiv.offsetWidth; // Set the canvas width to the parent’s width
-      }
-    });
-  };
-
-  // Callback function to update chart colors and options based on the current theme and settings
-  const updateChartColors = useCallback(() => {
-    const colors = getThemeColors(); // Retrieve the current theme colors
-    chartRef.current.forEach((chart, index) => {
-      // Loop through each chart and its corresponding index
-      if (chart) {
-        // Check if the chart instance exists
-        chart.options.grid = {
-          // Update grid options for the chart
-          ...chart.options.grid, // Preserve existing grid options
-          fillStyle: colors.background, // Set the grid background color
-          strokeStyle: colors.grid, // Set the grid stroke color
-        };
-
-        if (chart.options.labels) {
-          // Check if labels are defined in the chart options
-          chart.options.labels.fillStyle = colors.text; // Set the label text color
-        }
-
-        // Set scaling options for the chart based on selectedBits
-        if (shouldAutoScale(selectedBits)) {
-          // If auto-scaling is enabled
-          chart.options.maxValue = undefined; // Remove max value limit
-          chart.options.minValue = undefined; // Remove min value limit
-        } else {
-          // If auto-scaling is not enabled
-          chart.options.maxValue = getMaxValue(selectedBits); // Set max value based on selectedBits
-          chart.options.minValue = shouldAutoScale(selectedBits)
-            ? undefined // Set min value to undefined if auto-scaling is enabled
-            : 0; // Set min value to 0 otherwise
-        }
-
-        const series = seriesRef.current[index]; // Get the corresponding time series for the chart
-        if (series) {
-          // Check if the series instance exists
-          chart.removeTimeSeries(series); // Remove the existing time series from the chart
-          chart.addTimeSeries(series, {
-            // Add the time series back with updated styling
-            strokeStyle: getChannelColor(index), // Set the stroke color based on the channel index
-            lineWidth: 1, // Set the line width
-          });
-        }
-
-        const canvas = document.getElementById(
-          `smoothie-chart-${index + 1}` // Get the canvas element for the current chart
-        ) as HTMLCanvasElement;
-
-        if (canvas) {
-          // Check if the canvas element exists
-          chart.streamTo(canvas, 500); // Start streaming chart data to the canvas with a 500 ms interval
-        }
-      }
-    });
-  }, [
-    getThemeColors, // Dependency: function to get theme colors
-    selectedBits, // Dependency: currently selected bits for scaling
-    getMaxValue, // Dependency: function to get the maximum value
-    shouldAutoScale, // Dependency: function to check if auto-scaling should be applied
-    getChannelColor, // Dependency: function to get the color for a specific channel
-  ]);
-
-  // Callback function to process a batch of data and append it to the corresponding time series
-  const processBatch = useCallback(() => {
-    // Exit early if the batch buffer is empty or the global state is paused
-    if (batchBuffer.length === 0 || isGlobalPaused) return;
-
-    // Iterate over each batch in the batch buffer
-    batchBuffer.forEach((batch: Batch) => {
-      // Iterate over each channel to update the corresponding time series
-      channels.forEach((_, index) => {
-        const series = seriesRef.current[index]; // Get the time series for the current channel
-        if (
-          series && // Check if the series exists
-          batch.values[index] !== undefined && // Ensure the batch has a value for the current channel
-          !isNaN(batch.values[index]) // Check that the value is a valid number
-        ) {
-          series.append(batch.time, batch.values[index]); // Append the time and value to the series
-        }
-      });
-    });
-
-    // Clear the batch buffer after processing
-    batchBuffer.length = 0;
-  }, [channels, batchBuffer, isGlobalPaused]); // Dependencies for the useCallback
-
-  // Improve the data update to handle data flow more consistently
-  const handleDataUpdate = useCallback(
-    (line: string) => {
-      if (line.trim() !== "" && isDisplay) {
-        const sensorValues = line.split(",").map(Number).slice(0);
-        const timestamp = Date.now();
-        batchBuffer.push({ time: timestamp, values: sensorValues });
-
-        if (batchBuffer.length >= 5) {
-          processBatch(); // Process batches more frequently
-        }
-      }
-    },
-    [batchBuffer, isDisplay, processBatch]
-  );
-
-  useEffect(() => {
-    if (isChartInitialized) {
-      const lines = String(data).split("\n");
-      lines.forEach(handleDataUpdate);
-    }
-  }, [data, isChartInitialized, handleDataUpdate]); // Check these dependencies
-
-  useEffect(() => {
-    // Initialize charts only when the number of channels (canvasCount) changes
-    const initializeCharts = () => {
-      const colors = getThemeColors(); // Get the current theme colors
-
-      // Clean up existing charts before initializing new ones
-      chartRef.current.forEach((chart, index) => {
-        if (chart) {
-          chart.stop(); // Stop the chart streaming to prevent data overlap
-          const series = seriesRef.current[index]; // Get the corresponding time series for the chart
-          if (series) {
-            chart.removeTimeSeries(series); // Remove the existing time series from the chart
+        wglPlots.forEach((wglp, index) => {
+          if (wglp) {
+            try {
+              wglp.gScaleY = Zoom; // Adjust the zoom value
+            } catch (error) {
+              console.error(
+                `Error setting gScaleY for WebglPlot instance at index ${index}:`,
+                error
+              );
+            }
+          } else {
+            console.warn(`WebglPlot instance at index ${index} is undefined.`);
           }
-        }
-      });
+        });
 
-      // Re-initialize all channels
-      channels.forEach((_, index) => {
-        // Loop through each channel to create a new chart
-        const canvas = document.getElementById(
-          `smoothie-chart-${index + 1}` // Get the canvas element for the current channel
-        ) as HTMLCanvasElement;
-        if (canvas) {
-          // Check if the canvas element exists
-          const chart = new SmoothieChart({
-            // Create a new SmoothieChart instance with the specified options
-            responsive: true, // Make the chart responsive to parent container
-            millisPerPixel: 4, // Define the time interval in milliseconds per pixel
-            interpolation: "bezier", // Set the interpolation style for the chart lines
-            limitFPS: 100, // Limit the frames per second for performance
-            grid: {
-              // Define grid options
-              fillStyle: colors.background, // Set the grid background color
-              strokeStyle: colors.grid, // Set the grid line color
-              borderVisible: true, // Make the grid border visible
-              millisPerLine: 1000, // Set the time interval for grid lines
-              lineWidth: 1, // Set the grid line width
-            },
-            labels: {
-              // Define label options
-              fillStyle: colors.text, // Set the label text color
-            },
-            minValue: shouldAutoScale(selectedBits) ? undefined : 0, // Set minimum value based on auto-scaling
-            maxValue: shouldAutoScale(selectedBits)
-              ? undefined
-              : getMaxValue(selectedBits), // Set maximum value based on auto-scaling
-          });
+        linesRef.current.forEach((line, i) => {
+          const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust according to your ADC resolution
+          const yScale = 2 / bitsPoints;
+          const chData = (data[i] - bitsPoints / 2) * yScale;
 
-          const series = new TimeSeries(); // Create a new TimeSeries instance
-          chartRef.current[index] = chart; // Store the chart in the ref array
-          seriesRef.current[index] = series; // Store the series in the ref array
+          // Use a separate sweep position for each line
+          currentSweepPos.current[i] = sweepPositions.current[i];
+          // Plot the new data at the current sweep position
+          line.setY(currentSweepPos.current[i] % line.numPoints, chData);
 
-          chart.addTimeSeries(series, {
-            // Add the time series to the chart with specified styling
-            strokeStyle: getChannelColor(index), // Set the stroke color based on the channel index
-            lineWidth: 1, // Set the line width
-          });
+          // Clear the next point to create a gap (optional, for visual effect)
+          const clearPosition = (currentSweepPos.current[i] + (numX / 100)) % line.numPoints;
+          line.setY(clearPosition, NaN);
 
-          chart.streamTo(canvas, 100); // Stream data to the canvas at 100 ms intervals
-        }
-      });
-      setIsChartInitialized(true); // Update state to indicate charts have been initialized
-    };
+          // Increment the sweep position for the current line
+          sweepPositions.current[i] = (currentSweepPos.current[i] + 1) % line.numPoints;
+        });
+      },
+      [lines, wglPlots, numChannels, theme]
+    );
 
-    initializeCharts(); // Call the initialize function when canvasCount changes
-  }, [canvasCount]); // Dependency array: re-run the effect only when canvasCount changes
+    useEffect(() => {
+      createCanvases();
+    }, [numChannels, theme]);
 
-  // Update chart properties (theme, selectedBits) without reinitializing the charts
-  useEffect(() => {
-    if (isChartInitialized) {
-      updateChartColors(); // Update chart properties (colors, max/min values, etc.)
-    }
-  }, [theme, selectedBits, isChartInitialized, updateChartColors]);
-
-  useEffect(() => {
-    if (isChartInitialized) {
-      updateChartColors();
-    }
-  }, [theme, isChartInitialized, updateChartColors]);
-
-  useEffect(() => {
-    setIsGlobalPaused(!isDisplay);
-
-    chartRef.current.forEach((chart) => {
-      if (chart) {
-        if (isDisplay) {
-          chart.start();
-        } else {
-          chart.stop();
-        }
+    const getValue = useCallback((bits: BitSelection): number => {
+      switch (bits) {
+        case "ten":
+          return 10;
+        case "twelve":
+          return 12;
+        case "fourteen":
+          return 14;
+        default:
+          return 0; // Or any other fallback value you'd like
       }
-    });
-  }, [isDisplay]);
+    }, []);
 
-  useEffect(() => {
-    resizeCanvas(); // Force resize on channel changes
+    const animate = useCallback(() => {
+      if (pauseRef.current) {
+        wglPlots.forEach((wglp) => wglp.update());
+        requestAnimationFrame(animate);
+      }
+    }, [wglPlots, pauseRef]);
 
-    const handleResize = () => {
-      resizeCanvas();
-    };
+    useEffect(() => {
+      if (pauseRef.current) {
+        requestAnimationFrame(animate);
+      }
+    }, [pauseRef.current, animate]);
 
-    // Add resize event listener
-    window.addEventListener("resize", handleResize);
+    useEffect(() => {
+      const handleResize = () => {
+        createCanvases();
+      };
 
-    // Cleanup the event listener when component unmounts or when dependencies change
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [canvasCount, channels]); // Dependencies include canvasCount and channels
+      window.addEventListener("resize", handleResize);
 
-  useEffect(() => {
-    const updateChannels = () => {
-      channels.forEach((_, index) => {
-        if (chartRef.current[index]) {
-          const chart = chartRef.current[index];
-          chart.options.maxValue = shouldAutoScale(selectedBits)
-            ? undefined
-            : getMaxValue(selectedBits);
-          chart.options.minValue = shouldAutoScale(selectedBits)
-            ? undefined
-            : 0;
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    }, [createCanvases,]);
 
-          const series = seriesRef.current[index];
-          if (series) {
-            chart.removeTimeSeries(series);
-            chart.addTimeSeries(series, {
-              strokeStyle: getChannelColor(index),
-              lineWidth: 1,
-            });
-          }
-        }
-      });
-    };
-
-    updateChannels();
-  }, [canvasCount, selectedBits]);
-
-  const getHeightClass = (count: number) => {
-    switch (count) {
-      case 1:
-        return "h-[70vh]"; // Full height of the container for one canvas
-      case 2:
-        return "h-[35vh]"; // 50% of the container height for two canvases
-      case 3:
-        return "h-[23.33vh]"; // Approximately 1/3rd for three canvases
-      case 4:
-        return "h-[17.5vh]"; // Approximately 1/4th for four canvases
-      case 5:
-        return "h-[14vh]"; // For five canvases, slightly smaller
-      case 6:
-        return "h-[11.67vh]"; // 1/6th of the container
-      default:
-        return "h-[70vh]"; // Default for a single canvas
-    }
-  };
-
-  return (
-    <div className="flex justify-center items-center h-[85vh] mx-4">
-      {/* Canvas container taking 70% of the screen height */}
-      <div className="flex flex-col justify-center items-start w-full px-4">
-        <div className="grid w-full h-full relative">
-          {channels.map((_, index) => (
-            <div
-              key={index}
-              className={`border border-secondary-foreground w-full ${getHeightClass(
-                channels.length
-              )} relative bg-white dark:bg-gray-900`}
-            >
-              {/* Badge for Channel Number */}
-              <span className="absolute top-1 left-1 transform -translate-y-1/20 translate-x-1/6 text-gray-500 text-sm rounded-full">
-                {`CH${index + 1}`}
-              </span>
-
-              <canvas
-                id={`smoothie-chart-${index + 1}`}
-                className="w-full h-full m-0 p-0"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
+    return (
+      <main className=" flex flex-col flex-[1_1_0%] min-h-80 bg-highlight  rounded-2xl m-4 relative"
+        ref={canvasContainerRef}
+      >
+      </main>
+    );
+  }
+);
+Canvas.displayName = "Canvas";
 export default Canvas;
