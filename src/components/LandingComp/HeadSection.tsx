@@ -64,7 +64,7 @@ const HeadSection: React.FC = () => {
 
               <div className="flex flex-col sm:flex-row justify-center items-center sm:justify-start md:justify-start gap-3 sm:gap-5 space-y-0 my-10">
                 <Link href="/stream">
-                  <Button className="hidden sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-full font-semibold">
+                  <Button className="hidden sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-xl font-semibold">
                     <Image
                       src={currentTheme === "dark" ? "./assets/dark/favicon.ico" : "./assets/light/favicon.ico"}
                       width={16}
@@ -78,7 +78,7 @@ const HeadSection: React.FC = () => {
                 <Link href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware" target="_blank">
                   <Button
                     variant="outline"
-                    className="hidden sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-full border border-gray-300 text-gray-600 font-semibold"
+                    className="hidden sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-xl border border-gray-300 text-gray-600 font-semibold"
                   >
                     <GitHubLogoIcon className="mr-2 h-5 w-5" />
                     <span>Arduino Firmware</span>

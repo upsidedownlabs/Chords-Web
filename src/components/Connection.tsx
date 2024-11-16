@@ -742,7 +742,7 @@ const Connection: React.FC<ConnectionProps> = ({
     <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
       {isRecordingRef.current && (
         <div className="flex items-center space-x-1 w-min ml-2">
-          <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded"
+          <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
           >
             {formatTime(elapsedTime)}
           </button>
@@ -754,7 +754,7 @@ const Connection: React.FC<ConnectionProps> = ({
             >
               <PopoverTrigger asChild>
                 <Button
-                 className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded"
+                 className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded-xl"
                   variant="destructive"
                 >
                   {endTimeRef.current === null ? (
