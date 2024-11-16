@@ -38,7 +38,7 @@ const HeadSection: React.FC = () => {
           <div className="flex flex-col lg:flex-row justify-center items-center gap-6 sm:gap-8 md:gap-10 lg:gap-12 w-full">
 
             {/* Text Section */}
-            <div className="w-full lg:w-1/2 lg:text-left mb-4">
+            <div className="w-full md:px-8 lg:px-0 lg:w-1/2 lg:text-left mb-4">
               <div className="text-base sm:text-lg lg:text-[1rem] md:text-3xl xl:text-[2.5rem] font-bold tracking-tighter font-lobster">
                 <span className="block text-base sm:text-lg text-gray-500 transition tracking-wider">
                   Hi, Welcome to Chords
@@ -88,7 +88,7 @@ const HeadSection: React.FC = () => {
             </div>
 
             {/* Animation Section */}
-            <div className="w-full lg:w-1/2 flex flex-row justify-center items-center">
+            <div className="w-full md:px-8 lg:px-0 lg:w-1/2 flex flex-row justify-center items-center">
               <svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
                 {/* <!-- Static ECG Path --> */}
                 <path id="ecgPath"
