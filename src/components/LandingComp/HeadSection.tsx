@@ -57,7 +57,7 @@ const HeadSection: React.FC = () => {
                 </span>
 
                 <div className="w-full text-sm text-gray-500 dark:text-gray-500 font-medium transition-all mt-4 sm:mt-3 tracking-wide">
-                  <span className="inline">Transform bio signals into clear, insightful visuals, enabling deeper </span>
+                  <span className="inline">Transform biopotential signals into clear, insightful visuals, enabling deeper </span>
                   <span className="inline">understanding of physiological patterns and processes.</span>
                 </div>
               </div>
