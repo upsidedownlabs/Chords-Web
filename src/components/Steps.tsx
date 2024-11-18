@@ -100,7 +100,7 @@ const Steps: React.FC = () => {
           className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
           onClick={closeModal}
         >
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full  2xl:max-w-3xl">
             <Image
               alt={selectedItem.title}
               src={selectedItem.image}
