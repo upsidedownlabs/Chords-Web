@@ -53,7 +53,7 @@ const CardSlider = () => {
   useEffect(() => {
     // Trigger fade-in animation on image change
     setFadeIn(true);
-    const timer = setTimeout(() => setFadeIn(false), 1000); // Reset after animation completes
+    const timer = setTimeout(() => setFadeIn(false), 0); // Reset after animation completes
     return () => clearTimeout(timer); // Cleanup timer
   }, [currentIndex]);
   const currentCard = cards[currentIndex];
