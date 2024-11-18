@@ -75,7 +75,7 @@ const CardSlider = () => {
     <div className="container grid items-center justify-center text-left max-w-7xl px-4 sm:px-24 md:px-24 lg:px-12 xl:px-6">
       {/* Heading */}
       <div className="space-y-4 w-full">
-        <h2 className="text-2xl font-bold tracking-wide sm:text-3xl md:text-3xl pb-8 w-full">
+        <h2 className="text-lg font-bold tracking-wide sm:text-3xl md:text-3xl pb-8 w-full">
           Get Started in Few Steps
         </h2>
       </div>

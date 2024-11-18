@@ -66,7 +66,7 @@ const Stack = () => {
         <div className="space-y-6 text-left ">
           <div className="space-y-3">
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold tracking-wide sm:text-3xl md:text-3xl">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-wide ">
                 <span className="block">{/* Force line break */}
                   <Chords /> is open-source,
                 </span>
@@ -74,10 +74,10 @@ const Stack = () => {
                 <span className="block">{/* Force line break */}
                   and free to use.
                 </span>
-              </h2>
+              </h1>
             </div>
 
-            <p className="max-w-md pt-6 text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+            <p className="text-xs sm:text-sm md:text-base lg:text-lg text-muted-foreground">
               It is powered by the following technologies, making it super fast, efficient, and reliable.
             </p>
           </div>
