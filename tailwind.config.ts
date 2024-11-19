@@ -18,6 +18,9 @@ const config = {
       },
     },
     extend: {
+      screens: {
+        '2xl': '1400px',
+      },
       fontFamily: {
         rancho: ['Rancho', 'sans-serif'],
       },

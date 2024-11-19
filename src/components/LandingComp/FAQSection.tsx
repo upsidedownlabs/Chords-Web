@@ -104,7 +104,7 @@ const FAQSection = () => {
       answer: (
         <>
           Chords supports an array format: [A0, A1, ..., A5, counter], where
-           A0-A5 are raw signal values and counter is a uint8_t (0-255). Array
+          A0-A5 are raw signal values and counter is a uint8_t (0-255). Array
           example : [468, 472, 463, 466, 465, 434, 10]. For implementation
           details, see our{" "}
           <Link
@@ -166,11 +166,13 @@ const FAQSection = () => {
     },
   ];
   return (
-    <section className="w-full py-8 pb-12 md:pb-24 lg:pb-24 mx-auto lg:md:sm:px-0 px-3">
-      <h1 className="text-3xl font-bold text-center text-foreground md:text-4xl lg:text-5xl">
-        Frequently Asked Questions
-      </h1>
-      <div className="mx-auto mt-8 max-w-6xl">
+    <section className="w-full pb-8 md:pb-24 lg:pb-24 mx-auto lg:md:sm:px-0 px-4 md:px-24 lg:px-12">
+      <div className="mx-auto mt-8 max-w-6xl xl:px-8 ">
+        <div className="space-y-4">
+          <h1 className="text-2xl font-bold tracking-wide  sm:text-3xl md:text-3xl text-left text-foreground pb-8">
+            Frequently Asked Questions
+          </h1>
+        </div>
         <Accordion type="single" collapsible className=" max-w-7xl">
           {FAQs.map((faq, index) => (
             <AccordionItem value={`item-${index}`} key={index}>

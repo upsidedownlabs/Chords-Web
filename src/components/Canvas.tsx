@@ -87,9 +87,6 @@ const Canvas = forwardRef(
       [Zoom, numChannels]
     );
 
-
-
-
     const createCanvases = () => {
       if (!canvasContainerRef.current) return;
 
@@ -164,7 +161,7 @@ const Canvas = forwardRef(
         canvas.width = canvasContainerRef.current.clientWidth ;
         const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels) ;
         canvas.height = canvasHeight;
-        canvas.className = "w-full h-full block rounded-2xl";
+        canvas.className = "w-full h-full block rounded-xl";
 
         // Create a badge for the channel number
         const badge = document.createElement("div");
@@ -304,7 +301,7 @@ const Canvas = forwardRef(
     }, [createCanvases,]);
 
     return (
-      <main className=" flex flex-col flex-[1_1_0%] min-h-100 bg-highlight  rounded-2xl m-4 relative"
+      <main className=" flex flex-col flex-[1_1_0%] min-h-80 bg-highlight  rounded-2xl m-4 relative"
         ref={canvasContainerRef}
       >
       </main>

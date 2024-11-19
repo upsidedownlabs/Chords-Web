@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Card, CardContent } from '../ui/card';
+
 
 const CardSlider = () => {
   const cards = [
@@ -31,6 +31,7 @@ const CardSlider = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
 
   useEffect(() => {
     // Declare the interval variable with a clear type.
@@ -65,102 +66,106 @@ const CardSlider = () => {
 
   return (
     <section className="flex flex-col mt-12">
-      <div className="container grid items-center justify-center text-center  max-w-7xl">
-        <div className="space-y-4">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl pb-8">
-            Get Started in Few Steps
-          </h2>
-        </div>
-        <div className="relative mx-16  after:absolute after:left-8 after:right-8 after:top-1/2 after:block after:h-0.5 after:-translate-y-1/2 after:rounded-lg after:bg-primary max-w-7xl items-center ">
+    <div className="container grid items-center justify-center text-left max-w-7xl px-4 sm:px-24 md:px-24 lg:px-12 xl:px-6">
+      {/* Heading */}
+      <div className="space-y-4 w-full">
+        <h2 className="text-lg font-bold tracking-wide sm:text-3xl md:text-3xl pb-8 w-full">
+          Get Started in Few Steps
+        </h2>
+      </div>
+
+        {/* Progress Line and Steps for Small and Medium Screens */}
+        <div className="relative after:absolute after:left-8 after:right-8 after:top-1/2 after:block after:h-0.5 after:-translate-y-1/2 after:rounded-lg after:bg-gray-400 max-w-7xl items-center lg:hidden">
           <ol className="relative z-10 flex justify-between text-sm font-medium text-primary">
             {Array.from({ length: 4 }).map((_, index) => (
-              <li className="flex items-center  bg-background p-2" key={index}>
-                <button className={`size-6 rounded-full text-center text-[15px]/6 font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-400'
-                  }`}
+              <li className="flex items-center bg-background p-2" key={index}>
+                <button
+                  className={`size-6 rounded-full text-center text-[15px] font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-400'}`}
                   onMouseEnter={() => setIndex(index)}
                   onMouseLeave={() => setIsPaused(false)}
                 >
-                  <span
-                    className={`size-6 rounded-full text-center text-[15px]/6 font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-400'
-                      }`}
-                  >
-                    {index + 1}
-                  </span>
+                  <span>{index + 1}</span>
                 </button>
               </li>
             ))}
           </ol>
         </div>
-        <div className="flex justify-between w-full max-w-7xl ">
-          <div className="text-center pl-10">
-            <p className="text-muted-foreground hidden sm:block">
-              Hardware
-            </p>
-          </div>
 
+        {/* Labels for each step (shown on small and medium screens) */}
+        <div className="flex justify-between w-full max-w-7xl lg:hidden mb-6">
           <div className="text-center pl-10">
-            <p className="text-muted-foreground hidden sm:block">
-              Firmware
-            </p>
+            <p className="text-muted-foreground hidden sm:block">Hardware</p>
           </div>
-
+          <div className="text-center pl-10">
+            <p className="text-muted-foreground hidden sm:block">Firmware</p>
+          </div>
           <div className="text-center pl-7">
-            <p className="text-muted-foreground hidden sm:block">
-              Connection
-            </p>
+            <p className="text-muted-foreground hidden sm:block">Connection</p>
           </div>
-
           <div className="text-center">
-            <p className="text-muted-foreground pr-10 hidden sm:block">
-              Visualization
-            </p>
+            <p className="text-muted-foreground pr-10 hidden sm:block">Visualization</p>
           </div>
         </div>
 
-        <div className="container flex flex-col sm:flex-row md:flex-row items-center justify-center text-center max-w-7xl">
-          {/* Left Side - Image */}
-          <div className=" w-full h-auto mt-10">
-            <Image
-              src={currentCard.image}
-              alt={currentCard.title}
-              width={1150}
-              height={400}
-              className="rounded-md object-cover  cursor-pointer"
-              onMouseEnter={() => setIsPaused(true)}
-              onMouseLeave={() => setIsPaused(false)}
-              onClick={handleImageClick}
-            />
-          </div>
-        </div>
+        {/* Main Content with Sidebar on Right for Large Screens */}
+
+    <div className="flex flex-col lg:flex-row items-center justify-between text-center max-w-6xl">
+  {/* Image */}
+  <div className="w-full sm:w-full md:w-full lg:w-[90%] h-auto">
+    <Image
+      src={currentCard.image}
+      alt={currentCard.title}
+      width={1000}
+      height={500}
+      className={`rounded-md object-cover cursor-pointer lg:max-h-[500px] transition-opacity duration-500 ease-in-out`}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onClick={handleImageClick}
+    />
+  </div>
+
+  {/* Index Sidebar for Large Screens */}
+  <div className="hidden lg:flex flex-col items-center ml-8">
+    <ol className="space-y-4 text-sm font-medium text-primary">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <li className="flex items-center bg-background p-2" key={index}>
+          <button
+            className={`size-2 sm:size-6 rounded-full text-center text-[10px] sm:text-[15px] font-bold text-background ${index === currentIndex ? 'bg-primary' : 'bg-gray-400'}`}
+            onMouseEnter={() => setIndex(index)}
+            onMouseLeave={() => setIsPaused(false)}
+          >
+            {index + 1}
+          </button>
+        </li>
+      ))}
+    </ol>
+  </div>
+</div>
+
         {/* Modal for Enlarged Image */}
         {isModalOpen && (
           <div
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
             onClick={closeModal}
           >
-            <div className="relative bg-white p-4 rounded-lg shadow-lg">
+            <div className="opacity-100 transition-opacity duration-500">
               <Image
                 src={currentCard.image}
                 alt={currentCard.title}
                 width={1200}
                 height={1000}
-                className="rounded-md object-cover cursor-pointer"
+                className="rounded-md object-cover cursor-pointer transition-opacity duration-500 ease-in-out"
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}
+                onClick={handleImageClick}
               />
-              <button
-                onClick={closeModal}
-                className="absolute top-2 right-2 text-white bg-red-500 p-2 rounded-full shadow-lg hover:bg-red-600 transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-600"
-              >
-                &times;
-              </button>
-
             </div>
           </div>
         )}
-
       </div>
     </section>
+
+
   );
 };
 

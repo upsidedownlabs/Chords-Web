@@ -37,7 +37,7 @@ import {
 
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
-  dataSteam: (data: number[]) => void;
+  datastream: (data: number[]) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
@@ -52,7 +52,7 @@ interface ConnectionProps {
 
 const Connection: React.FC<ConnectionProps> = ({
   onPauseChange,
-  dataSteam,
+  datastream,
   Connection,
   setSelectedBits,
   isDisplay,
@@ -204,6 +204,7 @@ const Connection: React.FC<ConnectionProps> = ({
       connectToDevice();
     }
   };
+  let lastConnectedPort: SerialPort | null = null;
 
   const connectToDevice = async () => {
     try {
@@ -211,7 +212,7 @@ const Connection: React.FC<ConnectionProps> = ({
         await disconnectDevice();
       }
 
-      const port = await navigator.serial.requestPort();
+      const port = lastConnectedPort || await navigator.serial.requestPort();
       await port.open({ baudRate: 230400 });
       Connection(true);
       setIsConnected(true);
@@ -219,7 +220,7 @@ const Connection: React.FC<ConnectionProps> = ({
       setIsDisplay(true);
       isConnectedRef.current = true;
       portRef.current = port;
-
+      lastConnectedPort = port;
       toast.success("Connection Successful", {
         description: (
           <div className="mt-2 flex flex-col space-y-1">
@@ -358,7 +359,7 @@ const Connection: React.FC<ConnectionProps> = ({
               }
               const counter = packet[2]; // Extract the counter value from the packet
               channelData.push(counter); // Add the counter to the channel data
-              dataSteam(channelData); // Pass the channel data to the LineData function for further processing
+              datastream(channelData); // Pass the channel data to the LineData function for further processing
 
               if (isRecordingRef.current) {
                 // Check if recording is enabled
@@ -741,7 +742,7 @@ const Connection: React.FC<ConnectionProps> = ({
     <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
       {isRecordingRef.current && (
         <div className="flex items-center space-x-1 w-min ml-2">
-          <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded"
+          <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
           >
             {formatTime(elapsedTime)}
           </button>
@@ -753,7 +754,7 @@ const Connection: React.FC<ConnectionProps> = ({
             >
               <PopoverTrigger asChild>
                 <Button
-                 className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded"
+                 className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded-xl"
                   variant="destructive"
                 >
                   {endTimeRef.current === null ? (
@@ -818,7 +819,7 @@ const Connection: React.FC<ConnectionProps> = ({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button className="bg-primary gap-2" onClick={handleClick}>
+            <Button className="flex items-center justify-center gap-1 py-2 px-6 sm:py-3 sm:px-8 rounded-xl font-semibold" onClick={handleClick}>
               {isConnected ? (
                 <>
                   Disconnect
@@ -846,7 +847,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-r-none"
+                    className="rounded-xl rounded-r-none"
                     onClick={decreaseZoom}
                     disabled={Zoom === 1 || !isDisplay}
                   >
@@ -882,7 +883,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-l-none"
+                    className="rounded-xl rounded-l-none"
                     onClick={increaseZoom}
                     disabled={Zoom === 10 || !isDisplay}
                     
@@ -906,7 +907,7 @@ const Connection: React.FC<ConnectionProps> = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button onClick={togglePause}>
+              <Button className="rounded-xl" onClick={togglePause}>
                 {isDisplay ? (
                   <Pause className="h-5 w-5" />
                 ) : (
@@ -929,6 +930,7 @@ const Connection: React.FC<ConnectionProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+              className="rounded-xl"
                 onClick={handleRecord}
                 disabled={isRecordButtonDisabled || !isDisplay}
               >
@@ -958,7 +960,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-r-none"
+                    className="rounded-xl rounded-r-none"
                     onClick={saveData}
                     disabled={!hasData}
                   >
@@ -976,7 +978,7 @@ const Connection: React.FC<ConnectionProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className="rounded-r-none mr-1"
+                  className="rounded-xl rounded-r-none mr-1"
                   onClick={saveData}
                   disabled={!hasData}
                 >
@@ -984,14 +986,14 @@ const Connection: React.FC<ConnectionProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Save Data as Zip</p>
+                <p>Save Recording</p>
               </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className="rounded-l-none"
+                  className="rounded-xl rounded-l-none"
                   onClick={deleteDataFromIndexedDB}
                   disabled={!hasData}
                 >
@@ -999,7 +1001,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Delete All Data</p>
+                <p>Delete Recording</p>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -1015,7 +1017,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-r-none"
+                    className="rounded-xl rounded-r-none"
                     onClick={decreaseCanvas}
                     disabled={canvasCount === 1 || !isDisplay || recData}
                   >
@@ -1059,7 +1061,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-l-none"
+                    className="rounded-xl rounded-l-none"
                     onClick={increaseCanvas}
                     disabled={canvasCount >= 6 || !isDisplay || recData}
                   >

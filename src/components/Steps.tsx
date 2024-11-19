@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Card, CardContent } from "./ui/card";
 import {
   Carousel,
   CarouselContent,
@@ -7,114 +6,52 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "./ui/carousel";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table";
 import Link from "next/link";
-import { Badge } from "./ui/badge";
 import Image from "next/image";
 
+// Define the type for carousel items
+type CarouselItemType = {
+  title: string;
+  image: string;
+};
+
 const Steps: React.FC = () => {
-  const ImageLinks = [
-    "https://docs.upsidedownlabs.tech/_images/connections-with-arduino.png",
-    "https://docs.upsidedownlabs.tech/_images/connection-with-cable.png",
-    "https://docs.upsidedownlabs.tech/_images/emg.png",
-    "https://docs.upsidedownlabs.tech/_images/ecg.png",
-    "https://docs.upsidedownlabs.tech/_images/eog-horizontal.png",
-    "https://docs.upsidedownlabs.tech/_images/eog-vertical.png",
+  const ImageLinks: string[] = [
+    "./steps/1.webp",
+    "./steps/2.webp",
+    "./steps/3.webp",
+    "./steps/4.webp",
+    "./steps/5.webp",
+    "./steps/6.webp",
   ];
 
-  const carouselItems = [
-    {
-      title: "BioAmp hardware to MCU/ADC Connection",
-      content: (
-        <>
-          <Table className="w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead>BioAmp</TableHead>
-                <TableHead className="text-right">MCU/ADC</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">VCC</TableCell>
-                <TableCell className="text-right">5V</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">GND</TableCell>
-                <TableCell className="text-right">GND</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">OUT</TableCell>
-                <TableCell className="text-right">ADC Input</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-          <p className="text-red-500 mt-4 text-sm font-semibold">
-            Warning: If power pins are swapped, your BioAmp hardware will be
-            fried and become unusable (DIE).
-          </p>
-        </>
-      ),
-    },
-    {
-      title: "Connection with Arduino",
-      image: ImageLinks[0],
-    },
-    {
-      title: "BioAmp Cable Connections",
-      content: (
-        <div className="flex flex-col items-center">
-          <ol className="list-decimal pl-4 text-sm sm:text-base mb-4 mt-4">
-            <li>
-              Connect the BioAmp cable to BioAmp hardware by inserting the cable
-              end in the JST PH connector.
-            </li>
-            <li>Connect the BioAmp cable to gel electrodes.</li>
-            <li>Peel the plastic backing from electrodes.</li>
-          </ol>
-          <Image
-            alt="Cable connection"
-            width={320}
-            height={320}
-            src={ImageLinks[1]}
-            className="rounded-xl object-contain max-h-[200px]"
-          />
-        </div>
-      ),
-    },
-    {
-      title: "Electrodes placement for EMG",
-      image: ImageLinks[2],
-    },
-    {
-      title: "Electrodes placement for ECG",
-      image: ImageLinks[3],
-    },
-    {
-      title: "Placement for EOG Horizontal",
-      image: ImageLinks[4],
-    },
-    {
-      title: "Placement for EOG Vertical",
-      image: ImageLinks[5],
-    },
+  const carouselItems: CarouselItemType[] = [
+    { title: "BioAmp hardware to MCU/ADC Connection", image: ImageLinks[0] },
+    { title: "Connection with Arduino", image: ImageLinks[1] },
+    { title: "BioAmp Cable Connections", image: ImageLinks[2] },
+    { title: "Electrodes placement for ECG", image: ImageLinks[3] },
+    { title: "Placement for EOG Horizontal", image: ImageLinks[4] },
+    { title: "Placement for EOG Vertical", image: ImageLinks[5] },
   ];
+
+  const [selectedItem, setSelectedItem] = React.useState<CarouselItemType | null>(null);
+
+  const handleImageClick = (item: CarouselItemType) => {
+    setSelectedItem(item);
+  };
+
+  const closeModal = () => {
+    setSelectedItem(null);
+  };
 
   return (
-    <div className="flex flex-col flex-[1_1_0%] min-h-100 justify-center items-center gap-2 min-h-[calc(80vh)]  bg-g ">
+    <div className="flex flex-col flex-[1_1_0%] min-h-80 justify-center items-center gap-0 2xl:gap-2">
       <div className="flex items-center justify-center text-sm sm:text-xl text-center">
-      <span className="flex flex-row gap-2">
+        <span className="flex flex-row gap-2 mt-6">
           Click Connect For Board Connection.
         </span>
       </div>
-      <div className="text-sm sm:text-base text-muted-foreground text-center">
+      <div className="text-sm sm:text-base text-muted-foreground text-center pb-4">
         For More Detailed Steps Please Refer{" "}
         <Link
           href="https://docs.upsidedownlabs.tech/hardware/bioamp/bioamp-exg-pill/index.html"
@@ -123,7 +60,7 @@ const Steps: React.FC = () => {
           Official Documentation
         </Link>
       </div>
-      <div className="relative w-full max-w-7xl ">
+      <div className="relative w-full max-w-7xl max-h-7xl 2xl:max-w-[195vh] overflow-x-auto">
         <Carousel
           opts={{
             align: "start",
@@ -132,27 +69,23 @@ const Steps: React.FC = () => {
         >
           <CarouselContent>
             {carouselItems.map((item, index) => (
-              <CarouselItem key={index} className="sm:basis-1/1 lg:basis-1/2">
-                <Card className="border-primary h-full">
-                  <CardContent className="flex flex-col h-[calc(60vh)] p-4 sm:p-6">
-                    <h3 className="text-lg sm:text-xl font-semibold mb-4 text-left">
-                      {item.title}
-                    </h3>
-                    <div className="flex-grow flex flex-col items-center justify-center overflow-y-auto">
-                      {item.image ? (
-                        <Image
-                          alt={item.title}
-                          width={500}
-                          height={500}
-                          src={item.image}
-                          className="rounded-xl h-full w-full object-contain"
-                        />
-                      ) : (
-                        item.content
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+              <CarouselItem
+                key={index}
+                className="sm:basis-1/1 md:basis-1/4 lg:basis-1/4 xl:basis-1/4 2xl:basis-1/4"
+              >
+                <div
+                  onClick={() => handleImageClick(item)}
+                  className="cursor-pointer"
+                >
+                  <Image
+                    alt={item.title}
+                    width={1000}
+                    height={1500}
+                    src={item.image}
+                    layout="responsive"
+                    className="rounded-xl xl:max-h-[70vh] lg:max-h-[70vh] 2xl:w-[70vh] w-full object-contain "
+                  />
+                </div>
               </CarouselItem>
             ))}
           </CarouselContent>
@@ -160,6 +93,25 @@ const Steps: React.FC = () => {
           <CarouselNext className="border-primary border-2 right-2 absolute" />
         </Carousel>
       </div>
+
+      {/* Modal */}
+      {selectedItem && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+          onClick={closeModal}
+        >
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full  2xl:max-w-3xl">
+            <Image
+              alt={selectedItem.title}
+              src={selectedItem.image}
+              width={800}
+              height={800}
+              layout="responsive"
+              className="rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
