@@ -161,7 +161,7 @@ const Canvas = forwardRef(
         canvas.width = canvasContainerRef.current.clientWidth ;
         const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels) ;
         canvas.height = canvasHeight;
-        canvas.className = "w-full h-full block rounded-2xl";
+        canvas.className = "w-full h-full block rounded-xl";
 
         // Create a badge for the channel number
         const badge = document.createElement("div");

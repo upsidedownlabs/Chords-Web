@@ -26,8 +26,7 @@ export function Features() {
       },
       {
         title: "Auto Board Detection",
-        description:
-          "Automatically detects ADC of developement board to scale the graph accordingly. No need to manually set the scale.",
+        description:"To set ADC resolution chords automatically detects by its vendors id.",
         image: "./assets/Arduino.png",
       },
       {

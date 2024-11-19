@@ -60,13 +60,13 @@ const Stack = () => {
   ];
   return (
     <section className="w-full pt-12">
-      <div className="container grid grid-cols-1 lg:grid-cols-2 items-center gap-8 px-6 sm:px-16 md:px-24 lg:px-16 xl:px-24 max-w-7xl ">
+      <div className="container grid grid-cols-1 lg:grid-cols-2 items-center gap-8 px-4 sm:px-16 md:px-24 lg:px-16 xl:px-24 max-w-7xl ">
 
         {/* Left Side (Text Content) */}
         <div className="space-y-6 text-left ">
           <div className="space-y-3">
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold tracking-wide sm:text-3xl md:text-3xl">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-wide ">
                 <span className="block">{/* Force line break */}
                   <Chords /> is open-source,
                 </span>
@@ -74,16 +74,16 @@ const Stack = () => {
                 <span className="block">{/* Force line break */}
                   and free to use.
                 </span>
-              </h2>
+              </h1>
             </div>
 
-            <p className="max-w-md pt-6 text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+            <p className="text-xs sm:text-sm md:text-base lg:text-lg text-muted-foreground">
               It is powered by the following technologies, making it super fast, efficient, and reliable.
             </p>
           </div>
           <div className="pt-6 w-60">
             <Link href="https://github.com/upsidedownlabs/Chords-Web" target="_blank">
-              <Button className="flex items-center w-full justify-center py-2 px-6 sm:py-3 sm:px-8 rounded-full  font-semibold">
+              <Button className="flex items-center w-full justify-center py-2 px-6 sm:py-3 sm:px-8 rounded-xl  font-semibold">
                 <span>Source Code</span>
               </Button>
             </Link>

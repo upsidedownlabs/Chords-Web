@@ -33,38 +33,39 @@ const HeadSection: React.FC = () => {
   return (
     <>
       <Navbar isDisplay={true} />
-      <section className="w-full flex items-center justify-center px-4 sm:px-10 md:px-8 lg:px-6 mt-20 sm:mt-10">
-        <div className="px-4 sm:px-6 md:px-8 space-y-4 sm:space-y-8 md:space-y-10 lg:space-y-12 max-w-6xl mx-auto flex flex-col items-center justify-center">
-          <div className="flex flex-col lg:flex-row justify-center items-center gap-6 sm:gap-8 md:gap-10 lg:gap-12 w-full">
+      <section className="w-full flex items-center justify-center px-4 sm:px-10 md:px-8 lg:px-6 mt-12 sm:mt-10">
+        <div className="sm:px-6 md:px-8 space-y-4 sm:space-y-8 md:space-y-10 lg:space-y-12 max-w-6xl mx-auto flex flex-col items-center justify-center">
+          <div className="flex flex-col lg:flex-row justify-center items-center sm:gap-8 md:gap-10 lg:gap-12 w-full">
 
             {/* Text Section */}
-            <div className="w-full lg:w-1/2 lg:text-left mb-4">
+            <div className="w-full md:px-8 lg:px-0 lg:w-1/2 lg:text-left">
               <div className="text-base sm:text-lg lg:text-[1rem] md:text-3xl xl:text-[2.5rem] font-bold tracking-tighter font-lobster">
                 <span className="block text-base sm:text-lg text-gray-500 transition tracking-wider">
                   Hi, Welcome to Chords
                 </span>
-
-                <span className="inline-block bg-clip-text font-lobster cursor-default tracking-wide mr-1 duration-300 transition-all text-lg sm:text-xl lg:text-[2rem] leading-tight sm:leading-none">
+ 
+                <span className="inline-block bg-clip-text font-lobster cursor-default tracking-wide mr-1 duration-300 transition-all text-xl sm:text-xl lg:text-[2rem] leading-tight sm:leading-none mt-1">
                   Tune Into Your EXG Data
                 </span>
 
-                <span className="inline-block text-lg sm:text-xl lg:text-[2rem] mr-2 tracking-wide duration-300 transition-all leading-tight sm:leading-none">
-                  With
-                </span>
+                <div className="block">
+      <span className="inline-block text-lg sm:text-xl lg:text-[2rem] mr-2 tracking-wide duration-300 transition-all leading-tight sm:leading-none">
+        With
+      </span>
 
-                <span className="inline-block bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent text-lg sm:text-xl lg:text-[2rem] bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all leading-tight sm:leading-none">
-                  Chords
-                </span>
+      <span className="inline-block bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-transparent text-xl sm:text-xl lg:text-[2rem] bg-clip-text font-lobster cursor-default tracking-wide duration-300 transition-all leading-tight sm:leading-none">
+        Chords
+      </span></div>
 
-                <div className="w-full text-sm text-gray-500 dark:text-gray-500 font-medium transition-all mt-4 sm:mt-3 tracking-wide">
-                  <span className="inline">Transform bio signals into clear, insightful visuals, enabling deeper </span>
+                <div className="w-full text-sm text-gray-500 dark:text-gray-500 font-medium transition-all mt-3 sm:mt-3 tracking-wide">
+                  <span className="inline">Transform biopotential signals into clear, insightful visuals, enabling deeper </span>
                   <span className="inline">understanding of physiological patterns and processes.</span>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-center items-center sm:justify-start md:justify-start gap-3 sm:gap-5 space-y-0 my-10">
+              <div className="flex flex-row justify-center items-center sm:justify-start md:justify-start gap-3 sm:gap-5 space-y-0 my-5">
                 <Link href="/stream">
-                  <Button className="hidden sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-full font-semibold">
+                  <Button className="sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-xl font-semibold">
                     <Image
                       src={currentTheme === "dark" ? "./assets/dark/favicon.ico" : "./assets/light/favicon.ico"}
                       width={16}
@@ -78,7 +79,7 @@ const HeadSection: React.FC = () => {
                 <Link href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware" target="_blank">
                   <Button
                     variant="outline"
-                    className="hidden sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-full border border-gray-300 text-gray-600 font-semibold"
+                    className="sm:flex items-center justify-center py-2 px-4 sm:py-2 sm:px-6 rounded-xl border border-gray-300 text-gray-600 font-semibold"
                   >
                     <GitHubLogoIcon className="mr-2 h-5 w-5" />
                     <span>Arduino Firmware</span>
@@ -88,7 +89,7 @@ const HeadSection: React.FC = () => {
             </div>
 
             {/* Animation Section */}
-            <div className="w-full lg:w-1/2 flex flex-row justify-center items-center">
+            <div className="w-full md:px-8 lg:px-0 lg:w-1/2 flex flex-row justify-center items-center">
               <svg viewBox="0 0 380 180" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
                 {/* <!-- Static ECG Path --> */}
                 <path id="ecgPath"

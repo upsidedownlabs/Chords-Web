@@ -742,7 +742,7 @@ const Connection: React.FC<ConnectionProps> = ({
     <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
       {isRecordingRef.current && (
         <div className="flex items-center space-x-1 w-min ml-2">
-          <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded"
+          <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
           >
             {formatTime(elapsedTime)}
           </button>
@@ -754,7 +754,7 @@ const Connection: React.FC<ConnectionProps> = ({
             >
               <PopoverTrigger asChild>
                 <Button
-                 className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded"
+                 className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded-xl"
                   variant="destructive"
                 >
                   {endTimeRef.current === null ? (
@@ -819,7 +819,7 @@ const Connection: React.FC<ConnectionProps> = ({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button className="bg-primary gap-2" onClick={handleClick}>
+            <Button className="flex items-center justify-center gap-1 py-2 px-6 sm:py-3 sm:px-8 rounded-xl font-semibold" onClick={handleClick}>
               {isConnected ? (
                 <>
                   Disconnect
@@ -847,7 +847,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-r-none"
+                    className="rounded-xl rounded-r-none"
                     onClick={decreaseZoom}
                     disabled={Zoom === 1 || !isDisplay}
                   >
@@ -883,7 +883,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-l-none"
+                    className="rounded-xl rounded-l-none"
                     onClick={increaseZoom}
                     disabled={Zoom === 10 || !isDisplay}
                     
@@ -907,7 +907,7 @@ const Connection: React.FC<ConnectionProps> = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button onClick={togglePause}>
+              <Button className="rounded-xl" onClick={togglePause}>
                 {isDisplay ? (
                   <Pause className="h-5 w-5" />
                 ) : (
@@ -930,6 +930,7 @@ const Connection: React.FC<ConnectionProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+              className="rounded-xl"
                 onClick={handleRecord}
                 disabled={isRecordButtonDisabled || !isDisplay}
               >
@@ -959,7 +960,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-r-none"
+                    className="rounded-xl rounded-r-none"
                     onClick={saveData}
                     disabled={!hasData}
                   >
@@ -977,7 +978,7 @@ const Connection: React.FC<ConnectionProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className="rounded-r-none mr-1"
+                  className="rounded-xl rounded-r-none mr-1"
                   onClick={saveData}
                   disabled={!hasData}
                 >
@@ -992,7 +993,7 @@ const Connection: React.FC<ConnectionProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className="rounded-l-none"
+                  className="rounded-xl rounded-l-none"
                   onClick={deleteDataFromIndexedDB}
                   disabled={!hasData}
                 >
@@ -1016,7 +1017,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-r-none"
+                    className="rounded-xl rounded-r-none"
                     onClick={decreaseCanvas}
                     disabled={canvasCount === 1 || !isDisplay || recData}
                   >
@@ -1060,7 +1061,7 @@ const Connection: React.FC<ConnectionProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="rounded-l-none"
+                    className="rounded-xl rounded-l-none"
                     onClick={increaseCanvas}
                     disabled={canvasCount >= 6 || !isDisplay || recData}
                   >
