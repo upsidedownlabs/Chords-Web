@@ -37,7 +37,7 @@ import {
 
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
-  dataSteam: (data: number[]) => void;
+  datastream: (data: number[]) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
@@ -52,7 +52,7 @@ interface ConnectionProps {
 
 const Connection: React.FC<ConnectionProps> = ({
   onPauseChange,
-  dataSteam,
+  datastream,
   Connection,
   setSelectedBits,
   isDisplay,
@@ -359,7 +359,7 @@ const Connection: React.FC<ConnectionProps> = ({
               }
               const counter = packet[2]; // Extract the counter value from the packet
               channelData.push(counter); // Add the counter to the channel data
-              dataSteam(channelData); // Pass the channel data to the LineData function for further processing
+              datastream(channelData); // Pass the channel data to the LineData function for further processing
 
               if (isRecordingRef.current) {
                 // Check if recording is enabled
