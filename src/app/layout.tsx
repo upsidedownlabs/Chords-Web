@@ -15,7 +15,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Chords",
-  description: "Web Serial based BioSignal recorder applicaion.",
+  description: "Web Serial based Biopotential Signal recorder applicaion.",
 };
 
 const lobsterTwo = Lobster_Two({
