@@ -40,7 +40,9 @@ import {
 import { getRandomValues } from "crypto";
 interface Dataset {
   id: number;
+  timestamp: string;
   data: string[]; // Each dataset is an array of strings
+
 }
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
@@ -106,6 +108,7 @@ const Connection: React.FC<ConnectionProps> = ({
   // Define the Dataset type
   type Dataset = {
     sessionId: string; // Include sessionId for reference
+    timestamp: string;
     data: object[]; // Actual data
   };
 
@@ -117,26 +120,30 @@ const Connection: React.FC<ConnectionProps> = ({
         const transaction = db.transaction('adcReadings', 'readonly');
         const objectStore = transaction.objectStore('adcReadings');
 
-        const groupedData: Record<string, object[]> = {};
+        const groupedData: Record<string, { data: object[]; timestamp: string }> = {};
         const cursorRequest = objectStore.openCursor();
 
         cursorRequest.onsuccess = () => {
           const cursor = cursorRequest.result;
           if (cursor) {
-            const { sessionId } = cursor.value;
+            const { sessionId, timestamp } = cursor.value;
 
             if (!groupedData[sessionId]) {
-              groupedData[sessionId] = [];
+              groupedData[sessionId] = { data: [], timestamp };
             }
-            groupedData[sessionId].push(cursor.value);
+            groupedData[sessionId].data.push(cursor.value);
 
             cursor.continue();
           } else {
-            const transformedDatasets: Dataset[] = Object.entries(groupedData).map(([sessionId, data]) => ({
-              sessionId: sessionId,
-              data,
-            }));
-console.log(transformedDatasets);
+            const transformedDatasets: Dataset[] = Object.entries(groupedData).map(
+              ([sessionId, { data, timestamp }]) => ({
+                sessionId,
+                data,
+                timestamp, // Include timestamp here
+              })
+            );
+
+            console.log(transformedDatasets);
             setDatasets(transformedDatasets);
           }
         };
@@ -542,9 +549,9 @@ console.log(transformedDatasets);
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
-    if(update===true){
+    if (update === true) {
       setupdate(false);
-    }else{
+    } else {
       setupdate(true);
     }
 
@@ -1161,43 +1168,63 @@ console.log(transformedDatasets);
                     {datasets.length > 0 ? (
                       <>
                         {/* List each file with download and delete actions */}
-                        {datasets.map((dataset, index) => (
-                          <div
-                            key={dataset.sessionId}
-                            className="flex justify-between items-center"
-                          >
-                            <span className="font-medium mr-4">file-{index + 1}</span>
-                            <div className="flex space-x-2">
-                              {/* Download button for the file */}
-                              <Button
-                                onClick={() => saveDataBySessionId(dataset.sessionId)}
-                                className="rounded-xl px-4"
-                              >
-                                <Download size={16} />
-                              </Button>
-                              {/* Delete button for the file */}
-                              <Button
-                                onClick={() => {
-                                  deleteFilesBySessionId(dataset.sessionId)
-                                    .then(() => {
-                                      setDatasets((prevDatasets) =>
-                                        prevDatasets.filter(
-                                          (d) => d.sessionId !== dataset.sessionId
-                                        )
-                                      );
-                                      toast.success("File deleted successfully");
-                                    })
-                                    .catch(() => {
-                                      toast.error("Failed to delete file");
-                                    });
-                                }}
-                                className="rounded-xl px-4"
-                              >
-                                <Trash2 size={16} />
-                              </Button>
+                        {datasets.map((dataset, index) => {
+                          const timestamp = new Date(dataset.timestamp); // Convert ISO string to Date object
+                          const formattedTimestamp = `${timestamp.getFullYear()}${(timestamp.getMonth() + 1)
+                            .toString()
+                            .padStart(2, "0")}${timestamp
+                              .getDate()
+                              .toString()
+                              .padStart(2, "0")}-${timestamp
+                                .getHours()
+                                .toString()
+                                .padStart(2, "0")}${timestamp
+                                  .getMinutes()
+                                  .toString()
+                                  .padStart(2, "0")}${timestamp
+                                    .getSeconds()
+                                    .toString()
+                                    .padStart(2, "0")}`;
+
+                          return (
+                            <div
+                              key={dataset.sessionId}
+                              className="flex justify-between items-center"
+                            >
+                              <span className="font-medium mr-4">
+                                chordsweb-{formattedTimestamp}.csv
+                              </span>
+                              <div className="flex space-x-2">
+                                <Button
+                                  onClick={() => saveDataBySessionId(dataset.sessionId)}
+                                  className="rounded-xl px-4"
+                                >
+                                  <Download size={16} />
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    deleteFilesBySessionId(dataset.sessionId)
+                                      .then(() => {
+                                        setDatasets((prevDatasets) =>
+                                          prevDatasets.filter(
+                                            (d) => d.sessionId !== dataset.sessionId
+                                          )
+                                        );
+                                        toast.success("File deleted successfully");
+                                      })
+                                      .catch(() => {
+                                        toast.error("Failed to delete file");
+                                      });
+                                  }}
+                                  className="rounded-xl px-4"
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
+
 
                         {/* Download all as ZIP and delete all options */}
                         <div className="flex justify-between mt-4">
@@ -1224,6 +1251,7 @@ console.log(transformedDatasets);
             </div>
           </TooltipProvider>
         )}
+
 
 
         {/* Canvas control buttons with tooltip */}
