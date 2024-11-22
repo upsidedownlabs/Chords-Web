@@ -91,6 +91,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
+  const [update, setupdate] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
@@ -135,7 +136,7 @@ const Connection: React.FC<ConnectionProps> = ({
               sessionId: sessionId,
               data,
             }));
-
+console.log(transformedDatasets);
             setDatasets(transformedDatasets);
           }
         };
@@ -149,8 +150,7 @@ const Connection: React.FC<ConnectionProps> = ({
     };
 
     fetchDataFromIndexedDB();
-  }, []);
-
+  }, [update]);
 
 
   const togglePause = () => {
@@ -542,6 +542,11 @@ const Connection: React.FC<ConnectionProps> = ({
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
+    if(update===true){
+      setupdate(false);
+    }else{
+      setupdate(true);
+    }
 
     const endTime = new Date(); // Get the end time of the recording
 
@@ -563,6 +568,8 @@ const Connection: React.FC<ConnectionProps> = ({
 
       // Fetch all recorded data from IndexedDB
       const allData = await getAllDataFromIndexedDB();
+      // console.log("datasets",datasets);
+      // console.log("length of datasets:", datasets.length);
       setHasData(allData.length > 0); // Set whether there is recorded data
 
       // Show a success toast with details of the recording
@@ -597,6 +604,7 @@ const Connection: React.FC<ConnectionProps> = ({
       // Check if data exists in IndexedDB
       const allData = await getAllDataFromIndexedDB();
       setHasData(allData.length > 0);
+      // setDatasets(datasets.length)
 
       // Disable the record button if there is data in IndexedDB and device is connected
       setIsRecordButtonDisabled(allData.length > 0 || !isConnected);
@@ -604,6 +612,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     checkDataAndConnection();
   }, [isConnected, stopRecording]);
+
 
   // Add this function to save data to IndexedDB during recording
   const saveDataDuringRecording = async (data: number[][], sessionId: string) => {
@@ -765,36 +774,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-
-  const getTimestampFromSessionId = async (sessionId: string) => {
-    return new Promise<string | null>((resolve, reject) => {
-      if (!indexedDBRef.current) {
-        reject("IndexedDB is not initialized.");
-        return;
-      }
-
-      const tx = indexedDBRef.current.transaction(["adcReadings"], "readonly");
-      const store = tx.objectStore("adcReadings");
-
-      const request = store.index("sessionId").get(sessionId); // Use the sessionId index to fetch the timestamp
-
-      request.onsuccess = () => {
-        const result = request.result;
-        if (result) {
-          resolve(result.timestamp); // Return the timestamp
-        } else {
-          resolve(null); // If no session found, return null
-        }
-      };
-
-      request.onerror = (error) => {
-        console.error("Error fetching timestamp from IndexedDB:", error);
-        reject(error);
-      };
-    });
-  };
-
-
   const saveDataBySessionId = async (sessionId: string) => {
     try {
       // Fetch the data matching the sessionId from IndexedDB
@@ -888,8 +867,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-
-  // Function to save a ZIP file containing all datasets
   // Function to save a ZIP file containing all datasets
   const saveAllDataAsZip = async () => {
     try {
