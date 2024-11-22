@@ -2,6 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import JSZip from 'jszip';
 
 import {
   Cable,
@@ -11,6 +12,8 @@ import {
   Infinity,
   Trash2,
   Download,
+  FileArchive,
+  FileDown,
   Pause,
   Play,
   Plus,
@@ -34,7 +37,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../components/ui/popover";
-
+import { getRandomValues } from "crypto";
+interface Dataset {
+  id: number;
+  data: string[]; // Each dataset is an array of strings
+}
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
   dataSteam: (data: number[]) => void;
@@ -68,7 +75,8 @@ const Connection: React.FC<ConnectionProps> = ({
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
-  const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [hasData, setHasData] = useState(false);
   const [recData, setrecData] = useState(false);
   const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
@@ -79,6 +87,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
   const bufferRef = useRef<number[][]>([]); // Ref to store the data temporary buffer during recording
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
+  const [popoverVisible, setPopoverVisible] = useState(false);
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
@@ -91,6 +100,58 @@ const Connection: React.FC<ConnectionProps> = ({
   );
   const buffer: number[] = []; // Buffer to store incoming data
   const bufferdRef = useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
+
+
+  // Define the Dataset type
+  type Dataset = {
+    sessionId: string; // Include sessionId for reference
+    data: object[]; // Actual data
+  };
+
+
+  useEffect(() => {
+    const fetchDataFromIndexedDB = async () => {
+      try {
+        const db = await initIndexedDB(); // Ensure database is initialized
+        const transaction = db.transaction('adcReadings', 'readonly');
+        const objectStore = transaction.objectStore('adcReadings');
+
+        const groupedData: Record<string, object[]> = {};
+        const cursorRequest = objectStore.openCursor();
+
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (cursor) {
+            const { sessionId } = cursor.value;
+
+            if (!groupedData[sessionId]) {
+              groupedData[sessionId] = [];
+            }
+            groupedData[sessionId].push(cursor.value);
+
+            cursor.continue();
+          } else {
+            const transformedDatasets: Dataset[] = Object.entries(groupedData).map(([sessionId, data]) => ({
+              sessionId: sessionId,
+              data,
+            }));
+
+            setDatasets(transformedDatasets);
+          }
+        };
+
+        cursorRequest.onerror = (event) => {
+          console.error('Error fetching data from IndexedDB:', event);
+        };
+      } catch (error) {
+        console.error('Error interacting with IndexedDB:', error);
+      }
+    };
+
+    fetchDataFromIndexedDB();
+  }, []);
+
+
 
   const togglePause = () => {
     const newPauseState = !isDisplay;
@@ -410,6 +471,7 @@ const Connection: React.FC<ConnectionProps> = ({
     return [header.join(","), ...rows].join("\n");
   };
 
+
   // Function to handle the recording process
   const handleRecord = async () => {
     // Check if a device is connected
@@ -427,6 +489,9 @@ const Connection: React.FC<ConnectionProps> = ({
         timerIntervalRef.current = setInterval(checkRecordingTime, 1000); // Start a timer to check recording duration every second
         setrecData(true); // Set the state indicating recording data is being collected
 
+        // Generate a unique session ID for this recording session
+        const sessionId = `session-${Math.random().toString()}`;
+
         // Initialize IndexedDB for this recording session
         try {
           const db = await initIndexedDB(); // Attempt to initialize the IndexedDB
@@ -434,15 +499,13 @@ const Connection: React.FC<ConnectionProps> = ({
         } catch (error) {
           // Handle any errors during the IndexedDB initialization
           console.error("Failed to initialize IndexedDB:", error);
-          toast.error(
-            "Failed to initialize storage. Recording may not be saved."
-          );
+          toast.error("Failed to initialize storage. Recording may not be saved.");
         }
 
         // Start reading and saving data
         recordingIntervalRef.current = setInterval(() => {
           const data = bufferRef.current; // Use bufferRef which stores actual data
-          saveDataDuringRecording(data); // Save the data to IndexedDB
+          saveDataDuringRecording(data, sessionId); // Save the data to IndexedDB with session ID
           bufferRef.current = []; // Clear the buffer after saving
         }, 1000); // Save data every 1 second or adjust the interval as needed
       }
@@ -469,48 +532,37 @@ const Connection: React.FC<ConnectionProps> = ({
     if (minutes === 0) {
       return `${seconds} second${seconds !== 1 ? "s" : ""}`;
     }
-    return `${minutes} minute${minutes !== 1 ? "s" : ""} ${seconds} second${
-      seconds !== 1 ? "s" : ""
-    }`;
+    return `${minutes} minute${minutes !== 1 ? "s" : ""} ${seconds} second${seconds !== 1 ? "s" : ""
+      }`;
   };
 
   // Updated stopRecording function
   const stopRecording = async () => {
-    // Clear the timer if it is currently set
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
 
-    const endTime = new Date(); // Capture the end time
+    const endTime = new Date();
     const recordedFilesCount = (await getAllDataFromIndexedDB()).length;
 
-    // Check if startTimeRef.current is not null before using it
     if (startTimeRef.current !== null) {
-      // Format the start and end times as readable strings
-      const startTimeString = new Date(
-        startTimeRef.current
-      ).toLocaleTimeString();
+      const startTimeString = new Date(startTimeRef.current).toLocaleTimeString();
       const endTimeString = endTime.toLocaleTimeString();
+      const durationInSeconds = Math.floor((endTime.getTime() - startTimeRef.current) / 1000);
 
-      // Calculate the duration of the recording
-      const durationInSeconds = Math.floor(
-        (endTime.getTime() - startTimeRef.current) / 1000
-      );
-
-      // Close IndexedDB reference
       if (indexedDBRef.current) {
         indexedDBRef.current.close();
-        indexedDBRef.current = null; // Reset the reference
+        indexedDBRef.current = null;
       }
 
       const allData = await getAllDataFromIndexedDB();
       setHasData(allData.length > 0);
 
-      // Display the toast with all the details
       toast.success("Recording completed successfully", {
         description: (
           <div>
+            <p>Session ID: {sessionId}</p>
             <p>Start Time: {startTimeString}</p>
             <p>End Time: {endTimeString}</p>
             <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
@@ -518,17 +570,19 @@ const Connection: React.FC<ConnectionProps> = ({
           </div>
         ),
       });
+
+      // Reset states
+      isRecordingRef.current = false;
+      setElapsedTime(0);
+      setrecData(false);
+      setIsRecordButtonDisabled(true);
+      setSessionId(null); // Clear session ID when recording is stopped
     } else {
       console.error("Start time is null. Unable to calculate duration.");
       toast.error("Recording start time was not captured.");
     }
-
-    // Reset the recording state
-    isRecordingRef.current = false;
-    setElapsedTime(0);
-    setrecData(false);
-    setIsRecordButtonDisabled(true);
   };
+
 
   // Call this function when your component mounts or when you suspect the data might change
   useEffect(() => {
@@ -545,24 +599,22 @@ const Connection: React.FC<ConnectionProps> = ({
   }, [isConnected]);
 
   // Add this function to save data to IndexedDB during recording
-  const saveDataDuringRecording = async (data: number[][]) => {
+  const saveDataDuringRecording = async (data: number[][], sessionId: string) => {
     if (!isRecordingRef.current || !indexedDBRef.current) return;
 
     try {
       const tx = indexedDBRef.current.transaction(["adcReadings"], "readwrite");
       const store = tx.objectStore("adcReadings");
 
-      console.log(`Saving data for ${canvasCount} channels.`);
+      console.log(`Saving data for ${canvasCount} channels in session: ${sessionId}`);
 
       for (const row of data) {
-        // Ensure all channels are present by filling missing values with null
-        const channels = row
-          .slice(0, canvasCount)
-          .map((value) => (value !== undefined ? value : null));
+        const channels = row.slice(0, canvasCount).map(value => (value !== undefined ? value : null));
 
         await store.add({
+          sessionId: sessionId, // Store the session ID with each data entry
           timestamp: new Date().toISOString(),
-          channels, // Save the array of channels
+          channels,
           counter: row[6], // Adjust based on counter location
         });
       }
@@ -589,127 +641,243 @@ const Connection: React.FC<ConnectionProps> = ({
   // Function to initialize the IndexedDB and return a promise with the database instance
   const initIndexedDB = async (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
-      // Open a connection to the IndexedDB database named "adcReadings", version 1
-      const request = indexedDB.open("adcReadings", 1);
+      // Open a connection to the IndexedDB database, increment version if schema changes
+      const request = indexedDB.open("adcReadings", 2); // Increment version if needed
 
-      // Event handler for when the database needs to be upgraded (e.g., first creation)
       request.onupgradeneeded = (event) => {
-        // Access the database instance from the event target
         const db = (event.target as IDBOpenDBRequest).result;
 
-        // Create the object store "adcReadings" if it doesn't already exist
         if (!db.objectStoreNames.contains("adcReadings")) {
           const store = db.createObjectStore("adcReadings", {
-            keyPath: "id", // Set the key path for the object store
-            autoIncrement: true, // Enable auto-increment for the key
+            keyPath: "id",
+            autoIncrement: true,
           });
-          // Create an index for timestamps, allowing for easy querying
           store.createIndex("timestamp", "timestamp", { unique: false });
-          // Create an index for channels, allowing for flexible data storage as an array
+          store.createIndex("sessionId", "sessionId", { unique: false });
           store.createIndex("channels", "channels", { unique: false });
+        } else {
+          const store = (event.target as IDBRequest).transaction?.objectStore("adcReadings");
+
+          if (store) {
+            if (!store.indexNames.contains("sessionId")) {
+              store.createIndex("sessionId", "sessionId", { unique: false });
+            }
+            if (!store.indexNames.contains("timestamp")) {
+              store.createIndex("timestamp", "timestamp", { unique: false });
+            }
+            if (!store.indexNames.contains("channels")) {
+              store.createIndex("channels", "channels", { unique: false });
+            }
+          }
         }
       };
 
-      // Event handler for successful opening of the database
-      request.onsuccess = () => {
-        resolve(request.result); // Resolve the promise with the database instance
+      request.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        resolve(db); // Resolve the promise with the database instance
       };
 
-      // Event handler for any errors that occur during the request
       request.onerror = () => {
         reject(request.error); // Reject the promise with the error
       };
     });
   };
 
-  // Delete all data from IndexedDB
-  const deleteDataFromIndexedDB = async () => {
-    try {
-      // Initialize the IndexedDB
-      const db = await initIndexedDB();
 
-      // Start a readwrite transaction on the "adcReadings" object store
+  const getDataBySessionId = async (sessionId: string) => {
+    return new Promise((resolve, reject) => {
+      const dbRequest = indexedDB.open("adcReadings");
+      dbRequest.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        const transaction = db.transaction("adcReadings", "readonly");
+        const store = transaction.objectStore("adcReadings");
+        const index = store.index("sessionId"); // Assuming you have an index on sessionId
+
+        const request = index.getAll(sessionId);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject("Failed to fetch data.");
+      };
+      dbRequest.onerror = () => reject("Failed to open database.");
+    });
+  };
+
+
+  const deleteFilesBySessionId = async (sessionId: string) => {
+    try {
+      const dbRequest = indexedDB.open("adcReadings");
+
+      dbRequest.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        const transaction = db.transaction("adcReadings", "readwrite");
+        const store = transaction.objectStore("adcReadings");
+
+        // Check if the index exists
+        if (!store.indexNames.contains("sessionId")) {
+          throw new Error("Index 'sessionId' does not exist.");
+        }
+
+        const index = store.index("sessionId");
+
+        // Open cursor with KeyRange
+        const deleteRequest = index.openCursor(IDBKeyRange.only(sessionId));
+
+        deleteRequest.onsuccess = (event) => {
+          const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+
+          if (cursor) {
+            cursor.delete(); // Delete the record
+            cursor.continue(); // Move to the next record
+          }
+        };
+
+        deleteRequest.onerror = () => {
+          throw new Error("Failed to delete data.");
+        };
+
+        // Ensure transaction completion
+        transaction.oncomplete = () => {
+          // Successfully deleted from IndexedDB, now update the datasets state
+          // Filter out the deleted file from the datasets array
+          setDatasets(prevDatasets => prevDatasets.filter(dataset => dataset.sessionId !== sessionId));
+
+          // Show toast notification for successful deletion
+          toast.success("File deleted successfully");
+        };
+
+        transaction.onerror = () => {
+          throw new Error("Transaction failed.");
+        };
+      };
+
+      dbRequest.onerror = () => {
+        throw new Error("Failed to open database.");
+      };
+    } catch (error) {
+      // Handle errors and show toast notification if needed
+      toast.error("An error occurred during deletion.");
+    }
+  };
+
+
+  const saveDataBySessionId = async (sessionId: string) => {
+    try {
+      // Fetch data matching session ID from IndexedDB
+      const data = await getDataBySessionId(sessionId);
+
+      // Ensure `data` is an array
+      if (!Array.isArray(data)) {
+        toast.error("Unexpected data format received.");
+        return;
+      }
+
+      const csvData = convertToCSV(data);
+
+      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+
+      // Generate a timestamped filename
+      const now = new Date();
+      const formattedTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+        now.getDate()
+      ).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}-${String(now.getMinutes()).padStart(2, "0")}-${String(
+        now.getSeconds()
+      ).padStart(2, "0")}`;
+      const filename = `session_${sessionId}_${formattedTimestamp}.csv`;
+
+      // Trigger file download
+      saveAs(blob, filename);
+
+      // Notify user of success
+      toast.success("Data downloaded successfully.");
+    } catch (error) {
+      console.error("Error saving data by sessionId:", error);
+      toast.error("Failed to save data. Please try again.");
+    }
+  };
+
+  // Updated `getAllDataFromIndexedDB` to include IDs
+  const getAllDataFromIndexedDB = async (): Promise<any[]> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const db = await initIndexedDB();
+        const tx = db.transaction(["adcReadings"], "readonly");
+        const store = tx.objectStore("adcReadings");
+
+        const request = store.getAll();
+        request.onsuccess = () => {
+          console.log("Data retrieved from IndexedDB:", request.result); // Log to debug
+          resolve(request.result.map((item: any, index: number) => ({
+            id: index + 1,
+            ...item,
+          })));
+        };
+
+        request.onerror = (error) => {
+          console.error("Error retrieving data from IndexedDB:", error);
+          reject(error);
+        };
+      } catch (error) {
+        console.error("Error during IndexedDB operation:", error);
+        reject(error);
+      }
+    });
+  };
+
+  // Function to delete all data from IndexedDB (for ZIP files or clear all)
+  const deleteAllDataFromIndexedDB = async () => {
+    try {
+      const db = await initIndexedDB();
       const tx = db.transaction(["adcReadings"], "readwrite");
       const store = tx.objectStore("adcReadings");
 
       await store.clear();
       console.log("All data deleted from IndexedDB");
-      toast.success("Recorded file is deleted.");
 
-      // Check if there is any data left in the database after deletion
-      const allData = await getAllDataFromIndexedDB();
-      setHasData(allData.length > 0);
-      setIsRecordButtonDisabled(false);
+      toast.success("All files deleted successfully.");
+
+      // Update state
+      setHasData(false);
+      setDatasets([]); // Properly reset datasets state
+      setPopoverVisible(false); // Ensure popover is hidden
     } catch (error) {
-      console.error("Error deleting data from IndexedDB:", error);
-      toast.error("Failed to delete data. Please try again.");
+      console.error("Error deleting all data from IndexedDB:", error);
+      toast.error("Failed to delete all files. Please try again.");
     }
   };
-  // Function to retrieve all data from the IndexedDB
-  const getAllDataFromIndexedDB = async (): Promise<any[]> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Initialize the IndexedDB
-        const db = await initIndexedDB();
 
-        // Start a readonly transaction on the "adcReadings" object store
-        const tx = db.transaction(["adcReadings"], "readonly");
-        const store = tx.objectStore("adcReadings"); // Access the object store
 
-        // Create a request to get all records from the store
-        const request = store.getAll();
-
-        // Event handler for successful retrieval of data
-        request.onsuccess = () => {
-          resolve(request.result); // Resolve the promise with the retrieved data
-        };
-
-        // Event handler for any errors that occur during the request
-        request.onerror = (error) => {
-          reject(error); // Reject the promise with the error
-        };
-      } catch (error) {
-        // Handle any errors that occur during IndexedDB initialization
-        reject(error); // Reject the promise with the initialization error
-      }
-    });
-  };
-  // Updated saveData function
-  const saveData = async () => {
+  // Function to save a ZIP file containing all datasets
+  const saveAllDataAsZip = async () => {
     try {
-      const allData = await getAllDataFromIndexedDB(); // Fetch data from IndexedDB
+      const allData = await getAllDataFromIndexedDB();
 
       if (allData.length === 0) {
         toast.error("No data available to download.");
         return;
       }
 
-      // Ensure all channel data is formatted properly and missing data is handled
-      const formattedData = allData.map((item) => {
-        const dynamicChannels: { [key: string]: number | null } = {};
+      const zip = new JSZip();
 
-        // Assume channels are stored as an array in `item.channels`
-        const channels = item.channels || [];
-
-        // Loop through the channels array based on canvasCount
-        for (let i = 0; i < canvasCount; i++) {
-          const channelKey = `channel_${i + 1}`; // Create a dynamic key for each channel
-          dynamicChannels[channelKey] =
-            channels[i] !== undefined ? channels[i] : null; // Handle missing data
+      // Group data by sessionId
+      const groupedData = allData.reduce((acc, item) => {
+        if (!acc[item.sessionId]) {
+          acc[item.sessionId] = [];
         }
+        acc[item.sessionId].push(item); // Add item to the correct sessionId group
+        return acc;
+      }, {});
 
-        return {
-          timestamp: item.timestamp,
-          ...dynamicChannels, // Spread the dynamic channels into the result object
-          counter: item.counter || null, // Include the counter if available
-        };
+      // Loop through each sessionId group and create a CSV for each
+      Object.keys(groupedData).forEach(sessionId => {
+        const dataForSession = groupedData[sessionId]; // Get all items for the current sessionId
+        const csvData = convertToCSV(dataForSession); // Convert the grouped data to CSV format
+        const fileName = `session_${sessionId}.csv`; // Create a unique filename based on sessionId
+        zip.file(fileName, csvData); // Add CSV file to the ZIP
       });
 
-      // Convert the formatted data to CSV
-      const csvData = convertToCSV(formattedData);
-      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+      // Generate the ZIP file
+      const content = await zip.generateAsync({ type: "blob" });
 
-      // Get the current date and time for the filename
+      // Get the current timestamp for the ZIP file name
       const now = new Date();
       const formattedTimestamp = `${now.getFullYear()}-${String(
         now.getMonth() + 1
@@ -719,369 +887,413 @@ const Connection: React.FC<ConnectionProps> = ({
         now.getSeconds()
       ).padStart(2, "0")}`;
 
-      // Use the timestamp in the filename
-      const filename = `recorded_data_${formattedTimestamp}.csv`;
-      saveAs(blob, filename); // Trigger download
-
-      // Delete the data from IndexedDB after saving
-      await deleteDataFromIndexedDB(); // Clear the IndexedDB
-      toast.success("Data downloaded and cleared from storage."); // Success notification
-
-      // Check if any data remains after deletion
-      const remainingData = await getAllDataFromIndexedDB();
-      setHasData(remainingData.length > 0); // Update hasData state
+      // Download the ZIP file with a name that includes the timestamp
+      saveAs(content, `all_data_${formattedTimestamp}.zip`); // FileSaver.js
+      setHasData(false);
+      toast.success("ZIP file downloaded successfully.");
     } catch (error) {
-      console.error("Error saving data:", error);
-      toast.error("Failed to save data. Please try again.");
+      console.error("Error creating ZIP file:", error);
+      toast.error("Failed to create ZIP file. Please try again.");
     }
   };
-// bg-gray-100 text-white p-2 flex-none flex items-center justify-center
+
+
+
+
   return (
     <div className="flex-none items-center justify-center pb-4 bg-g">
-    {/* Left-aligned section */}
-    <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
-      {isRecordingRef.current && (
-        <div className="flex items-center space-x-1 w-min ml-2">
-          <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
-          >
-            {formatTime(elapsedTime)}
-          </button>
-          <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
-          <div>
-            <Popover
-              open={isEndTimePopoverOpen}
-              onOpenChange={setIsEndTimePopoverOpen}
+      {/* Left-aligned section */}
+      <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
+        {isRecordingRef.current && (
+          <div className="flex items-center space-x-1 w-min ml-2">
+            <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
             >
-              <PopoverTrigger asChild>
-                <Button
-                 className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded-xl"
-                  variant="destructive"
-                >
-                  {endTimeRef.current === null ? (
-                    <Infinity className="h-5 w-5 text-primary" />
-                  ) : (
-                    <div className="text-sm text-primary font-medium">
-                      {formatTime(endTimeRef.current)}
+              {formatTime(elapsedTime)}
+            </button>
+            <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
+            <div>
+              <Popover
+                open={isEndTimePopoverOpen}
+                onOpenChange={setIsEndTimePopoverOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded-xl"
+                    variant="destructive"
+                  >
+                    {endTimeRef.current === null ? (
+                      <Infinity className="h-5 w-5 text-primary" />
+                    ) : (
+                      <div className="text-sm text-primary font-medium">
+                        {formatTime(endTimeRef.current)}
+                      </div>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-4 mx-4">
+                  <div className="flex flex-col space-y-4">
+                    <div className="text-sm font-medium">
+                      Set End Time (minutes)
                     </div>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-4 mx-4">
-                <div className="flex flex-col space-y-4">
-                  <div className="text-sm font-medium">
-                    Set End Time (minutes)
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[1, 10, 20, 30].map((time) => (
+                    <div className="grid grid-cols-4 gap-2">
+                      {[1, 10, 20, 30].map((time) => (
+                        <Button
+                          key={time}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTimeSelection(time)}
+                        >
+                          {time}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="flex space-x-2 items-center">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="Custom"
+                        value={customTime}
+                        onBlur={handleCustomTimeSet}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleCustomTimeSet()
+                        }
+                        onChange={handleCustomTimeChange}
+                        className="w-20"
+                      />
                       <Button
-                        key={time}
                         variant="outline"
                         size="sm"
-                        onClick={() => handleTimeSelection(time)}
+                        onClick={() => handleTimeSelection(null)}
                       >
-                        {time}
+                        <Infinity className="h-4 w-4" />
                       </Button>
-                    ))}
+                    </div>
                   </div>
-                  <div className="flex space-x-2 items-center">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="Custom"
-                      value={customTime}
-                      onBlur={handleCustomTimeSet}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && handleCustomTimeSet()
-                      }
-                      onChange={handleCustomTimeChange}
-                      className="w-20"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleTimeSelection(null)}
-                    >
-                      <Infinity className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
 
-    {/* Center-aligned buttons */}
-    <div className="flex gap-3 items-center justify-center">
-      {/* Connection button with tooltip */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button className="flex items-center justify-center gap-1 py-2 px-6 sm:py-3 sm:px-8 rounded-xl font-semibold" onClick={handleClick}>
-              {isConnected ? (
+      {/* Center-aligned buttons */}
+      <div className="flex gap-3 items-center justify-center">
+        {/* Connection button with tooltip */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button className="flex items-center justify-center gap-1 py-2 px-6 sm:py-3 sm:px-8 rounded-xl font-semibold" onClick={handleClick}>
+                {isConnected ? (
+                  <>
+                    Disconnect
+                    <CircleX size={17} />
+                  </>
+                ) : (
+                  <>
+                    Connect
+                    <Cable size={17} />
+                  </>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isConnected ? "Disconnect Device" : "Connect Device"}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        {/* Zoom  */}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <div className="flex items-center mx-0 px-0">
+                {/* Decrease Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-xl rounded-r-none"
+                      onClick={decreaseZoom}
+                      disabled={Zoom === 1 || !isDisplay}
+                    >
+                      <ZoomOut size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{Zoom === 1 ? "We can't shrinkage" : "Decrease Zoom"}</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-full" />
+
+                {/* Toggle All Channels Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="flex items-center justify-center px-3 py-2  rounded-none select-none min-w-12"
+                      onClick={toggleZoom}
+                      disabled={!isDisplay}
+                    >
+                      {Zoom}x
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{FullZoom ? "Remove Full Zoom" : "Full Zoom"}</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-full" />
+
+                {/* Increase Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-xl rounded-l-none"
+                      onClick={increaseZoom}
+                      disabled={Zoom === 10 || !isDisplay}
+
+                    >
+                      <ZoomIn size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {Zoom >= 10 ? "Maximum Zoom Reached" : "Increase Zoom"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {/* Display (Play/Pause) button with tooltip */}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button className="rounded-xl" onClick={togglePause}>
+                  {isDisplay ? (
+                    <Pause className="h-5 w-5" />
+                  ) : (
+                    <Play className="h-5 w-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {/* Record button with tooltip */}
+        {isConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="rounded-xl"
+                  onClick={handleRecord}
+
+                >
+                  {isRecordingRef.current ? (
+                    <CircleStop />
+                  ) : (
+                    <Circle fill="red" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {!isRecordingRef.current
+                    ? "Start Recording"
+                    : "Stop Recording"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {/* Save/Delete data buttons with tooltip */}
+        {isConnected && (
+          <TooltipProvider>
+            <div className="flex">
+              {/* Show Save Data button for a single dataset or popover trigger for multiple datasets */}
+              {datasets.length < 2 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-xl rounded-r-none"
+                      onClick={() => saveAllDataAsZip()} // Directly download ZIP for a single dataset
+                      disabled={!hasData}
+                    >
+                      <Download size={16} className="mr-1" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Download Data</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : null}
+
+              {/* Show Delete Recording button only when there is less than 2 datasets */}
+              {datasets.length < 2 && (
                 <>
-                  Disconnect
-                  <CircleX size={17} />
-                </>
-              ) : (
-                <>
-                  Connect
-                  <Cable size={17} />
+                  <Separator orientation="vertical" className="h-full" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="rounded-xl rounded-l-none"
+                        onClick={deleteAllDataFromIndexedDB}
+                        disabled={!hasData}
+                      >
+                        <Trash2 size={20} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete Recording</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </>
               )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{isConnected ? "Disconnect Device" : "Connect Device"}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      {/* Autoscale/Bit selection */}
-      {isConnected && (
-        <TooltipProvider>
-          <Tooltip>
-            <div className="flex items-center mx-0 px-0">
-              {/* Decrease Canvas Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="rounded-xl rounded-r-none"
-                    onClick={decreaseZoom}
-                    disabled={Zoom === 1 || !isDisplay}
-                  >
-                    <ZoomOut size={16} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{Zoom === 1 ? "We can't shrinkage" : "Decrease Zoom"}</p>
-                </TooltipContent>
-              </Tooltip>
 
-              <Separator orientation="vertical" className="h-full" />
-
-              {/* Toggle All Channels Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="flex items-center justify-center px-3 py-2  rounded-none select-none min-w-12"
-                    onClick={toggleZoom}
-                    disabled={!isDisplay}
-                  >
-                    {Zoom}x
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{FullZoom ? "Remove Full Zoom" : "Full Zoom"}</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Separator orientation="vertical" className="h-full" />
-
-              {/* Increase Canvas Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="rounded-xl rounded-l-none"
-                    onClick={increaseZoom}
-                    disabled={Zoom === 10 || !isDisplay}
-                    
-                  >
-                    <ZoomIn size={16} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    {Zoom >= 10 ? "Maximum Zoom Reached" : "Increase Zoom"}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
+              {/* Popover content for multiple files */}
+              {datasets.length >= 2 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button className="rounded-xl p-4 " disabled={!hasData}>
+                      ^ {/* Popover trigger */}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-4 bg-white shadow-lg rounded-xl w-full">
+                    <div className="space-y-4">
+                      {datasets.map((dataset, index) => (
+                        <div key={dataset.sessionId} className="flex justify-between items-center">
+                          <span className="font-medium mr-4">File {index + 1}</span>
+                          <div className="flex space-x-2">
+                            <Button
+                              onClick={() => saveDataBySessionId(dataset.sessionId)}
+                              className="rounded-xl px-4"
+                            >
+                              <Download size={16} />
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                deleteFilesBySessionId(dataset.sessionId).then(() => {
+                                  setDatasets(prevDatasets =>
+                                    prevDatasets.filter(d => d.sessionId !== dataset.sessionId)
+                                  );
+                                  toast.success("File deleted successfully");
+                                }).catch(() => {
+                                  toast.error("Failed to delete file");
+                                });
+                              }}
+                              className="rounded-xl px-4"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex justify-between mt-4">
+                        <Button
+                          onClick={saveAllDataAsZip}
+                          className="rounded-xl p-2 w-full mr-2"
+                        >
+                          Download Zip
+                        </Button>
+                        <Button
+                          onClick={deleteAllDataFromIndexedDB}
+                          className="rounded-xl p-2 w-full"
+                        >
+                          Delete All
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+          </TooltipProvider>
+        )}
 
-      {/* Display (Play/Pause) button with tooltip */}
-      {isConnected && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button className="rounded-xl" onClick={togglePause}>
-                {isDisplay ? (
-                  <Pause className="h-5 w-5" />
-                ) : (
-                  <Play className="h-5 w-5" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>
-                {isDisplay ? "Pause Data Display" : "Resume Data Display"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
 
-      {/* Record button with tooltip */}
-      {isConnected && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-              className="rounded-xl"
-                onClick={handleRecord}
-                disabled={isRecordButtonDisabled || !isDisplay}
-              >
-                {isRecordingRef.current ? (
-                  <CircleStop />
-                ) : (
-                  <Circle fill="red" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>
-                {!isRecordingRef.current
-                  ? "Start Recording"
-                  : "Stop Recording"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      {/* Save/Delete data buttons with tooltip */}
-      {isConnected && (
-        <TooltipProvider>
-          <div className="flex">
-            {hasData && datasets.length === 1 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="rounded-xl rounded-r-none"
-                    onClick={saveData}
-                    disabled={!hasData}
-                  >
-                    <Download size={16} className="mr-1" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Save Data as CSV</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-
-            <Separator orientation="vertical" className="h-full" />
-
+        {/* Canvas control buttons with tooltip */}
+        {isConnected && (
+          <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="rounded-xl rounded-r-none mr-1"
-                  onClick={saveData}
-                  disabled={!hasData}
-                >
-                  <Download size={16} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Save Recording</p>
-              </TooltipContent>
+              <div className="flex items-center mx-0 px-0">
+                {/* Decrease Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-xl rounded-r-none"
+                      onClick={decreaseCanvas}
+                      disabled={canvasCount === 1 || !isDisplay || recData}
+                    >
+                      <Minus size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {canvasCount === 1
+                        ? "At Least One Canvas Required"
+                        : "Decrease Channel"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-full" />
+
+                {/* Toggle All Channels Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="flex items-center justify-center px-3 py-2 rounded-none select-none"
+                      onClick={toggleShowAllChannels}
+                      disabled={!isDisplay || recData}
+                    >
+                      CH
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {showAllChannels
+                        ? "Hide All Channels"
+                        : "Show All Channels"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-full" />
+
+                {/* Increase Canvas Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="rounded-xl rounded-l-none"
+                      onClick={increaseCanvas}
+                      disabled={canvasCount >= 6 || !isDisplay || recData}
+                    >
+                      <Plus size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {canvasCount >= 6
+                        ? "Maximum Channels Reached"
+                        : "Increase Channel"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="rounded-xl rounded-l-none"
-                  onClick={deleteDataFromIndexedDB}
-                  disabled={!hasData}
-                >
-                  <Trash2 size={20} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete Recording</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </TooltipProvider>
-      )}
-
-      {/* Canvas control buttons with tooltip */}
-      {isConnected && (
-        <TooltipProvider>
-          <Tooltip>
-            <div className="flex items-center mx-0 px-0">
-              {/* Decrease Canvas Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="rounded-xl rounded-r-none"
-                    onClick={decreaseCanvas}
-                    disabled={canvasCount === 1 || !isDisplay || recData}
-                  >
-                    <Minus size={16} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    {canvasCount === 1
-                      ? "At Least One Canvas Required"
-                      : "Decrease Channel"}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Separator orientation="vertical" className="h-full" />
-
-              {/* Toggle All Channels Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="flex items-center justify-center px-3 py-2 rounded-none select-none"
-                    onClick={toggleShowAllChannels}
-                    disabled={!isDisplay || recData}
-                  >
-                    CH
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    {showAllChannels
-                      ? "Hide All Channels"
-                      : "Show All Channels"}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Separator orientation="vertical" className="h-full" />
-
-              {/* Increase Canvas Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    className="rounded-xl rounded-l-none"
-                    onClick={increaseCanvas}
-                    disabled={canvasCount >= 6 || !isDisplay || recData}
-                  >
-                    <Plus size={16} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    {canvasCount >= 6
-                      ? "Maximum Channels Reached"
-                      : "Increase Channel"}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+          </TooltipProvider>
+        )}
+      </div>
     </div>
-  </div>
   );
 };
 
