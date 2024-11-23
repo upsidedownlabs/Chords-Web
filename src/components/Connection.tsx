@@ -77,7 +77,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const datasetsRef = useRef<Dataset[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [hasData, setHasData] = useState(false);
   const [recData, setrecData] = useState(false);
@@ -94,6 +94,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [update, setupdate] = useState(false);
+  const [trigger, settrigger] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
@@ -111,53 +112,14 @@ const Connection: React.FC<ConnectionProps> = ({
     timestamp: string;
     data: object[]; // Actual data
   };
-
-
-  useEffect(() => {
-    const fetchDataFromIndexedDB = async () => {
-      try {
-        const db = await initIndexedDB(); // Ensure database is initialized
-        const transaction = db.transaction('adcReadings', 'readonly');
-        const objectStore = transaction.objectStore('adcReadings');
-
-        const groupedData: Record<string, { data: object[]; timestamp: string }> = {};
-        const cursorRequest = objectStore.openCursor();
-
-        cursorRequest.onsuccess = () => {
-          const cursor = cursorRequest.result;
-          if (cursor) {
-            const { sessionId, timestamp } = cursor.value;
-
-            if (!groupedData[sessionId]) {
-              groupedData[sessionId] = { data: [], timestamp };
-            }
-            groupedData[sessionId].data.push(cursor.value);
-
-            cursor.continue();
-          } else {
-            const transformedDatasets: Dataset[] = Object.entries(groupedData).map(
-              ([sessionId, { data, timestamp }]) => ({
-                sessionId,
-                data,
-                timestamp, // Include timestamp here
-              })
-            );
-
-            console.log(transformedDatasets);
-            setDatasets(transformedDatasets);
-          }
-        };
-
-        cursorRequest.onerror = (event) => {
-          console.error('Error fetching data from IndexedDB:', event);
-        };
-      } catch (error) {
-        console.error('Error interacting with IndexedDB:', error);
-      }
+ 
+    const handledatasets = async () => {
+      console.log("hanledatasets",datasetsRef.current);
     };
 
-    fetchDataFromIndexedDB();
-  }, [update]);
+
+
+ 
 
 
   const togglePause = () => {
@@ -541,7 +503,12 @@ const Connection: React.FC<ConnectionProps> = ({
     return `${minutes} minute${minutes !== 1 ? "s" : ""} ${seconds} second${seconds !== 1 ? "s" : ""
       }`;
   };
-
+  const triggerDataUpdate = () => {
+    setupdate((prev) => !prev); // Toggle to force re-fetch
+  };
+  const triggerUpdate = () => {
+    settrigger((prev) => !prev); // Toggle to force re-fetch
+  };
   // Updated stopRecording function
   const stopRecording = async () => {
     // Clear the recording timer
@@ -549,11 +516,8 @@ const Connection: React.FC<ConnectionProps> = ({
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
-    if (update === true) {
-      setupdate(false);
-    } else {
-      setupdate(true);
-    }
+    triggerDataUpdate();
+
 
     const endTime = new Date(); // Get the end time of the recording
 
@@ -728,58 +692,52 @@ const Connection: React.FC<ConnectionProps> = ({
   const deleteFilesBySessionId = async (sessionId: string) => {
     try {
       const dbRequest = indexedDB.open("adcReadings");
-
+  
       dbRequest.onsuccess = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         const transaction = db.transaction("adcReadings", "readwrite");
         const store = transaction.objectStore("adcReadings");
-
-        // Check if the index exists
+  
         if (!store.indexNames.contains("sessionId")) {
           throw new Error("Index 'sessionId' does not exist.");
         }
-
+  
         const index = store.index("sessionId");
-
-        // Open cursor with KeyRange
         const deleteRequest = index.openCursor(IDBKeyRange.only(sessionId));
-
+  
         deleteRequest.onsuccess = (event) => {
           const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-
+  
           if (cursor) {
             cursor.delete(); // Delete the record
             cursor.continue(); // Move to the next record
           }
         };
-
+  
         deleteRequest.onerror = () => {
           throw new Error("Failed to delete data.");
         };
-
-        // Ensure transaction completion
+        triggerUpdate();
         transaction.oncomplete = () => {
-          // Successfully deleted from IndexedDB, now update the datasets state
-          // Filter out the deleted file from the datasets array
-          setDatasets(prevDatasets => prevDatasets.filter(dataset => dataset.sessionId !== sessionId));
-
-          // Show toast notification for successful deletion
           toast.success("File deleted successfully");
+  
+          // Trigger re-fetching of datasets
+   
         };
-
+        setupdate((prevUpdate) => !prevUpdate); // Toggle the update state
         transaction.onerror = () => {
           throw new Error("Transaction failed.");
         };
       };
-
+  
       dbRequest.onerror = () => {
         throw new Error("Failed to open database.");
       };
     } catch (error) {
-      // Handle errors and show toast notification if needed
       toast.error("An error occurred during deletion.");
     }
   };
+  
 
   const saveDataBySessionId = async (sessionId: string) => {
     try {
@@ -858,22 +816,26 @@ const Connection: React.FC<ConnectionProps> = ({
       const db = await initIndexedDB();
       const tx = db.transaction(["adcReadings"], "readwrite");
       const store = tx.objectStore("adcReadings");
-
-      await store.clear();
+  
+      await store.clear();  // Clear all data
       console.log("All data deleted from IndexedDB");
-
+  
       toast.success("All files deleted successfully.");
-
-      // Update state
+  
+      // Immediately update the ref after deleting
+      datasetsRef.current = [];  // Reset the datasetsRef to empty
+  
+      // If you have a state to track if there's data
       setHasData(false);
-      setDatasets([]); // Properly reset datasets state
-      setPopoverVisible(false); // Ensure popover is hidden
+  
+      console.log("datasetlength after delete all: ", datasetsRef.current.length);  // Should be 0
+      setPopoverVisible(false);  // Ensure popover is hidden
     } catch (error) {
       console.error("Error deleting all data from IndexedDB:", error);
       toast.error("Failed to delete all files. Please try again.");
     }
   };
-
+  
   // Function to save a ZIP file containing all datasets
   const saveAllDataAsZip = async () => {
     try {
@@ -1158,17 +1120,18 @@ const Connection: React.FC<ConnectionProps> = ({
                 <PopoverTrigger asChild>
                   <Button
                     className="rounded-xl p-4"
-                    disabled={datasets.length === 0} // Disable when no datasets exist
+                    onClick={handledatasets}
+                    disabled={datasetsRef.current.length === 0} // Disable when no datasets exist
                   >
                     <FileArchive size={16} />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="p-4 bg-white shadow-lg rounded-xl w-full">
                   <div className="space-y-4">
-                    {datasets.length > 0 ? (
+                    {datasetsRef.current.length > 0 ? (
                       <>
                         {/* List each file with download and delete actions */}
-                        {datasets.map((dataset, index) => {
+                        {datasetsRef.current.map((dataset, index) => {
                           const timestamp = new Date(dataset.timestamp); // Convert ISO string to Date object
                           const formattedTimestamp = `${timestamp.getFullYear()}${(timestamp.getMonth() + 1)
                             .toString()
@@ -1205,10 +1168,8 @@ const Connection: React.FC<ConnectionProps> = ({
                                   onClick={() => {
                                     deleteFilesBySessionId(dataset.sessionId)
                                       .then(() => {
-                                        setDatasets((prevDatasets) =>
-                                          prevDatasets.filter(
-                                            (d) => d.sessionId !== dataset.sessionId
-                                          )
+                                        datasetsRef.current = datasetsRef.current.filter(
+                                          (d) => d.sessionId !== dataset.sessionId
                                         );
                                         toast.success("File deleted successfully");
                                       })
