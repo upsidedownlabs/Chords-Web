@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Notch } from './filters';
+import { Filters, Notch } from './filters';
 
 import {
   Cable,
@@ -20,6 +20,10 @@ import {
   ZoomOut, // For zoom out functionality
   CircleOff,
   ReplaceAll,
+  Heart,
+  Brain,
+  Eye,
+  BicepsFlexed,
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -265,7 +269,6 @@ const Connection: React.FC<ConnectionProps> = ({
     if (bits === null) {
       return 0; // Default value for null input
     }
-    console.log(bits);
     switch (bits) {
       case "fourteen":
         return 1;
@@ -322,7 +325,47 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
+  const appliedbioFiltersRef = React.useRef<{ [key: number]: number }>({});
   const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
+  const [, forcebioUpdate] = React.useReducer((x) => x + 1, 0);
+
+  const removebioFilter = (channelIndex: number) => {
+    delete appliedbioFiltersRef.current[channelIndex]; // Remove the filter for the channel
+    forcebioUpdate(); // Trigger re-render
+    console.log(`Filter removed from Channel ${channelIndex}`);
+  };
+
+  // Function to handle frequency selection
+  const handleFrequencySelectionbio = (channelIndex: number, frequency: number) => {
+    appliedbioFiltersRef.current[channelIndex] = frequency; // Update the filter for the channel
+    forcebioUpdate(); //Trigger re-render
+    console.log(
+      `Channel ${channelIndex} selected with frequency ${frequency}Hz`
+    );
+  };
+
+  // Function to set the same filter for all channels
+  const applybioFilterToAllChannels = (channels: number[], frequency: number) => {
+    channels.forEach((channelIndex) => {
+      appliedbioFiltersRef.current[channelIndex] = frequency; // Set the filter for the channel
+    });
+    forcebioUpdate(); // Trigger re-render
+    console.log(
+      `Filter set to ${frequency}Hz for all channels: ${channels.join(", ")}`
+    );
+  };
+
+
+  // Function to remove the filter for all channels
+  const removebioFilterFromAllChannels = (channels: number[]) => {
+    channels.forEach((channelIndex) => {
+      delete appliedbioFiltersRef.current[channelIndex]; // Remove the filter for the channel
+    });
+    forcebioUpdate(); // Trigger re-render
+    console.log(`Filters removed from all channels: ${channels.join(", ")}`);
+  };
+
+
 
   const removeFilter = (channelIndex: number) => {
     delete appliedFiltersRef.current[channelIndex]; // Remove the filter for the channel
@@ -376,6 +419,14 @@ const Connection: React.FC<ConnectionProps> = ({
       new Notch(), // Notch_5
       new Notch(), // Notch_6
     ];
+    const bioFilters = [
+      new Filters(), // biofilter_1
+      new Filters(), // biofilter_2
+      new Filters(), // biofilter_3
+      new Filters(), // biofilter_4
+      new Filters(), // biofilter_5
+      new Filters(), // biofilter_6
+    ];
 
     try {
       // Loop while the device is connected
@@ -422,8 +473,37 @@ const Connection: React.FC<ConnectionProps> = ({
                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
                 const value = (highByte << 8) | lowByte;
 
-                if (appliedFiltersRef.current[channel] !== undefined) {
-                  // Apply the filter if one is set for this channel
+
+                if (appliedbioFiltersRef.current[channel] !== undefined && appliedFiltersRef.current[channel] !== undefined) {
+
+                  channelData.push(
+                    notchFilters[channel].process(
+                      bioFilters[channel].process(
+                        value,
+                        appliedbioFiltersRef.current[channel],
+                        sample(detectedBitsRef.current)
+                      ),
+                      appliedFiltersRef.current[channel],
+                      sample(detectedBitsRef.current)
+                    )
+                  );
+                  // } else {
+                  //   channelData.push(bioFilters[channel].process(
+                  //     value,
+                  //     appliedbioFiltersRef.current[channel],
+                  //     sample(detectedBitsRef.current)
+                  //   ));
+                  // }
+                } else if (appliedbioFiltersRef.current[channel] !== undefined) {
+                  channelData.push(
+                    bioFilters[channel].process(
+                      value,
+                      appliedbioFiltersRef.current[channel],
+                      sample(detectedBitsRef.current)
+                    )
+                  );
+                }
+                else if (appliedFiltersRef.current[channel] !== undefined) {
                   channelData.push(
                     notchFilters[channel].process(
                       value,
@@ -432,9 +512,37 @@ const Connection: React.FC<ConnectionProps> = ({
                     )
                   );
                 } else {
-                  // Push raw value if no filter is applied
                   channelData.push(value);
                 }
+
+
+                //   if (appliedFiltersRef.current[channel] !== undefined ) {
+                //     // Apply the filter if one is set for this channel
+                //     channelData.push(
+                //       notchFilters[channel].process(
+                //         value,
+                //         appliedFiltersRef.current[channel],
+                //         sample(detectedBitsRef.current)
+                //       )
+                //     );
+                //   }else if(appliedFiltersRef.current[channel] !== undefined){
+                //     channelData.push(
+                //       notchFilters[channel].process(
+                //         bioFilters[channel].process(value,appliedbioFiltersRef.current[channel],sample(detectedBitsRef.current)),
+                //         appliedFiltersRef.current[channel],
+                //         sample(detectedBitsRef.current)
+                //       )
+                //     );
+                //   } 
+                //   else if(appliedbioFiltersRef.current[channel] !== undefined){
+                //     channelData.push(
+                //         bioFilters[channel].process(value,appliedbioFiltersRef.current[channel],sample(detectedBitsRef.current))
+                //     );
+                //   }
+                //   else {
+                //     // Push raw value if no filter is applied
+                //     channelData.push(value);
+                //   }
               }
 
               const counter = packet[2]; // Extract the counter value from the packet
@@ -1086,6 +1194,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </div>
           </TooltipProvider>
         )}
+       
         {isConnected && (
           <Popover
             open={isFilterPopoverOpen}
@@ -1110,11 +1219,11 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => removeFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
+                      onClick={() => removebioFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
                       className={
-                        Object.keys(appliedFiltersRef.current).length === 0
-                        ? "bg-red-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
+                        Object.keys(appliedbioFiltersRef.current).length === 0
+                          ? "bg-red-700 hover:bg-white-500 text-white" // Disabled background
+                          : "bg-white-500" // Active background
                       }
                     >
                       <CircleOff size={17} />
@@ -1122,11 +1231,69 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => applybioFilterToAllChannels([0, 1, 2, 3, 4, 5], 4)}
+                      className={
+                        Object.keys(appliedbioFiltersRef.current).length === 6 && Object.values(appliedbioFiltersRef.current).every((value) => value === 4)
+                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                          : "bg-white-500" // Active background
+                      }
+                    >
+                      <BicepsFlexed size={17} />
+                    </Button> <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => applybioFilterToAllChannels([0, 1, 2, 3, 4, 5], 3)}
+                      className={
+                        Object.keys(appliedbioFiltersRef.current).length === 6 && Object.values(appliedbioFiltersRef.current).every((value) => value === 3)
+                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                          : "bg-white-500" // Active background
+                      }
+                    >
+                      <Brain size={17} />
+                    </Button> <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => applybioFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
+                      className={
+                        Object.keys(appliedbioFiltersRef.current).length === 6 && Object.values(appliedbioFiltersRef.current).every((value) => value === 1)
+                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                          : "bg-white-500" // Active background
+                      }
+                    >
+                      <Heart size={17} />
+                    </Button> <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => applybioFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
+                      className={
+                        Object.keys(appliedbioFiltersRef.current).length === 6 && Object.values(appliedbioFiltersRef.current).every((value) => value === 2)
+                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                          : "bg-white-500" // Active background
+                      }
+                    >
+                      <Eye size={17} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
+                      className={
+                        Object.keys(appliedFiltersRef.current).length === 0
+                          ? "bg-red-700 hover:bg-white-500 text-white" // Disabled background
+                          : "bg-white-500" // Active background
+                      }
+                    >
+                      <CircleOff size={17} />
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
                       className={
                         Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 1)
-                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                        : "bg-white-500" // Active background
+                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                          : "bg-white-500" // Active background
                       }
                     >
                       50Hz
@@ -1137,8 +1304,8 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
                       className={
                         Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 2)
-                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
+                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                          : "bg-white-500" // Active background
                       }
                     >
                       60Hz
@@ -1153,42 +1320,119 @@ const Connection: React.FC<ConnectionProps> = ({
 
                       {/* Buttons */}
                       <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeFilter(index)}
-                          className={
-                            appliedFiltersRef.current[index] === undefined
-                            ? "bg-red-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }
-                        >
-                          <CircleOff size={17} />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleFrequencySelection(index, 1)}
-                          className={
-                            appliedFiltersRef.current[index] === 1
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }
-                        >
-                          50Hz
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleFrequencySelection(index, 2)}
-                          className={
-                            appliedFiltersRef.current[index] === 2
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }
-                        >
-                          60Hz
-                        </Button>
+                        <TooltipProvider>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removebioFilter(index)}
+                            className={
+                              appliedbioFiltersRef.current[index] === undefined
+                                ? "bg-red-700 hover:bg-white-500 text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                            }
+                          >
+                            <CircleOff size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionbio(index, 4)}
+                            className={
+                              appliedbioFiltersRef.current[index] === 4
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                            }
+                          >
+                            <BicepsFlexed size={17} />
+                          </Button> <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionbio(index, 3)}
+                            className={
+                              appliedbioFiltersRef.current[index] === 3
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                            }
+                          >
+                            <Brain size={17} />
+                          </Button> <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionbio(index, 1)}
+                            className={
+                              appliedbioFiltersRef.current[index] === 1
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                            }
+                          >
+                            <Heart size={17} />
+                          </Button> 
+                          <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionbio(index, 2)}
+                            className={
+                              appliedbioFiltersRef.current[index] === 2
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                            }
+                          >
+                            <Eye size={17} />
+                          </Button>
+                          </TooltipTrigger>
+                          </Tooltip>
+                          <Tooltip>
+                          <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeFilter(index)}
+                            className={
+                              appliedFiltersRef.current[index] === undefined
+                                ? "bg-red-700 hover:bg-white-500 text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                            }
+                          >
+                            <CircleOff size={17} />
+                          </Button>
+                          </TooltipTrigger>
+                          </Tooltip>
+                          <Tooltip>
+                          <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelection(index, 1)}
+                            className={
+                              appliedFiltersRef.current[index] === 1
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                            }
+                          >
+                            50Hz
+                          </Button>
+                          </TooltipTrigger>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleFrequencySelection(index, 2)}
+                                className={
+                                  `rounded-xl rounded-l-none" ${appliedFiltersRef.current[index] === 2
+                                    ? "bg-green-700 hover:bg-white-500 text-white hover:text-white"
+                                    : "bg-white-500"
+                                  }`
+                                }
+                              >
+                                60Hz
+                              </Button>
+                            </TooltipTrigger>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
                   ))}
@@ -1198,7 +1442,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
           </Popover>
         )}
-
 
         {/* Canvas control buttons with tooltip */}
         {isConnected && (
