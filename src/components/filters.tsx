@@ -1,3 +1,13 @@
+// TypeScript filter classes for Chords
+// Made with <3 at Upside Down labs
+// Author: Aman Maheshwari
+//
+// Reference:
+// https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
+// https://courses.ideate.cmu.edu/16-223/f2020/Arduino/FilterDemos/filter_gen.py
+//
+// Note:
+// filter_gen.py provides C/C++ type functions which we have converted to TS
 
 //Notch Filter 50Hz/60Hz
 export class Notch {
@@ -25,6 +35,7 @@ export class Notch {
 
     // Method to apply the filter
     process(input: number, type: number, sample: number): number {
+        if(!type) return input;
         let output = input;
         switch (sample) {
             case 1: // 500Hz

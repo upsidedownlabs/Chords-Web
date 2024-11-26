@@ -421,20 +421,13 @@ const Connection: React.FC<ConnectionProps> = ({
                 const highByte = packet[channel * 2 + HEADER_LENGTH];
                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
                 const value = (highByte << 8) | lowByte;
-
-                if (appliedFiltersRef.current[channel] !== undefined) {
-                  // Apply the filter if one is set for this channel
-                  channelData.push(
-                    notchFilters[channel].process(
-                      value,
-                      appliedFiltersRef.current[channel],
-                      sample(detectedBitsRef.current)
-                    )
-                  );
-                } else {
-                  // Push raw value if no filter is applied
-                  channelData.push(value);
-                }
+                channelData.push(
+                  notchFilters[channel].process(
+                    value,
+                    appliedFiltersRef.current[channel],
+                    sample(detectedBitsRef.current)
+                  )
+                );
               }
 
               const counter = packet[2]; // Extract the counter value from the packet
@@ -1113,8 +1106,8 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={() => removeFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
                       className={
                         Object.keys(appliedFiltersRef.current).length === 0
-                        ? "bg-red-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
+                          ? "bg-red-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                          : "bg-white-500" // Active background
                       }
                     >
                       <CircleOff size={17} />
@@ -1125,8 +1118,8 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
                       className={
                         Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 1)
-                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                        : "bg-white-500" // Active background
+                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                          : "bg-white-500" // Active background
                       }
                     >
                       50Hz
@@ -1137,8 +1130,8 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
                       className={
                         Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 2)
-                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
+                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                          : "bg-white-500" // Active background
                       }
                     >
                       60Hz
@@ -1159,8 +1152,8 @@ const Connection: React.FC<ConnectionProps> = ({
                           onClick={() => removeFilter(index)}
                           className={
                             appliedFiltersRef.current[index] === undefined
-                            ? "bg-red-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
+                              ? "bg-red-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                              : "bg-white-500" // Active background
                           }
                         >
                           <CircleOff size={17} />
@@ -1171,8 +1164,8 @@ const Connection: React.FC<ConnectionProps> = ({
                           onClick={() => handleFrequencySelection(index, 1)}
                           className={
                             appliedFiltersRef.current[index] === 1
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
+                              ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                              : "bg-white-500" // Active background
                           }
                         >
                           50Hz
@@ -1183,8 +1176,8 @@ const Connection: React.FC<ConnectionProps> = ({
                           onClick={() => handleFrequencySelection(index, 2)}
                           className={
                             appliedFiltersRef.current[index] === 2
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
+                              ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                              : "bg-white-500" // Active background
                           }
                         >
                           60Hz
