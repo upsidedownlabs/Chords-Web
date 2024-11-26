@@ -1,2 +1,2 @@
 // version.tsx
-export const VERSION = "2.1.0a";
+export const VERSION = "2.2.0a";
