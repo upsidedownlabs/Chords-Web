@@ -43,8 +43,8 @@ const Stack = () => {
       name: "Web Serial API",
       logo:
         theme === "light"
-          ? "./assets/dark/serialdevicedark.png"
-          : "./assets/light/serialdevicelight.png",
+          ? "./assets/dark/Webserialdark.svg"
+          : "./assets/light/serialdevicelight.svg",
       url: "https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API",
       description: "For connecting to the serial port of the device.",
     },
@@ -52,8 +52,8 @@ const Stack = () => {
       name: "IndexedDB API",
       logo:
         theme === "light"
-          ? "./assets/dark/Indexeddbdark.png"
-          : "./assets/light/Indexeddblight.png",
+          ? "./assets/dark/indexDBdark.svg"
+          : "./assets/light/indexDBlight.svg",
       url: "https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API",
       description: "IndexedDB is a low-level API for client-side storage.",
     },
