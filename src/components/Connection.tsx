@@ -200,7 +200,7 @@ const Connection: React.FC<ConnectionProps> = ({
         setifBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
         detectedBitsRef.current = board.bits as BitSelection;
-        return `${board.name} | Product ID: ${info.usbProductId}`; // Return the board name and product ID
+        return (<>{board.name} <br/> Product ID: {info.usbProductId}</>); // Return the board name and product ID
       }
 
       setDetectedBits(null);
@@ -216,23 +216,140 @@ const Connection: React.FC<ConnectionProps> = ({
       connectToDevice();
     }
   };
-  let lastConnectedPort: SerialPort | null = null;
+
+
+  // const connectToDevice = async () => {
+  //   try {
+  //     // Disconnect any currently open port
+  //     if (portRef.current && portRef.current.readable) {
+  //       await disconnectDevice();
+  //     }
+  
+  //     // Retrieve saved port information from localStorage
+  //     const savedPort = localStorage.getItem('lastdevice');
+  //     let port: SerialPort | null = null;
+  
+  //     if (savedPort) {
+  //       const savedPorts = JSON.parse(savedPort);
+  
+  //       // Attempt to get the matching port based on saved info
+  //       const ports = await navigator.serial.getPorts();
+  //       port = ports.find(p => {
+  //         const info = p.getInfo();
+  //         return info.usbVendorId === savedPorts.usbVendorId && info.usbProductId === savedPorts.usbProductId;
+  //       })|| null;
+  
+  //       if (port) {
+  //         await port.open({ baudRate: 230400});
+  //       }
+  //     }
+  
+  //     if (!port) {
+  //       // If no saved port or no matching port found, prompt user to select a port
+  //       port = await navigator.serial.requestPort();
+  //       await port.open({ baudRate: 230400 });
+  //     }
+  
+  //     // If port is successfully connected
+  //     Connection(true);
+  //     setIsConnected(true);
+  //     onPauseChange(true);
+  //     setIsDisplay(true);
+  //     isConnectedRef.current = true;
+  //     portRef.current = port;
+  
+  //     // Save the necessary information (usbVendorId, usbProductId, baudRate) to localStorage
+  //     const portInfo = await port.getInfo();
+  //     localStorage.setItem('lastdevice', JSON.stringify({
+  //       usbVendorId: portInfo.usbVendorId,
+  //       usbProductId: portInfo.usbProductId,
+  //       baudRate: 230400
+  //     }));
+  
+  //     toast.success("Connection Successful", {
+  //       description: (
+  //         <div className="mt-2 flex flex-col space-y-1">
+  //           <p>Device: {formatPortInfo(portInfo)}</p>
+  //           <p>Baud Rate: 230400</p>
+  //         </div>
+  //       ),
+  //     });
+  
+  //     // Set up reader and writer for data transfer
+  //     const reader = port.readable?.getReader();
+  //     readerRef.current = reader;
+  
+  //     const writer = port.writable?.getWriter();
+  //     if (writer) {
+  //       setTimeout(function () {
+  //         writerRef.current = writer;
+  //         const message = new TextEncoder().encode("START\n");
+  //         writerRef.current.write(message);
+  //       }, 2000);
+  //     } else {
+  //       console.error("Writable stream not available");
+  //     }
+  
+  //     readData();
+  //     await navigator.wakeLock.request("screen");
+  
+  //   } catch (error) {
+  //     await disconnectDevice();
+  //     console.error("Error connecting to device:", error);
+  //     toast.error("Failed to connect to device.");
+  //   }
+  // };
+
+  interface SavedDevice {
+    usbVendorId: number;
+    usbProductId: number;
+    baudRate: number;
+  }
+  
 
   const connectToDevice = async () => {
     try {
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-
-      const port = lastConnectedPort || await navigator.serial.requestPort();
-      await port.open({ baudRate: 230400 });
+  
+      const savedPorts: SavedDevice[] = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+      let port: SerialPort | null = null;
+  
+      const ports = await navigator.serial.getPorts();
+      if (savedPorts.length > 0) {
+        port = ports.find(p => {
+          const info = p.getInfo();
+          return savedPorts.some((saved: SavedDevice) => 
+            saved.usbVendorId === info.usbVendorId && saved.usbProductId === info.usbProductId
+          );
+        }) || null;
+      }
+  
+      if (!port) {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 230400 });
+  
+        const newPortInfo = await port.getInfo();
+        if (!savedPorts.some(saved => saved.usbVendorId === newPortInfo.usbVendorId && saved.usbProductId === newPortInfo.usbProductId)) {
+          savedPorts.push({
+            usbVendorId: newPortInfo.usbVendorId??0,
+            usbProductId: newPortInfo.usbProductId??0,
+            baudRate: 230400
+          });
+          localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+        }
+      } else {
+        await port.open({ baudRate: 230400 });
+      }
+  
       Connection(true);
       setIsConnected(true);
       onPauseChange(true);
       setIsDisplay(true);
       isConnectedRef.current = true;
       portRef.current = port;
-      lastConnectedPort = port;
+  
       toast.success("Connection Successful", {
         description: (
           <div className="mt-2 flex flex-col space-y-1">
@@ -241,13 +358,13 @@ const Connection: React.FC<ConnectionProps> = ({
           </div>
         ),
       });
-
+  
       const reader = port.readable?.getReader();
       readerRef.current = reader;
-
+  
       const writer = port.writable?.getWriter();
       if (writer) {
-        setTimeout(function () {
+        setTimeout(() => {
           writerRef.current = writer;
           const message = new TextEncoder().encode("START\n");
           writerRef.current.write(message);
@@ -255,17 +372,18 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Writable stream not available");
       }
-
+  
       readData();
-
       await navigator.wakeLock.request("screen");
+  
     } catch (error) {
       await disconnectDevice();
       console.error("Error connecting to device:", error);
       toast.error("Failed to connect to device.");
     }
   };
-
+  
+  
   const disconnectDevice = async (): Promise<void> => {
     try {
       if (portRef.current) {
