@@ -19,6 +19,9 @@ export class EXGFilter {
     private x3: number;
     private x4: number;
     private sample: string | null;
+    private bitsPoints: number;
+    private yScale: number;
+
 
     constructor() {
         // Initialize state variables
@@ -30,6 +33,8 @@ export class EXGFilter {
         this.x3 = 0;
         this.x4 = 0;
         this.sample = null;
+        this.bitsPoints=0;
+        this.yScale=0;
     }
     //sample 1.500 2.250
     //TYPE 1.ECG
@@ -39,21 +44,25 @@ export class EXGFilter {
     // function to apply the 
     setSample(sample: string): void {
         this.sample = sample;
+        this.bitsPoints = Math.pow(2, sample=="fourteen"?14:10); // Adjust according to your ADC resolution
+        this.yScale = 2 / this.bitsPoints;
     }
 
     process(input: number, type: number): number {
-        if(!type) return input;
+        if(!type) return (input - this.bitsPoints / 2) * this.yScale;
         let output = input;
+        let chData=0;
         switch (this.sample) {
             //samplerate 500Hz
             case "fourteen":
                 switch (type) {
-                    case 1: // ECG Sampling rate: 500.0 Hz, frequency: 30.0 Hz.
+                    case 1: - this.bitsPoints / 2// ECG Sampling rate: 500.0 Hz, frequency: 30.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
                         this.x1 = output - (-1.47548044 * this.z1) - (0.58691951 * this.z2);
                         output = 0.02785977 * this.x1 + 0.05571953 * this.z1 + 0.02785977 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x1;
+                        chData = (output - this.bitsPoints / 2) * this.yScale;
                         break;
                     case 2: // EOG Sampling rate: 500.0 Hz, frequency: 10.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -61,6 +70,7 @@ export class EXGFilter {
                         output = 0.00362168 * this.x2 + 0.00724336 * this.z1 + 0.00362168 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x2;
+                        chData = (output - this.bitsPoints / 2) * this.yScale;
                         break;
                     case 3: // EEG Sampling rate: 500.0 Hz, frequency: 45.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -68,6 +78,7 @@ export class EXGFilter {
                         output = 0.17508764 * this.x3 + 0.35017529 * this.z1 + 0.17508764 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x3;
+                        chData = (output - this.bitsPoints / 2) * this.yScale;
                         break;
                     case 4: // EMG Sampling rate: 500.0 Hz, frequency: 70.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -75,6 +86,7 @@ export class EXGFilter {
                         output = 0.52996723 * this.x4 + -1.05993445 * this.z1 + 0.52996723 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x4;
+                        chData = output * this.yScale;
                         break;
                     default:
                         break;
@@ -89,6 +101,7 @@ export class EXGFilter {
                         output = 0.09131490 * this.x1 + 0.18262980 * this.z1 + 0.09131490 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x1;
+                        chData = (output - this.bitsPoints / 2) * this.yScale;
                         break;
 
                     case 2: // EOG Sampling rate: 250.0 Hz, frequency: 10.0 Hz.
@@ -97,6 +110,7 @@ export class EXGFilter {
                         output = 0.01335920 * this.x2 + 0.02671840 * this.z1 + 0.01335920 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x2;
+                        chData = (output - this.bitsPoints / 2) * this.yScale;
                         break;
 
                     case 3: // EEG Sampling rate: 250.0 Hz, frequency: 45.0 Hz.
@@ -105,6 +119,7 @@ export class EXGFilter {
                         output = 0.17508764 * this.x3 + 0.35017529 * this.z1 + 0.17508764 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x3;
+                        chData = (output - this.bitsPoints / 2) * this.yScale;
                         break;
 
                     case 4: // EMG Sampling rate: 250.0 Hz, frequency: 70.0 Hz.
@@ -113,6 +128,7 @@ export class EXGFilter {
                         output = 0.23976966 * this.x4 + -0.47953932 * this.z1 + 0.23976966 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x4;
+                        chData = output * this.yScale;
                         break;
 
                     default:
@@ -123,7 +139,7 @@ export class EXGFilter {
                 break;
 
         }
-        return output;
+        return chData;
     }
 }
 

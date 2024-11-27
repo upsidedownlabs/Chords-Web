@@ -319,16 +319,14 @@ const Connection: React.FC<ConnectionProps> = ({
   const removeEXGFilter = (channelIndex: number) => {
     delete appliedEXGFiltersRef.current[channelIndex]; // Remove the filter for the channel
     forceEXGUpdate(); // Trigger re-render
-    console.log(`Filter removed from Channel ${channelIndex}`);
+   
   };
 
   // Function to handle frequency selection
   const handleFrequencySelectionEXG = (channelIndex: number, frequency: number) => {
     appliedEXGFiltersRef.current[channelIndex] = frequency; // Update the filter for the channel
     forceEXGUpdate(); //Trigger re-render
-    console.log(
-      `Channel ${channelIndex} selected with frequency ${frequency}Hz`
-    );
+   
   };
 
   // Function to set the same filter for all channels
@@ -337,9 +335,7 @@ const Connection: React.FC<ConnectionProps> = ({
       appliedEXGFiltersRef.current[channelIndex] = frequency; // Set the filter for the channel
     });
     forceEXGUpdate(); // Trigger re-render
-    console.log(
-      `Filter set to ${frequency}Hz for all channels: ${channels.join(", ")}`
-    );
+  
   };
 
 
@@ -349,24 +345,16 @@ const Connection: React.FC<ConnectionProps> = ({
       delete appliedEXGFiltersRef.current[channelIndex]; // Remove the filter for the channel
     });
     forceEXGUpdate(); // Trigger re-render
-    console.log(`Filters removed from all channels: ${channels.join(", ")}`);
+
   };
-
-
-
-  const removeFilter = (channelIndex: number) => {
+  const removeNotchFilter = (channelIndex: number) => {
     delete appliedFiltersRef.current[channelIndex]; // Remove the filter for the channel
     forceUpdate(); // Trigger re-render
-    console.log(`Filter removed from Channel ${channelIndex}`);
   };
-
   // Function to handle frequency selection
   const handleFrequencySelection = (channelIndex: number, frequency: number) => {
     appliedFiltersRef.current[channelIndex] = frequency; // Update the filter for the channel
     forceUpdate(); //Trigger re-render
-    console.log(
-      `Channel ${channelIndex} selected with frequency ${frequency}Hz`
-    );
   };
 
   // Function to set the same filter for all channels
@@ -375,18 +363,14 @@ const Connection: React.FC<ConnectionProps> = ({
       appliedFiltersRef.current[channelIndex] = frequency; // Set the filter for the channel
     });
     forceUpdate(); // Trigger re-render
-    console.log(
-      `Filter set to ${frequency}Hz for all channels: ${channels.join(", ")}`
-    );
   };
 
   // Function to remove the filter for all channels
-  const removeFilterFromAllChannels = (channels: number[]) => {
+  const removeNotchFromAllChannels = (channels: number[]) => {
     channels.forEach((channelIndex) => {
       delete appliedFiltersRef.current[channelIndex]; // Remove the filter for the channel
     });
     forceUpdate(); // Trigger re-render
-    console.log(`Filters removed from all channels: ${channels.join(", ")}`);
   };
 
   // Function to read data from a connected device and process it
@@ -407,7 +391,7 @@ const Connection: React.FC<ConnectionProps> = ({
       filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
     });
     try {
-      // Loop while the device is connected
+      // Loop while the device is connectedconsole.log(`Filters removed from all channels: ${channels.join(", ")}`);
       while (isConnectedRef.current) {
         const streamData = await readerRef.current?.read(); // Read data from the device
         if (streamData?.done) {
@@ -1134,14 +1118,14 @@ const Connection: React.FC<ConnectionProps> = ({
                   <div className="text-sm font-semibold w-12"><ReplaceAll size={20} /></div>
                   {/* Buttons */}
                   <div className="flex space-x-2">
-                    <div className="flex items-center mx-0 px-0">
+                    <div className="flex items-center border border-input rounded-xl mx-0 px-0">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => removeEXGFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
-                        className={`rounded-xl rounded-r-none
+                        className={`rounded-xl rounded-r-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 0
-                            ? "bg-red-700 hover:bg-white-500 text-white" // Disabled background
+                            ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
                       >
@@ -1151,7 +1135,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 4)}
-                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
@@ -1162,7 +1146,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 3)}
-                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
@@ -1173,7 +1157,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
-                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
@@ -1184,7 +1168,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
-                        className={`rounded-xl rounded-l-none
+                        className={`rounded-xl rounded-l-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
@@ -1193,14 +1177,14 @@ const Connection: React.FC<ConnectionProps> = ({
                         <Eye size={17} />
                       </Button>
                     </div>
-                    <div className="flex items-center mx-0 px-0">
+                    <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => removeFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
-                        className={`rounded-xl rounded-r-none
+                        onClick={() => removeNotchFromAllChannels([0, 1, 2, 3, 4, 5])}
+                        className={`rounded-xl rounded-r-none border-0
                           ${Object.keys(appliedFiltersRef.current).length === 0
-                            ? "bg-red-700 hover:bg-white-500 text-white" // Disabled background
+                            ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
                       >
@@ -1211,7 +1195,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
-                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                           ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 1)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
@@ -1223,7 +1207,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
-                        className={`rounded-xl rounded-l-none
+                        className={`rounded-xl rounded-l-none border-0
                           ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 2)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
@@ -1241,14 +1225,14 @@ const Connection: React.FC<ConnectionProps> = ({
                       <div className="text-sm font-semibold w-12">{filterName}</div>
                       {/* Buttons */}
                       <div className="flex space-x-2">
-                        <div className="flex items-center mx-0 px-0">
+                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => removeEXGFilter(index)}
-                            className={`rounded-xl rounded-r-none border-l-none
+                            className={`rounded-xl rounded-r-none border-l-none border-0
                               ${appliedEXGFiltersRef.current[index] === undefined
-                                ? "bg-red-700 hover:bg-white-500 text-white" // Disabled background
+                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
                                 : "bg-white-500" // Active background
                               }`}
                           >
@@ -1258,7 +1242,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             variant="outline"
                             size="sm"
                             onClick={() => handleFrequencySelectionEXG(index, 4)}
-                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                               ${appliedEXGFiltersRef.current[index] === 4
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
@@ -1270,7 +1254,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             variant="outline"
                             size="sm"
                             onClick={() => handleFrequencySelectionEXG(index, 3)}
-                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                               ${appliedEXGFiltersRef.current[index] === 3
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
@@ -1282,7 +1266,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             variant="outline"
                             size="sm"
                             onClick={() => handleFrequencySelectionEXG(index, 1)}
-                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                               ${appliedEXGFiltersRef.current[index] === 1
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
@@ -1294,7 +1278,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             variant="outline"
                             size="sm"
                             onClick={() => handleFrequencySelectionEXG(index, 2)}
-                            className={`rounded-xl rounded-l-none
+                            className={`rounded-xl rounded-l-none border-0
                                       ${appliedEXGFiltersRef.current[index] === 2
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
@@ -1303,14 +1287,14 @@ const Connection: React.FC<ConnectionProps> = ({
                             <Eye size={17} />
                           </Button>
                         </div>
-                        <div className="flex items-center mx-0 px-0">
+                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => removeFilter(index)}
-                            className={`rounded-xl rounded-r-none
+                            onClick={() => removeNotchFilter(index)}
+                            className={`rounded-xl rounded-r-none border-0
                               ${appliedFiltersRef.current[index] === undefined
-                                ? "bg-red-700 hover:bg-white-500 text-white" // Disabled background
+                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
                                 : "bg-white-500" // Active background
                               }`}
                           >
@@ -1320,7 +1304,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             variant="outline"
                             size="sm"
                             onClick={() => handleFrequencySelection(index, 1)}
-                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                               ${appliedFiltersRef.current[index] === 1
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
@@ -1333,9 +1317,9 @@ const Connection: React.FC<ConnectionProps> = ({
                             size="sm"
                             onClick={() => handleFrequencySelection(index, 2)}
                             className={
-                              `rounded-xl rounded-l-none ${appliedFiltersRef.current[index] === 2
-                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white"
-                                : "bg-white-500"
+                              `rounded-xl rounded-l-none border-0 ${appliedFiltersRef.current[index] === 2
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white "
+                                : "bg-white-500 animate-fade-in-right"
                               }`
                             }
                           >
