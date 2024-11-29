@@ -155,10 +155,6 @@ const Connection: React.FC<ConnectionProps> = ({
       canvasnumbersRef.current = canvasCount;
     }
   };
-  useEffect(() => {
-    console.log("Canvas count updated:", canvasCount);
-    canvasnumbersRef.current = canvasCount; // Sync the ref with the state
-}, [canvasCount]);
 
 
   const increaseZoom = () => {
@@ -181,6 +177,11 @@ const Connection: React.FC<ConnectionProps> = ({
       setFullZoom(true);
     }
   };
+
+  useEffect(() => {
+    console.log("Canvas count updated:", canvasCount);
+    canvasnumbersRef.current = canvasCount; // Sync the ref with the state
+}, [canvasCount]);
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -422,8 +423,8 @@ const Connection: React.FC<ConnectionProps> = ({
                   processBuffer(activeBufferIndex);
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
-                const elapsedTime = Date.now() - recordingElapsedTime;
-                if (!isRecordingRef.current || elapsedTime >= 1000) {
+                const elapsedTime = Date.now() - recordingStartTime;
+              
                   setRecordingElapsedTime((prev) => {
                     if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
                       stopRecording();
@@ -431,7 +432,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     }
                     return elapsedTime;
                   });
-                }
+                
               }
 
               if (previousCounter !== null) {
@@ -652,17 +653,12 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Function to format time from seconds into a "MM:SS" string format
 
-  const formatTime = (seconds: number): string => {
-    // Calculate the number of minutes by dividing seconds by 60
-    const mins = Math.floor(seconds / 60);
-
-    // Calculate the remaining seconds after extracting minutes
-    const secs = seconds % 60;
-
-    // Return the formatted time string, ensuring two digits for minutes and seconds
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
+  const formatTime = (milliseconds: number): string => {
+    const date = new Date(milliseconds);
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
   };
 
   // Function to initialize the IndexedDB and return a promise with the database instance
@@ -934,8 +930,8 @@ const Connection: React.FC<ConnectionProps> = ({
           // Create the object store if it doesn't exist
           if (!db.objectStoreNames.contains("ChordsRecordings")) {
             const store = db.createObjectStore("ChordsRecordings", {
-              keyPath: "id",
-              autoIncrement: true,
+              keyPath: "filename",
+             
             });
             store.createIndex("filename", "filename", { unique: false });
 
