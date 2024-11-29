@@ -80,7 +80,8 @@ const Connection: React.FC<ConnectionProps> = ({
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [datasets, setDatasets] = useState<any[]>([]);
+
   const currentFilenameRef = useRef<string>("");
   // const [currentFilename, setCurrentFileName] = useState<string>("");
   const [currentSessionTimestamp, setCurrentSessionTimestamp] = useState<string>('');
@@ -101,6 +102,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
+  const currentDataset=useRef<number>(0);
 
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
@@ -113,8 +115,8 @@ const Connection: React.FC<ConnectionProps> = ({
   const NUM_BUFFERS = 4;
   const MAX_BUFFER_SIZE = 500;
   const recordingBuffers = Array(NUM_BUFFERS)
-  .fill(null)
-  .map(() => [] as number[][]);
+    .fill(null)
+    .map(() => [] as number[][]);
 
   let activeBufferIndex = 0;
 
@@ -134,7 +136,7 @@ const Connection: React.FC<ConnectionProps> = ({
       canvasnumbersRef.current = canvasCount;
     }
   };
- 
+
 
   const decreaseCanvas = () => {
     if (canvasCount > 1) {
@@ -146,11 +148,11 @@ const Connection: React.FC<ConnectionProps> = ({
     if (canvasCount === 6) {
       setCanvasCount(1); // If canvasCount is 6, reduce it to 1
       setShowAllChannels(false);
-      canvasnumbersRef.current=canvasCount;
+      canvasnumbersRef.current = canvasCount;
     } else {
       setCanvasCount(6); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
-      canvasnumbersRef.current=canvasCount;
+      canvasnumbersRef.current = canvasCount;
     }
   };
 
@@ -335,6 +337,16 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
+  useEffect(() => {
+    // Fetch all datasets on component mount
+    const fetchData = async () => {
+      const data = await getAllDataFromIndexedDB();
+      setDatasets(data); // Update state with the data
+    };
+  
+    fetchData();
+  }, []); // Run only once when the component mounts
+  
 
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
@@ -395,7 +407,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 const value = (highByte << 8) | lowByte; // Combine high and low bytes to get the channel value
                 channelData.push(value); // Convert the value to string and store it in the array
               }
-         
+
               dataSteam(channelData); // Pass the channel data to the LineData function for further processing
 
               if (isRecordingRef.current) {
@@ -407,7 +419,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
                 const elapsedTime = Date.now() - recordingElapsedTime;
-                if(!isRecordingRef.current || elapsedTime >= 1000) {
+                if (!isRecordingRef.current || elapsedTime >= 1000) {
                   setRecordingElapsedTime((prev) => {
                     if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
                       stopRecording();
@@ -417,8 +429,6 @@ const Connection: React.FC<ConnectionProps> = ({
                   });
                 }
               }
-
-
 
               if (previousCounter !== null) {
                 // If there was a previous counter value, check for data loss
@@ -447,32 +457,33 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const convertToCSV = (data: any[]): string => {
+  const convertToCSV = (data: any[], canvasCount: number): string => {
     if (data.length === 0) return "";
-
-    const header = Object.keys(data[0]);
-    const rows = data.map((item) =>
-      header
-        .map((fieldName) =>
-          item[fieldName] !== undefined && item[fieldName] !== null
-            ? JSON.stringify(item[fieldName])
-            : ""
-        )
-        .join(",")
+  
+    // Generate the header dynamically based on the number of channels
+    const header = ["counter", ...Array.from({ length: canvasCount }, (_, i) => `ch${i + 1}`)];
+    
+    // Create rows by mapping data to match the header fields
+    const rows = data.map((item, index) =>
+      [index + 1, ...item.slice(0, canvasCount)].map((field) =>
+        field !== undefined && field !== null ? JSON.stringify(field) : ""
+      ).join(",")
     );
-
+  
+    // Combine header and rows into a CSV format
     return [header.join(","), ...rows].join("\n");
   };
 
 
+  // Function to process a buffer and save it to IndexedDB
   const processBuffer = async (bufferIndex: number) => {
     const buffer = recordingBuffers[bufferIndex];
-  
+
     // If the buffer is empty, return early
     if (buffer.length === 0) return;
-  
+
     // Attempt to write data to IndexedDB
-    if(currentFilenameRef.current){
+    if (currentFilenameRef.current) {
       const success = await writeToIndexedDB(buffer);
       if (success) {
         // Clear the buffer after successful write
@@ -481,10 +492,11 @@ const Connection: React.FC<ConnectionProps> = ({
         console.error("Failed to save buffer to IndexedDB. Retrying...");
       }
     } else {
-      console.log("Filename is not set")
+      console.log("Filename is not set");
     }
   };
 
+  // Function to write data to IndexedDB
   const writeToIndexedDB = useCallback(
     async (data: number[][]): Promise<boolean> => {
       if (!indexedDB) {
@@ -495,6 +507,7 @@ const Connection: React.FC<ConnectionProps> = ({
       console.log(
         `Attempting to write data for ${canvasCount} channels. Current filename: ${currentFilenameRef.current}`
       );
+
       if (!currentFilenameRef.current) {
         console.error("Filename is not set. Cannot write to IndexedDB.");
         return false;
@@ -505,6 +518,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const tx = db.transaction("ChordsRecordings", "readwrite");
         const store = tx.objectStore("ChordsRecordings");
 
+        // Check if record already exists
         const existingRecord = await new Promise<any | undefined>(
           (resolve, reject) => {
             const getRequest = store.get(currentFilenameRef.current!);
@@ -514,13 +528,13 @@ const Connection: React.FC<ConnectionProps> = ({
         );
 
         const filteredData = data.map((row) =>
-          row.slice(0, canvasCount+1).map((value) =>
+          row.slice(0, canvasnumbersRef.current + 2).map((value) =>
             value !== undefined ? value : null
           )
         );
 
         if (existingRecord) {
-          existingRecord.content.push(...data);
+          existingRecord.content.push(...filteredData);
           await new Promise<void>((resolve, reject) => {
             const putRequest = store.put(existingRecord);
             putRequest.onsuccess = () => resolve();
@@ -533,7 +547,7 @@ const Connection: React.FC<ConnectionProps> = ({
         } else {
           const newRecord = {
             filename: currentFilenameRef.current!,
-            content: [...data],
+            content: [...filteredData],
           };
 
           await new Promise<void>((resolve, reject) => {
@@ -555,9 +569,10 @@ const Connection: React.FC<ConnectionProps> = ({
     },
     [canvasCount]
   );
-  
+
   // Function to handle the recording process
   const handleRecord = async () => {
+    
     if (isRecordingRef.current) {
       // Stop the recording if it is currently active
       stopRecording();
@@ -567,39 +582,14 @@ const Connection: React.FC<ConnectionProps> = ({
       const now = new Date();
       setRecordingStartTime(Date.now()); // Set the start time reference
       setRecordingElapsedTime(Date.now());
-      // timerIntervalRef.current = setInterval(updateElapsedTime, 1000); // Start timer
       setrecData(true);
-
-      // const timestamp = now.toISOString();
-      const filename = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
+  
+     
+      const filename = `ChordsWeb-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
         `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
-
+      
       currentFilenameRef.current = filename;
       console.log(currentFilenameRef.current);
-      
-      // setCurrentSessionTimestamp(timestamp);
-
-      // try {
-      //   const db = await openIndexedDB();
-      //   indexedDBRef.current = db;
-
-      //   // Save session metadata
-      //   const tx = db.transaction(["ChordsRecordings"], "readwrite");
-      //   const metadataStore = tx.objectStore("ChordsRecordings");
-      //   await metadataStore.add({ filename });
-
-      //   // Start recording data
-      //   recordingIntervalRef.current = setInterval(() => {
-      //     const data = recordingBuffers.current;
-      //     saveDataDuringRecording(data);
-      //     recordingBuffers.current = []; // Clear the buffer
-      //   }, 1000);
-
-      //   toast.success("Recording started successfully.");
-      // } catch (error) {
-      //   console.error("Failed to initialize IndexedDB:", error);
-      //   toast.error("Failed to initialize storage. Recording may not be saved.");
-      // }
     }
   };
 
@@ -614,49 +604,31 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
 
-  // Updated stopRecording function
   const stopRecording = async () => {
     if (!recordingStartTime) {
       toast.error("Recording start time was not captured.");
       return;
     }
-
-    // Clear timers and intervals
-    // if (recordingIntervalRef.current) {
-    //   clearInterval(recordingIntervalRef.current);
-    //   recordingIntervalRef.current = null;
-    // }
-
+  
     const endTime = new Date();
     const durationInSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
-
-    // try {
-    //   const allData = await getAllDataFromIndexedDB();
-    //   setDatasets((datasets) => [...datasets, { timestamp: currentSessionTimestamp, data: allData }]);
-
-    //   toast.success("Recording completed successfully", {
-    //     description: (
-    //       <div>
-    //         <p>Start Time: {new Date(recordingStartTime).toLocaleTimeString()}</p>
-    //         <p>End Time: {endTime.toLocaleTimeString()}</p>
-    //         <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
-    //         <p>Samples Recorded: {allData.length}</p>
-    //       </div>
-    //     ),
-    //   });
-    // } catch (error) {
-    //   console.error("Failed to fetch data from IndexedDB:", error);
-    //   toast.error("Failed to complete recording.");
-    // } finally {
-      isRecordingRef.current = false;
-      setRecordingElapsedTime(0);
-      setrecData(false);
-      // if (indexedDBRef.current) indexedDBRef.current.close();
-      setRecordingStartTime(0); // Reset only after stopping
-    // }
+    isRecordingRef.current = false;
+    setRecordingElapsedTime(0);
+    setrecData(false);
+  
+    // Reset only after stopping
+    setRecordingStartTime(0);
+  
+    // Re-fetch datasets from IndexedDB after recording stops
+    const fetchData = async () => {
+      const data = await getAllDataFromIndexedDB();
+      setDatasets(data); // Update datasets with the latest data
+    };
+    
+    // Call fetchData after stopping the recording
+    fetchData();
   };
-
-
+  
 
   // Call this function when your component mounts or when you suspect the data might change
   useEffect(() => {
@@ -673,44 +645,6 @@ const Connection: React.FC<ConnectionProps> = ({
     checkDataAndConnection();
   }, [isConnected, stopRecording]);
 
-
-  // Call this function when your component mounts or when you suspect the data might change
-  useEffect(() => {
-    const checkDataAndConnection = async () => {
-      // Check if data exists in IndexedDB
-      const allData = await getAllDataFromIndexedDB();
-      setHasData(allData.length > 0);
-
-      // Disable the record button if there is data in IndexedDB and device is connected
-      setIsRecordButtonDisabled(allData.length > 0 || !isConnected);
-    };
-
-    checkDataAndConnection();
-  }, [isConnected]);
-
-
-  // Updated saveDataDuringRecording function
-  const saveDataDuringRecording = async (data: number[][]) => {
-    if (!isRecordingRef.current || !indexedDBRef.current) return;
-
-    try {
-      const tx = indexedDBRef.current.transaction(["ChordsRecordings"], "readwrite");
-      const store = tx.objectStore("ChordsRecordings");
-
-      console.log(`Saving data for ${canvasCount}`);
-
-      for (const row of data) {
-        const channels = row.slice(0, canvasCount).map(value => (value !== undefined ? value : null));
-
-        await store.add({
-          channels,
-          counter: row[6], // Adjust based on counter location
-        });
-      }
-    } catch (error) {
-      console.error("Error saving data during recording:", error);
-    }
-  };
 
   // Function to format time from seconds into a "MM:SS" string format
 
@@ -739,7 +673,7 @@ const Connection: React.FC<ConnectionProps> = ({
         switch (event.oldVersion) {
           case 0: // Database doesn't exist, create initial schema
             const store = db.createObjectStore("ChordsRecordings", {
-              keyPath: "filename"
+              keyPath: "filename",
             });
             store.createIndex("filename", "filename", { unique: true });
             break;
@@ -751,6 +685,7 @@ const Connection: React.FC<ConnectionProps> = ({
               existingStore.createIndex("filename", "filename", { unique: true });
             }
             break;
+
           default:
             console.warn("No schema updates for this version.");
         }
@@ -767,132 +702,154 @@ const Connection: React.FC<ConnectionProps> = ({
     });
   };
 
+  // Function to fetch data by filename from IndexedDB
+  const getDataByFilename = async (filename: string): Promise<any> => {
+    try {
+      // Open IndexedDB
+      const db = await openIndexedDB();
+      const tx = db.transaction("ChordsRecordings", "readonly");
+      const store = tx.objectStore("ChordsRecordings");
 
-  // const getDataByTimestamp = async (timestamp: string) => {
-  //   return new Promise((resolve, reject) => {
-  //     const dbRequest = indexedDB.open("ChordsRecordings");
-  //     dbRequest.onsuccess = (event) => {
-  //       const db = (event.target as IDBOpenDBRequest).result;
-  //       const transaction = db.transaction("ChordsRecordings", "readonly");
-  //       const store = transaction.objectStore("ChordsRecordings");
-  //       const index = store.index("timestamp"); // Assuming you have an index on timestamp
+      // Retrieve data by filename
+      const data = await new Promise((resolve, reject) => {
+        const request = store.get(filename); // Get record by filename
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject("Failed to fetch data.");
+      });
 
-  //       const request = index.getAll(timestamp); // Fetch all data matching the provided timestamp
-  //       request.onsuccess = () => resolve(request.result);
-  //       request.onerror = () => reject("Failed to fetch data.");
-  //     };
-  //     dbRequest.onerror = () => reject("Failed to open database.");
-  //   });
-  // };
+      if (!data) {
+        console.error(`No data found for filename: ${filename}`);
+        return null;
+      }
 
-
-  // const deleteFilesByTimestamp = async (timestamp: string) => {
-  //   try {
-  //     const dbRequest = indexedDB.open("ChordsRecordings");
-
-  //     dbRequest.onsuccess = (event) => {
-  //       const db = (event.target as IDBOpenDBRequest).result;
-  //       const transaction = db.transaction("ChordsRecordings", "readwrite");
-  //       const store = transaction.objectStore("ChordsRecordings");
-
-  //       // Check if the "timestamp" index exists
-  //       if (!store.indexNames.contains("timestamp")) {
-  //         console.error("Index 'timestamp' does not exist.");
-  //         toast.error("Unable to delete files: index not found.");
-  //         return;
-  //       }
-
-  //       const index = store.index("timestamp");
-  //       const deleteRequest = index.openCursor(IDBKeyRange.only(timestamp));
-
-  //       deleteRequest.onsuccess = (event) => {
-  //         const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-
-  //         if (cursor) {
-  //           cursor.delete(); // Delete the current record
-  //           cursor.continue(); // Move to the next matching record
-  //         }
-  //       };
-
-  //       deleteRequest.onerror = () => {
-  //         console.error("Error during delete operation.");
-  //         toast.error("Failed to delete files. Please try again.");
-  //       };
-
-  //       // Ensure transaction completion
-  //       transaction.oncomplete = () => {
-  //         console.log("Files successfully deleted for timestamp:", timestamp);
-
-  //         // Update the datasets state by filtering out the deleted timestamp
-  //         setDatasets((prevDatasets) =>
-  //           prevDatasets.filter((dataset) => dataset.timestamp !== timestamp)
-  //         );
-
-  //         // Show a toast notification for successful deletion
-  //         toast.success("Files deleted successfully.");
-  //       };
-
-  //       transaction.onerror = () => {
-  //         console.error("Transaction failed during deletion.");
-  //         toast.error("Failed to delete files. Please try again.");
-  //       };
-  //     };
-
-  //     dbRequest.onerror = () => {
-  //       console.error("Failed to open IndexedDB database.");
-  //       toast.error("An error occurred while accessing the database.");
-  //     };
-  //   } catch (error) {
-  //     console.error("Error occurred during file deletion:", error);
-  //     toast.error("An unexpected error occurred. Please try again.");
-  //   }
-  // };
+      console.log(`Data retrieved successfully for filename: ${filename}`);
+      return data;
+    } catch (error) {
+      console.error("Error fetching data by filename:", error);
+      return null;
+    }
+  };
 
 
+  // Function to delete files by filename
+  const deleteFilesByFilename = async (filename: string) => {
+    try {
+      const dbRequest = indexedDB.open("ChordsRecordings");
 
-  // const saveDataByTimestamp = async (timestamp: string) => {
-  //   try {
-  //     // Fetch the data matching the timestamp from IndexedDB
-  //     const data = await getDataByTimestamp(timestamp);
+      dbRequest.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        const transaction = db.transaction("ChordsRecordings", "readwrite");
+        const store = transaction.objectStore("ChordsRecordings");
 
-  //     // Ensure `data` is an array
-  //     if (!Array.isArray(data)) {
-  //       toast.error("Unexpected data format received.");
-  //       return;
-  //     }
+        // Check if the "filename" index exists
+        if (!store.indexNames.contains("filename")) {
+          console.error("Index 'filename' does not exist.");
+          toast.error("Unable to delete files: index not found.");
+          return;
+        }
 
-  //     // Validate that data exists
-  //     if (data.length === 0) {
-  //       toast.error("No data found for the given timestamp.");
-  //       return;
-  //     }
+        const index = store.index("filename");
+        const deleteRequest = index.openCursor(IDBKeyRange.only(filename));
 
-  //     // Convert data to CSV
-  //     const csvData = convertToCSV(data);
+        deleteRequest.onsuccess = (event) => {
+          const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
 
-  //     // Create a Blob from the CSV data
-  //     const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+          if (cursor) {
+            cursor.delete(); // Delete the current record
+            console.log(`Deleted file: ${filename}`);
+            cursor.continue(); // Continue to next matching record
+          } else {
+            console.log(`No file found with filename: ${filename}`);
+            toast.success("File deleted successfully.");
+          }
+        };
 
-  //     // Format the timestamp for the filename (e.g., YYYYMMDD-HHMMSS)
-  //     const formattedTimestamp = new Date(timestamp);
-  //     const formattedDate = `${formattedTimestamp.getFullYear()}${String(formattedTimestamp.getMonth() + 1).padStart(2, "0")}${String(formattedTimestamp.getDate()).padStart(2, "0")}`;
-  //     const formattedTime = `${String(formattedTimestamp.getHours()).padStart(2, "0")}${String(formattedTimestamp.getMinutes()).padStart(2, "0")}${String(formattedTimestamp.getSeconds()).padStart(2, "0")}`;
-  //     const finalTimestamp = `${formattedDate}-${formattedTime}`;
+        deleteRequest.onerror = () => {
+          console.error("Error during delete operation.");
+          toast.error("Failed to delete the file. Please try again.");
+        };
 
-  //     // Generate the filename using the formatted timestamp
-  //     const newFilename = `chordsweb-${finalTimestamp}.csv`;
+        // Ensure transaction completion
+        transaction.oncomplete = () => {
+          console.log("File deletion completed.");
+        };
 
-  //     // Trigger file download with the generated filename
-  //     saveAs(blob, newFilename); // FileSaver.js
-  //     toast.success("Data downloaded successfully.");
-  //   } catch (error) {
-  //     console.error("Error saving data by timestamp:", error);
-  //     toast.error("Failed to save data. Please try again.");
-  //   }
-  // };
+        transaction.onerror = () => {
+          console.error("Transaction failed during deletion.");
+          toast.error("Failed to delete the file. Please try again.");
+        };
+      };
 
+      dbRequest.onerror = () => {
+        console.error("Failed to open IndexedDB database.");
+        toast.error("An error occurred while accessing the database.");
+      };
+    } catch (error) {
+      console.error("Error occurred during file deletion:", error);
+      toast.error("An unexpected error occurred. Please try again.");
+    }
+  };
 
-  // Updated `getAllDataFromIndexedDB` to include IDs
+  const saveDataByFilename = async (filename: string) => {
+    try {
+      // Open the IndexedDB connection
+      const dbRequest = indexedDB.open("ChordsRecordings");
+  
+      dbRequest.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        const transaction = db.transaction("ChordsRecordings", "readonly");
+        const store = transaction.objectStore("ChordsRecordings");
+  
+        // Check if the "filename" index exists
+        if (!store.indexNames.contains("filename")) {
+          console.error("Index 'filename' does not exist.");
+          toast.error("Unable to download files: index not found.");
+          return;
+        }
+  
+        // Retrieve the data by filename
+        const index = store.index("filename");
+        const getRequest = index.get(filename);
+  
+        getRequest.onsuccess = (event) => {
+          const result = getRequest.result;
+  
+          // Ensure the file exists and contains data
+          if (!result || !Array.isArray(result.content)) {
+            toast.error("No data found for the given filename.");
+            return;
+          }
+  
+          // Convert data to CSV, passing canvasCount dynamically
+          const csvData = convertToCSV(result.content, canvasCount);
+  
+          // Create a Blob from the CSV data
+          const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+  
+          // Trigger the download with the filename
+          saveAs(blob, filename); // FileSaver.js
+  
+          // Show a success message
+          toast.success("File downloaded successfully.");
+        };
+  
+        getRequest.onerror = () => {
+          console.error("Error during file retrieval.");
+          toast.error("Failed to retrieve the file. Please try again.");
+        };
+      };
+  
+      dbRequest.onerror = () => {
+        console.error("Failed to open IndexedDB database.");
+        toast.error("An error occurred while accessing the database.");
+      };
+    } catch (error) {
+      console.error("Error occurred during file download:", error);
+      toast.error("An unexpected error occurred. Please try again.");
+    }
+  };
+  
+  // Function to get all data from IndexedDB
   const getAllDataFromIndexedDB = async (): Promise<any[]> => {
     try {
       const db = await openIndexedDB();
@@ -976,8 +933,8 @@ const Connection: React.FC<ConnectionProps> = ({
               keyPath: "id",
               autoIncrement: true,
             });
-            store.createIndex("timestamp", "timestamp", { unique: false });
-            store.createIndex("sessionId", "sessionId", { unique: false });
+            store.createIndex("filename", "filename", { unique: false });
+
           }
         };
 
@@ -988,59 +945,39 @@ const Connection: React.FC<ConnectionProps> = ({
     });
   };
 
-
-
-
-  // Function to save a ZIP file containing all datasets
+  // Function to save all datasets in IndexedDB as a ZIP file
   const saveAllDataAsZip = async () => {
     try {
-      const allData = await getAllDataFromIndexedDB();
-
+      // Open IndexedDB
+      const db = await openIndexedDB();
+      const tx = db.transaction("ChordsRecordings", "readonly");
+      const store = tx.objectStore("ChordsRecordings");
+  
+      // Retrieve all records from IndexedDB
+      const allData: any[] = await new Promise((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+  
       if (allData.length === 0) {
         toast.error("No data available to download.");
         return;
       }
-
+  
       const zip = new JSZip();
-
-      // Group data by sessionId
-      const groupedData = allData.reduce((acc, item) => {
-        if (!acc[item.sessionId]) {
-          acc[item.sessionId] = [];
-        }
-        acc[item.sessionId].push(item); // Add item to the correct sessionId group
-        return acc;
-      }, {});
-
-      // Loop through each sessionId group and create a CSV for each
-      Object.keys(groupedData).forEach(sessionId => {
-        const dataForSession = groupedData[sessionId]; // Get all items for the current sessionId
-        const csvData = convertToCSV(dataForSession); // Convert the grouped data to CSV format
-        const fileName = `session_${sessionId}.csv`; // Create a unique filename based on sessionId
-        zip.file(fileName, csvData); // Add CSV file to the ZIP
+  
+      // Add each record as a CSV file in the ZIP
+      allData.forEach((record) => {
+        const csvData = convertToCSV(record.content, canvasCount); // Convert record content to CSV with dynamic channels
+        zip.file(record.filename, csvData); // Use the filename for the CSV file
       });
-
-      // Extract the earliest or most recent timestamp from the data for the ZIP file name
-      const earliestTimestamp = allData.reduce((earliest, item) => {
-        return !earliest || new Date(item.timestamp) < new Date(earliest.timestamp) ? item : earliest;
-      }, null)?.timestamp;
-
-      if (!earliestTimestamp) {
-        toast.error("Timestamp not found in the data.");
-        return;
-      }
-
-      // Format the timestamp for the ZIP filename (e.g., YYYYMMDD-HHMMSS)
-      const formattedTimestamp = new Date(earliestTimestamp);
-      const formattedDate = `${formattedTimestamp.getFullYear()}${String(formattedTimestamp.getMonth() + 1).padStart(2, "0")}${String(formattedTimestamp.getDate()).padStart(2, "0")}`;
-      const formattedTime = `${String(formattedTimestamp.getHours()).padStart(2, "0")}${String(formattedTimestamp.getMinutes()).padStart(2, "0")}${String(formattedTimestamp.getSeconds()).padStart(2, "0")}`;
-      const finalTimestamp = `${formattedDate}-${formattedTime}`;
-
+  
       // Generate the ZIP file
       const content = await zip.generateAsync({ type: "blob" });
-
-      // Download the ZIP file with a name that includes the timestamp from the data
-      saveAs(content, `ChordsWeb-${finalTimestamp}.zip`); // FileSaver.js
+  
+      // Download the ZIP file with a default name
+      saveAs(content, `ChordsWeb.zip`); // FileSaver.js for downloading
       setHasData(false);
       toast.success("ZIP file downloaded successfully.");
     } catch (error) {
@@ -1048,6 +985,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to create ZIP file. Please try again.");
     }
   };
+  
 
   return (
     <div className="flex-none items-center justify-center pb-4 bg-g">
@@ -1269,98 +1207,74 @@ const Connection: React.FC<ConnectionProps> = ({
         {isConnected && (
           <TooltipProvider>
             <div className="flex">
-              {/* FileArchive button enabled if at least one file exists */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    className="rounded-xl p-4"
-                    disabled={datasets.length === 0} // Disable when no datasets exist
-                  >
+                  <Button className="rounded-xl p-4">
                     <FileArchive size={16} />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="p-4 bg-white shadow-lg rounded-xl w-full">
                   <div className="space-y-4">
+                    {/* List each file with download and delete actions */}
                     {datasets.length > 0 ? (
-                      <>
-                        {/* List each file with download and delete actions */}
-                        {datasets.map((dataset) => {
-                          const timestamp = new Date(dataset.timestamp); // Convert ISO string to Date object
-                          const formattedTimestamp = `${timestamp.getFullYear()}${(timestamp.getMonth() + 1)
-                            .toString()
-                            .padStart(2, "0")}${timestamp
-                              .getDate()
-                              .toString()
-                              .padStart(2, "0")}-${timestamp
-                                .getHours()
-                                .toString()
-                                .padStart(2, "0")}${timestamp
-                                  .getMinutes()
-                                  .toString()
-                                  .padStart(2, "0")}${timestamp
-                                    .getSeconds()
-                                    .toString()
-                                    .padStart(2, "0")}`;
+                      datasets.map((dataset) => (
+                        <div key={dataset.filename} className="flex justify-between items-center">
+                          {/* Display the filename directly */}
+                          <span className="font-medium mr-4 text-black">
+                            {dataset.filename}
+                          </span>
 
-                          return (
-                            <div
-                              key={dataset.timestamp}
-                              className="flex justify-between items-center"
+                          <div className="flex space-x-2">
+                            {/* Save file by filename */}
+                            <Button
+                              onClick={() => saveDataByFilename(dataset.filename)}
+                              className="rounded-xl px-4"
                             >
-                              <span className="font-medium mr-4 text-black">
-                                chordsweb-{formattedTimestamp}.csv
-                              </span>
-                              <div className="flex space-x-2">
-                                {/* Save file by timestamp */}
-                                <Button
-                                  onClick={() => saveDataByTimestamp(dataset.timestamp)}
-                                  className="rounded-xl px-4"
-                                >
-                                  <Download size={16} />
-                                </Button>
-                                {/* Delete file by timestamp */}
-                                <Button
-                                  onClick={() => {
-                                    deleteFilesByTimestamp(dataset.timestamp)
-                                      .then(() => {
-                                        setDatasets((prevDatasets) =>
-                                          prevDatasets.filter(
-                                            (d) => d.timestamp !== dataset.timestamp
-                                          )
-                                        );
-                                        toast.success("File deleted successfully");
-                                      })
-                                      .catch(() => {
-                                        toast.error("Failed to delete file");
-                                      });
-                                  }}
-                                  className="rounded-xl px-4"
-                                >
-                                  <Trash2 size={16} />
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
+                              <Download size={16} />
+                            </Button>
 
-                        {/* Download all as ZIP and delete all options */}
-                        <div className="flex justify-between mt-4">
-                          <Button
-                            onClick={saveAllDataAsZip}
-                            className="rounded-xl p-2 w-full mr-2"
-                          >
-                            Download All as Zip
-                          </Button>
-                          <Button
-                            onClick={deleteAllDataFromIndexedDB}
-                            className="rounded-xl p-2 w-full"
-                          >
-                            Delete All
-                          </Button>
+                            {/* Delete file by filename */}
+                            <Button
+                              onClick={() => {
+                                deleteFilesByFilename(dataset.filename)
+                                  .then(() => {
+                                    setDatasets((prevDatasets) =>
+                                      prevDatasets.filter((d) => d.filename !== dataset.filename)
+                                    );
+                                    toast.success("File deleted successfully");
+                                  })
+                                  .catch(() => {
+                                    toast.error("Failed to delete file");
+                                  });
+                              }}
+                              className="rounded-xl px-4"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
                         </div>
-                      </>
+                      ))
                     ) : (
-                      <p className="text-gray-500">No files available</p>
+                      <p className="text-black ">No datasets available</p>
+                    )}
+
+
+                    {/* Download all as ZIP and delete all options */}
+                    {datasets.length > 0 && (
+                      <div className="flex justify-between mt-4">
+                        <Button
+                          onClick={saveAllDataAsZip}
+                          className="rounded-xl p-2 w-full mr-2"
+                        >
+                          Download All as Zip
+                        </Button>
+                        <Button
+                          onClick={deleteAllDataFromIndexedDB}
+                          className="rounded-xl p-2 w-full"
+                        >
+                          Delete All
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </PopoverContent>
@@ -1368,8 +1282,6 @@ const Connection: React.FC<ConnectionProps> = ({
             </div>
           </TooltipProvider>
         )}
-
-
 
         {/* Canvas control buttons with tooltip */}
         {isConnected && (
