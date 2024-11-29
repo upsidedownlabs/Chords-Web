@@ -74,14 +74,14 @@ const Canvas = forwardRef(
           if (previousCounter !== null) {
             // If there was a previous counter value
             const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
-            if (data[6] !== expectedCounter) {
+            if (data[0] !== expectedCounter) {
               // Check for data loss by comparing the current counter with the expected counter
               console.warn(
-                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[6]}`
+                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[0]}`
               );
             }
           }
-          previousCounter = data[6]; // Update the previous counter with the current counter
+          previousCounter = data[0]; // Update the previous counter with the current counter
         },
       }),
       [Zoom, numChannels]

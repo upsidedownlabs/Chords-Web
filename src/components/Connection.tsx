@@ -47,16 +47,6 @@ interface ChannelData {
   [key: string]: number; // Allows dynamic keys like "channel1", "channel2", etc.
 }
 
-interface SessionData {
-  sessionId: string;
-  fileName: string;
-  timestamp: string;
-  data: Array<{
-    id: number;
-    channels: number[];
-    data: ChannelData;
-  }>;
-}
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
   dataSteam: (data: number[]) => void;
@@ -91,93 +81,47 @@ const Connection: React.FC<ConnectionProps> = ({
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
   const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [currentSessionId, setCurrentSessionId] = useState<string>('');
-  const [currentSessionTimestamp, setCurrentSessionTimestamp] = useState<string>(''); 
+  const currentFilenameRef = useRef<string>("");
+  // const [currentFilename, setCurrentFileName] = useState<string>("");
+  const [currentSessionTimestamp, setCurrentSessionTimestamp] = useState<string>('');
   const [hasData, setHasData] = useState(false);
   const [recData, setrecData] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Type for Node.js environment
+  const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
+  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
+  // const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Type for Node.js environment
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
-  const bufferRef = useRef<number[][]>([]); // Ref to store the data temporary buffer during recording
+
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const [popoverVisible, setPopoverVisible] = useState(false);
   const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
+  const canvasnumbersRef = useRef<number>(1);
+
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
-  const buffer: number[] = []; // Buffer to store incoming data
-  const bufferdRef = useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
-// Use Ref to store the session start time globally within the component
-const currentSessionStartTimeRef = useRef<number | null>(null);
+  const serialBuffer: number[] = []; // Serial buffer to store incoming data
+
+  const NUM_BUFFERS = 4;
+  const MAX_BUFFER_SIZE = 500;
+  const recordingBuffers = Array(NUM_BUFFERS)
+  .fill(null)
+  .map(() => [] as number[][]);
+
+  let activeBufferIndex = 0;
 
   type Dataset = {
-    sessionId: string; // Include sessionId for reference
     timestamp: string;
-    data: object[]; // Actual data
+    data: any[];
   };
-
-
-  useEffect(() => {
-    const fetchDataFromIndexedDB = async () => {
-      try {
-        const db = await initIndexedDB();
-        const transaction = db.transaction("adcReadings", "readonly");
-        const objectStore = transaction.objectStore("adcReadings");
-  
-        const groupedData: Record<string, { data: object[]; timestamp: string }> = {};
-        const cursorRequest = objectStore.openCursor();
-  
-        cursorRequest.onsuccess = () => {
-          const cursor = cursorRequest.result;
-          if (cursor) {
-            const { sessionId, timestamp } = cursor.value;
-  
-            if (!groupedData[sessionId]) {
-              groupedData[sessionId] = { data: [], timestamp };
-            }
-            groupedData[sessionId].data.push(cursor.value);
-  
-            cursor.continue();
-          }
-        };
-  
-        transaction.oncomplete = () => {
-          const transformedDatasets: Dataset[] = Object.entries(groupedData).map(
-            ([sessionId, { data, timestamp }]) => ({
-              sessionId,
-              data,
-              timestamp,
-            })
-          );
-  
-          console.log({transformedDatasets})
-
-          setDatasets(transformedDatasets);
-        };
-  
-        cursorRequest.onerror = (event) => {
-          console.error("Error fetching data from IndexedDB:", event);
-        };
-      } catch (error) {
-        console.error("Error interacting with IndexedDB:", error);
-      }
-    };
-  
-    fetchDataFromIndexedDB();
-  }, []); // Add dependency to refetch when refreshData changes
-  
-
-
 
   const togglePause = () => {
     const newPauseState = !isDisplay;
@@ -187,23 +131,29 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
   const increaseCanvas = () => {
     if (canvasCount < 6) {
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
+      canvasnumbersRef.current = canvasCount;
     }
   };
+ 
 
   const decreaseCanvas = () => {
     if (canvasCount > 1) {
       setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
+      canvasnumbersRef.current = canvasCount;
     }
   };
   const toggleShowAllChannels = () => {
     if (canvasCount === 6) {
       setCanvasCount(1); // If canvasCount is 6, reduce it to 1
       setShowAllChannels(false);
+      canvasnumbersRef.current=canvasCount;
     } else {
       setCanvasCount(6); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
+      canvasnumbersRef.current=canvasCount;
     }
   };
+
 
   const increaseZoom = () => {
     if (Zoom < 10) {
@@ -234,7 +184,7 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
     } else {
       // If the time is not null, set the end time
       const newEndTimeSeconds = minutes * 60;
-      if (newEndTimeSeconds <= elapsedTime) {
+      if (newEndTimeSeconds <= recordingElapsedTime) {
         // Check if the end time is greater than the current elapsed time
         toast.error("End time must be greater than the current elapsed time");
       } else {
@@ -330,7 +280,6 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
       } else {
         console.error("Writable stream not available");
       }
-
       readData();
 
       await navigator.wakeLock.request("screen");
@@ -408,35 +357,37 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
         }
         if (streamData) {
           const { value } = streamData; // Destructure the stream data to get its value
-          buffer.push(...value); // Add the incoming data to the buffer
+          serialBuffer.push(...value); // Add the incoming data to the serial buffer
         }
 
         // Process packets while the buffer contains at least one full packet
-        while (buffer.length >= PACKET_LENGTH) {
-          // Find the index of the synchronization bytes in the buffer
-          const syncIndex = buffer.findIndex(
+        while (serialBuffer.length >= PACKET_LENGTH) {
+          // Find the index of the synchronization bytes in the serial buffer
+          const syncIndex = serialBuffer.findIndex(
             (byte, index) =>
-              byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2
+              byte === SYNC_BYTE1 && serialBuffer[index + 1] === SYNC_BYTE2
           );
 
           if (syncIndex === -1) {
             // If no sync bytes are found, clear the buffer and continue
-            buffer.length = 0; // Clear the buffer
+            serialBuffer.length = 0; // Clear the buffer
             continue;
           }
 
-          if (syncIndex + PACKET_LENGTH <= buffer.length) {
+          if (syncIndex + PACKET_LENGTH <= serialBuffer.length) {
             // Check if a full packet is available in the buffer
             const endByteIndex = syncIndex + PACKET_LENGTH - 1; // Calculate the index of the end byte
 
             if (
-              buffer[syncIndex] === SYNC_BYTE1 &&
-              buffer[syncIndex + 1] === SYNC_BYTE2 &&
-              buffer[endByteIndex] === END_BYTE
+              serialBuffer[syncIndex] === SYNC_BYTE1 &&
+              serialBuffer[syncIndex + 1] === SYNC_BYTE2 &&
+              serialBuffer[endByteIndex] === END_BYTE
             ) {
               // Validate the packet by checking the sync and end bytes
-              const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
+              const packet = serialBuffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
               const channelData: number[] = []; // Array to store the extracted channel data
+              const counter = packet[2]; // Extract the counter value from the packet
+              channelData.push(counter); // Add the counter to the channel data
               for (let channel = 0; channel < NUM_CHANNELS; channel++) {
                 // Loop through each channel in the packet
                 const highByte = packet[channel * 2 + HEADER_LENGTH]; // Extract the high byte for the channel
@@ -444,14 +395,30 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
                 const value = (highByte << 8) | lowByte; // Combine high and low bytes to get the channel value
                 channelData.push(value); // Convert the value to string and store it in the array
               }
-              const counter = packet[2]; // Extract the counter value from the packet
-              channelData.push(counter); // Add the counter to the channel data
+         
               dataSteam(channelData); // Pass the channel data to the LineData function for further processing
 
               if (isRecordingRef.current) {
                 // Check if recording is enabled
-                bufferRef.current.push(channelData); // Store the channel data in the recording buffer
+                const activeBuffer = recordingBuffers[activeBufferIndex]
+                activeBuffer.push(channelData); // Store the channel data in the recording buffer
+                if (activeBuffer.length >= MAX_BUFFER_SIZE) {
+                  processBuffer(activeBufferIndex);
+                  activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
+                }
+                const elapsedTime = Date.now() - recordingElapsedTime;
+                if(!isRecordingRef.current || elapsedTime >= 1000) {
+                  setRecordingElapsedTime((prev) => {
+                    if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
+                      stopRecording();
+                      return endTimeRef.current;
+                    }
+                    return elapsedTime;
+                  });
+                }
               }
+
+
 
               if (previousCounter !== null) {
                 // If there was a previous counter value, check for data loss
@@ -464,9 +431,9 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
                 }
               }
               previousCounter = counter; // Update the previous counter with the current counter
-              buffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
+              serialBuffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
             } else {
-              buffer.splice(0, syncIndex + 1); // If packet is incomplete, remove bytes up to the sync byte
+              serialBuffer.splice(0, syncIndex + 1); // If packet is incomplete, remove bytes up to the sync byte
             }
           } else {
             break; // If a full packet is not available, exit the loop and wait for more data
@@ -498,79 +465,142 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
   };
 
 
-  // Function to handle the recording process
-  const handleRecord = async () => {
-    console.log({ datasets });
-    
-    // Check if a device is connected
-    if (isConnected) {
-      // Check the length of existing datasets
-      if (datasets.length >= 3) {
-        console.log("Data set length in condition", datasets.length);
-        toast.error(`You have reached the maximum allowed datasets limit (${3}).`);
-        return; // Stop further execution if the limit is reached
-      }
+  const processBuffer = async (bufferIndex: number) => {
+    const buffer = recordingBuffers[bufferIndex];
   
-      // If recording is already in progress, stop it
-      if (isRecordingRef.current) {
-        stopRecording(); // Stop the recording if it is already on
+    // If the buffer is empty, return early
+    if (buffer.length === 0) return;
+  
+    // Attempt to write data to IndexedDB
+    if(currentFilenameRef.current){
+      const success = await writeToIndexedDB(buffer);
+      if (success) {
+        // Clear the buffer after successful write
+        buffer.length = 0;
       } else {
-        // Start a new recording session
-        isRecordingRef.current = true; // Set the recording state to true
-        const now = new Date(); // Get the current date and time
-        const nowTime = now.getTime(); // Get the current time in milliseconds
-        startTimeRef.current = nowTime; // Store the start time of the recording
-        currentSessionStartTimeRef.current = nowTime; // Store the session start time in Ref
-        setElapsedTime(0); // Reset elapsed time for display
-        timerIntervalRef.current = setInterval(checkRecordingTime, 1000); // Start a timer to check recording duration every second
-        setrecData(true); // Set the state indicating recording data is being collected
-  
-        // Generate a unique session ID for this recording session
-        const sessionId = `session-${Math.random().toString()}`;
-  
-        // Format the timestamp for the file name (yyyymmdd-hhmmdd.csv)
-        const fileName = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}.csv`;
-  
-        // Set session start timestamp (ISO format for consistency)
-        const timestamp = now.toISOString();
-  
-        setCurrentSessionTimestamp(timestamp);
-        setCurrentSessionId(sessionId);
-  
-        // Initialize IndexedDB for this recording session
-        try {
-          const db = await initIndexedDB(); // Attempt to initialize the IndexedDB
-          indexedDBRef.current = db; // Store the database connection in a ref for later use
-        } catch (error) {
-          // Handle any errors during the IndexedDB initialization
-          console.error("Failed to initialize IndexedDB:", error);
-          toast.error("Failed to initialize storage. Recording may not be saved.");
-          return; // Exit if initialization fails
-        }
-  
-        // Start reading and saving data
-        recordingIntervalRef.current = setInterval(() => {
-          const data = bufferRef.current; // Use bufferRef which stores actual data
-          saveDataDuringRecording(data, sessionId, fileName, timestamp); // Save the data to IndexedDB with session ID and file name
-          bufferRef.current = []; // Clear the buffer after saving
-        }, 1000); // Save data every 1 second or adjust the interval as needed
+        console.error("Failed to save buffer to IndexedDB. Retrying...");
       }
     } else {
-      // Notify the user if no device is connected
-      toast.warning("No device is connected");
+      console.log("Filename is not set")
     }
   };
-  
 
-  const checkRecordingTime = () => {
-    setElapsedTime((prev) => {
-      const newElapsedTime = prev + 1; // Increment the elapsed time by 1 second every second
-      if (endTimeRef.current !== null && newElapsedTime >= endTimeRef.current) {
-        stopRecording();
-        return endTimeRef.current;
+  const writeToIndexedDB = useCallback(
+    async (data: number[][]): Promise<boolean> => {
+      if (!indexedDB) {
+        console.error("IndexedDB is not supported in this browser.");
+        return false;
       }
-      return newElapsedTime;
-    });
+
+      console.log(
+        `Attempting to write data for ${canvasCount} channels. Current filename: ${currentFilenameRef.current}`
+      );
+      if (!currentFilenameRef.current) {
+        console.error("Filename is not set. Cannot write to IndexedDB.");
+        return false;
+      }
+
+      try {
+        const db = await openIndexedDB();
+        const tx = db.transaction("ChordsRecordings", "readwrite");
+        const store = tx.objectStore("ChordsRecordings");
+
+        const existingRecord = await new Promise<any | undefined>(
+          (resolve, reject) => {
+            const getRequest = store.get(currentFilenameRef.current!);
+            getRequest.onsuccess = () => resolve(getRequest.result);
+            getRequest.onerror = () => reject(getRequest.error);
+          }
+        );
+
+        const filteredData = data.map((row) =>
+          row.slice(0, canvasCount+1).map((value) =>
+            value !== undefined ? value : null
+          )
+        );
+
+        if (existingRecord) {
+          existingRecord.content.push(...data);
+          await new Promise<void>((resolve, reject) => {
+            const putRequest = store.put(existingRecord);
+            putRequest.onsuccess = () => resolve();
+            putRequest.onerror = () => reject(putRequest.error);
+          });
+
+          console.log(
+            `Data appended to existing file: ${currentFilenameRef.current}`
+          );
+        } else {
+          const newRecord = {
+            filename: currentFilenameRef.current!,
+            content: [...data],
+          };
+
+          await new Promise<void>((resolve, reject) => {
+            const putRequest = store.put(newRecord);
+            putRequest.onsuccess = () => resolve();
+            putRequest.onerror = () => reject(putRequest.error);
+          });
+
+          console.log(
+            `New file created and data saved: ${currentFilenameRef.current}`
+          );
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error writing to IndexedDB:", error);
+        return false;
+      }
+    },
+    [canvasCount]
+  );
+  
+  // Function to handle the recording process
+  const handleRecord = async () => {
+    if (isRecordingRef.current) {
+      // Stop the recording if it is currently active
+      stopRecording();
+    } else {
+      // Start a new recording session
+      isRecordingRef.current = true;
+      const now = new Date();
+      setRecordingStartTime(Date.now()); // Set the start time reference
+      setRecordingElapsedTime(Date.now());
+      // timerIntervalRef.current = setInterval(updateElapsedTime, 1000); // Start timer
+      setrecData(true);
+
+      // const timestamp = now.toISOString();
+      const filename = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
+        `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
+
+      currentFilenameRef.current = filename;
+      console.log(currentFilenameRef.current);
+      
+      // setCurrentSessionTimestamp(timestamp);
+
+      // try {
+      //   const db = await openIndexedDB();
+      //   indexedDBRef.current = db;
+
+      //   // Save session metadata
+      //   const tx = db.transaction(["ChordsRecordings"], "readwrite");
+      //   const metadataStore = tx.objectStore("ChordsRecordings");
+      //   await metadataStore.add({ filename });
+
+      //   // Start recording data
+      //   recordingIntervalRef.current = setInterval(() => {
+      //     const data = recordingBuffers.current;
+      //     saveDataDuringRecording(data);
+      //     recordingBuffers.current = []; // Clear the buffer
+      //   }, 1000);
+
+      //   toast.success("Recording started successfully.");
+      // } catch (error) {
+      //   console.error("Failed to initialize IndexedDB:", error);
+      //   toast.error("Failed to initialize storage. Recording may not be saved.");
+      // }
+    }
   };
 
   const formatDuration = (durationInSeconds: number): string => {
@@ -583,86 +613,67 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
       }`;
   };
 
-  
- // Updated stopRecording function
-    const stopRecording = async () => {
-      // Clear the recording timer
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-     
-  
-      const endTime = new Date(); // Get the end time of the recording
-  
-      // Fetch the number of recorded files from IndexedDB
-      const recordedFilesCount = (await getAllDataFromIndexedDB()).length;
-      if (startTimeRef.current !== null) {
-        // Convert start and end times to readable format
-        const startTimeString = new Date(startTimeRef.current).toLocaleTimeString();
-        const endTimeString = endTime.toLocaleTimeString();
-  
-        // Calculate the duration in seconds
-        const durationInSeconds = Math.floor((endTime.getTime() - startTimeRef.current) / 1000);
-  
-        // Close the IndexedDB connection
-        if (indexedDBRef.current) {
-          indexedDBRef.current.close();
-          indexedDBRef.current = null;
-        }
-  
-        // Fetch all recorded data from IndexedDB
-        const allData = await getAllDataFromIndexedDB();
-        // console.log("datasets",datasets);
-        // console.log("length of datasets:", datasets.length);
 
-        setDatasets((datasets) => [...datasets, { sessionId: currentSessionId, timestamp: currentSessionTimestamp, data: allData}]);
-        setHasData(allData.length > 0);
-  
-        // Show a success toast with details of the recording
-        toast.success("Recording completed successfully", {
-          description: (
-            <div>
-              <p>Session ID: {sessionId}</p>
-              <p>Start Time: {startTimeString}</p>
-              <p>End Time: {endTimeString}</p>
-              <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
-              <p>Samples Recorded: {recordedFilesCount}</p>
-            </div>
-          ),
-        });
-  
-        // Update states after recording is completed
-        isRecordingRef.current = false; // Set recording state to false
-        setElapsedTime(0); // Reset the elapsed time
-        setrecData(false); // Indicate that recording is not in progress
-        setIsRecordButtonDisabled(true); // Disable the record button
-        setSessionId(null); // Clear session ID after recording stops
-        setCurrentSessionId('');
-        setCurrentSessionTimestamp('');
-      } else {
-        // If start time is null, log an error and show a toast
-        console.error("Start time is null. Unable to calculate duration.");
-        toast.error("Recording start time was not captured.");
-      }
+  // Updated stopRecording function
+  const stopRecording = async () => {
+    if (!recordingStartTime) {
+      toast.error("Recording start time was not captured.");
+      return;
+    }
+
+    // Clear timers and intervals
+    // if (recordingIntervalRef.current) {
+    //   clearInterval(recordingIntervalRef.current);
+    //   recordingIntervalRef.current = null;
+    // }
+
+    const endTime = new Date();
+    const durationInSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
+
+    // try {
+    //   const allData = await getAllDataFromIndexedDB();
+    //   setDatasets((datasets) => [...datasets, { timestamp: currentSessionTimestamp, data: allData }]);
+
+    //   toast.success("Recording completed successfully", {
+    //     description: (
+    //       <div>
+    //         <p>Start Time: {new Date(recordingStartTime).toLocaleTimeString()}</p>
+    //         <p>End Time: {endTime.toLocaleTimeString()}</p>
+    //         <p>Recording Duration: {formatDuration(durationInSeconds)}</p>
+    //         <p>Samples Recorded: {allData.length}</p>
+    //       </div>
+    //     ),
+    //   });
+    // } catch (error) {
+    //   console.error("Failed to fetch data from IndexedDB:", error);
+    //   toast.error("Failed to complete recording.");
+    // } finally {
+      isRecordingRef.current = false;
+      setRecordingElapsedTime(0);
+      setrecData(false);
+      // if (indexedDBRef.current) indexedDBRef.current.close();
+      setRecordingStartTime(0); // Reset only after stopping
+    // }
+  };
+
+
+
+  // Call this function when your component mounts or when you suspect the data might change
+  useEffect(() => {
+    const checkDataAndConnection = async () => {
+      // Check if data exists in IndexedDB
+      const allData = await getAllDataFromIndexedDB();
+      setHasData(allData.length > 0);
+      // setDatasets(datasets.length)
+
+      // Disable the record button if there is data in IndexedDB and device is connected
+      setIsRecordButtonDisabled(allData.length > 0 || !isConnected);
     };
-  
-    // Call this function when your component mounts or when you suspect the data might change
-    useEffect(() => {
-      const checkDataAndConnection = async () => {
-        // Check if data exists in IndexedDB
-        const allData = await getAllDataFromIndexedDB();
-        setHasData(allData.length > 0);
-        // setDatasets(datasets.length)
-  
-        // Disable the record button if there is data in IndexedDB and device is connected
-        setIsRecordButtonDisabled(allData.length > 0 || !isConnected);
-      };
-  
-      checkDataAndConnection();
-    }, [isConnected, stopRecording]);
-  
-  
+
+    checkDataAndConnection();
+  }, [isConnected, stopRecording]);
+
+
   // Call this function when your component mounts or when you suspect the data might change
   useEffect(() => {
     const checkDataAndConnection = async () => {
@@ -677,69 +688,29 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
     checkDataAndConnection();
   }, [isConnected]);
 
-  
+
   // Updated saveDataDuringRecording function
-  const saveDataDuringRecording = async (
-    data: number[][],
-    sessionId: string,
-    fileName: string,
-    timestamp: string
-) => {
+  const saveDataDuringRecording = async (data: number[][]) => {
     if (!isRecordingRef.current || !indexedDBRef.current) return;
 
     try {
-        const tx = indexedDBRef.current.transaction(["adcReadings"], "readwrite");
-        const store = tx.objectStore("adcReadings");
+      const tx = indexedDBRef.current.transaction(["ChordsRecordings"], "readwrite");
+      const store = tx.objectStore("ChordsRecordings");
 
-        // Fetch existing record by sessionId
-        const sessionDataRequest = store.index("sessionId").get(sessionId);
+      console.log(`Saving data for ${canvasCount}`);
 
-        sessionDataRequest.onsuccess = (event) => {
-            const existingRecord = (event.target as IDBRequest).result;
+      for (const row of data) {
+        const channels = row.slice(0, canvasCount).map(value => (value !== undefined ? value : null));
 
-            if (existingRecord) {
-                // Append new data to existing record
-                const updatedData = [...existingRecord.data, ...data];
-                const updatedRecord = {
-                    ...existingRecord,
-                    data: updatedData,
-                    timestamp, // Update the timestamp
-                };
-
-                const updateRequest = store.put(updatedRecord);
-                updateRequest.onsuccess = () => {
-                    console.log(`Appended data to session: ${sessionId}`);
-                };
-                updateRequest.onerror = (error) => {
-                    console.error("Error updating session data:", error);
-                };
-            } else {
-                // Create new record if session doesn't exist
-                const newRecord = {
-                    sessionId,
-                    fileName,
-                    timestamp,
-                    data, // Save new data
-                };
-
-                const addRequest = store.add(newRecord);
-                addRequest.onsuccess = () => {
-                    console.log(`New session created: ${sessionId}`);
-                };
-                addRequest.onerror = (error) => {
-                    console.error("Error adding new session:", error);
-                };
-            }
-        };
-
-        sessionDataRequest.onerror = (error) => {
-            console.error("Error fetching session data:", error);
-        };
+        await store.add({
+          channels,
+          counter: row[6], // Adjust based on counter location
+        });
+      }
     } catch (error) {
-        console.error("Error saving data during recording:", error);
+      console.error("Error saving data during recording:", error);
     }
-};
-
+  };
 
   // Function to format time from seconds into a "MM:SS" string format
 
@@ -757,185 +728,178 @@ const currentSessionStartTimeRef = useRef<number | null>(null);
   };
 
   // Function to initialize the IndexedDB and return a promise with the database instance
-// Function to initialize the IndexedDB and return a promise with the database instance
-const initIndexedDB = async (): Promise<IDBDatabase> => {
-  return new Promise((resolve, reject) => {
-    // Open a connection to the IndexedDB database
-    const request = indexedDB.open("adcReadings", 2); // Update version if schema changes
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-
-      switch (event.oldVersion) {
-        case 0: // Database doesn't exist, create initial schema
-          const store = db.createObjectStore("adcReadings", {
-            keyPath: "id",
-            autoIncrement: true,
-          });
-          store.createIndex("timestamp", "timestamp", { unique: false });
-          store.createIndex("sessionId", "sessionId", { unique: false });
-          store.createIndex("channels", "channels", { unique: false });
-          break;
-
-        case 1: // Upgrade from version 1 to 2
-          const transaction = request.transaction;
-          if (transaction) {
-            const existingStore = transaction.objectStore("adcReadings");
-            if (!existingStore.indexNames.contains("channels")) {
-              existingStore.createIndex("channels", "channels", { unique: false });
-            }
-          }
-          break;
-
-        default:
-          console.warn("No schema updates for this version.");
-      }
-    };
-
-    request.onsuccess = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      resolve(db); // Resolve the promise with the database instance
-    };
-
-    request.onerror = () => {
-      reject(request.error); // Reject the promise with the error
-    };
-  });
-};
-
-
-  const getDataBySessionId = async (sessionId: string) => {
+  const openIndexedDB = async (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
-      const dbRequest = indexedDB.open("adcReadings");
-      dbRequest.onsuccess = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        const transaction = db.transaction("adcReadings", "readonly");
-        const store = transaction.objectStore("adcReadings");
-        const index = store.index("sessionId"); // Assuming you have an index on sessionId
+      // Open a connection to the IndexedDB database
+      const request = indexedDB.open("ChordsRecordings", 2); // Update version if schema changes
 
-        const request = index.getAll(sessionId);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject("Failed to fetch data.");
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+
+        switch (event.oldVersion) {
+          case 0: // Database doesn't exist, create initial schema
+            const store = db.createObjectStore("ChordsRecordings", {
+              keyPath: "filename"
+            });
+            store.createIndex("filename", "filename", { unique: true });
+            break;
+
+          case 1: // Upgrade from version 1 to 2
+            const transaction = request.transaction;
+            if (transaction) {
+              const existingStore = transaction.objectStore("ChordsRecordings");
+              existingStore.createIndex("filename", "filename", { unique: true });
+            }
+            break;
+          default:
+            console.warn("No schema updates for this version.");
+        }
       };
-      dbRequest.onerror = () => reject("Failed to open database.");
+
+      request.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        resolve(db); // Resolve the promise with the database instance
+      };
+
+      request.onerror = () => {
+        reject(request.error); // Reject the promise with the error
+      };
     });
   };
 
 
-  const deleteFilesBySessionId = async (sessionId: string) => {
-    try {
-      const dbRequest = indexedDB.open("adcReadings");
-  
-      dbRequest.onsuccess = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        const transaction = db.transaction("adcReadings", "readwrite");
-        const store = transaction.objectStore("adcReadings");
-  
-        // Check if the "sessionId" index exists
-        if (!store.indexNames.contains("sessionId")) {
-          console.error("Index 'sessionId' does not exist.");
-          toast.error("Unable to delete files: index not found.");
-          return;
-        }
-  
-        const index = store.index("sessionId");
-        const deleteRequest = index.openCursor(IDBKeyRange.only(sessionId));
-  
-        deleteRequest.onsuccess = (event) => {
-          const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-  
-          if (cursor) {
-            cursor.delete(); // Delete the current record
-            cursor.continue(); // Move to the next matching record
-          }
-        };
-  
-        deleteRequest.onerror = () => {
-          console.error("Error during delete operation.");
-          toast.error("Failed to delete files. Please try again.");
-        };
-  
-        // Ensure transaction completion
-        transaction.oncomplete = () => {
-          console.log("Files successfully deleted for session:", sessionId);
-  
-          // Update the datasets state by filtering out the deleted session
-          setDatasets((prevDatasets) =>
-            prevDatasets.filter((dataset) => dataset.sessionId !== sessionId)
-          );
-  
-          // Show a toast notification for successful deletion
-          toast.success("File deleted successfully.");
-        };
-  
-        transaction.onerror = () => {
-          console.error("Transaction failed during deletion.");
-          toast.error("Failed to delete files. Please try again.");
-        };
-      };
-  
-      dbRequest.onerror = () => {
-        console.error("Failed to open IndexedDB database.");
-        toast.error("An error occurred while accessing the database.");
-      };
-    } catch (error) {
-      console.error("Error occurred during file deletion:", error);
-      toast.error("An unexpected error occurred. Please try again.");
-    }
-  };
-  
+  // const getDataByTimestamp = async (timestamp: string) => {
+  //   return new Promise((resolve, reject) => {
+  //     const dbRequest = indexedDB.open("ChordsRecordings");
+  //     dbRequest.onsuccess = (event) => {
+  //       const db = (event.target as IDBOpenDBRequest).result;
+  //       const transaction = db.transaction("ChordsRecordings", "readonly");
+  //       const store = transaction.objectStore("ChordsRecordings");
+  //       const index = store.index("timestamp"); // Assuming you have an index on timestamp
 
-  const saveDataBySessionId = async (sessionId: string) => {
-    try {
-      // Fetch the data matching the sessionId from IndexedDB
-      const data = await getDataBySessionId(sessionId);
+  //       const request = index.getAll(timestamp); // Fetch all data matching the provided timestamp
+  //       request.onsuccess = () => resolve(request.result);
+  //       request.onerror = () => reject("Failed to fetch data.");
+  //     };
+  //     dbRequest.onerror = () => reject("Failed to open database.");
+  //   });
+  // };
 
-      // Ensure `data` is an array
-      if (!Array.isArray(data)) {
-        toast.error("Unexpected data format received.");
-        return;
-      }
 
-      // Get the timestamp of the session
-      const sessionData = data[0]; // Assuming the first entry contains the timestamp (you can adjust if needed)
-      const timestamp = sessionData?.timestamp; // Extract the timestamp
-      if (!timestamp) {
-        toast.error("Timestamp not found for this session.");
-        return;
-      }
+  // const deleteFilesByTimestamp = async (timestamp: string) => {
+  //   try {
+  //     const dbRequest = indexedDB.open("ChordsRecordings");
 
-      // Convert data to CSV
-      const csvData = convertToCSV(data);
+  //     dbRequest.onsuccess = (event) => {
+  //       const db = (event.target as IDBOpenDBRequest).result;
+  //       const transaction = db.transaction("ChordsRecordings", "readwrite");
+  //       const store = transaction.objectStore("ChordsRecordings");
 
-      // Create a Blob from the CSV data
-      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+  //       // Check if the "timestamp" index exists
+  //       if (!store.indexNames.contains("timestamp")) {
+  //         console.error("Index 'timestamp' does not exist.");
+  //         toast.error("Unable to delete files: index not found.");
+  //         return;
+  //       }
 
-      // Format the timestamp for the filename (e.g., YYYYMMDD-HHMMSS)
-      const formattedTimestamp = new Date(timestamp);
-      const formattedDate = `${formattedTimestamp.getFullYear()}${String(formattedTimestamp.getMonth() + 1).padStart(2, "0")}${String(formattedTimestamp.getDate()).padStart(2, "0")}`;
-      const formattedTime = `${String(formattedTimestamp.getHours()).padStart(2, "0")}${String(formattedTimestamp.getMinutes()).padStart(2, "0")}${String(formattedTimestamp.getSeconds()).padStart(2, "0")}`;
-      const finalTimestamp = `${formattedDate}-${formattedTime}`;
+  //       const index = store.index("timestamp");
+  //       const deleteRequest = index.openCursor(IDBKeyRange.only(timestamp));
 
-      // Generate the filename using the sessionId and formatted timestamp
-      const filename = `chordsweb-${finalTimestamp}.csv`;
+  //       deleteRequest.onsuccess = (event) => {
+  //         const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
 
-      // Trigger file download with the generated filename
-      saveAs(blob, filename); // FileSaver.js
-      toast.success("Data downloaded successfully.");
-    } catch (error) {
-      console.error("Error saving data by sessionId:", error);
-      toast.error("Failed to save data. Please try again.");
-    }
-  };
+  //         if (cursor) {
+  //           cursor.delete(); // Delete the current record
+  //           cursor.continue(); // Move to the next matching record
+  //         }
+  //       };
+
+  //       deleteRequest.onerror = () => {
+  //         console.error("Error during delete operation.");
+  //         toast.error("Failed to delete files. Please try again.");
+  //       };
+
+  //       // Ensure transaction completion
+  //       transaction.oncomplete = () => {
+  //         console.log("Files successfully deleted for timestamp:", timestamp);
+
+  //         // Update the datasets state by filtering out the deleted timestamp
+  //         setDatasets((prevDatasets) =>
+  //           prevDatasets.filter((dataset) => dataset.timestamp !== timestamp)
+  //         );
+
+  //         // Show a toast notification for successful deletion
+  //         toast.success("Files deleted successfully.");
+  //       };
+
+  //       transaction.onerror = () => {
+  //         console.error("Transaction failed during deletion.");
+  //         toast.error("Failed to delete files. Please try again.");
+  //       };
+  //     };
+
+  //     dbRequest.onerror = () => {
+  //       console.error("Failed to open IndexedDB database.");
+  //       toast.error("An error occurred while accessing the database.");
+  //     };
+  //   } catch (error) {
+  //     console.error("Error occurred during file deletion:", error);
+  //     toast.error("An unexpected error occurred. Please try again.");
+  //   }
+  // };
+
+
+
+  // const saveDataByTimestamp = async (timestamp: string) => {
+  //   try {
+  //     // Fetch the data matching the timestamp from IndexedDB
+  //     const data = await getDataByTimestamp(timestamp);
+
+  //     // Ensure `data` is an array
+  //     if (!Array.isArray(data)) {
+  //       toast.error("Unexpected data format received.");
+  //       return;
+  //     }
+
+  //     // Validate that data exists
+  //     if (data.length === 0) {
+  //       toast.error("No data found for the given timestamp.");
+  //       return;
+  //     }
+
+  //     // Convert data to CSV
+  //     const csvData = convertToCSV(data);
+
+  //     // Create a Blob from the CSV data
+  //     const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+
+  //     // Format the timestamp for the filename (e.g., YYYYMMDD-HHMMSS)
+  //     const formattedTimestamp = new Date(timestamp);
+  //     const formattedDate = `${formattedTimestamp.getFullYear()}${String(formattedTimestamp.getMonth() + 1).padStart(2, "0")}${String(formattedTimestamp.getDate()).padStart(2, "0")}`;
+  //     const formattedTime = `${String(formattedTimestamp.getHours()).padStart(2, "0")}${String(formattedTimestamp.getMinutes()).padStart(2, "0")}${String(formattedTimestamp.getSeconds()).padStart(2, "0")}`;
+  //     const finalTimestamp = `${formattedDate}-${formattedTime}`;
+
+  //     // Generate the filename using the formatted timestamp
+  //     const newFilename = `chordsweb-${finalTimestamp}.csv`;
+
+  //     // Trigger file download with the generated filename
+  //     saveAs(blob, newFilename); // FileSaver.js
+  //     toast.success("Data downloaded successfully.");
+  //   } catch (error) {
+  //     console.error("Error saving data by timestamp:", error);
+  //     toast.error("Failed to save data. Please try again.");
+  //   }
+  // };
+
 
   // Updated `getAllDataFromIndexedDB` to include IDs
   const getAllDataFromIndexedDB = async (): Promise<any[]> => {
     try {
-      const db = await initIndexedDB();
-      const tx = db.transaction(["adcReadings"], "readonly");
-      const store = tx.objectStore("adcReadings");
+      const db = await openIndexedDB();
+      const tx = db.transaction(["ChordsRecordings"], "readonly");
+      const store = tx.objectStore("ChordsRecordings");
       const request = store.getAll();
-  
+
       return new Promise((resolve, reject) => {
         request.onsuccess = () => {
           const data = request.result.map((item: any, index: number) => ({
@@ -944,7 +908,7 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
           }));
           resolve(data);
         };
-  
+
         request.onerror = (error) => {
           console.error("Error retrieving data from IndexedDB:", error);
           reject(error);
@@ -955,33 +919,33 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
       return [];
     }
   };
-  
+
 
   // Function to delete all data from IndexedDB (for ZIP files or clear all)
   const deleteAllDataFromIndexedDB = async () => {
     return new Promise<void>((resolve, reject) => {
       try {
-        const dbRequest = indexedDB.open("adcReadings", 2);
-  
+        const dbRequest = indexedDB.open("ChordsRecordings", 2);
+
         dbRequest.onerror = (error) => {
           console.error("Failed to open IndexedDB:", error);
           reject(new Error("Failed to open database"));
         };
-  
+
         dbRequest.onsuccess = (event) => {
           const db = (event.target as IDBOpenDBRequest).result;
-          
+
           // Start a transaction and get the object store
-          const transaction = db.transaction(["adcReadings"], "readwrite");
-          const store = transaction.objectStore("adcReadings");
-          
+          const transaction = db.transaction(["ChordsRecordings"], "readwrite");
+          const store = transaction.objectStore("ChordsRecordings");
+
           // Clear all records from the store
           const clearRequest = store.clear();
-  
+
           clearRequest.onsuccess = () => {
             // Close the database connection
             db.close();
-            
+
             // Clear state and update UI
             setHasData(false);
             setDatasets([]);
@@ -989,26 +953,26 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
             toast.success("All files deleted successfully.");
             resolve();
           };
-  
+
           clearRequest.onerror = (error) => {
             console.error("Failed to clear IndexedDB store:", error);
             toast.error("Failed to delete all files. Please try again.");
             reject(error);
           };
-  
+
           transaction.onerror = (error) => {
             console.error("Transaction failed:", error);
             toast.error("Failed to delete all files. Please try again.");
             reject(error);
           };
         };
-  
+
         dbRequest.onupgradeneeded = (event) => {
           const db = (event.target as IDBOpenDBRequest).result;
-          
+
           // Create the object store if it doesn't exist
-          if (!db.objectStoreNames.contains("adcReadings")) {
-            const store = db.createObjectStore("adcReadings", {
+          if (!db.objectStoreNames.contains("ChordsRecordings")) {
+            const store = db.createObjectStore("ChordsRecordings", {
               keyPath: "id",
               autoIncrement: true,
             });
@@ -1016,16 +980,16 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
             store.createIndex("sessionId", "sessionId", { unique: false });
           }
         };
-  
+
       } catch (error) {
         console.error("Error in deleteAllDataFromIndexedDB:", error);
         reject(error);
       }
     });
   };
-  
-  
-  
+
+
+
 
   // Function to save a ZIP file containing all datasets
   const saveAllDataAsZip = async () => {
@@ -1093,7 +1057,7 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
           <div className="flex items-center space-x-1 w-min ml-2">
             <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
             >
-              {formatTime(elapsedTime)}
+              {formatTime(recordingElapsedTime)}
             </button>
             <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
             <div>
@@ -1320,7 +1284,7 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
                     {datasets.length > 0 ? (
                       <>
                         {/* List each file with download and delete actions */}
-                        {datasets.map((dataset, index) => {
+                        {datasets.map((dataset) => {
                           const timestamp = new Date(dataset.timestamp); // Convert ISO string to Date object
                           const formattedTimestamp = `${timestamp.getFullYear()}${(timestamp.getMonth() + 1)
                             .toString()
@@ -1340,26 +1304,28 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
 
                           return (
                             <div
-                              key={dataset.sessionId}
+                              key={dataset.timestamp}
                               className="flex justify-between items-center"
                             >
                               <span className="font-medium mr-4 text-black">
                                 chordsweb-{formattedTimestamp}.csv
                               </span>
-                              <div className="flex space-x-2 ">
+                              <div className="flex space-x-2">
+                                {/* Save file by timestamp */}
                                 <Button
-                                  onClick={() => saveDataBySessionId(dataset.sessionId)}
+                                  onClick={() => saveDataByTimestamp(dataset.timestamp)}
                                   className="rounded-xl px-4"
                                 >
                                   <Download size={16} />
                                 </Button>
+                                {/* Delete file by timestamp */}
                                 <Button
                                   onClick={() => {
-                                    deleteFilesBySessionId(dataset.sessionId)
+                                    deleteFilesByTimestamp(dataset.timestamp)
                                       .then(() => {
                                         setDatasets((prevDatasets) =>
                                           prevDatasets.filter(
-                                            (d) => d.sessionId !== dataset.sessionId
+                                            (d) => d.timestamp !== dataset.timestamp
                                           )
                                         );
                                         toast.success("File deleted successfully");
@@ -1376,7 +1342,6 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
                             </div>
                           );
                         })}
-
 
                         {/* Download all as ZIP and delete all options */}
                         <div className="flex justify-between mt-4">
@@ -1403,6 +1368,8 @@ const initIndexedDB = async (): Promise<IDBDatabase> => {
             </div>
           </TooltipProvider>
         )}
+
+
 
         {/* Canvas control buttons with tooltip */}
         {isConnected && (
