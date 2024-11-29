@@ -155,6 +155,10 @@ const Connection: React.FC<ConnectionProps> = ({
       canvasnumbersRef.current = canvasCount;
     }
   };
+  useEffect(() => {
+    console.log("Canvas count updated:", canvasCount);
+    canvasnumbersRef.current = canvasCount; // Sync the ref with the state
+}, [canvasCount]);
 
 
   const increaseZoom = () => {
@@ -407,7 +411,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 const value = (highByte << 8) | lowByte; // Combine high and low bytes to get the channel value
                 channelData.push(value); // Convert the value to string and store it in the array
               }
-
+              
               dataSteam(channelData); // Pass the channel data to the LineData function for further processing
 
               if (isRecordingRef.current) {
@@ -465,7 +469,7 @@ const Connection: React.FC<ConnectionProps> = ({
     
     // Create rows by mapping data to match the header fields
     const rows = data.map((item, index) =>
-      [index + 1, ...item.slice(0, canvasCount)].map((field) =>
+      [...item.slice(0, canvasCount+1)].map((field) =>
         field !== undefined && field !== null ? JSON.stringify(field) : ""
       ).join(",")
     );
