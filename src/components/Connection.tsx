@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Notch } from './filters';
+import { EXGFilter, Notch } from './filters';
 
 import {
   Cable,
@@ -20,6 +20,10 @@ import {
   ZoomOut, // For zoom out functionality
   CircleOff,
   ReplaceAll,
+  Heart,
+  Brain,
+  Eye,
+  BicepsFlexed,
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -71,7 +75,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
-  const detectedBitsRef = React.useRef<BitSelection | null>(null);
+  const detectedBitsRef = React.useRef<BitSelection>("ten");
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
   const [datasets, setDatasets] = useState<string[][][]>([]); // State to store the recorded datasets
   const [hasData, setHasData] = useState(false);
@@ -196,7 +200,7 @@ const Connection: React.FC<ConnectionProps> = ({
         setifBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
         detectedBitsRef.current = board.bits as BitSelection;
-        return `${board.name} | Product ID: ${info.usbProductId}`; // Return the board name and product ID
+        return (<>{board.name} <br/> Product ID: {info.usbProductId}</>); // Return the board name and product ID
       }
 
       setDetectedBits(null);
@@ -212,23 +216,140 @@ const Connection: React.FC<ConnectionProps> = ({
       connectToDevice();
     }
   };
-  let lastConnectedPort: SerialPort | null = null;
+
+
+  // const connectToDevice = async () => {
+  //   try {
+  //     // Disconnect any currently open port
+  //     if (portRef.current && portRef.current.readable) {
+  //       await disconnectDevice();
+  //     }
+  
+  //     // Retrieve saved port information from localStorage
+  //     const savedPort = localStorage.getItem('lastdevice');
+  //     let port: SerialPort | null = null;
+  
+  //     if (savedPort) {
+  //       const savedPorts = JSON.parse(savedPort);
+  
+  //       // Attempt to get the matching port based on saved info
+  //       const ports = await navigator.serial.getPorts();
+  //       port = ports.find(p => {
+  //         const info = p.getInfo();
+  //         return info.usbVendorId === savedPorts.usbVendorId && info.usbProductId === savedPorts.usbProductId;
+  //       })|| null;
+  
+  //       if (port) {
+  //         await port.open({ baudRate: 230400});
+  //       }
+  //     }
+  
+  //     if (!port) {
+  //       // If no saved port or no matching port found, prompt user to select a port
+  //       port = await navigator.serial.requestPort();
+  //       await port.open({ baudRate: 230400 });
+  //     }
+  
+  //     // If port is successfully connected
+  //     Connection(true);
+  //     setIsConnected(true);
+  //     onPauseChange(true);
+  //     setIsDisplay(true);
+  //     isConnectedRef.current = true;
+  //     portRef.current = port;
+  
+  //     // Save the necessary information (usbVendorId, usbProductId, baudRate) to localStorage
+  //     const portInfo = await port.getInfo();
+  //     localStorage.setItem('lastdevice', JSON.stringify({
+  //       usbVendorId: portInfo.usbVendorId,
+  //       usbProductId: portInfo.usbProductId,
+  //       baudRate: 230400
+  //     }));
+  
+  //     toast.success("Connection Successful", {
+  //       description: (
+  //         <div className="mt-2 flex flex-col space-y-1">
+  //           <p>Device: {formatPortInfo(portInfo)}</p>
+  //           <p>Baud Rate: 230400</p>
+  //         </div>
+  //       ),
+  //     });
+  
+  //     // Set up reader and writer for data transfer
+  //     const reader = port.readable?.getReader();
+  //     readerRef.current = reader;
+  
+  //     const writer = port.writable?.getWriter();
+  //     if (writer) {
+  //       setTimeout(function () {
+  //         writerRef.current = writer;
+  //         const message = new TextEncoder().encode("START\n");
+  //         writerRef.current.write(message);
+  //       }, 2000);
+  //     } else {
+  //       console.error("Writable stream not available");
+  //     }
+  
+  //     readData();
+  //     await navigator.wakeLock.request("screen");
+  
+  //   } catch (error) {
+  //     await disconnectDevice();
+  //     console.error("Error connecting to device:", error);
+  //     toast.error("Failed to connect to device.");
+  //   }
+  // };
+
+  interface SavedDevice {
+    usbVendorId: number;
+    usbProductId: number;
+    baudRate: number;
+  }
+  
 
   const connectToDevice = async () => {
     try {
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-
-      const port = lastConnectedPort || await navigator.serial.requestPort();
-      await port.open({ baudRate: 230400 });
+  
+      const savedPorts: SavedDevice[] = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+      let port: SerialPort | null = null;
+  
+      const ports = await navigator.serial.getPorts();
+      if (savedPorts.length > 0) {
+        port = ports.find(p => {
+          const info = p.getInfo();
+          return savedPorts.some((saved: SavedDevice) => 
+            saved.usbVendorId === info.usbVendorId && saved.usbProductId === info.usbProductId
+          );
+        }) || null;
+      }
+  
+      if (!port) {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 230400 });
+  
+        const newPortInfo = await port.getInfo();
+        if (!savedPorts.some(saved => saved.usbVendorId === newPortInfo.usbVendorId && saved.usbProductId === newPortInfo.usbProductId)) {
+          savedPorts.push({
+            usbVendorId: newPortInfo.usbVendorId??0,
+            usbProductId: newPortInfo.usbProductId??0,
+            baudRate: 230400
+          });
+          localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+        }
+      } else {
+        await port.open({ baudRate: 230400 });
+      }
+  
       Connection(true);
       setIsConnected(true);
       onPauseChange(true);
       setIsDisplay(true);
       isConnectedRef.current = true;
       portRef.current = port;
-      lastConnectedPort = port;
+  
       toast.success("Connection Successful", {
         description: (
           <div className="mt-2 flex flex-col space-y-1">
@@ -237,13 +358,13 @@ const Connection: React.FC<ConnectionProps> = ({
           </div>
         ),
       });
-
+  
       const reader = port.readable?.getReader();
       readerRef.current = reader;
-
+  
       const writer = port.writable?.getWriter();
       if (writer) {
-        setTimeout(function () {
+        setTimeout(() => {
           writerRef.current = writer;
           const message = new TextEncoder().encode("START\n");
           writerRef.current.write(message);
@@ -251,31 +372,18 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Writable stream not available");
       }
-
+  
       readData();
-
       await navigator.wakeLock.request("screen");
+  
     } catch (error) {
       await disconnectDevice();
       console.error("Error connecting to device:", error);
       toast.error("Failed to connect to device.");
     }
   };
-  const sample = useCallback((bits: BitSelection | null): number => {
-    if (bits === null) {
-      return 0; // Default value for null input
-    }
-    console.log(bits);
-    switch (bits) {
-      case "fourteen":
-        return 1;
-      case "ten":
-        return 2;
-      default:
-        return 0; // Fallback value for unexpected cases
-    }
-  }, []);
-
+  
+  
   const disconnectDevice = async (): Promise<void> => {
     try {
       if (portRef.current) {
@@ -322,21 +430,49 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
+  const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
   const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
+  const [, forceEXGUpdate] = React.useReducer((x) => x + 1, 0);
 
-  const removeFilter = (channelIndex: number) => {
-    delete appliedFiltersRef.current[channelIndex]; // Remove the filter for the channel
-    forceUpdate(); // Trigger re-render
-    console.log(`Filter removed from Channel ${channelIndex}`);
+  const removeEXGFilter = (channelIndex: number) => {
+    delete appliedEXGFiltersRef.current[channelIndex]; // Remove the filter for the channel
+    forceEXGUpdate(); // Trigger re-render
+   
   };
 
+  // Function to handle frequency selection
+  const handleFrequencySelectionEXG = (channelIndex: number, frequency: number) => {
+    appliedEXGFiltersRef.current[channelIndex] = frequency; // Update the filter for the channel
+    forceEXGUpdate(); //Trigger re-render
+   
+  };
+
+  // Function to set the same filter for all channels
+  const applyEXGFilterToAllChannels = (channels: number[], frequency: number) => {
+    channels.forEach((channelIndex) => {
+      appliedEXGFiltersRef.current[channelIndex] = frequency; // Set the filter for the channel
+    });
+    forceEXGUpdate(); // Trigger re-render
+  
+  };
+
+
+  // Function to remove the filter for all channels
+  const removeEXGFilterFromAllChannels = (channels: number[]) => {
+    channels.forEach((channelIndex) => {
+      delete appliedEXGFiltersRef.current[channelIndex]; // Remove the filter for the channel
+    });
+    forceEXGUpdate(); // Trigger re-render
+
+  };
+  const removeNotchFilter = (channelIndex: number) => {
+    delete appliedFiltersRef.current[channelIndex]; // Remove the filter for the channel
+    forceUpdate(); // Trigger re-render
+  };
   // Function to handle frequency selection
   const handleFrequencySelection = (channelIndex: number, frequency: number) => {
     appliedFiltersRef.current[channelIndex] = frequency; // Update the filter for the channel
     forceUpdate(); //Trigger re-render
-    console.log(
-      `Channel ${channelIndex} selected with frequency ${frequency}Hz`
-    );
   };
 
   // Function to set the same filter for all channels
@@ -345,18 +481,14 @@ const Connection: React.FC<ConnectionProps> = ({
       appliedFiltersRef.current[channelIndex] = frequency; // Set the filter for the channel
     });
     forceUpdate(); // Trigger re-render
-    console.log(
-      `Filter set to ${frequency}Hz for all channels: ${channels.join(", ")}`
-    );
   };
 
   // Function to remove the filter for all channels
-  const removeFilterFromAllChannels = (channels: number[]) => {
+  const removeNotchFromAllChannels = (channels: number[]) => {
     channels.forEach((channelIndex) => {
       delete appliedFiltersRef.current[channelIndex]; // Remove the filter for the channel
     });
     forceUpdate(); // Trigger re-render
-    console.log(`Filters removed from all channels: ${channels.join(", ")}`);
   };
 
   // Function to read data from a connected device and process it
@@ -368,17 +500,16 @@ const Connection: React.FC<ConnectionProps> = ({
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    const notchFilters = [
-      new Notch(), // Notch_1
-      new Notch(), // Notch_2
-      new Notch(), // Notch_3
-      new Notch(), // Notch_4
-      new Notch(), // Notch_5
-      new Notch(), // Notch_6
-    ];
-
+    const notchFilters = Array.from({ length: 6 }, () => new Notch());
+    const EXGFilters = Array.from({ length: 6 }, () => new EXGFilter());
+    notchFilters.forEach((filter) => {
+      filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
+    });
+    EXGFilters.forEach((filter) => {
+      filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
+    });
     try {
-      // Loop while the device is connected
+      // Loop while the device is connectedconsole.log(`Filters removed from all channels: ${channels.join(", ")}`);
       while (isConnectedRef.current) {
         const streamData = await readerRef.current?.read(); // Read data from the device
         if (streamData?.done) {
@@ -421,13 +552,17 @@ const Connection: React.FC<ConnectionProps> = ({
                 const highByte = packet[channel * 2 + HEADER_LENGTH];
                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
                 const value = (highByte << 8) | lowByte;
+
                 channelData.push(
                   notchFilters[channel].process(
-                    value,
-                    appliedFiltersRef.current[channel],
-                    sample(detectedBitsRef.current)
+                    EXGFilters[channel].process(
+                      value,
+                      appliedEXGFiltersRef.current[channel]
+                    ),
+                    appliedFiltersRef.current[channel]
                   )
                 );
+
               }
 
               const counter = packet[2]; // Extract the counter value from the packet
@@ -1036,7 +1171,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       onClick={saveData}
                       disabled={!hasData}
                     >
-                      <Download size={16} className="mr-1" />
+                      <Download size={16} className="" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -1079,6 +1214,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </div>
           </TooltipProvider>
         )}
+
         {isConnected && (
           <Popover
             open={isFilterPopoverOpen}
@@ -1100,42 +1236,104 @@ const Connection: React.FC<ConnectionProps> = ({
                   <div className="text-sm font-semibold w-12"><ReplaceAll size={20} /></div>
                   {/* Buttons */}
                   <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
-                      className={
-                        Object.keys(appliedFiltersRef.current).length === 0
-                          ? "bg-red-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                          : "bg-white-500" // Active background
-                      }
-                    >
-                      <CircleOff size={17} />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
-                      className={
-                        Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 1)
-                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                          : "bg-white-500" // Active background
-                      }
-                    >
-                      50Hz
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
-                      className={
-                        Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 2)
-                          ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                          : "bg-white-500" // Active background
-                      }
-                    >
-                      60Hz
-                    </Button>
+                    <div className="flex items-center border border-input rounded-xl mx-0 px-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeEXGFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
+                        className={`rounded-xl rounded-r-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 0
+                            ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <CircleOff size={17} />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 4)}
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <BicepsFlexed size={17} />
+                      </Button> <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 3)}
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <Brain size={17} />
+                      </Button> <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <Heart size={17} />
+                      </Button> <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
+                        className={`rounded-xl rounded-l-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <Eye size={17} />
+                      </Button>
+                    </div>
+                    <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeNotchFromAllChannels([0, 1, 2, 3, 4, 5])}
+                        className={`rounded-xl rounded-r-none border-0
+                          ${Object.keys(appliedFiltersRef.current).length === 0
+                            ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <CircleOff size={17} />
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                          ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 1)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        50Hz
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
+                        className={`rounded-xl rounded-l-none border-0
+                          ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 2)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        60Hz
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col space-y-2">
@@ -1143,55 +1341,117 @@ const Connection: React.FC<ConnectionProps> = ({
                     <div key={filterName} className="flex items-center">
                       {/* Filter Name */}
                       <div className="text-sm font-semibold w-12">{filterName}</div>
-
                       {/* Buttons */}
                       <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeFilter(index)}
-                          className={
-                            appliedFiltersRef.current[index] === undefined
-                              ? "bg-red-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                              : "bg-white-500" // Active background
-                          }
-                        >
-                          <CircleOff size={17} />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleFrequencySelection(index, 1)}
-                          className={
-                            appliedFiltersRef.current[index] === 1
-                              ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                              : "bg-white-500" // Active background
-                          }
-                        >
-                          50Hz
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleFrequencySelection(index, 2)}
-                          className={
-                            appliedFiltersRef.current[index] === 2
-                              ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                              : "bg-white-500" // Active background
-                          }
-                        >
-                          60Hz
-                        </Button>
+                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeEXGFilter(index)}
+                            className={`rounded-xl rounded-r-none border-l-none border-0
+                              ${appliedEXGFiltersRef.current[index] === undefined
+                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <CircleOff size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionEXG(index, 4)}
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                              ${appliedEXGFiltersRef.current[index] === 4
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <BicepsFlexed size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionEXG(index, 3)}
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                              ${appliedEXGFiltersRef.current[index] === 3
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <Brain size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionEXG(index, 1)}
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                              ${appliedEXGFiltersRef.current[index] === 1
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <Heart size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionEXG(index, 2)}
+                            className={`rounded-xl rounded-l-none border-0
+                                      ${appliedEXGFiltersRef.current[index] === 2
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <Eye size={17} />
+                          </Button>
+                        </div>
+                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeNotchFilter(index)}
+                            className={`rounded-xl rounded-r-none border-0
+                              ${appliedFiltersRef.current[index] === undefined
+                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <CircleOff size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelection(index, 1)}
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                              ${appliedFiltersRef.current[index] === 1
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            50Hz
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelection(index, 2)}
+                            className={
+                              `rounded-xl rounded-l-none border-0 ${appliedFiltersRef.current[index] === 2
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white "
+                                : "bg-white-500 animate-fade-in-right"
+                              }`
+                            }
+                          >
+                            60Hz
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             </PopoverContent>
-
           </Popover>
         )}
-
 
         {/* Canvas control buttons with tooltip */}
         {isConnected && (

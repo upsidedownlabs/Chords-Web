@@ -238,14 +238,11 @@ const Canvas = forwardRef(
         });
 
         linesRef.current.forEach((line, i) => {
-          const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust according to your ADC resolution
-          const yScale = 2 / bitsPoints;
-          const chData = (data[i] - bitsPoints / 2) * yScale;
 
           // Use a separate sweep position for each line
           currentSweepPos.current[i] = sweepPositions.current[i];
           // Plot the new data at the current sweep position
-          line.setY(currentSweepPos.current[i] % line.numPoints, chData);
+          line.setY(currentSweepPos.current[i] % line.numPoints, data[i]);
 
           // Clear the next point to create a gap (optional, for visual effect)
           const clearPosition = (currentSweepPos.current[i] + (numX / 100)) % line.numPoints;
