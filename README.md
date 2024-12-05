@@ -42,10 +42,10 @@ Chords is an application based on Web Serial connection, you can connect boards 
 
 ## Roadmap for upcoming update
 
-**Data Filtering** : We will be adding bio-potential signal filtering options which includes 50/60 Hz notch filter to remove AC interference noise and highpass/lowpass remove artefacts from ECG, Emg ,Eog and EEg. Under filters, we will be adding different highpass and lowpass filters for specific bio-potential signals this feature will further enhance the user experience to record even more clear biopotential signals.
+[x]**Data Filtering** : We will be adding bio-potential signal filtering options which includes 50/60 Hz notch filter to remove AC interference noise and highpass/lowpass remove artefacts from ECG, Emg ,Eog and EEg. Under filters, we will be adding different highpass and lowpass filters for specific bio-potential signals this feature will further enhance the user experience to record even more clear biopotential signals.
 
 
-**Snapshot of data** : We will add the option to show up to 10 snapshots of length 4 seconds each providing you the option to take a peek into past 40 seconds of your data.
+[x]**Snapshot of data** : We will add the option to show up to 10 snapshots of length 4 seconds each providing you the option to take a peek into past 40 seconds of your data.
 
 **Multiple file download support** : We’re excited to enhance your options for downloading recorded data! Currently, you can record a file and choose to save or delete it. Soon, you’ll be able to download multiple files at once and have the flexibility to download or delete individual recorded files as needed.
 
