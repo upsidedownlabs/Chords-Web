@@ -42,17 +42,18 @@ Chords is an application based on Web Serial connection, you can connect boards 
 
 ## Roadmap for upcoming update
 
-[x]**Data Filtering** : We will be adding bio-potential signal filtering options which includes 50/60 Hz notch filter to remove AC interference noise and highpass/lowpass remove artefacts from ECG, Emg ,Eog and EEg. Under filters, we will be adding different highpass and lowpass filters for specific bio-potential signals this feature will further enhance the user experience to record even more clear biopotential signals.
+- [X] **Data Filtering** : We will be adding bio-potential signal filtering options which includes 50/60 Hz notch filter to remove AC interference noise and highpass/lowpass remove artefacts from ECG, Emg ,Eog and EEg. Under filters, we will be adding different highpass and lowpass filters for specific bio-potential signals this feature will further enhance the user experience to record even more clear biopotential signals.
 
 
-[x]**Snapshot of data** : We will add the option to show up to 10 snapshots of length 4 seconds each providing you the option to take a peek into past 40 seconds of your data.
-
-**Multiple file download support** : We’re excited to enhance your options for downloading recorded data! Currently, you can record a file and choose to save or delete it. Soon, you’ll be able to download multiple files at once and have the flexibility to download or delete individual recorded files as needed.
-
-**Raspberry Pi Pico support** : We will be releasing Raspberry Pi Pico support for chords which by the way works very well with our new Heart BioAmp Candy. Let us know your favorite board in the comments section below and we will make sure to add chords support for your board in the upcoming updates.
+- [X] **Frame Buffers of data** : We will add Frame Buffer Feature this option to show upto 5 snapshots of length each of 4 seconds, you can now view upto last five snapshots of your data and save them as images.
 
 
-**CSV compatibility with [Chords Python](https://github.com/upsidedownlabs/Chords-Python)** : we will update the CSV data format and file names for both chords-web and chords-python so that you can use csvplotter.py to easily plot the recorded data.
+- [] **Multiple file download support** : We’re excited to enhance your options for downloading recorded data! Currently, you can record a file and choose to save or delete it. Soon, you’ll be able to download multiple files at once and have the flexibility to download or delete individual recorded files as needed.
+
+- [] **Raspberry Pi Pico support** : We will be releasing Raspberry Pi Pico support for chords which by the way works very well with our new Heart BioAmp Candy. Let us know your favorite board in the comments section below and we will make sure to add chords support for your board in the upcoming updates.
+
+
+- [] **CSV compatibility with [Chords Python](https://github.com/upsidedownlabs/Chords-Python)** : we will update the CSV data format and file names for both chords-web and chords-python so that you can use csvplotter.py to easily plot the recorded data.
 
 
 ## Contributors
