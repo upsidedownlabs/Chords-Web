@@ -19,7 +19,7 @@ Chords is an application based on Web Serial connection, you can connect boards 
 3.  Open Chords in a web browser.
 4.  Click the "Connect" button to establish a connection with the Arduino and stream.
 5.  Click the "Zoom" button to zoom in on data visualization.
-6.  Click the "Play/Pause" button to stop and start data on screen.
+6.  Click the "Play/Pause" to control data flow and navigate frames with forward/backward buttons.
 7.  Click the "Record" button to record data.
 8.  Click the "download" button to download the recorded data.
 9.  Click the "Delete" button to delete recorded data.
@@ -48,12 +48,12 @@ Chords is an application based on Web Serial connection, you can connect boards 
 - [X] **Frame Buffers of data** : We will add Frame Buffer Feature this option to show upto 5 snapshots of length each of 4 seconds, you can now view upto last five snapshots of your data and save them as images.
 
 
-- [] **Multiple file download support** : We’re excited to enhance your options for downloading recorded data! Currently, you can record a file and choose to save or delete it. Soon, you’ll be able to download multiple files at once and have the flexibility to download or delete individual recorded files as needed.
+- [ ] **Multiple file download support** : We’re excited to enhance your options for downloading recorded data! Currently, you can record a file and choose to save or delete it. Soon, you’ll be able to download multiple files at once and have the flexibility to download or delete individual recorded files as needed.
 
-- [] **Raspberry Pi Pico support** : We will be releasing Raspberry Pi Pico support for chords which by the way works very well with our new Heart BioAmp Candy. Let us know your favorite board in the comments section below and we will make sure to add chords support for your board in the upcoming updates.
+- [ ] **Raspberry Pi Pico support** : We will be releasing Raspberry Pi Pico support for chords which by the way works very well with our new Heart BioAmp Candy. Let us know your favorite board in the comments section below and we will make sure to add chords support for your board in the upcoming updates.
 
 
-- [] **CSV compatibility with [Chords Python](https://github.com/upsidedownlabs/Chords-Python)** : we will update the CSV data format and file names for both chords-web and chords-python so that you can use csvplotter.py to easily plot the recorded data.
+- [ ] **CSV compatibility with [Chords Python](https://github.com/upsidedownlabs/Chords-Python)** : we will update the CSV data format and file names for both chords-web and chords-python so that you can use csvplotter.py to easily plot the recorded data.
 
 
 ## Contributors
