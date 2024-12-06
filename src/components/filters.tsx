@@ -8,16 +8,6 @@
 //
 // Note:
 // filter_gen.py provides C/C++ type functions which we have converted to TS
-// TypeScript filter classes for Chords
-// Made with <3 at Upside Down labs
-// Author: Aman Maheshwari
-//
-// Reference:
-// https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
-// https://courses.ideate.cmu.edu/16-223/f2020/Arduino/FilterDemos/filter_gen.py
-//
-// Note:
-// filter_gen.py provides C/C++ type functions which we have converted to TS
 
 //Notch Filter 50Hz/60Hz
 export class EXGFilter {
@@ -37,7 +27,6 @@ export class EXGFilter {
         // Initialize state variables
         this.z1 = 0;
         this.z2 = 0;
-
         this.x1 = 0;
         this.x2 = 0;
         this.x3 = 0;
@@ -46,8 +35,11 @@ export class EXGFilter {
         this.bitsPoints=0;
         this.yScale=0;
     }
-    //sample 1.500 2.250
-    //TYPE 1.ECG
+    //sample-
+    //1.500 
+    //2.250
+    //TYPE-
+    //1.ECG
     //2.EOG
     //3.EEG
     //4.EMG
@@ -147,35 +139,27 @@ export class EXGFilter {
                 break;
             default:
                 break;
-
         }
         return chData;
     }
 }
 
-
-
 export class Notch {
     // Properties to hold the state of the filter sections
     private z1_1: number;
     private z2_1: number;
-
     private z1_2: number;
     private z2_2: number;
-
     private x_1: number;
     private x_2: number;
-
     private sample: string | null;
 
     constructor() {
         // Initialize state variables for both filter sections
         this.z1_1 = 0;
         this.z2_1 = 0;
-
         this.z1_2 = 0;
         this.z2_2 = 0;
-
         this.x_1 = 0;
         this.x_2 = 0;
         this.sample = null;

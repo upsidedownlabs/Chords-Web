@@ -24,6 +24,8 @@ import {
   Brain,
   Eye,
   BicepsFlexed,
+  ArrowRightToLine,
+  ArrowLeftToLine,
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -54,7 +56,11 @@ interface ConnectionProps {
   canvasCount: number;
   channelCount: number;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
+  SetcurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
+  currentSnapshot: number;
   Zoom: number;
+  snapShotRef: React.RefObject<boolean[]>;
+  
 }
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -67,6 +73,9 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsDisplay,
   setCanvasCount,
   canvasCount,
+  SetcurrentSnapshot,
+  currentSnapshot,
+  snapShotRef,
   SetZoom,
   Zoom,
 }) => {
@@ -99,20 +108,48 @@ const Connection: React.FC<ConnectionProps> = ({
     null
   );
   const buffer: number[] = []; // Buffer to store incoming data
-  const bufferdRef = useRef<number[][][]>([[], []]); // Two buffers: [0] and [1]
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
-  const filterRef = useRef<number | null>(null);
 
   const togglePause = () => {
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
     onPauseChange(newPauseState); // Notify parent about the change
+    SetcurrentSnapshot(0);
+    setClickCount(0);
+    
   };
   const increaseCanvas = () => {
     if (canvasCount < 6) {
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
     }
   };
+
+  const [clickCount, setClickCount] = useState(0); // Track how many times the left arrow is clicked
+
+  const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0)-1;
+
+  // Enable/Disable left arrow button
+  const handlePrevSnapshot = () => {
+    if (clickCount < enabledClicks) {
+      setClickCount(clickCount + 1);
+    }
+  
+    if (currentSnapshot < 4) {
+      SetcurrentSnapshot(currentSnapshot + 1);
+    }
+  };
+
+  // Handle right arrow click (reset count and disable button if needed)
+  const handleNextSnapshot = () => {
+    if (clickCount>0) {
+      setClickCount(clickCount-1); // Reset count after right arrow click
+    }
+    if (currentSnapshot > 0) {
+      SetcurrentSnapshot(currentSnapshot - 1);
+    }
+  };
+
+  
 
   const decreaseCanvas = () => {
     if (canvasCount > 1) {
@@ -167,7 +204,7 @@ const Connection: React.FC<ConnectionProps> = ({
       }
     }
   };
-
+ 
   const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Function to handle the custom time input change
     const value = e.target.value.replace(/[^0-9]/g, "");
@@ -200,7 +237,7 @@ const Connection: React.FC<ConnectionProps> = ({
         setifBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
         detectedBitsRef.current = board.bits as BitSelection;
-        return (<>{board.name} <br/> Product ID: {info.usbProductId}</>); // Return the board name and product ID
+        return (<>{board.name} <br /> Product ID: {info.usbProductId}</>); // Return the board name and product ID
       }
 
       setDetectedBits(null);
@@ -217,151 +254,93 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-
-  // const connectToDevice = async () => {
-  //   try {
-  //     // Disconnect any currently open port
-  //     if (portRef.current && portRef.current.readable) {
-  //       await disconnectDevice();
-  //     }
-  
-  //     // Retrieve saved port information from localStorage
-  //     const savedPort = localStorage.getItem('lastdevice');
-  //     let port: SerialPort | null = null;
-  
-  //     if (savedPort) {
-  //       const savedPorts = JSON.parse(savedPort);
-  
-  //       // Attempt to get the matching port based on saved info
-  //       const ports = await navigator.serial.getPorts();
-  //       port = ports.find(p => {
-  //         const info = p.getInfo();
-  //         return info.usbVendorId === savedPorts.usbVendorId && info.usbProductId === savedPorts.usbProductId;
-  //       })|| null;
-  
-  //       if (port) {
-  //         await port.open({ baudRate: 230400});
-  //       }
-  //     }
-  
-  //     if (!port) {
-  //       // If no saved port or no matching port found, prompt user to select a port
-  //       port = await navigator.serial.requestPort();
-  //       await port.open({ baudRate: 230400 });
-  //     }
-  
-  //     // If port is successfully connected
-  //     Connection(true);
-  //     setIsConnected(true);
-  //     onPauseChange(true);
-  //     setIsDisplay(true);
-  //     isConnectedRef.current = true;
-  //     portRef.current = port;
-  
-  //     // Save the necessary information (usbVendorId, usbProductId, baudRate) to localStorage
-  //     const portInfo = await port.getInfo();
-  //     localStorage.setItem('lastdevice', JSON.stringify({
-  //       usbVendorId: portInfo.usbVendorId,
-  //       usbProductId: portInfo.usbProductId,
-  //       baudRate: 230400
-  //     }));
-  
-  //     toast.success("Connection Successful", {
-  //       description: (
-  //         <div className="mt-2 flex flex-col space-y-1">
-  //           <p>Device: {formatPortInfo(portInfo)}</p>
-  //           <p>Baud Rate: 230400</p>
-  //         </div>
-  //       ),
-  //     });
-  
-  //     // Set up reader and writer for data transfer
-  //     const reader = port.readable?.getReader();
-  //     readerRef.current = reader;
-  
-  //     const writer = port.writable?.getWriter();
-  //     if (writer) {
-  //       setTimeout(function () {
-  //         writerRef.current = writer;
-  //         const message = new TextEncoder().encode("START\n");
-  //         writerRef.current.write(message);
-  //       }, 2000);
-  //     } else {
-  //       console.error("Writable stream not available");
-  //     }
-  
-  //     readData();
-  //     await navigator.wakeLock.request("screen");
-  
-  //   } catch (error) {
-  //     await disconnectDevice();
-  //     console.error("Error connecting to device:", error);
-  //     toast.error("Failed to connect to device.");
-  //   }
-  // };
-
   interface SavedDevice {
     usbVendorId: number;
     usbProductId: number;
     baudRate: number;
   }
-  
+
 
   const connectToDevice = async () => {
     try {
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-  
+
       const savedPorts: SavedDevice[] = JSON.parse(localStorage.getItem('savedDevices') || '[]');
       let port: SerialPort | null = null;
-  
+      let baudRate = 230400; // Default baud rate
+
       const ports = await navigator.serial.getPorts();
+
       if (savedPorts.length > 0) {
         port = ports.find(p => {
           const info = p.getInfo();
-          return savedPorts.some((saved: SavedDevice) => 
-            saved.usbVendorId === info.usbVendorId && saved.usbProductId === info.usbProductId
+          return savedPorts.some(saved =>
+            saved.usbVendorId === (info.usbVendorId ?? 0) && saved.usbProductId === (info.usbProductId ?? 0)
           );
         }) || null;
       }
-  
+
       if (!port) {
         port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 230400 });
-  
         const newPortInfo = await port.getInfo();
-        if (!savedPorts.some(saved => saved.usbVendorId === newPortInfo.usbVendorId && saved.usbProductId === newPortInfo.usbProductId)) {
+
+
+        const usbVendorId = newPortInfo.usbVendorId ?? 0;
+        const usbProductId = newPortInfo.usbProductId ?? 0;
+
+        // Check for specific usbProductId 29987 and set baud rate
+        if (usbProductId === 29987) {
+          baudRate = 115200;
+          
+        }
+
+        const existingDevice = savedPorts.find(saved =>
+          saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
+        );
+        
+        if (!existingDevice) {
           savedPorts.push({
-            usbVendorId: newPortInfo.usbVendorId??0,
-            usbProductId: newPortInfo.usbProductId??0,
-            baudRate: 230400
+            usbVendorId,
+            usbProductId,
+            baudRate
           });
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+          console.log(`New device saved: Vendor ${usbVendorId}, Product ${usbProductId}, Baud Rate ${baudRate}`);
         }
+
+        await port.open({ baudRate });
       } else {
-        await port.open({ baudRate: 230400 });
+        const portInfo = port.getInfo();
+        const usbProductId = portInfo.usbProductId ?? 0;
+
+        // Check again if the port has productId 29987
+        if (usbProductId === 29987) {
+          baudRate = 115200;
+        }
+
+        await port.open({ baudRate });
       }
-  
+
       Connection(true);
       setIsConnected(true);
       onPauseChange(true);
       setIsDisplay(true);
       isConnectedRef.current = true;
       portRef.current = port;
-  
+
       toast.success("Connection Successful", {
         description: (
           <div className="mt-2 flex flex-col space-y-1">
             <p>Device: {formatPortInfo(port.getInfo())}</p>
-            <p>Baud Rate: 230400</p>
+            <p>Baud Rate: {baudRate}</p>
           </div>
         ),
       });
-  
       const reader = port.readable?.getReader();
       readerRef.current = reader;
-  
+
       const writer = port.writable?.getWriter();
       if (writer) {
         setTimeout(() => {
@@ -372,18 +351,17 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Writable stream not available");
       }
-  
+
       readData();
       await navigator.wakeLock.request("screen");
-  
+
     } catch (error) {
       await disconnectDevice();
       console.error("Error connecting to device:", error);
       toast.error("Failed to connect to device.");
     }
   };
-  
-  
+
   const disconnectDevice = async (): Promise<void> => {
     try {
       if (portRef.current) {
@@ -394,25 +372,30 @@ const Connection: React.FC<ConnectionProps> = ({
           } catch (error) {
             console.error("Failed to send STOP command:", error);
           }
-          writerRef.current.releaseLock();
-          writerRef.current = null;
+          if (writerRef.current) {
+            writerRef.current.releaseLock();
+            writerRef.current = null;
+          }
         }
-
+        snapShotRef.current?.fill(false);
         if (readerRef.current) {
           try {
             await readerRef.current.cancel();
           } catch (error) {
             console.error("Failed to cancel reader:", error);
           }
-          readerRef.current.releaseLock();
-          readerRef.current = null;
+          if (readerRef.current) {
+            readerRef.current.releaseLock();
+            readerRef.current = null;
+          }
         }
-
+  
+        // Close port
         if (portRef.current.readable) {
           await portRef.current.close();
         }
         portRef.current = null;
-
+  
         toast("Disconnected from device", {
           action: {
             label: "Reconnect",
@@ -437,14 +420,14 @@ const Connection: React.FC<ConnectionProps> = ({
   const removeEXGFilter = (channelIndex: number) => {
     delete appliedEXGFiltersRef.current[channelIndex]; // Remove the filter for the channel
     forceEXGUpdate(); // Trigger re-render
-   
+
   };
 
   // Function to handle frequency selection
   const handleFrequencySelectionEXG = (channelIndex: number, frequency: number) => {
     appliedEXGFiltersRef.current[channelIndex] = frequency; // Update the filter for the channel
     forceEXGUpdate(); //Trigger re-render
-   
+
   };
 
   // Function to set the same filter for all channels
@@ -453,7 +436,7 @@ const Connection: React.FC<ConnectionProps> = ({
       appliedEXGFiltersRef.current[channelIndex] = frequency; // Set the filter for the channel
     });
     forceEXGUpdate(); // Trigger re-render
-  
+
   };
 
 
@@ -1056,7 +1039,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-r-none"
                       onClick={decreaseZoom}
-                      disabled={Zoom === 1 || !isDisplay}
+                      disabled={Zoom === 1 }
                     >
                       <ZoomOut size={16} />
                     </Button>
@@ -1074,7 +1057,6 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="flex items-center justify-center px-3 py-2  rounded-none select-none min-w-12"
                       onClick={toggleZoom}
-                      disabled={!isDisplay}
                     >
                       {Zoom}x
                     </Button>
@@ -1092,7 +1074,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseZoom}
-                      disabled={Zoom === 10 || !isDisplay}
+                      disabled={Zoom === 10 }
 
                     >
                       <ZoomIn size={16} />
@@ -1108,13 +1090,21 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-
         {/* Display (Play/Pause) button with tooltip */}
         {isConnected && (
+          <div className="flex items-center gap-0.5 mx-0 px-0">
+              <Button
+            className="rounded-xl rounded-r-none"
+            onClick={ handlePrevSnapshot}
+            disabled={isDisplay || clickCount>=enabledClicks}
+
+          >
+               <ArrowLeftToLine size={16}/>
+          </Button>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button className="rounded-xl" onClick={togglePause}>
+                <Button className="rounded-xl rounded-l-none rounded-r-none" onClick={togglePause}>
                   {isDisplay ? (
                     <Pause className="h-5 w-5" />
                   ) : (
@@ -1129,7 +1119,16 @@ const Connection: React.FC<ConnectionProps> = ({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          <Button
+            className="rounded-xl rounded-l-none"
+            onClick={handleNextSnapshot }
+            disabled={isDisplay || clickCount==0}
+            >
+          <ArrowRightToLine size={16}/>
+          </Button>
+          </div>
         )}
+     
 
         {/* Record button with tooltip */}
         {isConnected && (
@@ -1162,7 +1161,7 @@ const Connection: React.FC<ConnectionProps> = ({
         {/* Save/Delete data buttons with tooltip */}
         {isConnected && (
           <TooltipProvider>
-            <div className="flex">
+            <div className="flex gap-0.5">
               {hasData && datasets.length === 1 && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1180,7 +1179,6 @@ const Connection: React.FC<ConnectionProps> = ({
                 </Tooltip>
               )}
 
-              <Separator orientation="vertical" className="h-full" />
 
               <Tooltip>
                 <TooltipTrigger asChild>

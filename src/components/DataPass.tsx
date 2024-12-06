@@ -2,7 +2,7 @@
 
 import Connection from "./Connection";
 import Steps from "./Steps";
-import React, { useState ,useCallback,useRef} from "react";
+import React, { useState, useCallback, useRef } from "react";
 import Canvas from "./Canvas";
 import Navbar from "./Navbar"; // Import the Navbar
 
@@ -17,11 +17,12 @@ const DataPass = () => {
   const canvasRef = useRef<any>(null); // Create a ref for the Canvas component
   let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
   const [Zoom, SetZoom] = useState<number>(1); // Number of canvases
+  const [currentSnapshot, SetcurrentSnapshot] = useState<number>(0); // Number of canvases
   const pauseRef = useRef<boolean>(true);
   const handlePauseChange = (newPauseState: boolean) => {
     pauseRef.current = newPauseState;
   };
-
+  const snapShotRef = useRef<boolean[]>(Array(6).fill(false));
   const datastream = useCallback((data: number[]) => {
 
     if (canvasRef.current) {
@@ -37,18 +38,20 @@ const DataPass = () => {
         );
       }
     }
-    previousCounter =data[6]; // Update the previous counter with the current counter
+    previousCounter = data[6]; // Update the previous counter with the current counter
   }, []);
   return (
     <div className="flex flex-col h-screen m-0 p-0 bg-g ">
-     <div className="bg-highlight">
-      <Navbar isDisplay={isDisplay} />
+      <div className="bg-highlight">
+        <Navbar isDisplay={isDisplay} />
       </div>
       {isConnected ? (
         <Canvas
-        pauseRef={pauseRef}
-        Zoom={Zoom}
-        ref={canvasRef} // Pass the ref to the Canvas component
+          pauseRef={pauseRef}
+          Zoom={Zoom}
+          snapShotRef={snapShotRef}
+          currentSnapshot={currentSnapshot}
+          ref={canvasRef} // Pass the ref to the Canvas component
           selectedBits={selectedBits}
           isDisplay={isDisplay}
           canvasCount={canvasCount} // Pass canvas count
@@ -57,7 +60,8 @@ const DataPass = () => {
         <Steps />
       )}
       <Connection
-      onPauseChange={handlePauseChange}
+        onPauseChange={handlePauseChange}
+        snapShotRef={snapShotRef}
         datastream={datastream}
         Connection={setIsConnected}
         selectedBits={selectedBits}
@@ -68,6 +72,8 @@ const DataPass = () => {
         canvasCount={canvasCount}
         channelCount={channelCount}
         SetZoom={SetZoom}
+        SetcurrentSnapshot={SetcurrentSnapshot}
+        currentSnapshot={currentSnapshot}
         Zoom={Zoom}
       />
     </div>
