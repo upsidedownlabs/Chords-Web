@@ -86,8 +86,6 @@ const Canvas = forwardRef(
           array3DRef.current[activebuffer.current][i] = [];
         }
       }
-
-
       if (array3DRef.current[activebuffer.current][0].length >= numX) {
         snapShotRef.current[activebuffer.current] = true;
         activebuffer.current = (activebuffer.current + 1) % 6;
@@ -112,8 +110,8 @@ const Canvas = forwardRef(
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
           }
+          processIncomingData(data);
           if (pauseRef.current) {
-            processIncomingData(data);
             updatePlots(data, Zoom);
           }
           if (previousCounter !== null) {
