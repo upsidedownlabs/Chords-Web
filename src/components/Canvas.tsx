@@ -16,10 +16,8 @@ interface CanvasProps {
   isDisplay: boolean;
   canvasCount?: number;
   Zoom: number;
-}
-interface Batch {
-  time: number;
-  values: number[];
+  currentSnapshot: number;
+  snapShotRef: React.MutableRefObject<boolean[]>;
 }
 
 const Canvas = forwardRef(
@@ -30,6 +28,8 @@ const Canvas = forwardRef(
       isDisplay,
       canvasCount = 6, // default value in case not provided
       Zoom,
+      currentSnapshot,
+      snapShotRef,
     }: CanvasProps,
     ref
   ) => {
@@ -45,6 +45,13 @@ const Canvas = forwardRef(
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     let numX: number;
+    const array3DRef = useRef<number[][][]>(
+      Array.from({ length: 6 }, () =>
+        Array.from({ length: 6 }, () => Array())
+      )
+    );
+    const activebuffer = useRef(0); // Initialize useRef with 0
+    const indicesRef = useRef<number[]>([]); // Use `useRef` for indices
 
     const getpoints = useCallback((bits: BitSelection): number => {
       switch (bits) {
@@ -57,6 +64,39 @@ const Canvas = forwardRef(
       }
     }, []);
     numX = getpoints(selectedBits);
+    const prevCanvasCountRef = useRef<number>(canvasCount);
+
+    const processIncomingData = (incomingData: number[]) => {
+      for (let i = 0; i < canvasCount; i++) {
+
+        if (prevCanvasCountRef.current !== canvasCount) {
+          // Clear the entire buffer if canvasCount changes
+          for (let bufferIndex = 0; bufferIndex < 6; bufferIndex++) {
+            array3DRef.current[bufferIndex] = Array.from({ length: canvasCount }, () => []);
+            snapShotRef.current[bufferIndex] = false;
+          }
+          prevCanvasCountRef.current = canvasCount;
+        }
+        if (array3DRef.current[activebuffer.current][i].length >= numX) {
+          array3DRef.current[activebuffer.current][i] = [];
+        }
+        array3DRef.current[activebuffer.current][i].push(incomingData[i]);
+
+        if (array3DRef.current[activebuffer.current][i].length < numX && !pauseRef.current) {
+          array3DRef.current[activebuffer.current][i] = [];
+        }
+      }
+      if (array3DRef.current[activebuffer.current][0].length >= numX) {
+        snapShotRef.current[activebuffer.current] = true;
+        activebuffer.current = (activebuffer.current + 1) % 6;
+        snapShotRef.current[activebuffer.current] = false;
+      }
+      indicesRef.current = [];
+      for (let i = 1; i < 6; i++) {
+        indicesRef.current.push((activebuffer.current - i + 6) % 6);
+      }
+    };
+
     useEffect(() => {
       setNumChannels(canvasCount);
     }, [canvasCount]);
@@ -66,11 +106,14 @@ const Canvas = forwardRef(
       () => ({
         updateData(data: number[]) {
           // Reset the sweep positions if the number of channels has changed
-          if (currentSweepPos.current.length !== numChannels) {
+          if (currentSweepPos.current.length !== numChannels || !pauseRef.current) {
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
           }
-          updatePlots(data, Zoom);
+          processIncomingData(data);
+          if (pauseRef.current) {
+            updatePlots(data, Zoom);
+          }
           if (previousCounter !== null) {
             // If there was a previous counter value
             const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
@@ -136,7 +179,7 @@ const Canvas = forwardRef(
         // Append grid lines to the wrapper
         canvasWrapper.appendChild(gridLineX);
       }
-      const horizontalline=50;
+      const horizontalline = 50;
       for (let j = 1; j < horizontalline; j++) {
         const gridLineY = document.createElement("div");
         gridLineY.className = "absolute bg-[rgb(128,128,128)]";
@@ -158,8 +201,8 @@ const Canvas = forwardRef(
 
         const canvas = document.createElement("canvas");
         canvas.id = `canvas${i + 1}`;
-        canvas.width = canvasContainerRef.current.clientWidth ;
-        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels) ;
+        canvas.width = canvasContainerRef.current.clientWidth;
+        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels);
         canvas.height = canvasHeight;
         canvas.className = "w-full h-full block rounded-xl";
 
@@ -259,31 +302,63 @@ const Canvas = forwardRef(
       createCanvases();
     }, [numChannels, theme]);
 
-    const getValue = useCallback((bits: BitSelection): number => {
-      switch (bits) {
-        case "ten":
-          return 10;
-        case "twelve":
-          return 12;
-        case "fourteen":
-          return 14;
-        default:
-          return 0; // Or any other fallback value you'd like
-      }
-    }, []);
 
     const animate = useCallback(() => {
-      if (pauseRef.current) {
+      if (!pauseRef.current) {
+        // If paused, show the buffered data (this part runs when paused)
+        updatePlotSnapshot(currentSnapshot);
+      } else {
+        // If not paused, continue with normal updates (e.g., real-time plotting)
         wglPlots.forEach((wglp) => wglp.update());
-        requestAnimationFrame(animate);
+        requestAnimationFrame(animate); // Continue the animation loop
       }
-    }, [wglPlots, pauseRef]);
+    }, [currentSnapshot, numX, pauseRef.current, wglPlots, Zoom]);
+
+
+    const updatePlotSnapshot = (currentSnapshot: number) => {
+      for (let i = 0; i < canvasCount; i++) {
+        wglPlots.forEach((wglp, index) => {
+          if (wglp) {
+            try {
+              wglp.gScaleY = Zoom; // Adjust the zoom value
+            } catch (error) {
+              console.error(
+                `Error setting gScaleY for WebglPlot instance at index ${index}:`,
+                error
+              );
+            }
+          } else {
+            console.warn(`WebglPlot instance at index ${index} is undefined.`);
+          }
+        });
+        if (
+          array3DRef.current &&
+          indicesRef.current &&
+          indicesRef.current[currentSnapshot] !== undefined &&
+          array3DRef.current[indicesRef.current[currentSnapshot]] !== undefined
+        ) {
+          const yArray = new Float32Array(array3DRef.current[indicesRef.current[currentSnapshot]][i]);
+          // Check if the line exists
+        const line = linesRef.current[i];
+        if (line) {
+          line.shiftAdd(yArray); // Efficiently add new points
+        } else {
+          console.error(`Line at index ${i} is undefined or null.`);
+        }
+
+        } else {
+          console.warn("One of the references is undefined or invalid");
+        }
+        
+
+      }
+      wglPlots.forEach((wglp) => wglp.update()); // Redraw the plots
+    };
 
     useEffect(() => {
-      if (pauseRef.current) {
-        requestAnimationFrame(animate);
-      }
-    }, [pauseRef.current, animate]);
+      requestAnimationFrame(animate);
+
+    }, [animate]);
 
     useEffect(() => {
       const handleResize = () => {

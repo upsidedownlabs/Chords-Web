@@ -20,6 +20,11 @@ export const BoardsList = Object.freeze([
     bits: "fourteen",
   },
   {
+    name: "Arduino UNO R4 WiFi",
+    field_pid: "4098",
+    bits: "fourteen",
+  },
+  {
     name: "Maker Uno",
     field_pid: "29987",
     bits: "ten",
