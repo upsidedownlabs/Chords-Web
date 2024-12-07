@@ -37,19 +37,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../components/ui/popover";
-import { getRandomValues } from "crypto";
-interface Dataset {
-  id: number;
-  timestamp: string;
-  data: string[]; // Each dataset is an array of strings
-}
-interface ChannelData {
-  [key: string]: number; // Allows dynamic keys like "channel1", "channel2", etc.
-}
 
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
-  dataSteam: (data: number[]) => void;
+  datasctream: (data: number[]) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
@@ -64,7 +55,7 @@ interface ConnectionProps {
 
 const Connection: React.FC<ConnectionProps> = ({
   onPauseChange,
-  dataSteam,
+  datasctream,
   Connection,
   setSelectedBits,
   isDisplay,
@@ -81,29 +72,20 @@ const Connection: React.FC<ConnectionProps> = ({
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
   const [datasets, setDatasets] = useState<any[]>([]);
-
   const currentFilenameRef = useRef<string>("");
-  // const [currentFilename, setCurrentFileName] = useState<string>("");
-  const [currentSessionTimestamp, setCurrentSessionTimestamp] = useState<string>('');
   const [hasData, setHasData] = useState(false);
   const [recData, setrecData] = useState(false);
   const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
-  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
-  // const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Type for Node.js environment
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingStartTime = useRef<number>(0);
+  // const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
-  const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
-
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const [popoverVisible, setPopoverVisible] = useState(false);
-  const indexedDBRef = useRef<IDBDatabase | null>(null);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
-  const currentDataset=useRef<number>(0);
-
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -120,11 +102,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
   let activeBufferIndex = 0;
 
-  type Dataset = {
-    timestamp: string;
-    data: any[];
-  };
-
   const togglePause = () => {
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
@@ -136,7 +113,6 @@ const Connection: React.FC<ConnectionProps> = ({
       canvasnumbersRef.current = canvasCount;
     }
   };
-
 
   const decreaseCanvas = () => {
     if (canvasCount > 1) {
@@ -181,7 +157,7 @@ const Connection: React.FC<ConnectionProps> = ({
   useEffect(() => {
     console.log("Canvas count updated:", canvasCount);
     canvasnumbersRef.current = canvasCount; // Sync the ref with the state
-}, [canvasCount]);
+  }, [canvasCount]);
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -190,7 +166,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.success("Recording set to no time limit");
     } else {
       // If the time is not null, set the end time
-      const newEndTimeSeconds = minutes * 60;
+      const newEndTimeSeconds = minutes * 60 * 1000;
       if (newEndTimeSeconds <= recordingElapsedTime) {
         // Check if the end time is greater than the current elapsed time
         toast.error("End time must be greater than the current elapsed time");
@@ -348,10 +324,10 @@ const Connection: React.FC<ConnectionProps> = ({
       const data = await getAllDataFromIndexedDB();
       setDatasets(data); // Update state with the data
     };
-  
+
     fetchData();
   }, []); // Run only once when the component mounts
-  
+
 
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
@@ -412,27 +388,36 @@ const Connection: React.FC<ConnectionProps> = ({
                 const value = (highByte << 8) | lowByte; // Combine high and low bytes to get the channel value
                 channelData.push(value); // Convert the value to string and store it in the array
               }
-              
-              dataSteam(channelData); // Pass the channel data to the LineData function for further processing
+
+              datasctream(channelData);
+
+              const channeldatavalues = channelData
+                .slice(0, canvasnumbersRef.current + 1)
+                .map((value) => (value !== undefined ? value : null))
+                .filter((value): value is number => value !== null); // Filter out null values
+
 
               if (isRecordingRef.current) {
                 // Check if recording is enabled
                 const activeBuffer = recordingBuffers[activeBufferIndex]
-                activeBuffer.push(channelData); // Store the channel data in the recording buffer
+                activeBuffer.push(channeldatavalues); // Store the channel data in the recording buffer
                 if (activeBuffer.length >= MAX_BUFFER_SIZE) {
                   processBuffer(activeBufferIndex);
+                  recordingBuffers[activeBufferIndex] = []; 
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
-                const elapsedTime = Date.now() - recordingStartTime;
-              
-                  setRecordingElapsedTime((prev) => {
-                    if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
-                      stopRecording();
-                      return endTimeRef.current;
-                    }
-                    return elapsedTime;
-                  });
-                
+                const elapsedTime = Date.now() - recordingStartTime.current;
+                // console.log(recordingStartTime);
+                // console.log("realtime",Date.now());
+                // console.log(elapsedTime);
+                setRecordingElapsedTime((prev) => {
+                  if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
+                    stopRecording();
+                    return endTimeRef.current;
+                  }
+                  return elapsedTime;
+                });
+
               }
 
               if (previousCounter !== null) {
@@ -464,17 +449,17 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const convertToCSV = (data: any[], canvasCount: number): string => {
     if (data.length === 0) return "";
-  
+
     // Generate the header dynamically based on the number of channels
     const header = ["counter", ...Array.from({ length: canvasCount }, (_, i) => `ch${i + 1}`)];
-    
+
     // Create rows by mapping data to match the header fields
     const rows = data.map((item, index) =>
-      [...item.slice(0, canvasCount+1)].map((field) =>
+      [...item.slice(0, canvasCount + 1)].map((field) =>
         field !== undefined && field !== null ? JSON.stringify(field) : ""
       ).join(",")
     );
-  
+
     // Combine header and rows into a CSV format
     return [header.join(","), ...rows].join("\n");
   };
@@ -532,14 +517,8 @@ const Connection: React.FC<ConnectionProps> = ({
           }
         );
 
-        const filteredData = data.map((row) =>
-          row.slice(0, canvasnumbersRef.current + 2).map((value) =>
-            value !== undefined ? value : null
-          )
-        );
-
         if (existingRecord) {
-          existingRecord.content.push(...filteredData);
+          existingRecord.content.push(...data);
           await new Promise<void>((resolve, reject) => {
             const putRequest = store.put(existingRecord);
             putRequest.onsuccess = () => resolve();
@@ -552,7 +531,7 @@ const Connection: React.FC<ConnectionProps> = ({
         } else {
           const newRecord = {
             filename: currentFilenameRef.current!,
-            content: [...filteredData],
+            content: [...data],
           };
 
           await new Promise<void>((resolve, reject) => {
@@ -577,7 +556,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Function to handle the recording process
   const handleRecord = async () => {
-    
+
     if (isRecordingRef.current) {
       // Stop the recording if it is currently active
       stopRecording();
@@ -585,55 +564,47 @@ const Connection: React.FC<ConnectionProps> = ({
       // Start a new recording session
       isRecordingRef.current = true;
       const now = new Date();
-      setRecordingStartTime(Date.now()); // Set the start time reference
+      recordingStartTime.current = Date.now();
+      // setRecordingStartTime(Date.now()); // Set the start time reference
+      console.log("initialise", recordingStartTime.current);
       setRecordingElapsedTime(Date.now());
       setrecData(true);
-  
-     
+
+
       const filename = `ChordsWeb-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
         `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
-      
+
       currentFilenameRef.current = filename;
       console.log(currentFilenameRef.current);
     }
   };
-
-  const formatDuration = (durationInSeconds: number): string => {
-    const minutes = Math.floor(durationInSeconds / 60); // Get the minutes
-    const seconds = durationInSeconds % 60;
-    if (minutes === 0) {
-      return `${seconds} second${seconds !== 1 ? "s" : ""}`;
-    }
-    return `${minutes} minute${minutes !== 1 ? "s" : ""} ${seconds} second${seconds !== 1 ? "s" : ""
-      }`;
-  };
-
 
   const stopRecording = async () => {
     if (!recordingStartTime) {
       toast.error("Recording start time was not captured.");
       return;
     }
-  
+
     const endTime = new Date();
-    const durationInSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
+    const durationInSeconds = Math.floor((Date.now() - recordingStartTime.current) / 1000);
     isRecordingRef.current = false;
     setRecordingElapsedTime(0);
     setrecData(false);
-  
+
     // Reset only after stopping
-    setRecordingStartTime(0);
-  
+    // setRecordingStartTime(0);
+    recordingStartTime.current = 0;
+
     // Re-fetch datasets from IndexedDB after recording stops
     const fetchData = async () => {
       const data = await getAllDataFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
     };
-    
+
     // Call fetchData after stopping the recording
     fetchData();
   };
-  
+
 
   // Call this function when your component mounts or when you suspect the data might change
   useEffect(() => {
@@ -794,51 +765,51 @@ const Connection: React.FC<ConnectionProps> = ({
     try {
       // Open the IndexedDB connection
       const dbRequest = indexedDB.open("ChordsRecordings");
-  
+
       dbRequest.onsuccess = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         const transaction = db.transaction("ChordsRecordings", "readonly");
         const store = transaction.objectStore("ChordsRecordings");
-  
+
         // Check if the "filename" index exists
         if (!store.indexNames.contains("filename")) {
           console.error("Index 'filename' does not exist.");
           toast.error("Unable to download files: index not found.");
           return;
         }
-  
+
         // Retrieve the data by filename
         const index = store.index("filename");
         const getRequest = index.get(filename);
-  
+
         getRequest.onsuccess = (event) => {
           const result = getRequest.result;
-  
+
           // Ensure the file exists and contains data
           if (!result || !Array.isArray(result.content)) {
             toast.error("No data found for the given filename.");
             return;
           }
-  
+
           // Convert data to CSV, passing canvasCount dynamically
           const csvData = convertToCSV(result.content, canvasCount);
-  
+
           // Create a Blob from the CSV data
           const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-  
+
           // Trigger the download with the filename
           saveAs(blob, filename); // FileSaver.js
-  
+
           // Show a success message
           toast.success("File downloaded successfully.");
         };
-  
+
         getRequest.onerror = () => {
           console.error("Error during file retrieval.");
           toast.error("Failed to retrieve the file. Please try again.");
         };
       };
-  
+
       dbRequest.onerror = () => {
         console.error("Failed to open IndexedDB database.");
         toast.error("An error occurred while accessing the database.");
@@ -848,7 +819,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("An unexpected error occurred. Please try again.");
     }
   };
-  
+
   // Function to get all data from IndexedDB
   const getAllDataFromIndexedDB = async (): Promise<any[]> => {
     try {
@@ -931,7 +902,7 @@ const Connection: React.FC<ConnectionProps> = ({
           if (!db.objectStoreNames.contains("ChordsRecordings")) {
             const store = db.createObjectStore("ChordsRecordings", {
               keyPath: "filename",
-             
+
             });
             store.createIndex("filename", "filename", { unique: false });
 
@@ -952,30 +923,30 @@ const Connection: React.FC<ConnectionProps> = ({
       const db = await openIndexedDB();
       const tx = db.transaction("ChordsRecordings", "readonly");
       const store = tx.objectStore("ChordsRecordings");
-  
+
       // Retrieve all records from IndexedDB
       const allData: any[] = await new Promise((resolve, reject) => {
         const request = store.getAll();
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
-  
+
       if (allData.length === 0) {
         toast.error("No data available to download.");
         return;
       }
-  
+
       const zip = new JSZip();
-  
+
       // Add each record as a CSV file in the ZIP
       allData.forEach((record) => {
         const csvData = convertToCSV(record.content, canvasCount); // Convert record content to CSV with dynamic channels
         zip.file(record.filename, csvData); // Use the filename for the CSV file
       });
-  
+
       // Generate the ZIP file
       const content = await zip.generateAsync({ type: "blob" });
-  
+
       // Download the ZIP file with a default name
       saveAs(content, `ChordsWeb.zip`); // FileSaver.js for downloading
       setHasData(false);
@@ -985,7 +956,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to create ZIP file. Please try again.");
     }
   };
-  
+
 
   return (
     <div className="flex-none items-center justify-center pb-4 bg-g">

@@ -22,7 +22,7 @@ const DataPass = () => {
     pauseRef.current = newPauseState;
   };
 
-  const dataSteam = useCallback((data: number[]) => {
+  const datasctream = useCallback((data: number[]) => {
 
     if (canvasRef.current) {
       canvasRef.current.updateData(data); // Assuming data is the new data to be displayed
@@ -58,7 +58,7 @@ const DataPass = () => {
       )}
       <Connection
       onPauseChange={handlePauseChange}
-        dataSteam={dataSteam}
+        datasctream={datasctream}
         Connection={setIsConnected}
         selectedBits={selectedBits}
         setSelectedBits={setSelectedBits}
