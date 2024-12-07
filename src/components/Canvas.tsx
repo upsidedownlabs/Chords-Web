@@ -57,6 +57,8 @@ const Canvas = forwardRef(
       switch (bits) {
         case "ten":
           return samplingRate * 2;
+        case "twelve":
+          return samplingRate * 2;
         case "fourteen":
           return samplingRate * 4;
         default:
@@ -86,6 +88,8 @@ const Canvas = forwardRef(
           array3DRef.current[activebuffer.current][i] = [];
         }
       }
+
+
       if (array3DRef.current[activebuffer.current][0].length >= numX) {
         snapShotRef.current[activebuffer.current] = true;
         activebuffer.current = (activebuffer.current + 1) % 6;
@@ -110,8 +114,8 @@ const Canvas = forwardRef(
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
           }
-          processIncomingData(data);
           if (pauseRef.current) {
+            processIncomingData(data);
             updatePlots(data, Zoom);
           }
           if (previousCounter !== null) {
@@ -339,17 +343,17 @@ const Canvas = forwardRef(
         ) {
           const yArray = new Float32Array(array3DRef.current[indicesRef.current[currentSnapshot]][i]);
           // Check if the line exists
-        const line = linesRef.current[i];
-        if (line) {
-          line.shiftAdd(yArray); // Efficiently add new points
-        } else {
-          console.error(`Line at index ${i} is undefined or null.`);
-        }
+          const line = linesRef.current[i];
+          if (line) {
+            line.shiftAdd(yArray); // Efficiently add new points
+          } else {
+            console.error(`Line at index ${i} is undefined or null.`);
+          }
 
         } else {
           console.warn("One of the references is undefined or invalid");
         }
-        
+
 
       }
       wglPlots.forEach((wglp) => wglp.update()); // Redraw the plots

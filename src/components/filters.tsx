@@ -46,7 +46,10 @@ export class EXGFilter {
     // function to apply the 
     setSample(sample: string): void {
         this.sample = sample;
-        this.bitsPoints = Math.pow(2, sample=="fourteen"?14:10); // Adjust according to your ADC resolution
+        this.bitsPoints = Math.pow(2, 
+            sample === "fourteen" ? 14 : 
+            sample === "twelve" ? 12 : 10
+        ); // Adjust according to your ADC resolution
         this.yScale = 2 / this.bitsPoints;
     }
 
@@ -57,6 +60,7 @@ export class EXGFilter {
         switch (this.sample) {
             //samplerate 500Hz
             case "fourteen":
+            case "twelve":   // 500Hz
                 switch (type) {
                     case 1: - this.bitsPoints / 2// ECG Sampling rate: 500.0 Hz, frequency: 30.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -175,6 +179,7 @@ export class Notch {
         let output = input;
         switch (this.sample) {
             case "fourteen": // 500Hz
+            case "twelve":   // 500Hz
                 switch (type) {
                     case 1: // Notch Sampling rate: 500.0 Hz, frequency: [48.0, 52.0] Hz.
                         this.x_1 = output - (-1.56858163 * this.z1_1) - (0.96424138 * this.z2_1);

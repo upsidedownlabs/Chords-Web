@@ -36,7 +36,7 @@ export const BoardsList = Object.freeze([
   },
   {
     name: "Raspberry Pi Pico",
-    field_pid: "10",
+    field_pid: "192",
     bits: "twelve",
   },
 ]);
