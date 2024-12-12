@@ -57,6 +57,8 @@ const Canvas = forwardRef(
       switch (bits) {
         case "ten":
           return samplingRate * 2;
+        case "twelve":
+          return samplingRate * 4;
         case "fourteen":
           return samplingRate * 4;
         default:
@@ -80,12 +82,14 @@ const Canvas = forwardRef(
         if (array3DRef.current[activebuffer.current][i].length >= numX) {
           array3DRef.current[activebuffer.current][i] = [];
         }
-        array3DRef.current[activebuffer.current][i].push(incomingData[i]);
+        array3DRef.current[activebuffer.current][i].push(incomingData[i+1]);
 
         if (array3DRef.current[activebuffer.current][i].length < numX && !pauseRef.current) {
           array3DRef.current[activebuffer.current][i] = [];
         }
       }
+
+
       if (array3DRef.current[activebuffer.current][0].length >= numX) {
         snapShotRef.current[activebuffer.current] = true;
         activebuffer.current = (activebuffer.current + 1) % 6;
@@ -110,21 +114,21 @@ const Canvas = forwardRef(
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
           }
-          processIncomingData(data);
           if (pauseRef.current) {
+            processIncomingData(data);
             updatePlots(data, Zoom);
           }
           if (previousCounter !== null) {
             // If there was a previous counter value
             const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
-            if (data[6] !== expectedCounter) {
+            if (data[0] !== expectedCounter) {
               // Check for data loss by comparing the current counter with the expected counter
               console.warn(
-                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[6]}`
+                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[0]}`
               );
             }
           }
-          previousCounter = data[6]; // Update the previous counter with the current counter
+          previousCounter = data[0]; // Update the previous counter with the current counter
         },
       }),
       [Zoom, numChannels]
@@ -285,7 +289,7 @@ const Canvas = forwardRef(
           // Use a separate sweep position for each line
           currentSweepPos.current[i] = sweepPositions.current[i];
           // Plot the new data at the current sweep position
-          line.setY(currentSweepPos.current[i] % line.numPoints, data[i]);
+          line.setY(currentSweepPos.current[i] % line.numPoints, data[i+1]);
 
           // Clear the next point to create a gap (optional, for visual effect)
           const clearPosition = (currentSweepPos.current[i] + (numX / 100)) % line.numPoints;
@@ -339,17 +343,17 @@ const Canvas = forwardRef(
         ) {
           const yArray = new Float32Array(array3DRef.current[indicesRef.current[currentSnapshot]][i]);
           // Check if the line exists
-        const line = linesRef.current[i];
-        if (line) {
-          line.shiftAdd(yArray); // Efficiently add new points
-        } else {
-          console.error(`Line at index ${i} is undefined or null.`);
-        }
+          const line = linesRef.current[i];
+          if (line) {
+            line.shiftAdd(yArray); // Efficiently add new points
+          } else {
+            console.error(`Line at index ${i} is undefined or null.`);
+          }
 
         } else {
           console.warn("One of the references is undefined or invalid");
         }
-        
+
 
       }
       wglPlots.forEach((wglp) => wglp.update()); // Redraw the plots

@@ -48,12 +48,12 @@ Chords is an application based on Web Serial connection, you can connect boards 
 - [X] **Frame Buffers of data** : We will add Frame Buffer Feature this option to show upto 5 snapshots of length each of 4 seconds, you can now view upto last five snapshots of your data and save them as images.
 
 
-- [ ] **Multiple file download support** : We’re excited to enhance your options for downloading recorded data! Currently, you can record a file and choose to save or delete it. Soon, you’ll be able to download multiple files at once and have the flexibility to download or delete individual recorded files as needed.
+- [X] **Multiple file download support** : We’re excited to enhance your options for downloading recorded data! Currently, you can record a file and choose to save or delete it. Soon, you’ll be able to download multiple files at once and have the flexibility to download or delete individual recorded files as needed.
 
-- [ ] **Raspberry Pi Pico support** : We will be releasing Raspberry Pi Pico support for chords which by the way works very well with our new Heart BioAmp Candy. Let us know your favorite board in the comments section below and we will make sure to add chords support for your board in the upcoming updates.
+- [X] **Raspberry Pi Pico support** : We will be releasing Raspberry Pi Pico support for chords which by the way works very well with our new Heart BioAmp Candy. Let us know your favorite board in the comments section below and we will make sure to add chords support for your board in the upcoming updates.
 
 
-- [ ] **CSV compatibility with [Chords Python](https://github.com/upsidedownlabs/Chords-Python)** : we will update the CSV data format and file names for both chords-web and chords-python so that you can use csvplotter.py to easily plot the recorded data.
+- [X] **CSV compatibility with [Chords Python](https://github.com/upsidedownlabs/Chords-Python)** : we will update the CSV data format and file names for both chords-web and chords-python so that you can use csvplotter.py to easily plot the recorded data.
 
 
 ## Contributors
