@@ -340,6 +340,7 @@ const Connection: React.FC<ConnectionProps> = ({
       setIsConnected(true);
       onPauseChange(true);
       setIsDisplay(true);
+      setCanvasCount(1);
       isConnectedRef.current = true;
       portRef.current = port;
 
@@ -1702,14 +1703,14 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseCanvas}
-                      disabled={canvasCount >= 6 || !isDisplay || recData}
+                      disabled={canvasCount >= (detectedBitsRef.current=="twelve"?3:6) || !isDisplay || recData}
                     >
                       <Plus size={16} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {canvasCount >= 6
+                      {canvasCount >= (detectedBitsRef.current=="twelve"?3:6)
                         ? "Maximum Channels Reached"
                         : "Increase Channel"}
                     </p>
