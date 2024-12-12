@@ -127,7 +127,7 @@ const Connection: React.FC<ConnectionProps> = ({
     
   };
   const increaseCanvas = () => {
-    if (canvasCount < 6) {
+    if (canvasCount < (detectedBitsRef.current=="twelve"?3:6)) {
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
     }
   };
@@ -165,11 +165,11 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   const toggleShowAllChannels = () => {
-    if (canvasCount === 6) {
+    if (canvasCount === (detectedBitsRef.current=="twelve"?3:6)) {
       setCanvasCount(1); // If canvasCount is 6, reduce it to 1
       setShowAllChannels(false);
     } else {
-      setCanvasCount(6); // Otherwise, show all 6 canvases
+      setCanvasCount(detectedBitsRef.current=="twelve"?3:6); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
     }
   };
@@ -365,6 +365,8 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Writable stream not available");
       }
+      const data = await getAllDataFromIndexedDB();
+      setDatasets(data); // Update datasets with the latest data
 
       readData();
       await navigator.wakeLock.request("screen");
@@ -452,8 +454,6 @@ const Connection: React.FC<ConnectionProps> = ({
     forceEXGUpdate(); // Trigger re-render
 
   };
-
-
   // Function to remove the filter for all channels
   const removeEXGFilterFromAllChannels = (channels: number[]) => {
     channels.forEach((channelIndex) => {
@@ -491,8 +491,8 @@ const Connection: React.FC<ConnectionProps> = ({
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
     const HEADER_LENGTH = 3; // Length of the packet header
-    const NUM_CHANNELS = 6; // Number of channels in the data packet
-    const PACKET_LENGTH = 16; // Total length of each packet
+    const NUM_CHANNELS = detectedBitsRef.current=="twelve"?3:6; // Number of channels in the data packet
+    const PACKET_LENGTH = detectedBitsRef.current=="twelve"?10:16; // Total length of each packet
     const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
@@ -749,7 +749,6 @@ const Connection: React.FC<ConnectionProps> = ({
   
   // Function to handle the recording process
   const handleRecord = async () => {
-
     if (isRecordingRef.current) {
       // Stop the recording if it is currently active
       stopRecording();
@@ -798,8 +797,6 @@ const Connection: React.FC<ConnectionProps> = ({
     // Call fetchData after stopping the recording
     fetchData();
   };
-
-
 
 
   // Function to format time from seconds into a "MM:SS" string format
