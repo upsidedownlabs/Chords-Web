@@ -58,7 +58,7 @@ const Canvas = forwardRef(
         case "ten":
           return samplingRate * 2;
         case "twelve":
-          return samplingRate * 2;
+          return samplingRate * 4;
         case "fourteen":
           return samplingRate * 4;
         default:
