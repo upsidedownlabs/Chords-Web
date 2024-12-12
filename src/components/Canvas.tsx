@@ -82,7 +82,7 @@ const Canvas = forwardRef(
         if (array3DRef.current[activebuffer.current][i].length >= numX) {
           array3DRef.current[activebuffer.current][i] = [];
         }
-        array3DRef.current[activebuffer.current][i].push(incomingData[i]);
+        array3DRef.current[activebuffer.current][i].push(incomingData[i+1]);
 
         if (array3DRef.current[activebuffer.current][i].length < numX && !pauseRef.current) {
           array3DRef.current[activebuffer.current][i] = [];
@@ -121,14 +121,14 @@ const Canvas = forwardRef(
           if (previousCounter !== null) {
             // If there was a previous counter value
             const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
-            if (data[6] !== expectedCounter) {
+            if (data[0] !== expectedCounter) {
               // Check for data loss by comparing the current counter with the expected counter
               console.warn(
-                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[6]}`
+                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[0]}`
               );
             }
           }
-          previousCounter = data[6]; // Update the previous counter with the current counter
+          previousCounter = data[0]; // Update the previous counter with the current counter
         },
       }),
       [Zoom, numChannels]
@@ -289,7 +289,7 @@ const Canvas = forwardRef(
           // Use a separate sweep position for each line
           currentSweepPos.current[i] = sweepPositions.current[i];
           // Plot the new data at the current sweep position
-          line.setY(currentSweepPos.current[i] % line.numPoints, data[i]);
+          line.setY(currentSweepPos.current[i] % line.numPoints, data[i+1]);
 
           // Clear the next point to create a gap (optional, for visual effect)
           const clearPosition = (currentSweepPos.current[i] + (numX / 100)) % line.numPoints;
