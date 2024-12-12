@@ -62,7 +62,7 @@ export class EXGFilter {
             case "fourteen":
             case "twelve":   // 500Hz
                 switch (type) {
-                    case 1: - this.bitsPoints / 2// ECG Sampling rate: 500.0 Hz, frequency: 30.0 Hz.
+                    case 1: // ECG Sampling rate: 500.0 Hz, frequency: 30.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
                         this.x1 = output - (-1.47548044 * this.z1) - (0.58691951 * this.z2);
                         output = 0.02785977 * this.x1 + 0.05571953 * this.z1 + 0.02785977 * this.z2;
