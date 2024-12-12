@@ -38,7 +38,7 @@ const DataPass = () => {
         );
       }
     }
-    previousCounter =data[0]; // Update the previous counter with the current counter
+    previousCounter = data[0]; // Update the previous counter with the current counter
   }, []);
   return (
     <div className="flex flex-col h-screen m-0 p-0 bg-g ">
