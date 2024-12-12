@@ -197,7 +197,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
  
   useEffect(() => {
-    console.log("Canvas count updated:", canvasCount);
     canvasnumbersRef.current = canvasCount; // Sync the ref with the state
   }, [canvasCount]);
 
@@ -563,16 +562,12 @@ const Connection: React.FC<ConnectionProps> = ({
                 );
 
               }
-
               datastream(channelData); // Pass the channel data to the LineData function for further processing
-
               if (isRecordingRef.current) {
                 const channeldatavalues = channelData
                 .slice(0, canvasnumbersRef.current + 1)
                 .map((value) => (value !== undefined ? value : null))
                 .filter((value): value is number => value !== null); // Filter out null values
-
-
                 // Check if recording is enabled
                recordingBuffers[activeBufferIndex][fillingindex.current]=channeldatavalues;
                 // activeBuffer.push(channeldatavalues); // Store the channel data in the recording buffer
@@ -625,7 +620,7 @@ const Connection: React.FC<ConnectionProps> = ({
     if (data.length === 0) return "";
 
     // Generate the header dynamically based on the number of channels
-    const header = ["counter", ...Array.from({ length: canvasCount }, (_, i) => `ch${i + 1}`)];
+    const header = ["Counter", ...Array.from({ length: canvasCount }, (_, i) => `Channel${i + 1}`)];
 
     // Create rows by mapping data to match the header fields
     const rows = data.map((item, index) =>
@@ -757,8 +752,6 @@ const Connection: React.FC<ConnectionProps> = ({
       isRecordingRef.current = true;
       const now = new Date();
       recordingStartTime.current = Date.now();
-      // setRecordingStartTime(Date.now()); // Set the start time reference
-      // console.log("initialise", recordingStartTime.current);
       setRecordingElapsedTime(Date.now());
       setrecData(true);
 
@@ -1308,8 +1301,6 @@ const Connection: React.FC<ConnectionProps> = ({
           </Button>
           </div>
         )}
-     
-
         {/* Record button with tooltip */}
         {isConnected && (
           <TooltipProvider>
