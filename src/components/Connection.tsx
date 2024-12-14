@@ -279,33 +279,24 @@ const Connection: React.FC<ConnectionProps> = ({
   
   const saveAllDataAsZip = async () => {
     try {
-      if (!workerRef.current) {
-        initializeWorker(); // Ensure the worker is initialized
+      // Send message to worker to create ZIP file
+      if (workerRef.current) {
+        workerRef.current.postMessage({ action: 'saveAsZip' });
+  
+        // Listen for the response from the worker
+        workerRef.current.onmessage = async (event) => {
+          const { zipBlob, error } = event.data;
+  
+          if (zipBlob) {
+            // Save the Blob as a ZIP file
+            saveAs(zipBlob, 'ChordsWeb.zip');
+          } else if (error) {
+            console.error(error);
+          };
+        };
       }
-  
-      const canvasCount = 4; // Example value, modify as needed
-      workerRef.current?.postMessage({ action: 'saveAllDataAsZip', canvasCount });
-  
-      return new Promise<void>((resolve, reject) => { // Explicitly specify 'void'
-        if (workerRef.current) {
-          workerRef.current.onmessage = (event) => {
-            if (event.data.success) {
-              resolve(); // Resolving with no value
-            } else if (event.data.error) {
-              reject(event.data.error);
-            }
-          };
-  
-          workerRef.current.onerror = (error) => {
-            reject(`Error in worker: ${error.message}`);
-          };
-        } else {
-          reject("Worker is not initialized");
-        }
-      });
     } catch (error) {
-      console.error("Error in saveAllDataAsZip function:", error);
-      throw error;
+      console.error('Error while saving ZIP file:', error);
     }
   };
   
@@ -902,23 +893,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   
-  const openIndexedNDB = async (): Promise<IDBDatabase> => {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open("ChordsRecordings", 2);
-
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        const store = db.createObjectStore("ChordsRecordings", {
-          keyPath: "filename",
-        });
-        store.createIndex("filename", "filename", { unique: true });
-      };
-
-      request.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result);
-      request.onerror = (event) => reject((event.target as IDBOpenDBRequest).error);
-    });
-  };
-
 
   // Function to delete all data from IndexedDB (for ZIP files or clear all)
   const deleteAllDataFromIndexedDB = async () => {

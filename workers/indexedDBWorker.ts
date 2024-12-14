@@ -21,12 +21,12 @@ self.onmessage = async (event) => {
           self.postMessage({ error: 'Failed to retrieve all data from IndexedDB' });
         }
         break;
-        case 'saveAllDataAsZip':
+        case 'saveAsZip':
           try {
-            await saveAllDataAsZip();
-            self.postMessage({ success: true });
+            const zipBlob = await saveAllDataAsZip();
+            self.postMessage({ zipBlob });
           } catch (error) {
-            self.postMessage({ success: false, error: 'Failed to create ZIP file' });
+            self.postMessage({ error: 'Failed to create ZIP file' });
           }
           break;
 
@@ -116,63 +116,59 @@ const getAllDataFromIndexedDB = async (db: IDBDatabase): Promise<any[]> => {
   });
 };
 
+
+// Function to convert data to CSV
+// Function to convert data to CSV
+const convertToCSV = (data: any[], canvasCount: number): string => {
+  if (!data || data.length === 0) return "";
+
+  // Generate the header dynamically based on the number of channels
+  const header = ["Counter", ...Array.from({ length: canvasCount }, (_, i) => `Channel${i + 1}`)];
+
+  // Create rows by mapping data to match the header fields
+  const rows = data.map((item, index) =>
+    (item ? [...item.slice(0, canvasCount + 1)].map((field) =>
+      field !== undefined && field !== null ? JSON.stringify(field) : ""
+    ).join(",") : "").trim()
+  );
+
+  // Combine header and rows into a CSV format
+  return [header.join(","), ...rows].join("\n");
+};
+
 // Function to save all data as a ZIP file
-const saveAllDataAsZip = async (): Promise<void> => {
+const saveAllDataAsZip = async (): Promise<Blob> => {
   try {
-    // Open IndexedDB
     const db = await openIndexedDB();
     const tx = db.transaction("ChordsRecordings", "readonly");
     const store = tx.objectStore("ChordsRecordings");
 
-    // Retrieve all records from IndexedDB
     const allData: any[] = await new Promise((resolve, reject) => {
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
 
-    if (allData.length === 0) {
-      toast.error("No data available to download.");
-      return;
+    if (!allData || allData.length === 0) {
+      throw new Error("No data available to download.");
     }
 
     const zip = new JSZip();
+    const canvasCount = 4; // Assuming canvasCount is defined
 
-    // Assuming `canvasCount` is defined and passed to this function
-    const canvasCount = 4; // Example value, modify as needed
-
-    // Add each record as a CSV file in the ZIP
     allData.forEach((record) => {
-      const csvData = convertToCSV(record.content, canvasCount); // Convert record content to CSV with dynamic channels
-      zip.file(record.filename, csvData); // Use the filename for the CSV file
+      try {
+        const csvData = convertToCSV(record.content, canvasCount);
+        zip.file(record.filename, csvData);
+      } catch (error) {
+        console.error(`Error processing record ${record.filename}:`, error);
+      }
     });
 
-    // Generate the ZIP file
     const content = await zip.generateAsync({ type: "blob" });
-
-    // Download the ZIP file with a default name
-    saveAs(content, `ChordsWeb.zip`); // FileSaver.js for downloading
-    toast.success("ZIP file downloaded successfully.");
+    return content;
   } catch (error) {
-    console.error("Error creating ZIP file:", error);
-    toast.error("Failed to create ZIP file. Please try again.");
+    console.error("Error creating ZIP file in worker:", error);
+    throw error;
   }
-};
-
-// Function to convert data to CSV
-const convertToCSV = (data: any[], canvasCount: number): string => {
-  if (data.length === 0) return "";
- 
-  // Generate the header dynamically based on the number of channels
-  const header = ["Counter", ...Array.from({ length: canvasCount }, (_, i) => `Channel${i + 1}`)];
- 
-  // Create rows by mapping data to match the header fields
-  const rows = data.map((item, index) =>
-    [...item.slice(0, canvasCount + 1)].map((field) =>
-      field !== undefined && field !== null ? JSON.stringify(field) : ""
-    ).join(",")
-  );
- 
-  // Combine header and rows into a CSV format
-  return [header.join(","), ...rows].join("\n");
 };
