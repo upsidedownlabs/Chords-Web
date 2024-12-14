@@ -250,6 +250,65 @@ const Connection: React.FC<ConnectionProps> = ({
   const writeToIndexedDB = (data: number[][], filename: string) => {
     workerRef.current?.postMessage({ action: 'write', data, filename });
   };
+
+  const getAllDataFromIndexedDB = async (): Promise<any[]> => {
+    if (!workerRef.current) {
+      initializeWorker();
+    }
+  
+    return new Promise((resolve, reject) => {
+      if (workerRef.current) {
+        workerRef.current.postMessage({ action: 'getAllData' });
+  
+        workerRef.current.onmessage = (event) => {
+          if (event.data.allData) {
+            resolve(event.data.allData);
+          } else if (event.data.error) {
+            reject(event.data.error);
+          }
+        };
+  
+        workerRef.current.onerror = (error) => {
+          reject(`Error in worker: ${error.message}`);
+        };
+      } else {
+        reject('Worker is not initialized');
+      }
+    });
+  };
+  
+  const saveAllDataAsZip = async () => {
+    try {
+      if (!workerRef.current) {
+        initializeWorker(); // Ensure the worker is initialized
+      }
+  
+      const canvasCount = 4; // Example value, modify as needed
+      workerRef.current?.postMessage({ action: 'saveAllDataAsZip', canvasCount });
+  
+      return new Promise<void>((resolve, reject) => { // Explicitly specify 'void'
+        if (workerRef.current) {
+          workerRef.current.onmessage = (event) => {
+            if (event.data.success) {
+              resolve(); // Resolving with no value
+            } else if (event.data.error) {
+              reject(event.data.error);
+            }
+          };
+  
+          workerRef.current.onerror = (error) => {
+            reject(`Error in worker: ${error.message}`);
+          };
+        } else {
+          reject("Worker is not initialized");
+        }
+      });
+    } catch (error) {
+      console.error("Error in saveAllDataAsZip function:", error);
+      throw error;
+    }
+  };
+  
   //////////////////////////////////////////
 
   const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -650,7 +709,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-
   const convertToCSV = (data: any[], canvasCount: number): string => {
     if (data.length === 0) return "";
 
@@ -668,115 +726,7 @@ const Connection: React.FC<ConnectionProps> = ({
     return [header.join(","), ...rows].join("\n");
   };
 
-
-  // // Function to process a buffer and save it to IndexedDB
-  // const processBuffer = async (bufferIndex: number) => {
-
-  //   // If the buffer is empty, return early
-  //   if (recordingBuffers[bufferIndex].length === 0) return;
-
-  //   // Attempt to write data to IndexedDB
-  //   if (currentFilenameRef.current) {
-  //     const success = await writeToIndexedDB(recordingBuffers[bufferIndex]);
-  //     if (success) {
-  //       // Clear the buffer after successful write
-  //     } else {
-  //       console.error("Failed to save buffer to IndexedDB. Retrying...");
-  //     }
-  //   } else {
-  //     console.log("Filename is not set");
-  //   }
-  // };
-  // let dbInstance: IDBDatabase | null = null;
   const existingRecordRef = useRef<any | undefined>(undefined);
-  // const getDBInstance = async (): Promise<IDBDatabase> => {
-  //   if (!dbInstance) {
-  //     dbInstance = await openIndexedDB();
-  //     console.log(dbInstance);
-  //   }
-  //   return dbInstance;
-  // };
-
-  // const writeToIndexedDB = useCallback(
-  //   async (data: number[][]): Promise<boolean> => {
-  //     if (!indexedDB) {
-  //       console.error("IndexedDB is not supported in this browser.");
-  //       return false;
-  //     }
-
-  //     if (!currentFilenameRef.current) {
-  //       console.error("Filename is not set. Cannot write to IndexedDB.");
-  //       return false;
-  //     }
-
-  //     // Use a ref to track if we already checked for the record
-  //     if (!existingRecordRef.current) {
-  //       try {
-  //         const db = await getDBInstance(); // Reuse existing connection
-  //         const tx = db.transaction("ChordsRecordings", "readwrite");
-  //         const store = tx.objectStore("ChordsRecordings");
-
-  //         // Check if record exists and cache the result
-  //         const existingRecord = await new Promise<any | undefined>(
-  //           (resolve, reject) => {
-  //             const getRequest = store.get(currentFilenameRef.current!);
-  //             getRequest.onsuccess = () => resolve(getRequest.result);
-  //             getRequest.onerror = () => reject(getRequest.error);
-  //           }
-  //         );
-
-  //         // Cache the record in a ref for later use
-  //         existingRecordRef.current = existingRecord;
-
-  //       } catch (error) {
-  //         console.error("Error checking for existing record:", error);
-  //         return false;
-  //       }
-  //     }
-
-  //     // Now use the cached existingRecordRef
-  //     const existingRecord = existingRecordRef.current;
-
-  //     try {
-  //       const db = await getDBInstance(); // Reuse existing connection
-  //       const tx = db.transaction("ChordsRecordings", "readwrite");
-  //       const store = tx.objectStore("ChordsRecordings");
-
-  //       if (existingRecord) {
-  //         // If the record exists, append data to it
-  //         existingRecord.content.push(...data);
-  //         await new Promise<void>((resolve, reject) => {
-  //           const putRequest = store.put(existingRecord);
-  //           putRequest.onsuccess = () => resolve();
-  //           putRequest.onerror = () => reject(putRequest.error);
-  //         });
-
-  //         // Data appended to existing record
-  //       } else {
-  //         // If no record exists, create a new record and save data
-  //         const newRecord = {
-  //           filename: currentFilenameRef.current!,
-  //           content: [...data],
-  //         };
-
-  //         await new Promise<void>((resolve, reject) => {
-  //           const putRequest = store.put(newRecord);
-  //           putRequest.onsuccess = () => resolve();
-  //           putRequest.onerror = () => reject(putRequest.error);
-  //         });
-
-  //         // New record created and data saved
-  //       }
-
-  //       return true;
-  //     } catch (error) {
-  //       console.error("Error writing to IndexedDB:", error);
-  //       return false;
-  //     }
-  //   },
-  //   [canvasCount]
-  // );
-
   // Function to handle the recording process
   const handleRecord = async () => {
     if (isRecordingRef.current) {
@@ -810,7 +760,6 @@ const Connection: React.FC<ConnectionProps> = ({
     setRecordingElapsedTime(0);
     setrecData(false);
 
-    // Reset only after stopping
     // setRecordingStartTime(0);
     recordingStartTime.current = 0;
     existingRecordRef.current = undefined;
@@ -826,9 +775,7 @@ const Connection: React.FC<ConnectionProps> = ({
     fetchData();
   };
 
-
   // Function to format time from seconds into a "MM:SS" string format
-
   const formatTime = (milliseconds: number): string => {
     const date = new Date(milliseconds);
     const hours = String(date.getUTCHours()).padStart(2, '0');
@@ -836,47 +783,6 @@ const Connection: React.FC<ConnectionProps> = ({
     const seconds = String(date.getUTCSeconds()).padStart(2, '0');
     return `${hours}:${minutes}:${seconds}`;
   };
-
-  // Function to initialize the IndexedDB and return a promise with the database instance
-  // const openIndexedDB = async (): Promise<IDBDatabase> => {
-  //   return new Promise((resolve, reject) => {
-  //     // Open a connection to the IndexedDB database
-  //     const request = indexedDB.open("ChordsRecordings", 2); // Update version if schema changes
-
-  //     request.onupgradeneeded = (event) => {
-  //       const db = (event.target as IDBOpenDBRequest).result;
-
-  //       switch (event.oldVersion) {
-  //         case 0: // Database doesn't exist, create initial schema
-  //           const store = db.createObjectStore("ChordsRecordings", {
-  //             keyPath: "filename",
-  //           });
-  //           store.createIndex("filename", "filename", { unique: true });
-  //           break;
-
-  //         case 1: // Upgrade from version 1 to 2
-  //           const transaction = request.transaction;
-  //           if (transaction) {
-  //             const existingStore = transaction.objectStore("ChordsRecordings");
-  //             existingStore.createIndex("filename", "filename", { unique: true });
-  //           }
-  //           break;
-
-  //         default:
-  //           console.warn("No schema updates for this version.");
-  //       }
-  //     };
-
-  //     request.onsuccess = (event) => {
-  //       const db = (event.target as IDBOpenDBRequest).result;
-  //       resolve(db); // Resolve the promise with the database instance
-  //     };
-
-  //     request.onerror = () => {
-  //       reject(request.error); // Reject the promise with the error
-  //     };
-  //   });
-  // };
 
   // Function to delete files by filename
   const deleteFilesByFilename = async (filename: string) => {
@@ -995,6 +901,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("An unexpected error occurred. Please try again.");
     }
   };
+  
   const openIndexedNDB = async (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open("ChordsRecordings", 2);
@@ -1010,33 +917,6 @@ const Connection: React.FC<ConnectionProps> = ({
       request.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result);
       request.onerror = (event) => reject((event.target as IDBOpenDBRequest).error);
     });
-  };
-
-  // Function to get all data from IndexedDB
-  const getAllDataFromIndexedDB = async (): Promise<any[]> => {
-    try {
-      const db = await openIndexedNDB();
-      const tx = db.transaction(["ChordsRecordings"], "readonly");
-      const store = tx.objectStore("ChordsRecordings");
-      const request = store.getAll();
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => {
-          const data = request.result.map((item: any, index: number) => ({
-            id: index + 1,
-            ...item,
-          }));
-          resolve(data);
-        };
-
-        request.onerror = (error) => {
-          console.error("Error retrieving data from IndexedDB:", error);
-          reject(error);
-        };
-      });
-    } catch (error) {
-      console.error("Error during IndexedDB operation:", error);
-      return [];
-    }
   };
 
 
@@ -1104,50 +984,6 @@ const Connection: React.FC<ConnectionProps> = ({
       }
     });
   };
-
-  // Function to save all datasets in IndexedDB as a ZIP file
-  const saveAllDataAsZip = async () => {
-    try {
-      // Open IndexedDB
-      const db = await openIndexedNDB();
-      const tx = db.transaction("ChordsRecordings", "readonly");
-      const store = tx.objectStore("ChordsRecordings");
-
-      // Retrieve all records from IndexedDB
-      const allData: any[] = await new Promise((resolve, reject) => {
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-
-      if (allData.length === 0) {
-        toast.error("No data available to download.");
-        return;
-      }
-
-      const zip = new JSZip();
-
-      // Add each record as a CSV file in the ZIP
-      allData.forEach((record) => {
-        const csvData = convertToCSV(record.content, canvasCount); // Convert record content to CSV with dynamic channels
-        zip.file(record.filename, csvData); // Use the filename for the CSV file
-      });
-
-      // Generate the ZIP file
-      const content = await zip.generateAsync({ type: "blob" });
-
-      // Download the ZIP file with a default name
-      saveAs(content, `ChordsWeb.zip`); // FileSaver.js for downloading
-      toast.success("ZIP file downloaded successfully.");
-    } catch (error) {
-      console.error("Error creating ZIP file:", error);
-      toast.error("Failed to create ZIP file. Please try again.");
-    }
-  };
-
-
-
-
 
   return (
     <div className="flex-none items-center justify-center pb-4 bg-g">
