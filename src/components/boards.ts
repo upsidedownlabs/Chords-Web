@@ -40,7 +40,7 @@ export const BoardsList = Object.freeze([
     bits: "twelve",
   },
   {
-    name: "Arduino Giga WiFi",
+    name: "Arduino Giga R1",
     field_pid: "614",
     bits: "sixteen",
   },

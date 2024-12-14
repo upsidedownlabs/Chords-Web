@@ -115,7 +115,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const recordingBuffers = Array(NUM_BUFFERS)
     .fill(null)
     .map(() => [] as number[][]);
-    const fillingindex = useRef<number>(0); // Initialize useRef with 0
+  const fillingindex = useRef<number>(0); // Initialize useRef with 0
 
   let activeBufferIndex = 0;
   const togglePause = () => {
@@ -124,24 +124,24 @@ const Connection: React.FC<ConnectionProps> = ({
     onPauseChange(newPauseState); // Notify parent about the change
     SetcurrentSnapshot(0);
     setClickCount(0);
-    
+
   };
   const increaseCanvas = () => {
-    if (canvasCount < (detectedBitsRef.current=="twelve"?3:6)) {
+    if (canvasCount < (detectedBitsRef.current == "twelve" ? 3 : 6)) {
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
     }
   };
 
   const [clickCount, setClickCount] = useState(0); // Track how many times the left arrow is clicked
 
-  const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0)-1;
+  const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
 
   // Enable/Disable left arrow button
   const handlePrevSnapshot = () => {
     if (clickCount < enabledClicks) {
       setClickCount(clickCount + 1);
     }
-  
+
     if (currentSnapshot < 4) {
       SetcurrentSnapshot(currentSnapshot + 1);
     }
@@ -149,15 +149,15 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Handle right arrow click (reset count and disable button if needed)
   const handleNextSnapshot = () => {
-    if (clickCount>0) {
-      setClickCount(clickCount-1); // Reset count after right arrow click
+    if (clickCount > 0) {
+      setClickCount(clickCount - 1); // Reset count after right arrow click
     }
     if (currentSnapshot > 0) {
       SetcurrentSnapshot(currentSnapshot - 1);
     }
   };
 
-  
+
 
   const decreaseCanvas = () => {
     if (canvasCount > 1) {
@@ -165,11 +165,11 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   const toggleShowAllChannels = () => {
-    if (canvasCount === (detectedBitsRef.current=="twelve"?3:6)) {
+    if (canvasCount === (detectedBitsRef.current == "twelve" ? 3 : 6)) {
       setCanvasCount(1); // If canvasCount is 6, reduce it to 1
       setShowAllChannels(false);
     } else {
-      setCanvasCount(detectedBitsRef.current=="twelve"?3:6); // Otherwise, show all 6 canvases
+      setCanvasCount(detectedBitsRef.current == "twelve" ? 3 : 6); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
     }
   };
@@ -195,7 +195,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
- 
+
   useEffect(() => {
     canvasnumbersRef.current = canvasCount; // Sync the ref with the state
   }, [canvasCount]);
@@ -217,6 +217,40 @@ const Connection: React.FC<ConnectionProps> = ({
       }
     }
   };
+
+  //////////////////////////////////
+  const workerRef = useRef<Worker | null>(null);
+
+  const initializeWorker = () => {
+    if (!workerRef.current) {
+      workerRef.current = new Worker(new URL('../../workers/indexedDBWorker.ts', import.meta.url), {
+        type: 'module',
+      });
+    }
+  };
+
+  const processBuffer = async (bufferIndex: number) => {
+    if (!workerRef.current) {
+      initializeWorker();
+    }
+
+    // If the buffer is empty, return early
+    if (recordingBuffers[bufferIndex].length === 0) return;
+
+    const data = recordingBuffers[bufferIndex];
+    const filename = currentFilenameRef.current;
+
+    if (filename) {
+      // Check if the record already exists
+      workerRef.current?.postMessage({ action: 'checkExistence', filename });
+      writeToIndexedDB(data, filename);
+    }
+  };
+
+  const writeToIndexedDB = (data: number[][], filename: string) => {
+    workerRef.current?.postMessage({ action: 'write', data, filename });
+  };
+  //////////////////////////////////////////
 
   const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Function to handle the custom time input change
@@ -306,13 +340,13 @@ const Connection: React.FC<ConnectionProps> = ({
         // Check for specific usbProductId 29987 and set baud rate
         if (usbProductId === 29987) {
           baudRate = 115200;
-          
+
         }
 
         const existingDevice = savedPorts.find(saved =>
           saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
         );
-        
+
         if (!existingDevice) {
           savedPorts.push({
             usbVendorId,
@@ -405,13 +439,13 @@ const Connection: React.FC<ConnectionProps> = ({
             readerRef.current = null;
           }
         }
-  
+
         // Close port
         if (portRef.current.readable) {
           await portRef.current.close();
         }
         portRef.current = null;
-  
+
         toast("Disconnected from device", {
           action: {
             label: "Reconnect",
@@ -491,8 +525,8 @@ const Connection: React.FC<ConnectionProps> = ({
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
     const HEADER_LENGTH = 3; // Length of the packet header
-    const NUM_CHANNELS = detectedBitsRef.current=="twelve"?3:6; // Number of channels in the data packet
-    const PACKET_LENGTH = detectedBitsRef.current=="twelve"?10:16; // Total length of each packet
+    const NUM_CHANNELS = detectedBitsRef.current == "twelve" ? 3 : 6; // Number of channels in the data packet
+    const PACKET_LENGTH = detectedBitsRef.current == "twelve" ? 10 : 16; // Total length of each packet
     const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
@@ -566,14 +600,14 @@ const Connection: React.FC<ConnectionProps> = ({
               datastream(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
                 const channeldatavalues = channelData
-                .slice(0, canvasnumbersRef.current + 1)
-                .map((value) => (value !== undefined ? value : null))
-                .filter((value): value is number => value !== null); // Filter out null values
+                  .slice(0, canvasnumbersRef.current + 1)
+                  .map((value) => (value !== undefined ? value : null))
+                  .filter((value): value is number => value !== null); // Filter out null values
                 // Check if recording is enabled
-               recordingBuffers[activeBufferIndex][fillingindex.current]=channeldatavalues;
+                recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
                 // activeBuffer.push(channeldatavalues); // Store the channel data in the recording buffer
-             
-                if (fillingindex.current >= MAX_BUFFER_SIZE-1) {
+
+                if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
                   processBuffer(activeBufferIndex);
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
@@ -635,114 +669,114 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
 
-  // Function to process a buffer and save it to IndexedDB
-  const processBuffer = async (bufferIndex: number) => {
+  // // Function to process a buffer and save it to IndexedDB
+  // const processBuffer = async (bufferIndex: number) => {
 
-    // If the buffer is empty, return early
-    if (recordingBuffers[bufferIndex].length === 0) return;
+  //   // If the buffer is empty, return early
+  //   if (recordingBuffers[bufferIndex].length === 0) return;
 
-    // Attempt to write data to IndexedDB
-    if (currentFilenameRef.current) {
-      const success = await writeToIndexedDB(recordingBuffers[bufferIndex]);
-      if (success) {
-        // Clear the buffer after successful write
-      } else {
-        console.error("Failed to save buffer to IndexedDB. Retrying...");
-      }
-    } else {
-      console.log("Filename is not set");
-    }
-  };
-  let dbInstance: IDBDatabase | null = null;
+  //   // Attempt to write data to IndexedDB
+  //   if (currentFilenameRef.current) {
+  //     const success = await writeToIndexedDB(recordingBuffers[bufferIndex]);
+  //     if (success) {
+  //       // Clear the buffer after successful write
+  //     } else {
+  //       console.error("Failed to save buffer to IndexedDB. Retrying...");
+  //     }
+  //   } else {
+  //     console.log("Filename is not set");
+  //   }
+  // };
+  // let dbInstance: IDBDatabase | null = null;
   const existingRecordRef = useRef<any | undefined>(undefined);
-  const getDBInstance = async (): Promise<IDBDatabase> => {
-    if (!dbInstance) {
-      dbInstance = await openIndexedDB();
-      console.log(dbInstance);
-    }
-    return dbInstance;
-  };
- 
-  const writeToIndexedDB = useCallback(
-    async (data: number[][]): Promise<boolean> => {
-      if (!indexedDB) {
-        console.error("IndexedDB is not supported in this browser.");
-        return false;
-      }
-  
-      if (!currentFilenameRef.current) {
-        console.error("Filename is not set. Cannot write to IndexedDB.");
-        return false;
-      }
-  
-      // Use a ref to track if we already checked for the record
-      if (!existingRecordRef.current) {
-        try {
-          const db = await getDBInstance(); // Reuse existing connection
-          const tx = db.transaction("ChordsRecordings", "readwrite");
-          const store = tx.objectStore("ChordsRecordings");
-  
-          // Check if record exists and cache the result
-          const existingRecord = await new Promise<any | undefined>(
-            (resolve, reject) => {
-              const getRequest = store.get(currentFilenameRef.current!);
-              getRequest.onsuccess = () => resolve(getRequest.result);
-              getRequest.onerror = () => reject(getRequest.error);
-            }
-          );
-  
-          // Cache the record in a ref for later use
-          existingRecordRef.current = existingRecord;
-  
-        } catch (error) {
-          console.error("Error checking for existing record:", error);
-          return false;
-        }
-      }
-  
-      // Now use the cached existingRecordRef
-      const existingRecord = existingRecordRef.current;
-  
-      try {
-        const db = await getDBInstance(); // Reuse existing connection
-        const tx = db.transaction("ChordsRecordings", "readwrite");
-        const store = tx.objectStore("ChordsRecordings");
-  
-        if (existingRecord) {
-          // If the record exists, append data to it
-          existingRecord.content.push(...data);
-          await new Promise<void>((resolve, reject) => {
-            const putRequest = store.put(existingRecord);
-            putRequest.onsuccess = () => resolve();
-            putRequest.onerror = () => reject(putRequest.error);
-          });
-  
-          // Data appended to existing record
-        } else {
-          // If no record exists, create a new record and save data
-          const newRecord = {
-            filename: currentFilenameRef.current!,
-            content: [...data],
-          };
-  
-          await new Promise<void>((resolve, reject) => {
-            const putRequest = store.put(newRecord);
-            putRequest.onsuccess = () => resolve();
-            putRequest.onerror = () => reject(putRequest.error);
-          });
-  
-          // New record created and data saved
-        }
-  
-        return true;
-      } catch (error) {
-        console.error("Error writing to IndexedDB:", error);
-        return false;
-      }
-    },
-    [canvasCount]
-  );
-  
+  // const getDBInstance = async (): Promise<IDBDatabase> => {
+  //   if (!dbInstance) {
+  //     dbInstance = await openIndexedDB();
+  //     console.log(dbInstance);
+  //   }
+  //   return dbInstance;
+  // };
+
+  // const writeToIndexedDB = useCallback(
+  //   async (data: number[][]): Promise<boolean> => {
+  //     if (!indexedDB) {
+  //       console.error("IndexedDB is not supported in this browser.");
+  //       return false;
+  //     }
+
+  //     if (!currentFilenameRef.current) {
+  //       console.error("Filename is not set. Cannot write to IndexedDB.");
+  //       return false;
+  //     }
+
+  //     // Use a ref to track if we already checked for the record
+  //     if (!existingRecordRef.current) {
+  //       try {
+  //         const db = await getDBInstance(); // Reuse existing connection
+  //         const tx = db.transaction("ChordsRecordings", "readwrite");
+  //         const store = tx.objectStore("ChordsRecordings");
+
+  //         // Check if record exists and cache the result
+  //         const existingRecord = await new Promise<any | undefined>(
+  //           (resolve, reject) => {
+  //             const getRequest = store.get(currentFilenameRef.current!);
+  //             getRequest.onsuccess = () => resolve(getRequest.result);
+  //             getRequest.onerror = () => reject(getRequest.error);
+  //           }
+  //         );
+
+  //         // Cache the record in a ref for later use
+  //         existingRecordRef.current = existingRecord;
+
+  //       } catch (error) {
+  //         console.error("Error checking for existing record:", error);
+  //         return false;
+  //       }
+  //     }
+
+  //     // Now use the cached existingRecordRef
+  //     const existingRecord = existingRecordRef.current;
+
+  //     try {
+  //       const db = await getDBInstance(); // Reuse existing connection
+  //       const tx = db.transaction("ChordsRecordings", "readwrite");
+  //       const store = tx.objectStore("ChordsRecordings");
+
+  //       if (existingRecord) {
+  //         // If the record exists, append data to it
+  //         existingRecord.content.push(...data);
+  //         await new Promise<void>((resolve, reject) => {
+  //           const putRequest = store.put(existingRecord);
+  //           putRequest.onsuccess = () => resolve();
+  //           putRequest.onerror = () => reject(putRequest.error);
+  //         });
+
+  //         // Data appended to existing record
+  //       } else {
+  //         // If no record exists, create a new record and save data
+  //         const newRecord = {
+  //           filename: currentFilenameRef.current!,
+  //           content: [...data],
+  //         };
+
+  //         await new Promise<void>((resolve, reject) => {
+  //           const putRequest = store.put(newRecord);
+  //           putRequest.onsuccess = () => resolve();
+  //           putRequest.onerror = () => reject(putRequest.error);
+  //         });
+
+  //         // New record created and data saved
+  //       }
+
+  //       return true;
+  //     } catch (error) {
+  //       console.error("Error writing to IndexedDB:", error);
+  //       return false;
+  //     }
+  //   },
+  //   [canvasCount]
+  // );
+
   // Function to handle the recording process
   const handleRecord = async () => {
     if (isRecordingRef.current) {
@@ -804,45 +838,45 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   // Function to initialize the IndexedDB and return a promise with the database instance
-  const openIndexedDB = async (): Promise<IDBDatabase> => {
-    return new Promise((resolve, reject) => {
-      // Open a connection to the IndexedDB database
-      const request = indexedDB.open("ChordsRecordings", 2); // Update version if schema changes
+  // const openIndexedDB = async (): Promise<IDBDatabase> => {
+  //   return new Promise((resolve, reject) => {
+  //     // Open a connection to the IndexedDB database
+  //     const request = indexedDB.open("ChordsRecordings", 2); // Update version if schema changes
 
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
+  //     request.onupgradeneeded = (event) => {
+  //       const db = (event.target as IDBOpenDBRequest).result;
 
-        switch (event.oldVersion) {
-          case 0: // Database doesn't exist, create initial schema
-            const store = db.createObjectStore("ChordsRecordings", {
-              keyPath: "filename",
-            });
-            store.createIndex("filename", "filename", { unique: true });
-            break;
+  //       switch (event.oldVersion) {
+  //         case 0: // Database doesn't exist, create initial schema
+  //           const store = db.createObjectStore("ChordsRecordings", {
+  //             keyPath: "filename",
+  //           });
+  //           store.createIndex("filename", "filename", { unique: true });
+  //           break;
 
-          case 1: // Upgrade from version 1 to 2
-            const transaction = request.transaction;
-            if (transaction) {
-              const existingStore = transaction.objectStore("ChordsRecordings");
-              existingStore.createIndex("filename", "filename", { unique: true });
-            }
-            break;
+  //         case 1: // Upgrade from version 1 to 2
+  //           const transaction = request.transaction;
+  //           if (transaction) {
+  //             const existingStore = transaction.objectStore("ChordsRecordings");
+  //             existingStore.createIndex("filename", "filename", { unique: true });
+  //           }
+  //           break;
 
-          default:
-            console.warn("No schema updates for this version.");
-        }
-      };
+  //         default:
+  //           console.warn("No schema updates for this version.");
+  //       }
+  //     };
 
-      request.onsuccess = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        resolve(db); // Resolve the promise with the database instance
-      };
+  //     request.onsuccess = (event) => {
+  //       const db = (event.target as IDBOpenDBRequest).result;
+  //       resolve(db); // Resolve the promise with the database instance
+  //     };
 
-      request.onerror = () => {
-        reject(request.error); // Reject the promise with the error
-      };
-    });
-  };
+  //     request.onerror = () => {
+  //       reject(request.error); // Reject the promise with the error
+  //     };
+  //   });
+  // };
 
   // Function to delete files by filename
   const deleteFilesByFilename = async (filename: string) => {
@@ -961,15 +995,30 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("An unexpected error occurred. Please try again.");
     }
   };
+  const openIndexedNDB = async (): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("ChordsRecordings", 2);
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        const store = db.createObjectStore("ChordsRecordings", {
+          keyPath: "filename",
+        });
+        store.createIndex("filename", "filename", { unique: true });
+      };
+
+      request.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result);
+      request.onerror = (event) => reject((event.target as IDBOpenDBRequest).error);
+    });
+  };
 
   // Function to get all data from IndexedDB
   const getAllDataFromIndexedDB = async (): Promise<any[]> => {
     try {
-      const db = await openIndexedDB();
+      const db = await openIndexedNDB();
       const tx = db.transaction(["ChordsRecordings"], "readonly");
       const store = tx.objectStore("ChordsRecordings");
       const request = store.getAll();
-
       return new Promise((resolve, reject) => {
         request.onsuccess = () => {
           const data = request.result.map((item: any, index: number) => ({
@@ -1060,7 +1109,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const saveAllDataAsZip = async () => {
     try {
       // Open IndexedDB
-      const db = await openIndexedDB();
+      const db = await openIndexedNDB();
       const tx = db.transaction("ChordsRecordings", "readonly");
       const store = tx.objectStore("ChordsRecordings");
 
@@ -1098,13 +1147,13 @@ const Connection: React.FC<ConnectionProps> = ({
 
 
 
- 
 
-   return (
+
+  return (
     <div className="flex-none items-center justify-center pb-4 bg-g">
       {/* Left-aligned section */}
       <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
-      {isRecordingRef.current && (
+        {isRecordingRef.current && (
           <div className="flex items-center space-x-1 w-min ml-2">
             <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
             >
@@ -1213,7 +1262,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-r-none"
                       onClick={decreaseZoom}
-                      disabled={Zoom === 1 }
+                      disabled={Zoom === 1}
                     >
                       <ZoomOut size={16} />
                     </Button>
@@ -1248,7 +1297,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseZoom}
-                      disabled={Zoom === 10 }
+                      disabled={Zoom === 10}
 
                     >
                       <ZoomIn size={16} />
@@ -1267,39 +1316,39 @@ const Connection: React.FC<ConnectionProps> = ({
         {/* Display (Play/Pause) button with tooltip */}
         {isConnected && (
           <div className="flex items-center gap-0.5 mx-0 px-0">
-              <Button
-            className="rounded-xl rounded-r-none"
-            onClick={ handlePrevSnapshot}
-            disabled={isDisplay || clickCount>=enabledClicks}
+            <Button
+              className="rounded-xl rounded-r-none"
+              onClick={handlePrevSnapshot}
+              disabled={isDisplay || clickCount >= enabledClicks}
 
-          >
-               <ArrowLeftToLine size={16}/>
-          </Button>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button className="rounded-xl rounded-l-none rounded-r-none" onClick={togglePause}>
-                  {isDisplay ? (
-                    <Pause className="h-5 w-5" />
-                  ) : (
-                    <Play className="h-5 w-5" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <Button
-            className="rounded-xl rounded-l-none"
-            onClick={handleNextSnapshot }
-            disabled={isDisplay || clickCount==0}
             >
-          <ArrowRightToLine size={16}/>
-          </Button>
+              <ArrowLeftToLine size={16} />
+            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button className="rounded-xl rounded-l-none rounded-r-none" onClick={togglePause}>
+                    {isDisplay ? (
+                      <Pause className="h-5 w-5" />
+                    ) : (
+                      <Play className="h-5 w-5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button
+              className="rounded-xl rounded-l-none"
+              onClick={handleNextSnapshot}
+              disabled={isDisplay || clickCount == 0}
+            >
+              <ArrowRightToLine size={16} />
+            </Button>
           </div>
         )}
         {/* Record button with tooltip */}
@@ -1703,14 +1752,14 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseCanvas}
-                      disabled={canvasCount >= (detectedBitsRef.current=="twelve"?3:6) || !isDisplay || recData}
+                      disabled={canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6) || !isDisplay || recData}
                     >
                       <Plus size={16} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {canvasCount >= (detectedBitsRef.current=="twelve"?3:6)
+                      {canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6)
                         ? "Maximum Channels Reached"
                         : "Increase Channel"}
                     </p>

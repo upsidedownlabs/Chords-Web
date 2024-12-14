@@ -2,6 +2,7 @@
   "name": "Chords",
   "version": "2.3.0a",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
