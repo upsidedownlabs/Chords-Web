@@ -242,24 +242,24 @@ const Connection: React.FC<ConnectionProps> = ({
 
     if (filename) {
       // Check if the record already exists
-      workerRef.current?.postMessage({ action: 'checkExistence', filename });
+      workerRef.current?.postMessage({ action: 'checkExistence', filename, canvasCount });
       writeToIndexedDB(data, filename);
     }
   };
 
   const writeToIndexedDB = (data: number[][], filename: string) => {
-    workerRef.current?.postMessage({ action: 'write', data, filename });
+    workerRef.current?.postMessage({ action: 'write', data, filename, canvasCount });
   };
 
   const getAllDataFromIndexedDB = async (): Promise<any[]> => {
     if (!workerRef.current) {
       initializeWorker();
     }
-  
+
     return new Promise((resolve, reject) => {
       if (workerRef.current) {
         workerRef.current.postMessage({ action: 'getAllData' });
-  
+
         workerRef.current.onmessage = (event) => {
           if (event.data.allData) {
             resolve(event.data.allData);
@@ -267,7 +267,7 @@ const Connection: React.FC<ConnectionProps> = ({
             reject(event.data.error);
           }
         };
-  
+
         workerRef.current.onerror = (error) => {
           reject(`Error in worker: ${error.message}`);
         };
@@ -276,30 +276,52 @@ const Connection: React.FC<ConnectionProps> = ({
       }
     });
   };
-  
+
   const saveAllDataAsZip = async () => {
     try {
-      // Send message to worker to create ZIP file
       if (workerRef.current) {
-        workerRef.current.postMessage({ action: 'saveAsZip' });
-  
-        // Listen for the response from the worker
+        workerRef.current.postMessage({ action: 'saveAsZip', canvasCount });
+
         workerRef.current.onmessage = async (event) => {
           const { zipBlob, error } = event.data;
-  
+
           if (zipBlob) {
-            // Save the Blob as a ZIP file
             saveAs(zipBlob, 'ChordsWeb.zip');
           } else if (error) {
             console.error(error);
-          };
+          }
         };
       }
     } catch (error) {
       console.error('Error while saving ZIP file:', error);
     }
   };
-  
+
+
+  // Function to handle saving data by filename
+  const saveDataByFilename = async (filename: string, canvasCount: number) => {
+    if (workerRef.current) {
+      workerRef.current.postMessage({ action: 'saveDataByFilename', filename, canvasCount });
+
+      workerRef.current.onmessage = (event) => {
+        const { blob, error } = event.data;
+
+        if (blob) {
+          saveAs(blob, filename); // FileSaver.js
+          toast.success("File downloaded successfully.");
+        } 
+      };
+
+      workerRef.current.onerror = (error) => {
+        console.error("Worker error:", error);
+        toast.error("An unexpected worker error occurred.");
+      };
+    } else {
+      console.error("Worker reference is null.");
+      toast.error("Worker is not available.");
+    }
+  };
+
   //////////////////////////////////////////
 
   const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -700,23 +722,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const convertToCSV = (data: any[], canvasCount: number): string => {
-    if (data.length === 0) return "";
-
-    // Generate the header dynamically based on the number of channels
-    const header = ["Counter", ...Array.from({ length: canvasCount }, (_, i) => `Channel${i + 1}`)];
-
-    // Create rows by mapping data to match the header fields
-    const rows = data.map((item, index) =>
-      [...item.slice(0, canvasCount + 1)].map((field) =>
-        field !== undefined && field !== null ? JSON.stringify(field) : ""
-      ).join(",")
-    );
-
-    // Combine header and rows into a CSV format
-    return [header.join(","), ...rows].join("\n");
-  };
-
   const existingRecordRef = useRef<any | undefined>(undefined);
   // Function to handle the recording process
   const handleRecord = async () => {
@@ -744,24 +749,19 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Recording start time was not captured.");
       return;
     }
-
     const endTime = new Date();
     const durationInSeconds = Math.floor((Date.now() - recordingStartTime.current) / 1000);
     isRecordingRef.current = false;
     setRecordingElapsedTime(0);
     setrecData(false);
-
     // setRecordingStartTime(0);
     recordingStartTime.current = 0;
     existingRecordRef.current = undefined;
-
-
     // Re-fetch datasets from IndexedDB after recording stops
     const fetchData = async () => {
       const data = await getAllDataFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
     };
-
     // Call fetchData after stopping the recording
     fetchData();
   };
@@ -834,65 +834,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const saveDataByFilename = async (filename: string) => {
-    try {
-      // Open the IndexedDB connection
-      const dbRequest = indexedDB.open("ChordsRecordings");
 
-      dbRequest.onsuccess = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        const transaction = db.transaction("ChordsRecordings", "readonly");
-        const store = transaction.objectStore("ChordsRecordings");
-
-        // Check if the "filename" index exists
-        if (!store.indexNames.contains("filename")) {
-          console.error("Index 'filename' does not exist.");
-          toast.error("Unable to download files: index not found.");
-          return;
-        }
-
-        // Retrieve the data by filename
-        const index = store.index("filename");
-        const getRequest = index.get(filename);
-
-        getRequest.onsuccess = (event) => {
-          const result = getRequest.result;
-
-          // Ensure the file exists and contains data
-          if (!result || !Array.isArray(result.content)) {
-            toast.error("No data found for the given filename.");
-            return;
-          }
-
-          // Convert data to CSV, passing canvasCount dynamically
-          const csvData = convertToCSV(result.content, canvasCount);
-
-          // Create a Blob from the CSV data
-          const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-
-          // Trigger the download with the filename
-          saveAs(blob, filename); // FileSaver.js
-
-          // Show a success message
-          toast.success("File downloaded successfully.");
-        };
-
-        getRequest.onerror = () => {
-          console.error("Error during file retrieval.");
-          toast.error("Failed to retrieve the file. Please try again.");
-        };
-      };
-
-      dbRequest.onerror = () => {
-        console.error("Failed to open IndexedDB database.");
-        toast.error("An error occurred while accessing the database.");
-      };
-    } catch (error) {
-      console.error("Error occurred during file download:", error);
-      toast.error("An unexpected error occurred. Please try again.");
-    }
-  };
-  
 
   // Function to delete all data from IndexedDB (for ZIP files or clear all)
   const deleteAllDataFromIndexedDB = async () => {
@@ -1213,7 +1155,7 @@ const Connection: React.FC<ConnectionProps> = ({
                           <div className="flex space-x-2">
                             {/* Save file by filename */}
                             <Button
-                              onClick={() => saveDataByFilename(dataset.filename)}
+                              onClick={() => saveDataByFilename(dataset.filename, canvasCount)}
                               className="rounded-xl px-4"
                             >
                               <Download size={16} />
