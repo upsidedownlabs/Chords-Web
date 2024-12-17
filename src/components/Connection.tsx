@@ -301,15 +301,17 @@ const Connection: React.FC<ConnectionProps> = ({
   // Function to handle saving data by filename
   const saveDataByFilename = async (filename: string, canvasCount: number) => {
     if (workerRef.current) {
-      workerRef.current.postMessage({ action: 'saveDataByFilename', filename, canvasCount });
-
+      workerRef.current.postMessage({ action: "saveDataByFilename", filename, canvasCount });
       workerRef.current.onmessage = (event) => {
         const { blob, error } = event.data;
 
         if (blob) {
           saveAs(blob, filename); // FileSaver.js
           toast.success("File downloaded successfully.");
-        } 
+        } else(error:any) =>{
+          console.error("Worker error:", error);
+          toast.error(`Error during file download: ${error.message}`);
+        }
       };
 
       workerRef.current.onerror = (error) => {
@@ -320,6 +322,7 @@ const Connection: React.FC<ConnectionProps> = ({
       console.error("Worker reference is null.");
       toast.error("Worker is not available.");
     }
+
   };
 
   //////////////////////////////////////////
@@ -471,9 +474,8 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Writable stream not available");
       }
-      const data = await getAllDataFromIndexedDB();
+      const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
-
       readData();
       await navigator.wakeLock.request("screen");
 
@@ -483,6 +485,35 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to connect to device.");
     }
   };
+
+
+
+  const getFileCountFromIndexedDB = async (): Promise<any[]> => {
+    if (!workerRef.current) {
+      initializeWorker();
+    }
+
+    return new Promise((resolve, reject) => {
+      if (workerRef.current) {
+        workerRef.current.postMessage({ action: 'getFileCountFromIndexedDB' });
+
+        workerRef.current.onmessage = (event) => {
+          if (event.data.allData) {
+            resolve(event.data.allData);
+          } else if (event.data.error) {
+            reject(event.data.error);
+          }
+        };
+
+        workerRef.current.onerror = (error) => {
+          reject(`Error in worker: ${error.message}`);
+        };
+      } else {
+        reject('Worker is not initialized');
+      }
+    });
+  };
+
 
   const disconnectDevice = async (): Promise<void> => {
     try {
@@ -612,7 +643,6 @@ const Connection: React.FC<ConnectionProps> = ({
       filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
     });
     try {
-      // Loop while the device is connectedconsole.log(`Filters removed from all channels: ${channels.join(", ")}`);
       while (isConnectedRef.current) {
         const streamData = await readerRef.current?.read(); // Read data from the device
         if (streamData?.done) {
@@ -759,9 +789,11 @@ const Connection: React.FC<ConnectionProps> = ({
     existingRecordRef.current = undefined;
     // Re-fetch datasets from IndexedDB after recording stops
     const fetchData = async () => {
-      const data = await getAllDataFromIndexedDB();
+      const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
     };
+
+
     // Call fetchData after stopping the recording
     fetchData();
   };
@@ -775,55 +807,55 @@ const Connection: React.FC<ConnectionProps> = ({
     return `${hours}:${minutes}:${seconds}`;
   };
 
-  // Function to delete files by filename
   const deleteFilesByFilename = async (filename: string) => {
     try {
       const dbRequest = indexedDB.open("ChordsRecordings");
-
+  
       dbRequest.onsuccess = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         const transaction = db.transaction("ChordsRecordings", "readwrite");
         const store = transaction.objectStore("ChordsRecordings");
-
+  
         // Check if the "filename" index exists
         if (!store.indexNames.contains("filename")) {
           console.error("Index 'filename' does not exist.");
           toast.error("Unable to delete files: index not found.");
           return;
         }
-
+  
         const index = store.index("filename");
         const deleteRequest = index.openCursor(IDBKeyRange.only(filename));
-
-        deleteRequest.onsuccess = (event) => {
+  
+        // Make this callback async
+        deleteRequest.onsuccess = async (event) => {
           const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-
+  
           if (cursor) {
             cursor.delete(); // Delete the current record
-            console.log(`Deleted file: ${filename}`);
-            cursor.continue(); // Continue to next matching record
+            // Fetch the updated data and update state
+            const data = await getFileCountFromIndexedDB();
+            setDatasets(data); // Update datasets with the latest data
           } else {
             console.log(`No file found with filename: ${filename}`);
             toast.success("File deleted successfully.");
           }
         };
-
+  
         deleteRequest.onerror = () => {
           console.error("Error during delete operation.");
           toast.error("Failed to delete the file. Please try again.");
         };
-
-        // Ensure transaction completion
+  
         transaction.oncomplete = () => {
-          console.log("File deletion completed.");
+          console.log("File deletion transaction completed.");
         };
-
+  
         transaction.onerror = () => {
           console.error("Transaction failed during deletion.");
           toast.error("Failed to delete the file. Please try again.");
         };
       };
-
+  
       dbRequest.onerror = () => {
         console.error("Failed to open IndexedDB database.");
         toast.error("An error occurred while accessing the database.");
@@ -833,8 +865,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("An unexpected error occurred. Please try again.");
     }
   };
-
-
+  
 
   // Function to delete all data from IndexedDB (for ZIP files or clear all)
   const deleteAllDataFromIndexedDB = async () => {
@@ -1146,16 +1177,16 @@ const Connection: React.FC<ConnectionProps> = ({
                     {/* List each file with download and delete actions */}
                     {datasets.length > 0 ? (
                       datasets.map((dataset) => (
-                        <div key={dataset.filename} className="flex justify-between items-center">
+                        <div key={dataset} className="flex justify-between items-center">
                           {/* Display the filename directly */}
                           <span className="font-medium mr-4 text-black">
-                            {dataset.filename}
+                            {dataset}
                           </span>
 
                           <div className="flex space-x-2">
                             {/* Save file by filename */}
                             <Button
-                              onClick={() => saveDataByFilename(dataset.filename, canvasCount)}
+                              onClick={() => saveDataByFilename(dataset, canvasCount)}
                               className="rounded-xl px-4"
                             >
                               <Download size={16} />
@@ -1164,21 +1195,13 @@ const Connection: React.FC<ConnectionProps> = ({
                             {/* Delete file by filename */}
                             <Button
                               onClick={() => {
-                                deleteFilesByFilename(dataset.filename)
-                                  .then(() => {
-                                    setDatasets((prevDatasets) =>
-                                      prevDatasets.filter((d) => d.filename !== dataset.filename)
-                                    );
-                                    toast.success("File deleted successfully");
-                                  })
-                                  .catch(() => {
-                                    toast.error("Failed to delete file");
-                                  });
+                                deleteFilesByFilename(dataset);
                               }}
                               className="rounded-xl px-4"
                             >
                               <Trash2 size={16} />
                             </Button>
+
                           </div>
                         </div>
                       ))

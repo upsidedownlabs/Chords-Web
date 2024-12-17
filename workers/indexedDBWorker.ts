@@ -1,6 +1,5 @@
-import { toast } from "sonner";
+
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
 self.onmessage = async (event) => {
   const { action, data, filename, canvasCount } = event.data;
 
@@ -16,6 +15,14 @@ self.onmessage = async (event) => {
     case 'getAllData':
       try {
         const allData = await getAllDataFromIndexedDB(db);
+        self.postMessage({ allData });
+      } catch (error) {
+        self.postMessage({ error: 'Failed to retrieve all data from IndexedDB' });
+      }
+      break;
+    case 'getFileCountFromIndexedDB':
+      try {
+        const allData = await getFileCountFromIndexedDB(db);
         self.postMessage({ allData });
       } catch (error) {
         self.postMessage({ error: 'Failed to retrieve all data from IndexedDB' });
@@ -113,23 +120,35 @@ const getAllDataFromIndexedDB = async (db: IDBDatabase): Promise<any[]> => {
 };
 
 
+
+
+
 // Function to convert data to CSV
 const convertToCSV = (data: any[], canvasCount: number): string => {
-  if (data.length === 0) return "";
+  if (!Array.isArray(data) || data.length === 0) return "";
 
   // Generate the header dynamically based on the number of channels
   const header = ["Counter", ...Array.from({ length: canvasCount }, (_, i) => `Channel${i + 1}`)];
 
-  // Create rows by mapping data to match the header fields
-  const rows = data.map((item, index) =>
-    [...item.slice(0, canvasCount + 1)].map((field) =>
-      field !== undefined && field !== null ? JSON.stringify(field) : ""
-    ).join(",")
-  );
+  // Create rows by filtering and mapping valid data
+  const rows = data
+    .filter((item, index) => {
+      if (!item || !Array.isArray(item)) {
+        console.warn(`Skipping invalid data at index ${index}:`, item);
+        return false;
+      }
+      return true;
+    })
+    .map((item) =>
+      [...item.slice(0, canvasCount + 1)]
+        .map((field) => (field !== undefined && field !== null ? JSON.stringify(field) : ""))
+        .join(",")
+    );
 
   // Combine header and rows into a CSV format
   return [header.join(","), ...rows].join("\n");
 };
+
 
 
 // Function to save all data as a ZIP file
@@ -171,6 +190,7 @@ const saveAllDataAsZip = async (canvasCount: number): Promise<Blob> => {
 
 const saveDataByFilename = async (filename: string, canvasCount: number): Promise<Blob> => {
   try {
+    console.log("filename",filename);
     const dbRequest = indexedDB.open("ChordsRecordings");
 
     return new Promise((resolve, reject) => {
@@ -179,7 +199,6 @@ const saveDataByFilename = async (filename: string, canvasCount: number): Promis
         const transaction = db.transaction("ChordsRecordings", "readonly");
         const store = transaction.objectStore("ChordsRecordings");
 
-        // Ensure the "filename" index exists
         if (!store.indexNames.contains("filename")) {
           reject(new Error("Index 'filename' does not exist."));
           return;
@@ -190,9 +209,16 @@ const saveDataByFilename = async (filename: string, canvasCount: number): Promis
 
         getRequest.onsuccess = () => {
           const result = getRequest.result;
+          console.log("Retrieved IndexedDB result:", result);
 
           if (!result || !Array.isArray(result.content)) {
-            reject(new Error("No data found for the given filename."));
+            reject(new Error("No data found for the given filename or invalid data format."));
+            return;
+          }
+
+          // Validate `result.content` before processing
+          if (!result.content.every((item: any) => Array.isArray(item))) {
+            reject(new Error("Content data contains invalid or non-array elements."));
             return;
           }
 
@@ -215,5 +241,32 @@ const saveDataByFilename = async (filename: string, canvasCount: number): Promis
   }
 };
 
+const getFileCountFromIndexedDB = async (db: IDBDatabase): Promise<string[]> => {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(["ChordsRecordings"], "readonly");
+    const store = tx.objectStore("ChordsRecordings");
+    const filenames: string[] = [];
+
+    const cursorRequest = store.openCursor();
+    cursorRequest.onsuccess = (event) => {
+      const cursor = (event.target as IDBRequest).result as IDBCursorWithValue | null;
+      if (cursor) {
+        const record = cursor.value;
+        if (record.filename) {
+          filenames.push(record.filename); // Replace `filename` with your actual property name
+        }
+        cursor.continue();
+      } else {
+        resolve(filenames); // All filenames collected
+      }
+    };
+
+    cursorRequest.onerror = (event) => {
+      const error = (event.target as IDBRequest).error;
+      console.error("Error retrieving filenames from IndexedDB:", error);
+      reject(error);
+    };
+  });
+};
 
 
