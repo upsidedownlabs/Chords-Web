@@ -157,8 +157,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-
-
   const decreaseCanvas = () => {
     if (canvasCount > 1) {
       setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
@@ -198,7 +196,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
   useEffect(() => {
     canvasnumbersRef.current = canvasCount; // Sync the ref with the state
-  }, [canvasCount]);
+  }, [canvasCount,isRecordingRef]);
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -229,7 +227,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const processBuffer = async (bufferIndex: number) => {
+  const processBuffer = async (bufferIndex: number,canvasCount:number) => {
     if (!workerRef.current) {
       initializeWorker();
     }
@@ -243,38 +241,12 @@ const Connection: React.FC<ConnectionProps> = ({
     if (filename) {
       // Check if the record already exists
       workerRef.current?.postMessage({ action: 'checkExistence', filename, canvasCount });
-      writeToIndexedDB(data, filename);
+      writeToIndexedDB(data, filename,canvasCount);
     }
   };
 
-  const writeToIndexedDB = (data: number[][], filename: string) => {
+  const writeToIndexedDB = (data: number[][], filename: string,canvasCount:number) => {
     workerRef.current?.postMessage({ action: 'write', data, filename, canvasCount });
-  };
-
-  const getAllDataFromIndexedDB = async (): Promise<any[]> => {
-    if (!workerRef.current) {
-      initializeWorker();
-    }
-
-    return new Promise((resolve, reject) => {
-      if (workerRef.current) {
-        workerRef.current.postMessage({ action: 'getAllData' });
-
-        workerRef.current.onmessage = (event) => {
-          if (event.data.allData) {
-            resolve(event.data.allData);
-          } else if (event.data.error) {
-            reject(event.data.error);
-          }
-        };
-
-        workerRef.current.onerror = (error) => {
-          reject(`Error in worker: ${error.message}`);
-        };
-      } else {
-        reject('Worker is not initialized');
-      }
-    });
   };
 
   const saveAllDataAsZip = async () => {
@@ -485,7 +457,6 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to connect to device.");
     }
   };
-
 
 
   const getFileCountFromIndexedDB = async (): Promise<any[]> => {
@@ -701,6 +672,7 @@ const Connection: React.FC<ConnectionProps> = ({
               }
               datastream(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
+                console.log(canvasnumbersRef.current);
                 const channeldatavalues = channelData
                   .slice(0, canvasnumbersRef.current + 1)
                   .map((value) => (value !== undefined ? value : null))
@@ -710,7 +682,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 // activeBuffer.push(channeldatavalues); // Store the channel data in the recording buffer
 
                 if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
-                  processBuffer(activeBufferIndex);
+                  processBuffer(activeBufferIndex,canvasnumbersRef.current);
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
                 fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
@@ -792,8 +764,6 @@ const Connection: React.FC<ConnectionProps> = ({
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
     };
-
-
     // Call fetchData after stopping the recording
     fetchData();
   };
@@ -866,7 +836,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   
-
   // Function to delete all data from IndexedDB (for ZIP files or clear all)
   const deleteAllDataFromIndexedDB = async () => {
     return new Promise<void>((resolve, reject) => {

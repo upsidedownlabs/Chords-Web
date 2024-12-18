@@ -9,7 +9,7 @@ self.onmessage = async (event) => {
 
   switch (action) {
     case 'write':
-      const success = await writeToIndexedDB(db, data, filename);
+      const success = await writeToIndexedDB(db, data, filename,canvasCount);
       self.postMessage({ success });
       break;
     case 'getAllData':
@@ -70,7 +70,7 @@ const openIndexedDB = async (): Promise<IDBDatabase> => {
 };
 
 // Function to write data to IndexedDB
-const writeToIndexedDB = async (db: IDBDatabase, data: number[][], filename: string): Promise<boolean> => {
+const writeToIndexedDB = async (db: IDBDatabase, data: number[][], filename: string,canvasCount:number): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("ChordsRecordings", "readwrite");
     const store = tx.objectStore("ChordsRecordings");
