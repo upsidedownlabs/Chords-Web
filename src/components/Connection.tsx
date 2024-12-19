@@ -93,7 +93,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const [popoverVisible, setPopoverVisible] = useState(false);
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
- const [ifBits, setifBits] = useState<BitSelection>("auto");
+  const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
@@ -188,7 +188,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
   useEffect(() => {
     canvasnumbersRef.current = canvasCount; // Sync the ref with the state
-  }, [canvasCount,isRecordingRef]);
+  }, [canvasCount, isRecordingRef]);
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -219,7 +219,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const processBuffer = async (bufferIndex: number,canvasCount:number) => {
+  const processBuffer = async (bufferIndex: number, canvasCount: number) => {
     if (!workerRef.current) {
       initializeWorker();
     }
@@ -233,11 +233,11 @@ const Connection: React.FC<ConnectionProps> = ({
     if (filename) {
       // Check if the record already exists
       workerRef.current?.postMessage({ action: 'checkExistence', filename, canvasCount });
-      writeToIndexedDB(data, filename,canvasCount);
+      writeToIndexedDB(data, filename, canvasCount);
     }
   };
 
-  const writeToIndexedDB = (data: number[][], filename: string,canvasCount:number) => {
+  const writeToIndexedDB = (data: number[][], filename: string, canvasCount: number) => {
     workerRef.current?.postMessage({ action: 'write', data, filename, canvasCount });
   };
 
@@ -271,7 +271,7 @@ const Connection: React.FC<ConnectionProps> = ({
         if (blob) {
           saveAs(blob, filename); // FileSaver.js
           toast.success("File downloaded successfully.");
-        } else(error:any) =>{
+        } else (error: any) => {
           console.error("Worker error:", error);
           toast.error(`Error during file download: ${error.message}`);
         }
@@ -661,16 +661,15 @@ const Connection: React.FC<ConnectionProps> = ({
               }
               datastream(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
-                console.log(canvasnumbersRef.current);
                 const channeldatavalues = channelData
                   .slice(0, canvasnumbersRef.current + 1)
                   .map((value) => (value !== undefined ? value : null))
                   .filter((value): value is number => value !== null); // Filter out null values
                 // Check if recording is enabled
                 recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
-               
+
                 if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
-                  processBuffer(activeBufferIndex,canvasnumbersRef.current);
+                  processBuffer(activeBufferIndex, canvasnumbersRef.current);
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
                 fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
@@ -765,26 +764,26 @@ const Connection: React.FC<ConnectionProps> = ({
   const deleteFilesByFilename = async (filename: string) => {
     try {
       const dbRequest = indexedDB.open("ChordsRecordings");
-  
+
       dbRequest.onsuccess = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         const transaction = db.transaction("ChordsRecordings", "readwrite");
         const store = transaction.objectStore("ChordsRecordings");
-  
+
         // Check if the "filename" index exists
         if (!store.indexNames.contains("filename")) {
           console.error("Index 'filename' does not exist.");
           toast.error("Unable to delete files: index not found.");
           return;
         }
-  
+
         const index = store.index("filename");
         const deleteRequest = index.openCursor(IDBKeyRange.only(filename));
-  
+
         // Make this callback async
         deleteRequest.onsuccess = async (event) => {
           const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-  
+
           if (cursor) {
             cursor.delete(); // Delete the current record
             // Fetch the updated data and update state
@@ -795,22 +794,22 @@ const Connection: React.FC<ConnectionProps> = ({
             toast.success("File deleted successfully.");
           }
         };
-  
+
         deleteRequest.onerror = () => {
           console.error("Error during delete operation.");
           toast.error("Failed to delete the file. Please try again.");
         };
-  
+
         transaction.oncomplete = () => {
           console.log("File deletion transaction completed.");
         };
-  
+
         transaction.onerror = () => {
           console.error("Transaction failed during deletion.");
           toast.error("Failed to delete the file. Please try again.");
         };
       };
-  
+
       dbRequest.onerror = () => {
         console.error("Failed to open IndexedDB database.");
         toast.error("An error occurred while accessing the database.");
@@ -820,7 +819,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("An unexpected error occurred. Please try again.");
     }
   };
-  
+
   // Function to delete all data from IndexedDB (for ZIP files or clear all)
   const deleteAllDataFromIndexedDB = async () => {
     return new Promise<void>((resolve, reject) => {

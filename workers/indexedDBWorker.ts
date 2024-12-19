@@ -8,7 +8,7 @@ self.onmessage = async (event) => {
 
   switch (action) {
     case 'write':
-      const success = await writeToIndexedDB(db, data, filename,canvasCount);
+      const success = await writeToIndexedDB(db, data, filename, canvasCount);
       self.postMessage({ success });
       break;
     case 'getAllData':
@@ -67,7 +67,7 @@ const openIndexedDB = async (): Promise<IDBDatabase> => {
 };
 
 // Function to write data to IndexedDB
-const writeToIndexedDB = async (db: IDBDatabase, data: number[][], filename: string,canvasCount:number): Promise<boolean> => {
+const writeToIndexedDB = async (db: IDBDatabase, data: number[][], filename: string, canvasCount: number): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("ChordsRecordings", "readwrite");
     const store = tx.objectStore("ChordsRecordings");
@@ -148,7 +148,6 @@ const saveAllDataAsZip = async (canvasCount: number): Promise<Blob> => {
     const tx = db.transaction("ChordsRecordings", "readonly");
     const store = tx.objectStore("ChordsRecordings");
 
-    console.log(canvasCount);
     const allData: any[] = await new Promise((resolve, reject) => {
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result);
@@ -180,7 +179,6 @@ const saveAllDataAsZip = async (canvasCount: number): Promise<Blob> => {
 
 const saveDataByFilename = async (filename: string, canvasCount: number): Promise<Blob> => {
   try {
-    console.log("filename",filename);
     const dbRequest = indexedDB.open("ChordsRecordings");
 
     return new Promise((resolve, reject) => {
@@ -199,7 +197,6 @@ const saveDataByFilename = async (filename: string, canvasCount: number): Promis
 
         getRequest.onsuccess = () => {
           const result = getRequest.result;
-          console.log("Retrieved IndexedDB result:", result);
 
           if (!result || !Array.isArray(result.content)) {
             reject(new Error("No data found for the given filename or invalid data format."));
