@@ -39,4 +39,9 @@ export const BoardsList = Object.freeze([
     field_pid: "192",
     bits: "twelve",
   },
+  {
+    name: "Arduino Giga R1",
+    field_pid: "614",
+    bits: "sixteen",
+  },
 ]);

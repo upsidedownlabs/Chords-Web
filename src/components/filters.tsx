@@ -46,7 +46,8 @@ export class EXGFilter {
     // function to apply the 
     setSample(sample: string): void {
         this.sample = sample;
-        this.bitsPoints = Math.pow(2, 
+        this.bitsPoints = Math.pow(2,
+            sample === "sixteen" ?16 :
             sample === "fourteen" ? 14 : 
             sample === "twelve" ? 12 : 10
         ); // Adjust according to your ADC resolution
@@ -59,6 +60,7 @@ export class EXGFilter {
         let chData=0;
         switch (this.sample) {
             //samplerate 500Hz
+            case "sixteen":
             case "fourteen":
             case "twelve":   // 500Hz
                 switch (type) {
@@ -178,6 +180,7 @@ export class Notch {
         if(!type) return input;
         let output = input;
         switch (this.sample) {
+            case "sixteen" :
             case "fourteen": // 500Hz
             case "twelve":   // 500Hz
                 switch (type) {

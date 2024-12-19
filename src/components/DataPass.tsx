@@ -6,7 +6,7 @@ import React, { useState, useCallback, useRef } from "react";
 import Canvas from "./Canvas";
 import Navbar from "./Navbar"; // Import the Navbar
 
-export type BitSelection = "ten" | "twelve" | "fourteen" | "auto";
+export type BitSelection = "ten" | "twelve" | "fourteen" | "sixteen" | "auto";
 
 const DataPass = () => {
   const [selectedBits, setSelectedBits] = useState<BitSelection>("auto"); // Selected bits

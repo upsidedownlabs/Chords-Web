@@ -61,6 +61,8 @@ const Canvas = forwardRef(
           return samplingRate * 4;
         case "fourteen":
           return samplingRate * 4;
+        case "sixteen":
+          return samplingRate * 4;
         default:
           return 0; // Or any other fallback value you'd like
       }
@@ -82,7 +84,7 @@ const Canvas = forwardRef(
         if (array3DRef.current[activebuffer.current][i].length >= numX) {
           array3DRef.current[activebuffer.current][i] = [];
         }
-        array3DRef.current[activebuffer.current][i].push(incomingData[i+1]);
+        array3DRef.current[activebuffer.current][i].push(incomingData[i + 1]);
 
         if (array3DRef.current[activebuffer.current][i].length < numX && !pauseRef.current) {
           array3DRef.current[activebuffer.current][i] = [];
@@ -289,7 +291,7 @@ const Canvas = forwardRef(
           // Use a separate sweep position for each line
           currentSweepPos.current[i] = sweepPositions.current[i];
           // Plot the new data at the current sweep position
-          line.setY(currentSweepPos.current[i] % line.numPoints, data[i+1]);
+          line.setY(currentSweepPos.current[i] % line.numPoints, data[i + 1]);
 
           // Clear the next point to create a gap (optional, for visual effect)
           const clearPosition = (currentSweepPos.current[i] + (numX / 100)) % line.numPoints;
