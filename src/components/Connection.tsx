@@ -3,7 +3,6 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { EXGFilter, Notch } from './filters';
-import JSZip from 'jszip';
 import {
   Cable,
   Circle,
@@ -67,7 +66,6 @@ const Connection: React.FC<ConnectionProps> = ({
   onPauseChange,
   datastream,
   Connection,
-  selectedBits,
   setSelectedBits,
   isDisplay,
   setIsDisplay,
@@ -85,20 +83,17 @@ const Connection: React.FC<ConnectionProps> = ({
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
   const detectedBitsRef = React.useRef<BitSelection>("ten");
-  const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false); // New state variable
   const [datasets, setDatasets] = useState<any[]>([]);
   const currentFilenameRef = useRef<string>("");
-  const [hasData, setHasData] = useState(false);
-  const [recData, setrecData] = useState(false);
+  const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false);
   const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
-  const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
   const recordingStartTime = useRef<number>(0);
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
+  const [clickCount, setClickCount] = useState(0); // Track how many times the left arrow is clicked
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const [popoverVisible, setPopoverVisible] = useState(false);
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
-  const indexedDBRef = useRef<IDBDatabase | null>(null);
-  const [ifBits, setifBits] = useState<BitSelection>("auto");
+ const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
@@ -131,8 +126,6 @@ const Connection: React.FC<ConnectionProps> = ({
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
     }
   };
-
-  const [clickCount, setClickCount] = useState(0); // Track how many times the left arrow is clicked
 
   const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
 
@@ -192,7 +185,6 @@ const Connection: React.FC<ConnectionProps> = ({
       setFullZoom(true);
     }
   };
-
 
   useEffect(() => {
     canvasnumbersRef.current = canvasCount; // Sync the ref with the state
@@ -268,7 +260,6 @@ const Connection: React.FC<ConnectionProps> = ({
       console.error('Error while saving ZIP file:', error);
     }
   };
-
 
   // Function to handle saving data by filename
   const saveDataByFilename = async (filename: string, canvasCount: number) => {
@@ -353,7 +344,6 @@ const Connection: React.FC<ConnectionProps> = ({
     usbProductId: number;
     baudRate: number;
   }
-
 
   const connectToDevice = async () => {
     try {
@@ -484,7 +474,6 @@ const Connection: React.FC<ConnectionProps> = ({
       }
     });
   };
-
 
   const disconnectDevice = async (): Promise<void> => {
     try {
@@ -679,8 +668,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   .filter((value): value is number => value !== null); // Filter out null values
                 // Check if recording is enabled
                 recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
-                // activeBuffer.push(channeldatavalues); // Store the channel data in the recording buffer
-
+               
                 if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
                   processBuffer(activeBufferIndex,canvasnumbersRef.current);
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
@@ -736,8 +724,7 @@ const Connection: React.FC<ConnectionProps> = ({
       const now = new Date();
       recordingStartTime.current = Date.now();
       setRecordingElapsedTime(Date.now());
-      setrecData(true);
-
+      setIsRecordButtonDisabled(true);
 
       const filename = `ChordsWeb-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
         `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
@@ -751,11 +738,9 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Recording start time was not captured.");
       return;
     }
-    const endTime = new Date();
-    const durationInSeconds = Math.floor((Date.now() - recordingStartTime.current) / 1000);
     isRecordingRef.current = false;
     setRecordingElapsedTime(0);
-    setrecData(false);
+    setIsRecordButtonDisabled(false);
     // setRecordingStartTime(0);
     recordingStartTime.current = 0;
     existingRecordRef.current = undefined;
@@ -1452,7 +1437,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-r-none"
                       onClick={decreaseCanvas}
-                      disabled={canvasCount === 1 || !isDisplay || recData}
+                      disabled={canvasCount === 1 || !isDisplay || isRecordButtonDisabled}
                     >
                       <Minus size={16} />
                     </Button>
@@ -1474,7 +1459,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="flex items-center justify-center px-3 py-2 rounded-none select-none"
                       onClick={toggleShowAllChannels}
-                      disabled={!isDisplay || recData}
+                      disabled={!isDisplay || isRecordButtonDisabled}
                     >
                       CH
                     </Button>
@@ -1496,7 +1481,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseCanvas}
-                      disabled={canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6) || !isDisplay || recData}
+                      disabled={canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6) || !isDisplay || isRecordButtonDisabled}
                     >
                       <Plus size={16} />
                     </Button>

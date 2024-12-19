@@ -3,7 +3,6 @@ import JSZip from 'jszip';
 self.onmessage = async (event) => {
   const { action, data, filename, canvasCount } = event.data;
 
-
   // Open IndexedDB
   const db = await openIndexedDB();
 
@@ -44,8 +43,6 @@ self.onmessage = async (event) => {
         self.postMessage({ error });
       }
       break;
-
-
     default:
       self.postMessage({ error: 'Invalid action' });
   }
@@ -92,7 +89,6 @@ const writeToIndexedDB = async (db: IDBDatabase, data: number[][], filename: str
         putRequest.onerror = () => reject(false);
       }
     };
-
     getRequest.onerror = () => reject(false);
   });
 };
@@ -119,10 +115,6 @@ const getAllDataFromIndexedDB = async (db: IDBDatabase): Promise<any[]> => {
   });
 };
 
-
-
-
-
 // Function to convert data to CSV
 const convertToCSV = (data: any[], canvasCount: number): string => {
   if (!Array.isArray(data) || data.length === 0) return "";
@@ -148,8 +140,6 @@ const convertToCSV = (data: any[], canvasCount: number): string => {
   // Combine header and rows into a CSV format
   return [header.join(","), ...rows].join("\n");
 };
-
-
 
 // Function to save all data as a ZIP file
 const saveAllDataAsZip = async (canvasCount: number): Promise<Blob> => {
