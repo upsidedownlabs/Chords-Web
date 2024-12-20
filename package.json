@@ -39,7 +39,7 @@
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.460.0",
-    "next": "14.2.15",
+    "next": "14.2.10",
     "next-themes": "^0.3.0",
     "react": "^18",
     "react-dom": "^18",
