@@ -1,4 +1,3 @@
-
 import JSZip from 'jszip';
 self.onmessage = async (event) => {
   const { action, data, filename, canvasCount } = event.data;
