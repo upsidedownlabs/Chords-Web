@@ -11,6 +11,18 @@ self.onmessage = async (event) => {
       canvasCount = event.data.canvasCount; // Update canvas count independently
       self.postMessage({ success: true, message: 'Canvas count updated' });
       break;
+    case 'write':
+      const success = await writeToIndexedDB(db, data, filename, canvasCount);
+      self.postMessage({ success });
+      break;
+    case 'getAllData':
+      try {
+        const allData = await getAllDataFromIndexedDB(db);
+        self.postMessage({ allData });
+      } catch (error) {
+        self.postMessage({ error: 'Failed to retrieve all data from IndexedDB' });
+      }
+      break;
     case 'getFileCountFromIndexedDB':
       try {
         const allData = await getFileCountFromIndexedDB(db);
@@ -55,6 +67,55 @@ const openIndexedDB = async (): Promise<IDBDatabase> => {
 
     request.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result);
     request.onerror = (event) => reject((event.target as IDBOpenDBRequest).error);
+  });
+};
+
+// Function to write data to IndexedDB
+const writeToIndexedDB = async (db: IDBDatabase, data: number[][], filename: string, canvasCount: number): Promise<boolean> => {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("ChordsRecordings", "readwrite");
+    const store = tx.objectStore("ChordsRecordings");
+
+    const getRequest = store.get(filename);
+
+    getRequest.onsuccess = () => {
+      const existingRecord = getRequest.result;
+
+      if (existingRecord) {
+        existingRecord.content.push(...data);
+        const putRequest = store.put(existingRecord);
+        putRequest.onsuccess = () => resolve(true);
+        putRequest.onerror = () => reject(false);
+      } else {
+        const newRecord = { filename, content: [...data] };
+        const putRequest = store.put(newRecord);
+        putRequest.onsuccess = () => resolve(true);
+        putRequest.onerror = () => reject(false);
+      }
+    };
+    getRequest.onerror = () => reject(false);
+  });
+};
+
+// Function to get all data
+const getAllDataFromIndexedDB = async (db: IDBDatabase): Promise<any[]> => {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(["ChordsRecordings"], "readonly");
+    const store = tx.objectStore("ChordsRecordings");
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const data = request.result.map((item: any, index: number) => ({
+        id: index + 1,
+        ...item,
+      }));
+      resolve(data);
+    };
+
+    request.onerror = (error) => {
+      console.error("Error retrieving data from IndexedDB:", error);
+      reject(error);
+    };
   });
 };
 
@@ -122,7 +183,6 @@ const saveAllDataAsZip = async (canvasCount: number): Promise<Blob> => {
 
 const saveDataByFilename = async (filename: string, canvasCount: number): Promise<Blob> => {
   try {
-    console.log("filename",filename);
     const dbRequest = indexedDB.open("ChordsRecordings");
 
     return new Promise((resolve, reject) => {
@@ -141,7 +201,6 @@ const saveDataByFilename = async (filename: string, canvasCount: number): Promis
 
         getRequest.onsuccess = () => {
           const result = getRequest.result;
-          console.log("Retrieved IndexedDB result:", result);
 
           if (!result || !Array.isArray(result.content)) {
             reject(new Error("No data found for the given filename or invalid data format."));

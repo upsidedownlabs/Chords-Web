@@ -229,6 +229,14 @@ const Connection: React.FC<ConnectionProps> = ({
       });
     }
   };
+  const setCanvasCountInWorker = (canvasCount:number) => {
+    if (!workerRef.current) {
+      initializeWorker();
+    }
+    // Send canvasCount independently to the worker
+    workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasnumbersRef.current });
+  };
+  setCanvasCountInWorker(canvasnumbersRef.current);
   
   const processBuffer = async (bufferIndex: number, canvasCount: number) => {
     if (!workerRef.current) {
