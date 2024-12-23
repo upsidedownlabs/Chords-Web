@@ -55,6 +55,7 @@ const Canvas = forwardRef(
     const activebuffer = useRef(0); // Initialize useRef with 0
     const indicesRef = useRef<number[]>([]); // Use `useRef` for indices
 
+    //select point
     const getpoints = useCallback((bits: BitSelection): number => {
       switch (bits) {
         case "ten":
