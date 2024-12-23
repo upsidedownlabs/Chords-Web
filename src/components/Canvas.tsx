@@ -15,6 +15,7 @@ interface CanvasProps {
   selectedBits: BitSelection;
   isDisplay: boolean;
   canvasCount?: number;
+  currentValue?:number;
   Zoom: number;
   currentSnapshot: number;
   snapShotRef: React.MutableRefObject<boolean[]>;
@@ -27,6 +28,7 @@ const Canvas = forwardRef(
       selectedBits,
       isDisplay,
       canvasCount = 6, // default value in case not provided
+      currentValue=4,
       Zoom,
       currentSnapshot,
       snapShotRef,
@@ -37,14 +39,14 @@ const Canvas = forwardRef(
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const [numChannels, setNumChannels] = useState<number>(canvasCount);
+    const [numX, setNumX] = useState<number>(2000); // To track the calculated value
     const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
+    const [samplingRate,setSamplingRate]=useState<number>(500);
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
     const [lines, setLines] = useState<WebglLine[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
-    const samplingRate = 500; // Set the sampling rate in Hz
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
-    let numX: number;
     const array3DRef = useRef<number[][][]>(
       Array.from({ length: 6 }, () =>
         Array.from({ length: 6 }, () => Array())
@@ -56,18 +58,40 @@ const Canvas = forwardRef(
     const getpoints = useCallback((bits: BitSelection): number => {
       switch (bits) {
         case "ten":
-          return samplingRate * 2;
+          return 250;
         case "twelve":
-          return samplingRate * 4;
         case "fourteen":
-          return samplingRate * 4;
         case "sixteen":
-          return samplingRate * 4;
+          return 500;
         default:
-          return 0; // Or any other fallback value you'd like
+          return 500; // Default fallback
       }
     }, []);
-    numX = getpoints(selectedBits);
+
+    // const getpoints =useCallback(
+    //   (bits: BitSelection): void => {
+    //     switch (bits) {
+    //       case "ten":
+    //         setSamplingRate(250);
+    //         break;
+    //       case "twelve":
+    //       case "fourteen":
+    //       case "sixteen":
+    //         setSamplingRate(500);
+    //         break;
+    //       default:
+    //         setSamplingRate(500); // Default fallback
+    //     }
+    //   },
+    //   [] // Dependencies (none needed for this example)
+    // );
+    // getpoints(selectedBits);
+     // Calculate `numX` whenever `samplingRate` or `currentValue` changes
+  useEffect(() => {
+    setNumX(getpoints(selectedBits) * currentValue);
+    console.log(numX);
+  }, [samplingRate, currentValue]);
+
     const prevCanvasCountRef = useRef<number>(canvasCount);
 
     const processIncomingData = (incomingData: number[]) => {
@@ -133,7 +157,7 @@ const Canvas = forwardRef(
           previousCounter = data[0]; // Update the previous counter with the current counter
         },
       }),
-      [Zoom, numChannels]
+      [Zoom, numChannels,currentValue]
     );
 
     const createCanvases = () => {
@@ -301,12 +325,12 @@ const Canvas = forwardRef(
           sweepPositions.current[i] = (currentSweepPos.current[i] + 1) % line.numPoints;
         });
       },
-      [lines, wglPlots, numChannels, theme]
+      [lines, wglPlots, numChannels, theme,currentValue]
     );
 
     useEffect(() => {
       createCanvases();
-    }, [numChannels, theme]);
+    }, [numChannels, theme,currentValue]);
 
 
     const animate = useCallback(() => {
