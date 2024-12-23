@@ -54,6 +54,15 @@ Chords is an application based on Web Serial connection, you can connect boards 
 
 
 - [ ] **CSV compatibility with [Chords Python](https://github.com/upsidedownlabs/Chords-Python)** : we will update the CSV data format and file names for both chords-web and chords-python so that you can use csvplotter.py to easily plot the recorded data.
+      
+- [ ] **Arduino Uno R4 WiFi support** : we will add support of Arduino Uno R4 WiFi.
+      
+- [ ] **Giga R1 support** : We will add support for the Arduino Giga R1 board, 16-bit ADC which will offer range of 0 to 65,535.
+      
+- [ ] **Implemented Web-worker** : We will implement web worker for IndexedDB operations, for better data visualization. 
+
+
+
 
 
 ## Contributors
