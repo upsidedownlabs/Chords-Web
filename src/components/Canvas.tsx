@@ -68,25 +68,7 @@ const Canvas = forwardRef(
       }
     }, []);
 
-    // const getpoints =useCallback(
-    //   (bits: BitSelection): void => {
-    //     switch (bits) {
-    //       case "ten":
-    //         setSamplingRate(250);
-    //         break;
-    //       case "twelve":
-    //       case "fourteen":
-    //       case "sixteen":
-    //         setSamplingRate(500);
-    //         break;
-    //       default:
-    //         setSamplingRate(500); // Default fallback
-    //     }
-    //   },
-    //   [] // Dependencies (none needed for this example)
-    // );
-    // getpoints(selectedBits);
-     // Calculate `numX` whenever `samplingRate` or `currentValue` changes
+
   useEffect(() => {
     setNumX(getpoints(selectedBits) * currentValue);
     console.log(numX);
@@ -131,6 +113,14 @@ const Canvas = forwardRef(
       setNumChannels(canvasCount);
     }, [canvasCount]);
 
+
+    useEffect(() => {
+      // Reset when currentValue changes
+      currentSweepPos.current = new Array(numChannels).fill(0);
+      sweepPositions.current = new Array(numChannels).fill(0);
+    }, [currentValue]);
+    
+
     useImperativeHandle(
       ref,
       () => ({
@@ -140,6 +130,7 @@ const Canvas = forwardRef(
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
           }
+    
           if (pauseRef.current) {
             processIncomingData(data);
             updatePlots(data, Zoom);
@@ -194,7 +185,7 @@ const Canvas = forwardRef(
       const opacityLightMajor = "0.4"; // Opacity for every 5th line in light theme
       const opacityLightMinor = "0.1"; // Opacity for other lines in light theme
       const distanceminor = samplingRate * 0.04;
-      const numGridLines = numX / distanceminor;
+      const numGridLines = 2000 / distanceminor;
       for (let j = 1; j < numGridLines; j++) {
         const gridLineX = document.createElement("div");
         gridLineX.className = "absolute bg-[rgb(128,128,128)]";

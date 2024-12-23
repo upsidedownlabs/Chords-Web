@@ -145,11 +145,11 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   const decreaseValue = () => {
-    setCurrentValue(currentValue-1); // Decrease value, not below 1
+    setCurrentValue(currentValue - 1);
   };
-
+  
   const increaseValue = () => {
-    setCurrentValue(currentValue+1); // Increase value, not above 10
+    setCurrentValue(currentValue + 1);
   };
   // Handle right arrow click (reset count and disable button if needed)
   const handleNextSnapshot = () => {
@@ -1509,62 +1509,59 @@ const Connection: React.FC<ConnectionProps> = ({
           </TooltipProvider>
         )}
          {isConnected && (
-            <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease value Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseValue}
-                      disabled={currentValue === 1} // Disable if at minimum value
-                    >
-                      <Minus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Decrease value</p>
-                  </TooltipContent>
-                </Tooltip>
-  
-                <Separator orientation="vertical" className="h-full" />
-  
-                {/* Show Value Display */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 rounded-none select-none"
-                     
-                    >
-                      {currentValue}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Value: {currentValue}</p>
-                  </TooltipContent>
-                </Tooltip>
-  
-                <Separator orientation="vertical" className="h-full" />
-  
-                {/* Increase value Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseValue}
-                      disabled={currentValue === 10} // Disable if at maximum value
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Increase value</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
+          <TooltipProvider>
+          <Tooltip>
+            <div className="flex items-center mx-0 px-0">
+              {/* Decrease value Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-xl rounded-r-none"
+                    onClick={decreaseValue}
+                    disabled={currentValue === 1}
+                  >
+                    <Minus size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Decrease value</p>
+                </TooltipContent>
+              </Tooltip>
+      
+              <Separator orientation="vertical" className="h-full" />
+      
+              {/* Show Value Display */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button className="flex items-center justify-center px-3 py-2 rounded-none select-none">
+                    {currentValue} Sec
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Value: {currentValue}</p>
+                </TooltipContent>
+              </Tooltip>
+      
+              <Separator orientation="vertical" className="h-full" />
+      
+              {/* Increase value Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="rounded-xl rounded-l-none"
+                    onClick={increaseValue}
+                    disabled={currentValue === 10}
+                  >
+                    <Plus size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Increase value</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </Tooltip>
+        </TooltipProvider>
         )}
       </div>
     </div>
