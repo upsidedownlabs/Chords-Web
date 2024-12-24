@@ -44,16 +44,23 @@ Chords is an application based on Web Serial connection, you can connect boards 
 
 - [X] **Data Filtering** : We will be adding bio-potential signal filtering options which includes 50/60 Hz notch filter to remove AC interference noise and highpass/lowpass remove artefacts from ECG, Emg ,Eog and EEg. Under filters, we will be adding different highpass and lowpass filters for specific bio-potential signals this feature will further enhance the user experience to record even more clear biopotential signals.
 
-
 - [X] **Frame Buffers of data** : We will add Frame Buffer Feature this option to show upto 5 snapshots of length each of 4 seconds, you can now view upto last five snapshots of your data and save them as images.
 
-
 - [X] **Multiple file download support** : We’re excited to enhance your options for downloading recorded data! Currently, you can record a file and choose to save or delete it. Soon, you’ll be able to download multiple files at once and have the flexibility to download or delete individual recorded files as needed.
-
-- [X] **Raspberry Pi Pico support** : We will be releasing Raspberry Pi Pico support for chords which by the way works very well with our new Heart BioAmp Candy. Let us know your favorite board in the comments section below and we will make sure to add chords support for your board in the upcoming updates.
+   - [ ] **Improve Recording Functionality** : Resolve delays in updating the canvas count to ensure the downloaded file shows accurate values instantly. Ensure smooth recording performance for durations exceeding 5 minutes without any lag or errors.
 
 
 - [X] **CSV compatibility with [Chords Python](https://github.com/upsidedownlabs/Chords-Python)** : we will update the CSV data format and file names for both chords-web and chords-python so that you can use csvplotter.py to easily plot the recorded data.
+      
+- [X] **Implemented Web-worker for Indexeddb** : We will implement web worker for IndexedDB operations, for better data visualization.
+      
+-  **Board Support**: Add support for the following boards
+    - [X] **Arduino Uno R4 WiFi Support**: Add support for Arduino Uno R4 WiFi.
+    - [X] **Giga R1 Support**: Add support for the Arduino Giga R1 board with its 16-bit ADC, offering a range of 0 to 65,535.
+    - [X] **Raspberry Pi Pico Support**: Release Raspberry Pi Pico support for Chords. It works seamlessly with the new Heart BioAmp Candy. Share your favorite board in the comments, and we'll aim to include it in future updates.
+    - [ ] **Arduino Nano Support** Add support for Nano board which supports up to 8 channels.
+
+
 
 
 ## Contributors
