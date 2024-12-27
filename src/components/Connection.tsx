@@ -135,7 +135,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const increaseValue = () => {
     if(currentValue < 10){
     setCurrentValue(currentValue + 1);
-    console.log(currentValue);
   }
   };
 
@@ -173,7 +172,6 @@ const Connection: React.FC<ConnectionProps> = ({
     if(currentValue > 1){
     setCurrentValue(currentValue - 1);
     }
-    console.log(currentValue);
   };
   
   const toggleShowAllChannels = () => {
