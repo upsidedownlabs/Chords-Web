@@ -71,7 +71,7 @@ const Canvas = forwardRef(
 
 
   useEffect(() => {
-    numXRef.current= getpoints(selectedBits) * currentValue;
+    numXRef.current= (getpoints(selectedBits) * currentValue)+1;
    
   }, [ currentValue]);
 
