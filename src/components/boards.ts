@@ -10,6 +10,11 @@ export const BoardsList = Object.freeze([
     bits: "ten",
   },
   {
+    name: "Arduino Uno R3",
+    field_pid: "579",
+    bits: "ten",
+  },
+  {
     name: "Arduino Due",
     field_pid: "61",
     bits: "twelve",
