@@ -270,6 +270,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
           if (zipBlob) {
             saveAs(zipBlob, 'ChordsWeb.zip');
+            toast.success("File downloaded suceesfully.")
           } else if (error) {
             console.error(error);
           }
@@ -821,6 +822,7 @@ const Connection: React.FC<ConnectionProps> = ({
   
         transaction.oncomplete = () => {
           console.log("File deletion transaction completed.");
+           toast.success("File deleted successfully.");
         };
   
         transaction.onerror = () => {
@@ -909,12 +911,12 @@ const Connection: React.FC<ConnectionProps> = ({
       {/* Left-aligned section */}
       <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
         {isRecordingRef.current && (
-          <div className="flex items-center space-x-1 w-min ml-2">
-            <button className="flex items-center justify-center px-3 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
+          <div className="flex items-center space-x-1 w-min">
+            <button className="flex items-center justify-center px-1 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
             >
               {formatTime(recordingElapsedTime)}
             </button>
-            <Separator orientation="vertical" className="bg-primary h-9 ml-2" />
+            <Separator orientation="vertical" className="bg-primary h-9 " />
             <div>
               <Popover
                 open={isEndTimePopoverOpen}
@@ -922,7 +924,7 @@ const Connection: React.FC<ConnectionProps> = ({
               >
                 <PopoverTrigger asChild>
                   <Button
-                    className="flex items-center justify-center px-3 py-2   select-none min-w-12  text-destructive whitespace-nowrap rounded-xl"
+                    className="flex items-center justify-center px-1 py-2   select-none min-w-10  text-destructive whitespace-nowrap rounded-xl"
                     variant="destructive"
                   >
                     {endTimeRef.current === null ? (
@@ -987,7 +989,7 @@ const Connection: React.FC<ConnectionProps> = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button className="flex items-center justify-center gap-1 py-2 px-6 sm:py-3 sm:px-8 rounded-xl font-semibold" onClick={handleClick}>
+              <Button className="flex items-center justify-center gap-1 py-2 px-2 sm:py-3 sm:px-4 rounded-xl font-semibold" onClick={handleClick}>
                 {isConnected ? (
                   <>
                     Disconnect

@@ -72,7 +72,6 @@ const Canvas = forwardRef(
 
   useEffect(() => {
     setNumX(getpoints(selectedBits) * currentValue);
-    console.log(numX);
   }, [samplingRate, currentValue]);
 
     const prevCanvasCountRef = useRef<number>(canvasCount);

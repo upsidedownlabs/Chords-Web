@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { toast } from "sonner";
 let canvasCount = 0; 
 self.onmessage = async (event) => {
   const { action, data, filename} = event.data;
@@ -172,6 +173,7 @@ const saveAllDataAsZip = async (canvasCount: number): Promise<Blob> => {
         console.error(`Error processing record ${record.filename}:`, error);
       }
     });
+    toast.success("Data successfully downloaded as ZIP.");
 
     const content = await zip.generateAsync({ type: "blob" });
     return content;
