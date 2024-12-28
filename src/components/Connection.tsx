@@ -335,27 +335,43 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const formatPortInfo = useCallback(
-    // Function to format the port info, which includes the board name and product ID in toast message
-    (info: SerialPortInfo) => {
+    (info: SerialPortInfo, deviceName: string) => {
       if (!info || !info.usbVendorId) {
-        return "Port with no info";
+        return { formattedInfo: "Port with no info", bits: null, channel: null };
       }
-
-      // First, check if the board exists in BoardsList
+  
+      // Check if the device name exists in the BoardsList
       const board = BoardsList.find(
-        (b) => parseInt(b.field_pid) === info.usbProductId
+        (b) => b.name.toLowerCase() === deviceName.toLowerCase() // Match Device Name
       );
+  
       if (board) {
+        // Set the bits based on the matched board
         setifBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
         detectedBitsRef.current = board.bits as BitSelection;
-        return (<>{board.name} <br /> Product ID: {info.usbProductId}</>); // Return the board name and product ID
+  
+        // Safely parse the channel or set a default value
+      const channel = board.channel ? parseInt(board.channel, 10) : 0;
+      setCanvasCount(channel);
+        return {
+          formattedInfo: (
+            <>
+              {board.name} <br /> Product ID: {info.usbProductId}
+            </>
+          ),
+          bits: board.bits,
+          channel: board.channel,
+        };
       }
-
+  
+      // If device not found in the list
       setDetectedBits(null);
+      return { formattedInfo: `${deviceName}`, bits: null, channel: null };
     },
     []
   );
+  
 
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -377,63 +393,56 @@ const Connection: React.FC<ConnectionProps> = ({
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-
+  
       const savedPorts: SavedDevice[] = JSON.parse(localStorage.getItem('savedDevices') || '[]');
       let port: SerialPort | null = null;
       let baudRate = 230400; // Default baud rate
-
+  
       const ports = await navigator.serial.getPorts();
-
+  
+      // Check for saved ports
       if (savedPorts.length > 0) {
         port = ports.find(p => {
           const info = p.getInfo();
-          return savedPorts.some(saved =>
+          return savedPorts.some((saved: SavedDevice) =>
             saved.usbVendorId === (info.usbVendorId ?? 0) && saved.usbProductId === (info.usbProductId ?? 0)
           );
         }) || null;
       }
-
+  
       if (!port) {
         port = await navigator.serial.requestPort();
         const newPortInfo = await port.getInfo();
-
-
+  
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
-
-        // Check for specific usbProductId 29987 and set baud rate
+  
         if (usbProductId === 29987) {
           baudRate = 115200;
-
         }
-
+  
         const existingDevice = savedPorts.find(saved =>
           saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
         );
-
+  
         if (!existingDevice) {
-          savedPorts.push({
-            usbVendorId,
-            usbProductId,
-            baudRate
-          });
+          savedPorts.push({ usbVendorId, usbProductId, baudRate });
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
           console.log(`New device saved: Vendor ${usbVendorId}, Product ${usbProductId}, Baud Rate ${baudRate}`);
         }
-
+  
         await port.open({ baudRate });
       } else {
         const portInfo = port.getInfo();
         const usbProductId = portInfo.usbProductId ?? 0;
-
-        // Check again if the port has productId 29987
+  
         if (usbProductId === 29987) {
           baudRate = 115200;
         }
-
+  
         await port.open({ baudRate });
       }
-
+  
       Connection(true);
       setIsConnected(true);
       onPauseChange(true);
@@ -441,66 +450,92 @@ const Connection: React.FC<ConnectionProps> = ({
       setCanvasCount(1);
       isConnectedRef.current = true;
       portRef.current = port;
+  
+      if (port.readable) {
+        const reader = port.readable.getReader();
+        readerRef.current = reader;
+       console.log("hello");
+        const writer = port.writable?.getWriter();
+        if (writer) {
+          // Query the board for its name
+          // Query the board for information
+        const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
+        await writer.write(whoAreYouMessage);
+        setTimeout(() => writer.write(whoAreYouMessage), 2000);
 
-      toast.success("Connection Successful", {
-        description: (
-          <div className="mt-2 flex flex-col space-y-1">
-            <p>Device: {formatPortInfo(port.getInfo())}</p>
-            <p>Baud Rate: {baudRate}</p>
-          </div>
-        ),
-      });
-      const reader = port.readable?.getReader();
-      readerRef.current = reader;
-
-      const writer = port.writable?.getWriter();
-      if (writer) {
-        setTimeout(() => {
-          writerRef.current = writer;
-          const message = new TextEncoder().encode("START\n");
-          writerRef.current.write(message);
-        }, 2000);
+          const { value, done } = await reader.read();
+          if (!done && value) {
+            const response = new TextDecoder().decode(value).trim(); // Device name
+            const portInfo = port.getInfo();
+            console.log(`Board Response: ${response}`);
+            
+            const { formattedInfo, bits, channel } = formatPortInfo(portInfo, response); // Pass info and name
+          
+            toast.success("Connection Successful", {
+              description: (
+                <div className="mt-2 flex flex-col space-y-1">
+                  <p>Device: {formattedInfo}</p>
+                  <p>Baud Rate: {baudRate}</p>
+                  {bits && <p>Bits: {bits}</p>}
+                  {channel && <p>Channel: {channel}</p>}
+                </div>
+              ),
+            });
+          }
+           else {
+            console.error("No response from the board or reading incomplete");
+          }
+        
+          const startMessage = new TextEncoder().encode("START\n");
+          setTimeout(() => writer.write(startMessage), 2000);
+  
+        }
+         else {
+          console.error("Writable stream not available");
+        }
       } else {
-        console.error("Writable stream not available");
+        console.error("Readable stream not available");
       }
+  
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
       await navigator.wakeLock.request("screen");
-
+  
     } catch (error) {
       await disconnectDevice();
       console.error("Error connecting to device:", error);
       toast.error("Failed to connect to device.");
     }
   };
-
-
-  const getFileCountFromIndexedDB = async (): Promise<any[]> => {
-    if (!workerRef.current) {
-      initializeWorker();
-    }
-
-    return new Promise((resolve, reject) => {
-      if (workerRef.current) {
-        workerRef.current.postMessage({ action: 'getFileCountFromIndexedDB' });
-
-        workerRef.current.onmessage = (event) => {
-          if (event.data.allData) {
-            resolve(event.data.allData);
-          } else if (event.data.error) {
-            reject(event.data.error);
-          }
-        };
-
-        workerRef.current.onerror = (error) => {
-          reject(`Error in worker: ${error.message}`);
-        };
-      } else {
-        reject('Worker is not initialized');
+  
+  
+    const getFileCountFromIndexedDB = async (): Promise<any[]> => {
+      if (!workerRef.current) {
+        initializeWorker();
       }
-    });
-  };
+  
+      return new Promise((resolve, reject) => {
+        if (workerRef.current) {
+          workerRef.current.postMessage({ action: 'getFileCountFromIndexedDB' });
+  
+          workerRef.current.onmessage = (event) => {
+            if (event.data.allData) {
+              resolve(event.data.allData);
+            } else if (event.data.error) {
+              reject(event.data.error);
+            }
+          };
+  
+          workerRef.current.onerror = (error) => {
+            reject(`Error in worker: ${error.message}`);
+          };
+        } else {
+          reject('Worker is not initialized');
+        }
+      });
+    };
+  
 
   const disconnectDevice = async (): Promise<void> => {
     try {
