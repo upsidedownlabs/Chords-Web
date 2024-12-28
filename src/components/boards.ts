@@ -1,6 +1,6 @@
 export const BoardsList = Object.freeze([
   {
-    name: "Arduino Uno R3",
+    name: "Uno-R3",
     field_pid: "67",
     bits: "ten",
     channel:"6"
@@ -12,7 +12,7 @@ export const BoardsList = Object.freeze([
     channel:"8"
   },
   {
-    name: "Arduino Uno R3",
+    name: "Genuino-Uno",
     field_pid: "579",
     bits: "ten",
     channel:"6"

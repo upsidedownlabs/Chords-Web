@@ -101,6 +101,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
+  const maxCanvasCountRef=useRef<number>(1);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -126,7 +127,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
   };
   const increaseCanvas = () => {
-    if (canvasCount < (detectedBitsRef.current == "twelve" ? 3 : 6)) {
+    if (canvasCount < maxCanvasCountRef.current) {
      
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
     }
@@ -151,8 +152,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  
- 
   // Handle right arrow click (reset count and disable button if needed)
   const handleNextSnapshot = () => {
     if (clickCount > 0) {
@@ -175,11 +174,11 @@ const Connection: React.FC<ConnectionProps> = ({
   };
   
   const toggleShowAllChannels = () => {
-    if (canvasCount === (detectedBitsRef.current == "twelve" ? 3 : 6)) {
+    if (canvasCount === maxCanvasCountRef.current) {
       setCanvasCount(1); // If canvasCount is 6, reduce it to 1
       setShowAllChannels(false);
     } else {
-      setCanvasCount(detectedBitsRef.current == "twelve" ? 3 : 6); // Otherwise, show all 6 canvases
+      setCanvasCount(maxCanvasCountRef.current); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
     }
   };
@@ -353,7 +352,7 @@ const Connection: React.FC<ConnectionProps> = ({
   
         // Safely parse the channel or set a default value
       const channel = board.channel ? parseInt(board.channel, 10) : 0;
-      setCanvasCount(channel);
+      maxCanvasCountRef.current =channel;
         return {
           formattedInfo: (
             <>
@@ -646,18 +645,17 @@ const Connection: React.FC<ConnectionProps> = ({
     });
     forceUpdate(); // Trigger re-render
   };
-
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
     const HEADER_LENGTH = 3; // Length of the packet header
-    const NUM_CHANNELS = detectedBitsRef.current == "twelve" ? 3 : 6; // Number of channels in the data packet
-    const PACKET_LENGTH = detectedBitsRef.current == "twelve" ? 10 : 16; // Total length of each packet
+    const NUM_CHANNELS = maxCanvasCountRef.current; // Number of channels in the data packet
+    const PACKET_LENGTH = NUM_CHANNELS * 2 + HEADER_LENGTH + 1; // Total length of each packet
     const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    const notchFilters = Array.from({ length: 6 }, () => new Notch());
-    const EXGFilters = Array.from({ length: 6 }, () => new EXGFilter());
+    const notchFilters = Array.from({ length: maxCanvasCountRef.current }, () => new Notch());
+    const EXGFilters = Array.from({ length: maxCanvasCountRef.current }, () => new EXGFilter());
     notchFilters.forEach((filter) => {
       filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
     });
