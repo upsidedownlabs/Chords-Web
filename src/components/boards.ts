@@ -5,6 +5,11 @@ export const BoardsList = Object.freeze([
     bits: "ten",
   },
   {
+    name: "Genuino Uno",
+    field_pid: "579",
+    bits: "ten",
+  },
+  {
     name: "Arduino Nano",
     field_pid: "24577",
     bits: "ten",
