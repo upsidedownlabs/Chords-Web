@@ -1,11 +1,17 @@
 import JSZip from 'jszip';
+import { toast } from "sonner";
+let canvasCount = 0; 
 self.onmessage = async (event) => {
-  const { action, data, filename, canvasCount } = event.data;
+  const { action, data, filename} = event.data;
 
   // Open IndexedDB
   const db = await openIndexedDB();
 
   switch (action) {
+    case 'setCanvasCount':
+      canvasCount = event.data.canvasCount; // Update canvas count independently
+      self.postMessage({ success: true, message: 'Canvas count updated' });
+      break;
     case 'write':
       const success = await writeToIndexedDB(db, data, filename, canvasCount);
       self.postMessage({ success });
@@ -167,6 +173,7 @@ const saveAllDataAsZip = async (canvasCount: number): Promise<Blob> => {
         console.error(`Error processing record ${record.filename}:`, error);
       }
     });
+    toast.success("Data successfully downloaded as ZIP.");
 
     const content = await zip.generateAsync({ type: "blob" });
     return content;
@@ -254,5 +261,3 @@ const getFileCountFromIndexedDB = async (db: IDBDatabase): Promise<string[]> => 
     };
   });
 };
-
-

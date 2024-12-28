@@ -15,6 +15,7 @@ interface CanvasProps {
   selectedBits: BitSelection;
   isDisplay: boolean;
   canvasCount?: number;
+  currentValue?:number;
   Zoom: number;
   currentSnapshot: number;
   snapShotRef: React.MutableRefObject<boolean[]>;
@@ -27,6 +28,7 @@ const Canvas = forwardRef(
       selectedBits,
       isDisplay,
       canvasCount = 6, // default value in case not provided
+      currentValue=4,
       Zoom,
       currentSnapshot,
       snapShotRef,
@@ -37,14 +39,14 @@ const Canvas = forwardRef(
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const [numChannels, setNumChannels] = useState<number>(canvasCount);
+    const numXRef = useRef<number>(2000); // To track the calculated value
     const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
+    const [samplingRate,setSamplingRate]=useState<number>(500);
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
     const [lines, setLines] = useState<WebglLine[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
-    const samplingRate = 500; // Set the sampling rate in Hz
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
-    let numX: number;
     const array3DRef = useRef<number[][][]>(
       Array.from({ length: 6 }, () =>
         Array.from({ length: 6 }, () => Array())
@@ -53,21 +55,26 @@ const Canvas = forwardRef(
     const activebuffer = useRef(0); // Initialize useRef with 0
     const indicesRef = useRef<number[]>([]); // Use `useRef` for indices
 
+    //select point
     const getpoints = useCallback((bits: BitSelection): number => {
       switch (bits) {
         case "ten":
-          return samplingRate * 2;
+          return 250;
         case "twelve":
-          return samplingRate * 4;
         case "fourteen":
-          return samplingRate * 4;
         case "sixteen":
-          return samplingRate * 4;
+          return 500;
         default:
-          return 0; // Or any other fallback value you'd like
+          return 500; // Default fallback
       }
     }, []);
-    numX = getpoints(selectedBits);
+
+
+  useEffect(() => {
+    numXRef.current= (getpoints(selectedBits) * currentValue)+1;
+   
+  }, [ currentValue]);
+
     const prevCanvasCountRef = useRef<number>(canvasCount);
 
     const processIncomingData = (incomingData: number[]) => {
@@ -81,18 +88,18 @@ const Canvas = forwardRef(
           }
           prevCanvasCountRef.current = canvasCount;
         }
-        if (array3DRef.current[activebuffer.current][i].length >= numX) {
+        if (array3DRef.current[activebuffer.current][i].length >= numXRef.current) {
           array3DRef.current[activebuffer.current][i] = [];
         }
         array3DRef.current[activebuffer.current][i].push(incomingData[i + 1]);
 
-        if (array3DRef.current[activebuffer.current][i].length < numX && !pauseRef.current) {
+        if (array3DRef.current[activebuffer.current][i].length < numXRef.current && !pauseRef.current) {
           array3DRef.current[activebuffer.current][i] = [];
         }
       }
 
 
-      if (array3DRef.current[activebuffer.current][0].length >= numX) {
+      if (array3DRef.current[activebuffer.current][0].length >= numXRef.current) {
         snapShotRef.current[activebuffer.current] = true;
         activebuffer.current = (activebuffer.current + 1) % 6;
         snapShotRef.current[activebuffer.current] = false;
@@ -107,6 +114,14 @@ const Canvas = forwardRef(
       setNumChannels(canvasCount);
     }, [canvasCount]);
 
+
+    useEffect(() => {
+      // Reset when currentValue changes
+      currentSweepPos.current = new Array(numChannels).fill(0);
+      sweepPositions.current = new Array(numChannels).fill(0);
+    }, [currentValue]);
+    
+
     useImperativeHandle(
       ref,
       () => ({
@@ -116,6 +131,7 @@ const Canvas = forwardRef(
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
           }
+    
           if (pauseRef.current) {
             processIncomingData(data);
             updatePlots(data, Zoom);
@@ -133,7 +149,7 @@ const Canvas = forwardRef(
           previousCounter = data[0]; // Update the previous counter with the current counter
         },
       }),
-      [Zoom, numChannels]
+      [Zoom, numChannels,currentValue]
     );
 
     const createCanvases = () => {
@@ -170,7 +186,7 @@ const Canvas = forwardRef(
       const opacityLightMajor = "0.4"; // Opacity for every 5th line in light theme
       const opacityLightMinor = "0.1"; // Opacity for other lines in light theme
       const distanceminor = samplingRate * 0.04;
-      const numGridLines = numX / distanceminor;
+      const numGridLines = getpoints(selectedBits)*4 / distanceminor;
       for (let j = 1; j < numGridLines; j++) {
         const gridLineX = document.createElement("div");
         gridLineX.className = "absolute bg-[rgb(128,128,128)]";
@@ -226,10 +242,10 @@ const Canvas = forwardRef(
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
-        const line = new WebglLine(getLineColor(i, theme), numX);
+        const line = new WebglLine(getLineColor(i, theme), numXRef.current);
         wglp.gOffsetY = 0;
         line.offsetY = 0;
-        line.lineSpaceX(-1, 2 / numX);
+        line.lineSpaceX(-1, 2 / numXRef.current);
 
         wglp.addLine(line);
         newLines.push(line);
@@ -294,19 +310,19 @@ const Canvas = forwardRef(
           line.setY(currentSweepPos.current[i] % line.numPoints, data[i + 1]);
 
           // Clear the next point to create a gap (optional, for visual effect)
-          const clearPosition = (currentSweepPos.current[i] + (numX / 100)) % line.numPoints;
+          const clearPosition = (currentSweepPos.current[i] + (numXRef.current / 100)) % line.numPoints;
           line.setY(clearPosition, NaN);
 
           // Increment the sweep position for the current line
           sweepPositions.current[i] = (currentSweepPos.current[i] + 1) % line.numPoints;
         });
       },
-      [lines, wglPlots, numChannels, theme]
+      [lines, wglPlots, numChannels, theme,currentValue]
     );
 
     useEffect(() => {
       createCanvases();
-    }, [numChannels, theme]);
+    }, [numChannels, theme,currentValue]);
 
 
     const animate = useCallback(() => {
@@ -318,7 +334,7 @@ const Canvas = forwardRef(
         wglPlots.forEach((wglp) => wglp.update());
         requestAnimationFrame(animate); // Continue the animation loop
       }
-    }, [currentSnapshot, numX, pauseRef.current, wglPlots, Zoom]);
+    }, [currentSnapshot, numXRef.current, pauseRef.current, wglPlots, Zoom]);
 
 
     const updatePlotSnapshot = (currentSnapshot: number) => {
