@@ -71,7 +71,7 @@ const Canvas = forwardRef(
 
 
   useEffect(() => {
-    numXRef.current= (getpoints(selectedBits) * currentValue)+1;
+    numXRef.current= (getpoints(selectedBits) * currentValue);
    
   }, [ currentValue]);
 
@@ -310,7 +310,7 @@ const Canvas = forwardRef(
           line.setY(currentSweepPos.current[i] % line.numPoints, data[i + 1]);
 
           // Clear the next point to create a gap (optional, for visual effect)
-          const clearPosition = (currentSweepPos.current[i] + (numXRef.current / 100)) % line.numPoints;
+          const clearPosition = Math.ceil((currentSweepPos.current[i] + (numXRef.current / 100)) % line.numPoints);
           line.setY(clearPosition, NaN);
 
           // Increment the sweep position for the current line
