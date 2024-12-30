@@ -382,18 +382,6 @@ const Canvas = forwardRef(
 
     }, [animate]);
 
-    useEffect(() => {
-      const handleResize = () => {
-        createCanvases();
-      };
-
-      window.addEventListener("resize", handleResize);
-
-      return () => {
-        window.removeEventListener("resize", handleResize);
-      };
-    }, [createCanvases,]);
-
     return (
       <main className=" flex flex-col flex-[1_1_0%] min-h-80 bg-highlight  rounded-2xl m-4 relative"
         ref={canvasContainerRef}
