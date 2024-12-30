@@ -40,6 +40,9 @@ Chords is an application based on Web Serial connection, you can connect boards 
 
 - [Vendors](src/components/vendors.ts) list for board name and there vendor id are taken from [Stackblitz](https://stackblitz.com/edit/typescript-web-serial?file=vendors.ts) created by [William Grasel](https://github.com/willgm)
 
+## Icons Used 
+- [Lucide Icons](https://lucide.dev/guide/packages/lucide-react)
+
 ## Roadmap for upcoming update
 
 - [X] **Data Filtering** : We will be adding bio-potential signal filtering options which includes 50/60 Hz notch filter to remove AC interference noise and highpass/lowpass remove artefacts from ECG, Emg ,Eog and EEg. Under filters, we will be adding different highpass and lowpass filters for specific bio-potential signals this feature will further enhance the user experience to record even more clear biopotential signals.
