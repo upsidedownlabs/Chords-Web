@@ -26,6 +26,7 @@ import {
   BicepsFlexed,
   ArrowRightToLine,
   ArrowLeftToLine,
+  Settings
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -55,7 +56,7 @@ interface ConnectionProps {
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
   channelCount: number;
-  currentValue:number;
+  currentValue: number;
   setCurrentValue: React.Dispatch<React.SetStateAction<number>>;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
   SetcurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
@@ -101,7 +102,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
-  const maxCanvasCountRef=useRef<number>(1);
+  const maxCanvasCountRef = useRef<number>(1);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -128,13 +129,13 @@ const Connection: React.FC<ConnectionProps> = ({
   };
   const increaseCanvas = () => {
     if (canvasCount < maxCanvasCountRef.current) {
-     
+
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
     }
   };
 
   const increaseValue = () => {
-    if(currentValue < 10){
+    if (currentValue < 10) {
       setCurrentValue(currentValue + 1);
     }
   };
@@ -169,7 +170,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   const decreaseValue = () => {
-    if(currentValue > 1){
+    if (currentValue > 1) {
       setCurrentValue(currentValue - 1);
     }
   };
@@ -182,6 +183,12 @@ const Connection: React.FC<ConnectionProps> = ({
       setCanvasCount(maxCanvasCountRef.current); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
     }
+  };
+
+  const selectChannel = (channel: number) => {
+    // Handle the channel selection logic here
+    console.log(`Channel ${channel} selected`);
+    setCanvasCount(channel);
   };
 
   const increaseZoom = () => {
@@ -237,7 +244,7 @@ const Connection: React.FC<ConnectionProps> = ({
       });
     }
   };
-  const setCanvasCountInWorker = (canvasCount:number) => {
+  const setCanvasCountInWorker = (canvasCount: number) => {
     if (!workerRef.current) {
       initializeWorker();
     }
@@ -339,21 +346,21 @@ const Connection: React.FC<ConnectionProps> = ({
       if (!info || !info.usbVendorId) {
         return { formattedInfo: "Port with no info", bits: null, channel: null };
       }
-  
+
       // Check if the device name exists in the BoardsList
       const board = BoardsList.find(
         (b) => b.name.toLowerCase() === deviceName.toLowerCase() // Match Device Name
       );
-  
+
       if (board) {
         // Set the bits based on the matched board
         setifBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
         detectedBitsRef.current = board.bits as BitSelection;
-  
+
         // Safely parse the channel or set a default value
-      const channel = board.channel ? parseInt(board.channel, 10) : 0;
-      maxCanvasCountRef.current =channel;
+        const channel = board.channel ? parseInt(board.channel, 10) : 0;
+        maxCanvasCountRef.current = channel;
         return {
           formattedInfo: (
             <>
@@ -364,14 +371,14 @@ const Connection: React.FC<ConnectionProps> = ({
           channel: board.channel,
         };
       }
-  
+
       // If device not found in the list
       setDetectedBits(null);
       return { formattedInfo: `${deviceName}`, bits: null, channel: null };
     },
     []
   );
-  
+
 
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -393,13 +400,13 @@ const Connection: React.FC<ConnectionProps> = ({
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-  
+
       const savedPorts: SavedDevice[] = JSON.parse(localStorage.getItem('savedDevices') || '[]');
       let port: SerialPort | null = null;
       let baudRate = 230400; // Default baud rate
-  
+
       const ports = await navigator.serial.getPorts();
-  
+
       // Check for saved ports
       if (savedPorts.length > 0) {
         port = ports.find(p => {
@@ -409,40 +416,40 @@ const Connection: React.FC<ConnectionProps> = ({
           );
         }) || null;
       }
-  
+
       if (!port) {
         port = await navigator.serial.requestPort();
         const newPortInfo = await port.getInfo();
-  
+
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
-  
+
         if (usbProductId === 29987) {
           baudRate = 115200;
         }
-  
+
         const existingDevice = savedPorts.find(saved =>
           saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
         );
-  
+
         if (!existingDevice) {
           savedPorts.push({ usbVendorId, usbProductId, baudRate });
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
           console.log(`New device saved: Vendor ${usbVendorId}, Product ${usbProductId}, Baud Rate ${baudRate}`);
         }
-  
+
         await port.open({ baudRate });
       } else {
         const portInfo = port.getInfo();
         const usbProductId = portInfo.usbProductId ?? 0;
-  
+
         if (usbProductId === 29987) {
           baudRate = 115200;
         }
-  
+
         await port.open({ baudRate });
       }
-  
+
       Connection(true);
       setIsConnected(true);
       onPauseChange(true);
@@ -450,27 +457,27 @@ const Connection: React.FC<ConnectionProps> = ({
       setCanvasCount(1);
       isConnectedRef.current = true;
       portRef.current = port;
-  
+
       if (port.readable) {
         const reader = port.readable.getReader();
         readerRef.current = reader;
-       console.log("hello");
+        console.log("hello");
         const writer = port.writable?.getWriter();
         if (writer) {
           // Query the board for its name
           // Query the board for information
-        const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-        await writer.write(whoAreYouMessage);
-        setTimeout(() => writer.write(whoAreYouMessage), 2000);
+          const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
+          await writer.write(whoAreYouMessage);
+          setTimeout(() => writer.write(whoAreYouMessage), 2000);
 
           const { value, done } = await reader.read();
           if (!done && value) {
             const response = new TextDecoder().decode(value).trim(); // Device name
             const portInfo = port.getInfo();
             console.log(`Board Response: ${response}`);
-            
+
             const { formattedInfo, bits, channel } = formatPortInfo(portInfo, response); // Pass info and name
-          
+
             toast.success("Connection Successful", {
               description: (
                 <div className="mt-2 flex flex-col space-y-1">
@@ -482,60 +489,60 @@ const Connection: React.FC<ConnectionProps> = ({
               ),
             });
           }
-           else {
+          else {
             console.error("No response from the board or reading incomplete");
           }
-        
+
           const startMessage = new TextEncoder().encode("START\n");
           setTimeout(() => writer.write(startMessage), 2000);
-  
+
         }
-         else {
+        else {
           console.error("Writable stream not available");
         }
       } else {
         console.error("Readable stream not available");
       }
-  
+
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
       await navigator.wakeLock.request("screen");
-  
+
     } catch (error) {
       await disconnectDevice();
       console.error("Error connecting to device:", error);
       toast.error("Failed to connect to device.");
     }
   };
-  
-  
-    const getFileCountFromIndexedDB = async (): Promise<any[]> => {
-      if (!workerRef.current) {
-        initializeWorker();
+
+
+  const getFileCountFromIndexedDB = async (): Promise<any[]> => {
+    if (!workerRef.current) {
+      initializeWorker();
+    }
+
+    return new Promise((resolve, reject) => {
+      if (workerRef.current) {
+        workerRef.current.postMessage({ action: 'getFileCountFromIndexedDB' });
+
+        workerRef.current.onmessage = (event) => {
+          if (event.data.allData) {
+            resolve(event.data.allData);
+          } else if (event.data.error) {
+            reject(event.data.error);
+          }
+        };
+
+        workerRef.current.onerror = (error) => {
+          reject(`Error in worker: ${error.message}`);
+        };
+      } else {
+        reject('Worker is not initialized');
       }
-  
-      return new Promise((resolve, reject) => {
-        if (workerRef.current) {
-          workerRef.current.postMessage({ action: 'getFileCountFromIndexedDB' });
-  
-          workerRef.current.onmessage = (event) => {
-            if (event.data.allData) {
-              resolve(event.data.allData);
-            } else if (event.data.error) {
-              reject(event.data.error);
-            }
-          };
-  
-          workerRef.current.onerror = (error) => {
-            reject(`Error in worker: ${error.message}`);
-          };
-        } else {
-          reject('Worker is not initialized');
-        }
-      });
-    };
-  
+    });
+  };
+
 
   const disconnectDevice = async (): Promise<void> => {
     try {
@@ -1048,68 +1055,6 @@ const Connection: React.FC<ConnectionProps> = ({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        {/* Autoscale/Bit selection */}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseZoom}
-                      disabled={Zoom === 1}
-                    >
-                      <ZoomOut size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{Zoom === 1 ? "We can't shrinkage" : "Decrease Zoom"}</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2  rounded-none select-none min-w-12"
-                      onClick={toggleZoom}
-                    >
-                      {Zoom}x
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{FullZoom ? "Remove Full Zoom" : "Full Zoom"}</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseZoom}
-                      disabled={Zoom === 10}
-
-                    >
-                      <ZoomIn size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {Zoom >= 10 ? "Maximum Zoom Reached" : "Increase Zoom"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
-        )}
         {/* Display (Play/Pause) button with tooltip */}
         {isConnected && (
           <div className="flex items-center gap-0.5 mx-0 px-0">
@@ -1148,6 +1093,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </Button>
           </div>
         )}
+
         {/* Record button with tooltip */}
         {isConnected && (
           <TooltipProvider>
@@ -1486,126 +1432,149 @@ const Connection: React.FC<ConnectionProps> = ({
           </Popover>
         )}
 
-        {/* Canvas control buttons with tooltip */}
         {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseCanvas}
-                      disabled={canvasCount === 1 || !isDisplay || isRecordButtonDisabled}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount === 1
-                        ? "At Least One Canvas Required"
-                        : "Decrease Channel"}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-xl">
+                <Settings size={16} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[43rem] p-6 rounded-lg shadow-lg bg-primary text-base">
+
+              <TooltipProvider>
+                <div className="space-y-8">
+
+                  {/* Channel Selection */}
+                  <div className="flex items-start justify-center w-full">
+  {/* Checkboxes */}
+  <div className="grid grid-cols-8 gap-4">
+    {Array.from({ length: 16 }, (_, index) => {
+      const isActive = index < canvasCount; // Check if this channel is active
+      const isFaded = index >= maxCanvasCountRef.current; // Determine faded state
+
+      return (
+        <Tooltip key={index}>
+          <TooltipTrigger asChild>
+            <div className="flex flex-row items-center">
+              {/* Checkbox */}
+              <input
+                type="checkbox"
+                id={`channel-${index + 1}`}
+                className={`rounded-full w-4 h-4 cursor-pointer transition-transform duration-150 
+                  ${isFaded
+                    ? 'bg-gray-100 text-gray-100 cursor-not-allowed'
+                    : isActive
+                      ? 'bg-black text-white border-2 border-black scale-110 shadow-md'
+                      : 'bg-gray-100 text-white hover:bg-black hover:scale-105'
+                  }`}
+                onChange={() => !isFaded && selectChannel(index + 1)}
+                disabled={!isDisplay || isRecordButtonDisabled || isFaded}
+                checked={isActive}
+              />
+              {/* Label */}
+              <label
+                htmlFor={`channel-${index + 1}`}
+                className={`m-1 text-sm font-medium ${isFaded ? 'text-gray-400' : 'text-gray-700'
+                  }`}
+              >
+                CH {index + 1}
+              </label>
+              
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{`Select Channel ${index + 1}`}</p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    })}
+  </div>
+</div>
+
+
+                  {/* Zoom Controls */}
+                  <div className="flex items-center justify-between">
+                    {/* Label */}
+                    <p className="text-base font-semibold text-gray-500 w-52 text-left">
+                      Zoom Level {Zoom}x
                     </p>
-                  </TooltipContent>
-                </Tooltip>
 
-                <Separator orientation="vertical" className="h-full" />
+                    {/* Slider with min and max values */}
+                    <div className="relative w-[45rem] flex items-center">
+                      {/* Min value */}
+                      <p className="text-gray-500 mr-4">1</p>
 
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 rounded-none select-none"
-                      onClick={toggleShowAllChannels}
-                      disabled={!isDisplay || isRecordButtonDisabled}
-                    >
-                      CH
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {showAllChannels
-                        ? "Hide All Channels"
-                        : "Show All Channels"}
+                      {/* Slider */}
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={Zoom}
+                        onChange={(e) => SetZoom(Number(e.target.value))}
+                        className="flex-1 h-1 bg-gray-300 rounded-full appearance-none focus:outline-none focus:ring-0"
+                      />
+
+                      {/* Max value */}
+                      <p className="text-gray-500 ml-4">10</p>
+                      <style jsx>{`
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        background-color: rgb(147, 172, 219); /* Change color here */
+        border-radius: 50%;
+      }
+    `}</style>
+                    </div>
+                  </div>
+
+                  {/* Value Selection */}
+                  <div className="flex items-center justify-between">
+                    {/* Label */}
+                    <p className="text-base font-semibold text-gray-500 w-52 text-left">
+                      Time Frame {currentValue}
                     </p>
-                  </TooltipContent>
-                </Tooltip>
 
-                <Separator orientation="vertical" className="h-full" />
+                    {/* Slider */}
+                    <div className="flex items-center w-[45rem]">
+                      {/* Min value */}
+                      <p className="text-gray-500 mr-4">1</p>
 
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseCanvas}
-                      disabled={canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6) || !isDisplay || isRecordButtonDisabled}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6)
-                        ? "Maximum Channels Reached"
-                        : "Increase Channel"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
+                      {/* Slider */}
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={currentValue}
+                        onChange={(e) => setCurrentValue(Number(e.target.value))}
+                        className="flex-1 h-1 bg-gray-300 rounded-full appearance-none focus:outline-none focus:ring-0"
+                      />
+
+                      {/* Max value */}
+                      <p className="text-gray-500 ml-4">10</p>
+
+                      {/* Custom thumb color */}
+                      <style jsx>{`
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        background-color: rgb(147, 172, 219); /* Change color here */
+        border-radius: 50%;
+      }
+    `}</style>
+                    </div>
+                  </div>
+
+
+                </div>
+              </TooltipProvider>
+            </PopoverContent>
+          </Popover>
         )}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Current Value */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseValue}
-                      disabled={currentValue == 1}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
 
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 rounded-none select-none"
-                    >
-                      {currentValue} Sec
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseValue}
-                      disabled={currentValue >= 10}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
-        )}
       </div>
     </div>
   );
