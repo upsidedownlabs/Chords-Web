@@ -342,43 +342,27 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const formatPortInfo = useCallback(
-    (info: SerialPortInfo, deviceName: string) => {
+    // Function to format the port info, which includes the board name and product ID in toast message
+    (info: SerialPortInfo) => {
       if (!info || !info.usbVendorId) {
-        return { formattedInfo: "Port with no info", bits: null, channel: null };
+        return "Port with no info";
       }
 
-      // Check if the device name exists in the BoardsList
+      // First, check if the board exists in BoardsList
       const board = BoardsList.find(
-        (b) => b.name.toLowerCase() === deviceName.toLowerCase() // Match Device Name
+        (b) => parseInt(b.field_pid) === info.usbProductId
       );
-
       if (board) {
-        // Set the bits based on the matched board
         setifBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
         detectedBitsRef.current = board.bits as BitSelection;
-
-        // Safely parse the channel or set a default value
-        const channel = board.channel ? parseInt(board.channel, 10) : 0;
-        maxCanvasCountRef.current = channel;
-        return {
-          formattedInfo: (
-            <>
-              {board.name} <br /> Product ID: {info.usbProductId}
-            </>
-          ),
-          bits: board.bits,
-          channel: board.channel,
-        };
+        return (<>{board.name} <br /> Product ID: {info.usbProductId}</>); // Return the board name and product ID
       }
 
-      // If device not found in the list
       setDetectedBits(null);
-      return { formattedInfo: `${deviceName}`, bits: null, channel: null };
     },
     []
   );
-
 
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -407,11 +391,10 @@ const Connection: React.FC<ConnectionProps> = ({
 
       const ports = await navigator.serial.getPorts();
 
-      // Check for saved ports
       if (savedPorts.length > 0) {
         port = ports.find(p => {
           const info = p.getInfo();
-          return savedPorts.some((saved: SavedDevice) =>
+          return savedPorts.some(saved =>
             saved.usbVendorId === (info.usbVendorId ?? 0) && saved.usbProductId === (info.usbProductId ?? 0)
           );
         }) || null;
@@ -421,11 +404,14 @@ const Connection: React.FC<ConnectionProps> = ({
         port = await navigator.serial.requestPort();
         const newPortInfo = await port.getInfo();
 
+
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
 
+        // Check for specific usbProductId 29987 and set baud rate
         if (usbProductId === 29987) {
           baudRate = 115200;
+
         }
 
         const existingDevice = savedPorts.find(saved =>
@@ -433,7 +419,11 @@ const Connection: React.FC<ConnectionProps> = ({
         );
 
         if (!existingDevice) {
-          savedPorts.push({ usbVendorId, usbProductId, baudRate });
+          savedPorts.push({
+            usbVendorId,
+            usbProductId,
+            baudRate
+          });
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
           console.log(`New device saved: Vendor ${usbVendorId}, Product ${usbProductId}, Baud Rate ${baudRate}`);
         }
@@ -443,6 +433,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const portInfo = port.getInfo();
         const usbProductId = portInfo.usbProductId ?? 0;
 
+        // Check again if the port has productId 29987
         if (usbProductId === 29987) {
           baudRate = 115200;
         }
@@ -458,52 +449,27 @@ const Connection: React.FC<ConnectionProps> = ({
       isConnectedRef.current = true;
       portRef.current = port;
 
-      if (port.readable) {
-        const reader = port.readable.getReader();
-        readerRef.current = reader;
-        console.log("hello");
-        const writer = port.writable?.getWriter();
-        if (writer) {
-          // Query the board for its name
-          // Query the board for information
-          const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-          await writer.write(whoAreYouMessage);
-          setTimeout(() => writer.write(whoAreYouMessage), 2000);
+      toast.success("Connection Successful", {
+        description: (
+          <div className="mt-2 flex flex-col space-y-1">
+            <p>Device: {formatPortInfo(port.getInfo())}</p>
+            <p>Baud Rate: {baudRate}</p>
+          </div>
+        ),
+      });
+      const reader = port.readable?.getReader();
+      readerRef.current = reader;
 
-          const { value, done } = await reader.read();
-          if (!done && value) {
-            const response = new TextDecoder().decode(value).trim(); // Device name
-            const portInfo = port.getInfo();
-            console.log(`Board Response: ${response}`);
-
-            const { formattedInfo, bits, channel } = formatPortInfo(portInfo, response); // Pass info and name
-
-            toast.success("Connection Successful", {
-              description: (
-                <div className="mt-2 flex flex-col space-y-1">
-                  <p>Device: {formattedInfo}</p>
-                  <p>Baud Rate: {baudRate}</p>
-                  {bits && <p>Bits: {bits}</p>}
-                  {channel && <p>Channel: {channel}</p>}
-                </div>
-              ),
-            });
-          }
-          else {
-            console.error("No response from the board or reading incomplete");
-          }
-
-          const startMessage = new TextEncoder().encode("START\n");
-          setTimeout(() => writer.write(startMessage), 2000);
-
-        }
-        else {
-          console.error("Writable stream not available");
-        }
+      const writer = port.writable?.getWriter();
+      if (writer) {
+        setTimeout(() => {
+          writerRef.current = writer;
+          const message = new TextEncoder().encode("START\n");
+          writerRef.current.write(message);
+        }, 2000);
       } else {
-        console.error("Readable stream not available");
+        console.error("Writable stream not available");
       }
-
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
@@ -549,17 +515,30 @@ const Connection: React.FC<ConnectionProps> = ({
       if (portRef.current) {
         if (writerRef.current) {
           const stopMessage = new TextEncoder().encode("STOP\n");
-          try {
-            await writerRef.current.write(stopMessage);
-          } catch (error) {
-            console.error("Failed to send STOP command:", error);
-          }
+
+          // Retry logic for sending the STOP command
+          const sendStopCommand = async (retries: number): Promise<void> => {
+            try {
+              await writerRef.current?.write(stopMessage);
+            } catch (error) {
+              console.error(`Failed to send STOP command. Retries left: ${retries}`, error);
+              if (retries > 0) {
+                setTimeout(() => sendStopCommand(retries - 1), 2000);
+              }
+            }
+          };
+
+          // Start sending the STOP command with retries
+          await sendStopCommand(3);
+
           if (writerRef.current) {
             writerRef.current.releaseLock();
             writerRef.current = null;
           }
         }
+
         snapShotRef.current?.fill(false);
+
         if (readerRef.current) {
           try {
             await readerRef.current.cancel();
@@ -594,6 +573,7 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
+
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
   const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
   const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
@@ -1446,50 +1426,50 @@ const Connection: React.FC<ConnectionProps> = ({
 
                   {/* Channel Selection */}
                   <div className="flex items-start justify-center w-full">
-  {/* Checkboxes */}
-  <div className="grid grid-cols-8 gap-4">
-    {Array.from({ length: 16 }, (_, index) => {
-      const isActive = index < canvasCount; // Check if this channel is active
-      const isFaded = index >= maxCanvasCountRef.current; // Determine faded state
+                    {/* Checkboxes */}
+                    <div className="grid grid-cols-8 gap-4">
+                      {Array.from({ length: 16 }, (_, index) => {
+                        const isActive = index < canvasCount; // Check if this channel is active
+                        const isFaded = index >= maxCanvasCountRef.current; // Determine faded state
 
-      return (
-        <Tooltip key={index}>
-          <TooltipTrigger asChild>
-            <div className="flex flex-row items-center">
-              {/* Checkbox */}
-              <input
-                type="checkbox"
-                id={`channel-${index + 1}`}
-                className={`rounded-full w-4 h-4 cursor-pointer transition-transform duration-150 
+                        return (
+                          <Tooltip key={index}>
+                            <TooltipTrigger asChild>
+                              <div className="flex flex-row items-center">
+                                {/* Checkbox */}
+                                <input
+                                  type="checkbox"
+                                  id={`channel-${index + 1}`}
+                                  className={`rounded-full w-3 h-3 cursor-pointer transition-transform duration-150 
                   ${isFaded
-                    ? 'bg-gray-100 text-gray-100 cursor-not-allowed'
-                    : isActive
-                      ? 'bg-black text-white border-2 border-black scale-110 shadow-md'
-                      : 'bg-gray-100 text-white hover:bg-black hover:scale-105'
-                  }`}
-                onChange={() => !isFaded && selectChannel(index + 1)}
-                disabled={!isDisplay || isRecordButtonDisabled || isFaded}
-                checked={isActive}
-              />
-              {/* Label */}
-              <label
-                htmlFor={`channel-${index + 1}`}
-                className={`m-1 text-sm font-medium ${isFaded ? 'text-gray-400' : 'text-gray-700'
-                  }`}
-              >
-                CH {index + 1}
-              </label>
-              
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{`Select Channel ${index + 1}`}</p>
-          </TooltipContent>
-        </Tooltip>
-      );
-    })}
-  </div>
-</div>
+                                      ? 'bg-gray-100 text-gray-100 cursor-not-allowed'
+                                      : isActive
+                                        ? 'bg-black text-white border-2 border-black scale-110 shadow-md'
+                                        : 'bg-gray-100 text-white hover:bg-black hover:scale-105'
+                                    }`}
+                                  onChange={() => !isFaded && selectChannel(index + 1)}
+                                  disabled={!isDisplay || isRecordButtonDisabled || isFaded}
+                                  checked={isActive}
+                                />
+                                {/* Label */}
+                                <label
+                                  htmlFor={`channel-${index + 1}`}
+                                  className={`m-1 text-sm font-medium ${isFaded ? 'text-gray-400' : 'text-gray-700'
+                                    }`}
+                                >
+                                  CH {index + 1}
+                                </label>
+
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{`Select Channel ${index + 1}`}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  </div>
 
 
                   {/* Zoom Controls */}

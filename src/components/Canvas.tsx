@@ -312,7 +312,6 @@ const Canvas = forwardRef(
 
           // Clear the next point to create a gap (optional, for visual effect)
           const clearPosition = Math.ceil((currentSweepPos.current[i] + (numXRef.current / 100)) % line.numPoints);
-          console.log(line.numPoints);
           line.setY(clearPosition, NaN);
 
           // Increment the sweep position for the current line
