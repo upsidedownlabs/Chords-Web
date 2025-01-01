@@ -15,7 +15,7 @@ interface CanvasProps {
   selectedBits: BitSelection;
   isDisplay: boolean;
   canvasCount?: number;
-  currentValue?:number;
+  currentValue?: number;
   Zoom: number;
   currentSnapshot: number;
   snapShotRef: React.MutableRefObject<boolean[]>;
@@ -28,7 +28,7 @@ const Canvas = forwardRef(
       selectedBits,
       isDisplay,
       canvasCount = 6, // default value in case not provided
-      currentValue=4,
+      currentValue = 4,
       Zoom,
       currentSnapshot,
       snapShotRef,
@@ -41,7 +41,7 @@ const Canvas = forwardRef(
     const [numChannels, setNumChannels] = useState<number>(canvasCount);
     const numXRef = useRef<number>(2000); // To track the calculated value
     const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
-    const [samplingRate,setSamplingRate]=useState<number>(500);
+    const [samplingRate, setSamplingRate] = useState<number>(500);
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
     const [lines, setLines] = useState<WebglLine[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
@@ -70,11 +70,10 @@ const Canvas = forwardRef(
     }, []);
 
 
-  useEffect(() => {
-    numXRef.current= (getpoints(selectedBits) * currentValue);
-    numXRef.current= (getpoints(selectedBits) * currentValue);
-   
-  }, [ currentValue]);
+    useEffect(() => {
+      numXRef.current = (getpoints(selectedBits) * currentValue);
+
+    }, [currentValue]);
 
     const prevCanvasCountRef = useRef<number>(canvasCount);
 
@@ -121,7 +120,7 @@ const Canvas = forwardRef(
       currentSweepPos.current = new Array(numChannels).fill(0);
       sweepPositions.current = new Array(numChannels).fill(0);
     }, [currentValue]);
-    
+
 
     useImperativeHandle(
       ref,
@@ -132,7 +131,7 @@ const Canvas = forwardRef(
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
           }
-    
+
           if (pauseRef.current) {
             processIncomingData(data);
             updatePlots(data, Zoom);
@@ -150,7 +149,7 @@ const Canvas = forwardRef(
           previousCounter = data[0]; // Update the previous counter with the current counter
         },
       }),
-      [Zoom, numChannels,currentValue]
+      [Zoom, numChannels, currentValue]
     );
 
     const createCanvases = () => {
@@ -187,7 +186,7 @@ const Canvas = forwardRef(
       const opacityLightMajor = "0.4"; // Opacity for every 5th line in light theme
       const opacityLightMinor = "0.1"; // Opacity for other lines in light theme
       const distanceminor = samplingRate * 0.04;
-      const numGridLines = getpoints(selectedBits)*4 / distanceminor;
+      const numGridLines = getpoints(selectedBits) * 4 / distanceminor;
       for (let j = 1; j < numGridLines; j++) {
         const gridLineX = document.createElement("div");
         gridLineX.className = "absolute bg-[rgb(128,128,128)]";
@@ -318,12 +317,12 @@ const Canvas = forwardRef(
           sweepPositions.current[i] = (currentSweepPos.current[i] + 1) % line.numPoints;
         });
       },
-      [lines, wglPlots, numChannels, theme,currentValue]
+      [lines, wglPlots, numChannels, theme, currentValue]
     );
 
     useEffect(() => {
       createCanvases();
-    }, [numChannels, theme,currentValue]);
+    }, [numChannels, theme, currentValue]);
 
 
     const animate = useCallback(() => {
