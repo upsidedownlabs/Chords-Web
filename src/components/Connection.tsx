@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
@@ -27,6 +26,7 @@ import {
   BicepsFlexed,
   ArrowRightToLine,
   ArrowLeftToLine,
+  Settings
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -183,6 +183,12 @@ const Connection: React.FC<ConnectionProps> = ({
       setCanvasCount(maxCanvasCountRef.current); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
     }
+  };
+
+  const selectChannel = (channel: number) => {
+    // Handle the channel selection logic here
+    console.log(`Channel ${channel} selected`);
+    setCanvasCount(channel);
   };
 
   const increaseZoom = () => {
@@ -476,7 +482,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 <div className="mt-2 flex flex-col space-y-1">
                   <p>Device: {formattedInfo}</p>
                   <p>Baud Rate: {baudRate}</p>
-                  {bits && <p>Bits: {bits}</p>}
+                  {bits && <p>Resolution: {bits} bits</p>}
                   {channel && <p>Channel: {channel}</p>}
                 </div>
               ),
@@ -1048,68 +1054,6 @@ const Connection: React.FC<ConnectionProps> = ({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        {/* Autoscale/Bit selection */}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseZoom}
-                      disabled={Zoom === 1}
-                    >
-                      <ZoomOut size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{Zoom === 1 ? "We can't shrinkage" : "Decrease Zoom"}</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2  rounded-none select-none min-w-12"
-                      onClick={toggleZoom}
-                    >
-                      {Zoom}x
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{FullZoom ? "Remove Full Zoom" : "Full Zoom"}</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseZoom}
-                      disabled={Zoom === 10}
-
-                    >
-                      <ZoomIn size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {Zoom >= 10 ? "Maximum Zoom Reached" : "Increase Zoom"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
-        )}
         {/* Display (Play/Pause) button with tooltip */}
         {isConnected && (
           <div className="flex items-center gap-0.5 mx-0 px-0">
@@ -1148,6 +1092,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </Button>
           </div>
         )}
+
         {/* Record button with tooltip */}
         {isConnected && (
           <TooltipProvider>
@@ -1486,126 +1431,162 @@ const Connection: React.FC<ConnectionProps> = ({
           </Popover>
         )}
 
-        {/* Canvas control buttons with tooltip */}
         {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseCanvas}
-                      disabled={canvasCount === 1 || !isDisplay || isRecordButtonDisabled}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount === 1
-                        ? "At Least One Canvas Required"
-                        : "Decrease Channel"}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-xl">
+                <Settings size={16} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[43rem] p-6 rounded-lg shadow-lg  text-base">
+
+              <TooltipProvider>
+                <div className="space-y-8">
+
+                  {/* Channel Selection */}
+                  <div className="flex items-start justify-center w-full">
+                    {/* Checkboxes */}
+                    <div className="grid grid-cols-8 gap-4">
+                      {Array.from({ length: 16 }, (_, index) => {
+                        const isActive = index < canvasCount; // Check if this channel is active
+                        const isFaded = index >= maxCanvasCountRef.current; // Determine faded state
+
+                        return (
+                          <Tooltip key={index}>
+                            <TooltipTrigger asChild>
+                              <div className="flex flex-row items-center">
+                                {/* Checkbox */}
+                                <input
+                                  type="checkbox"
+                                  id={`channel-${index + 1}`}
+                                  className={`rounded-full w-3 h-3 cursor-pointer transition-transform duration-150 
+                  ${isFaded
+                                      ? 'bg-gray-100 text-gray-100 cursor-not-allowed'
+                                      : isActive
+                                        ? 'bg-black text-white border-2 border-black scale-110 shadow-md'
+                                        : 'bg-gray-100 text-white hover:bg-black hover:scale-105'
+                                    }`}
+                                  onChange={() => !isFaded && selectChannel(index + 1)}
+                                  disabled={!isDisplay || isRecordButtonDisabled || isFaded}
+                                  checked={isActive}
+                                />
+                                {/* Label */}
+                                <label
+                                  htmlFor={`channel-${index + 1}`}
+                                  className={`m-1 text-sm font-medium ${isFaded ? 'text-gray-400' : 'text-gray-700'
+                                    }`}
+                                >
+                                  CH {index + 1}
+                                </label>
+
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{`Select Channel ${index + 1}`}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+
+                  {/* Zoom Controls */}
+                  <div className="relative flex flex-col items-start w-full">
+                    {/* Label */}
+                    <p className="absolute top-[-1.5rem] left-0 text-base font-semibold text-[0.7rem] text-gray-500">
+                      <span className="font-bold text-gray-700">ZOOM LEVEL:</span> {Zoom} X
                     </p>
-                  </TooltipContent>
-                </Tooltip>
 
-                <Separator orientation="vertical" className="h-full" />
+                    {/* Slider with min and max values */}
+                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3">
+                      {/* Min value */}
+                      <p className="text-gray-800 mx-2 px-2">1</p>
 
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 rounded-none select-none"
-                      onClick={toggleShowAllChannels}
-                      disabled={!isDisplay || isRecordButtonDisabled}
-                    >
-                      CH
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {showAllChannels
-                        ? "Hide All Channels"
-                        : "Show All Channels"}
+                      {/* Slider */}
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={Zoom}
+                        onChange={(e) => SetZoom(Number(e.target.value))}
+                        className="flex-1 h-[0.2rem] appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
+                      />
+
+                      {/* Max value */}
+                      <p className="text-gray-800 mx-2 px-2">10</p>
+
+                      <style jsx>{`
+      input[type="range"] {
+        background: linear-gradient(
+          to
+right,rgb(13, 42, 138) ${(Zoom - 1) * 11.11}%,
+rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
+        );
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        background-color: rgb(11, 48, 127);
+        border-radius: 50%;
+      }
+    `}</style>
+                    </div>
+                  </div>
+
+                  {/* Value Selection */}
+                  <div className="relative w-full flex flex-col items-start mt-4">
+                    {/* Label */}
+                    <p className="absolute top-[-1.5rem] left-0 text-[0.7rem] font-semibold text-gray-500">
+                    <span className="font-bold text-gray-700">TIME BASE:</span> {currentValue} SECONDS
                     </p>
-                  </TooltipContent>
-                </Tooltip>
 
-                <Separator orientation="vertical" className="h-full" />
+                    {/* Slider with curved container and faded colors */}
+                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3">
+                      {/* Min value */}
+                      <p className="text-gray-800 mx-2 px-2">1</p>
 
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseCanvas}
-                      disabled={canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6) || !isDisplay || isRecordButtonDisabled}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6)
-                        ? "Maximum Channels Reached"
-                        : "Increase Channel"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
+                      {/* Slider */}
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={currentValue}
+                        onChange={(e) => setCurrentValue(Number(e.target.value))}
+                        style={{
+                          background: `linear-gradient(to right,rgb(13, 42, 138) ${((currentValue - 1) / 9) * 100
+                            }%, rgb(161, 159, 159) ${((currentValue - 1) / 9) * 11}%)`,
+                        }}
+                        className="flex-1 h-[0.2rem] rounded-full appearance-none focus:outline-none focus:ring-0"
+                      />
+
+                      {/* Max value */}
+                      <p className="text-gray-800 mx-2 px-2">10</p>
+
+                      {/* Custom thumb color */}
+                      <style jsx>{`
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        background-color: rgb(11, 48, 127); /* Custom color */
+        border-radius: 50%;
+        cursor: pointer;
+      }
+    `}</style>
+                    </div>
+                  </div>
+
+                </div>
+              </TooltipProvider>
+            </PopoverContent>
+          </Popover>
         )}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Current Value */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseValue}
-                      disabled={currentValue == 1}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
 
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 rounded-none select-none"
-                    >
-                      {currentValue} Sec
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseValue}
-                      disabled={currentValue >= 10}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
-        )}
       </div>
     </div>
   );
