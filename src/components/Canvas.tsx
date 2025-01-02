@@ -17,10 +17,8 @@ interface CanvasProps {
   canvasCount?: number;
   currentValue?: number;
   Zoom: number;
-}
-interface Batch {
-  time: number;
-  values: number[];
+  currentSnapshot: number;
+  snapShotRef: React.MutableRefObject<boolean[]>;
 }
 
 const Canvas = forwardRef(
@@ -32,6 +30,8 @@ const Canvas = forwardRef(
       canvasCount = 6, // default value in case not provided
       currentValue = 4,
       Zoom,
+      currentSnapshot,
+      snapShotRef,
     }: CanvasProps,
     ref
   ) => {
@@ -127,7 +127,7 @@ const Canvas = forwardRef(
       () => ({
         updateData(data: number[]) {
           // Reset the sweep positions if the number of channels has changed
-          if (currentSweepPos.current.length !== numChannels) {
+          if (currentSweepPos.current.length !== numChannels || !pauseRef.current) {
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
           }
@@ -139,14 +139,14 @@ const Canvas = forwardRef(
           if (previousCounter !== null) {
             // If there was a previous counter value
             const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
-            if (data[6] !== expectedCounter) {
+            if (data[0] !== expectedCounter) {
               // Check for data loss by comparing the current counter with the expected counter
               console.warn(
-                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[6]}`
+                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[0]}`
               );
             }
           }
-          previousCounter = data[6]; // Update the previous counter with the current counter
+          previousCounter = data[0]; // Update the previous counter with the current counter
         },
       }),
       [Zoom, numChannels, currentValue]
@@ -201,7 +201,7 @@ const Canvas = forwardRef(
         // Append grid lines to the wrapper
         canvasWrapper.appendChild(gridLineX);
       }
-      const horizontalline=50;
+      const horizontalline = 50;
       for (let j = 1; j < horizontalline; j++) {
         const gridLineY = document.createElement("div");
         gridLineY.className = "absolute bg-[rgb(128,128,128)]";
@@ -223,8 +223,8 @@ const Canvas = forwardRef(
 
         const canvas = document.createElement("canvas");
         canvas.id = `canvas${i + 1}`;
-        canvas.width = canvasContainerRef.current.clientWidth ;
-        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels) ;
+        canvas.width = canvasContainerRef.current.clientWidth;
+        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels);
         canvas.height = canvasHeight;
         canvas.className = "w-full h-full block rounded-xl";
 
@@ -303,14 +303,11 @@ const Canvas = forwardRef(
         });
 
         linesRef.current.forEach((line, i) => {
-          const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust according to your ADC resolution
-          const yScale = 2 / bitsPoints;
-          const chData = (data[i] - bitsPoints / 2) * yScale;
 
           // Use a separate sweep position for each line
           currentSweepPos.current[i] = sweepPositions.current[i];
           // Plot the new data at the current sweep position
-          line.setY(currentSweepPos.current[i] % line.numPoints, chData);
+          line.setY(currentSweepPos.current[i] % line.numPoints, data[i + 1]);
 
           // Clear the next point to create a gap (optional, for visual effect)
           const clearPosition = Math.ceil((currentSweepPos.current[i] + (numXRef.current / 100)) % line.numPoints);
@@ -327,23 +324,15 @@ const Canvas = forwardRef(
       createCanvases();
     }, [numChannels, theme, currentValue]);
 
-    const getValue = useCallback((bits: BitSelection): number => {
-      switch (bits) {
-        case "ten":
-          return 10;
-        case "twelve":
-          return 12;
-        case "fourteen":
-          return 14;
-        default:
-          return 0; // Or any other fallback value you'd like
-      }
-    }, []);
 
     const animate = useCallback(() => {
-      if (pauseRef.current) {
+      if (!pauseRef.current) {
+        // If paused, show the buffered data (this part runs when paused)
+        updatePlotSnapshot(currentSnapshot);
+      } else {
+        // If not paused, continue with normal updates (e.g., real-time plotting)
         wglPlots.forEach((wglp) => wglp.update());
-        requestAnimationFrame(animate);
+        requestAnimationFrame(animate); // Continue the animation loop
       }
     }, [currentSnapshot, numXRef.current, pauseRef.current, wglPlots, Zoom]);
 

@@ -13,13 +13,20 @@ import {
   Trash2,
   Download,
   FileArchive,
-  FileDown,
   Pause,
   Play,
   Plus,
   Minus,
   ZoomIn, // For magnify/zoom in functionality
   ZoomOut, // For zoom out functionality
+  CircleOff,
+  ReplaceAll,
+  Heart,
+  Brain,
+  Eye,
+  BicepsFlexed,
+  ArrowRightToLine,
+  ArrowLeftToLine,
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -37,14 +44,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../components/ui/popover";
-import { getRandomValues } from "crypto";
-interface Dataset {
-  id: number;
-  data: string[]; // Each dataset is an array of strings
-}
+
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
-  dataSteam: (data: number[]) => void;
+  datastream: (data: number[]) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
@@ -56,18 +59,24 @@ interface ConnectionProps {
   currentValue: number;
   setCurrentValue: React.Dispatch<React.SetStateAction<number>>;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
+  SetcurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
+  currentSnapshot: number;
   Zoom: number;
+  snapShotRef: React.RefObject<boolean[]>;
 }
 
 const Connection: React.FC<ConnectionProps> = ({
   onPauseChange,
-  dataSteam,
+  datastream,
   Connection,
   setSelectedBits,
   isDisplay,
   setIsDisplay,
   setCanvasCount,
   canvasCount,
+  SetcurrentSnapshot,
+  currentSnapshot,
+  snapShotRef,
   SetZoom,
   Zoom,
   currentValue,
@@ -87,8 +96,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
   const [clickCount, setClickCount] = useState(0); // Track how many times the left arrow is clicked
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
-  const startTimeRef = useRef<number | null>(null); // Ref to store the start time of the recording
-  const bufferRef = useRef<number[][]>([]); // Ref to store the data temporary buffer during recording
+  const [popoverVisible, setPopoverVisible] = useState(false);
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
@@ -209,8 +217,8 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.success("Recording set to no time limit");
     } else {
       // If the time is not null, set the end time
-      const newEndTimeSeconds = minutes * 60;
-      if (newEndTimeSeconds <= elapsedTime) {
+      const newEndTimeSeconds = minutes * 60 * 1000;
+      if (newEndTimeSeconds <= recordingElapsedTime) {
         // Check if the end time is greater than the current elapsed time
         toast.error("End time must be greater than the current elapsed time");
       } else {
@@ -410,7 +418,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
 
-        if (usbProductId === 29987) {
+        if (usbProductId === 29987|| usbProductId === 67) {
           baudRate = 115200;
         }
 
@@ -429,7 +437,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const portInfo = port.getInfo();
         const usbProductId = portInfo.usbProductId ?? 0;
 
-        if (usbProductId === 29987) {
+        if (usbProductId === 29987|| usbProductId === 67) {
           baudRate = 115200;
         }
 
@@ -440,6 +448,7 @@ const Connection: React.FC<ConnectionProps> = ({
       setIsConnected(true);
       onPauseChange(true);
       setIsDisplay(true);
+      setCanvasCount(1);
       isConnectedRef.current = true;
       portRef.current = port;
 
@@ -449,9 +458,11 @@ const Connection: React.FC<ConnectionProps> = ({
         const writer = port.writable?.getWriter();
         if (writer) {
           // Query the board for its name
-          // Query the board for information
+          // Query the board for 
+          writerRef.current = writer;
+
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-          await writer.write(whoAreYouMessage);
+          await writerRef.current.write(whoAreYouMessage);
           setTimeout(() => writer.write(whoAreYouMessage), 2000);
 
           const { value, done } = await reader.read();
@@ -491,8 +502,8 @@ const Connection: React.FC<ConnectionProps> = ({
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
-
       await navigator.wakeLock.request("screen");
+
     } catch (error) {
       await disconnectDevice();
       console.error("Error connecting to device:", error);
@@ -538,20 +549,25 @@ const Connection: React.FC<ConnectionProps> = ({
           } catch (error) {
             console.error("Failed to send STOP command:", error);
           }
-          writerRef.current.releaseLock();
-          writerRef.current = null;
+          if (writerRef.current) {
+            writerRef.current.releaseLock();
+            writerRef.current = null;
+          }
         }
-
+        snapShotRef.current?.fill(false);
         if (readerRef.current) {
           try {
             await readerRef.current.cancel();
           } catch (error) {
             console.error("Failed to cancel reader:", error);
           }
-          readerRef.current.releaseLock();
-          readerRef.current = null;
+          if (readerRef.current) {
+            readerRef.current.releaseLock();
+            readerRef.current = null;
+          }
         }
 
+        // Close port
         if (portRef.current.readable) {
           await portRef.current.close();
         }
@@ -573,6 +589,8 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
+  
+
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
   const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
   const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
@@ -688,18 +706,30 @@ const Connection: React.FC<ConnectionProps> = ({
               // Validate the packet by checking the sync and end bytes
               const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
               const channelData: number[] = []; // Array to store the extracted channel data
-              for (let channel = 0; channel < NUM_CHANNELS; channel++) {
-                // Loop through each channel in the packet
-                const highByte = packet[channel * 2 + HEADER_LENGTH]; // Extract the high byte for the channel
-                const lowByte = packet[channel * 2 + HEADER_LENGTH + 1]; // Extract the low byte for the channel
-                const value = (highByte << 8) | lowByte; // Combine high and low bytes to get the channel value
-                channelData.push(value); // Convert the value to string and store it in the array
-              }
               const counter = packet[2]; // Extract the counter value from the packet
               channelData.push(counter); // Add the counter to the channel data
-              dataSteam(channelData); // Pass the channel data to the LineData function for further processing
+              for (let channel = 0; channel < NUM_CHANNELS; channel++) {
+                const highByte = packet[channel * 2 + HEADER_LENGTH];
+                const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
+                const value = (highByte << 8) | lowByte;
 
+                channelData.push(
+                  notchFilters[channel].process(
+                    EXGFilters[channel].process(
+                      value,
+                      appliedEXGFiltersRef.current[channel]
+                    ),
+                    appliedFiltersRef.current[channel]
+                  )
+                );
+
+              }
+              datastream(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
+                const channeldatavalues = channelData
+                  .slice(0, canvasnumbersRef.current + 1)
+                  .map((value) => (value !== undefined ? value : null))
+                  .filter((value): value is number => value !== null); // Filter out null values
                 // Check if recording is enabled
                 recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
 
@@ -798,22 +828,22 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const deleteFilesByFilename = async (filename: string) => {
     try {
-      const dbRequest = indexedDB.open("adcReadings");
+      const dbRequest = indexedDB.open("ChordsRecordings");
 
       dbRequest.onsuccess = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
-        const transaction = db.transaction("adcReadings", "readwrite");
-        const store = transaction.objectStore("adcReadings");
+        const transaction = db.transaction("ChordsRecordings", "readwrite");
+        const store = transaction.objectStore("ChordsRecordings");
 
-        // Check if the index exists
-        if (!store.indexNames.contains("sessionId")) {
-          throw new Error("Index 'sessionId' does not exist.");
+        // Check if the "filename" index exists
+        if (!store.indexNames.contains("filename")) {
+          console.error("Index 'filename' does not exist.");
+          toast.error("Unable to delete files: index not found.");
+          return;
         }
 
-        const index = store.index("sessionId");
-
-        // Open cursor with KeyRange
-        const deleteRequest = index.openCursor(IDBKeyRange.only(sessionId));
+        const index = store.index("filename");
+        const deleteRequest = index.openCursor(IDBKeyRange.only(filename));
 
         // Make this callback async
         deleteRequest.onsuccess = async (event) => {
@@ -831,7 +861,8 @@ const Connection: React.FC<ConnectionProps> = ({
         };
 
         deleteRequest.onerror = () => {
-          throw new Error("Failed to delete data.");
+          console.error("Error during delete operation.");
+          toast.error("Failed to delete the file. Please try again.");
         };
 
         transaction.oncomplete = () => {
@@ -839,16 +870,18 @@ const Connection: React.FC<ConnectionProps> = ({
         };
 
         transaction.onerror = () => {
-          throw new Error("Transaction failed.");
+          console.error("Transaction failed during deletion.");
+          toast.error("Failed to delete the file. Please try again.");
         };
       };
 
       dbRequest.onerror = () => {
-        throw new Error("Failed to open database.");
+        console.error("Failed to open IndexedDB database.");
+        toast.error("An error occurred while accessing the database.");
       };
     } catch (error) {
-      // Handle errors and show toast notification if needed
-      toast.error("An error occurred during deletion.");
+      console.error("Error occurred during file deletion:", error);
+      toast.error("An unexpected error occurred. Please try again.");
     }
   };
 
@@ -925,7 +958,7 @@ const Connection: React.FC<ConnectionProps> = ({
           <div className="flex items-center space-x-1 w-min">
             <button className="flex items-center justify-center px-1 py-2   select-none min-w-20 bg-primary text-destructive whitespace-nowrap rounded-xl"
             >
-              {formatTime(elapsedTime)}
+              {formatTime(recordingElapsedTime)}
             </button>
             <Separator orientation="vertical" className="bg-primary h-9 " />
             <div>
@@ -1019,7 +1052,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        {/* Zoom  */}
+        {/* Autoscale/Bit selection */}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
@@ -1030,7 +1063,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-r-none"
                       onClick={decreaseZoom}
-                      disabled={Zoom === 1 || !isDisplay}
+                      disabled={Zoom === 1}
                     >
                       <ZoomOut size={16} />
                     </Button>
@@ -1048,7 +1081,6 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="flex items-center justify-center px-3 py-2  rounded-none select-none min-w-12"
                       onClick={toggleZoom}
-                      disabled={!isDisplay}
                     >
                       {Zoom}x
                     </Button>
@@ -1066,7 +1098,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseZoom}
-                      disabled={Zoom === 10 || !isDisplay}
+                      disabled={Zoom === 10}
 
                     >
                       <ZoomIn size={16} />
@@ -1082,29 +1114,44 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-
         {/* Display (Play/Pause) button with tooltip */}
         {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button className="rounded-xl" onClick={togglePause}>
-                  {isDisplay ? (
-                    <Pause className="h-5 w-5" />
-                  ) : (
-                    <Play className="h-5 w-5" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+          <div className="flex items-center gap-0.5 mx-0 px-0">
+            <Button
+              className="rounded-xl rounded-r-none"
+              onClick={handlePrevSnapshot}
+              disabled={isDisplay || clickCount >= enabledClicks}
 
+            >
+              <ArrowLeftToLine size={16} />
+            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button className="rounded-xl rounded-l-none rounded-r-none" onClick={togglePause}>
+                    {isDisplay ? (
+                      <Pause className="h-5 w-5" />
+                    ) : (
+                      <Play className="h-5 w-5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button
+              className="rounded-xl rounded-l-none"
+              onClick={handleNextSnapshot}
+              disabled={isDisplay || clickCount == 0}
+            >
+              <ArrowRightToLine size={16} />
+            </Button>
+          </div>
+        )}
         {/* Record button with tooltip */}
         {isConnected && (
           <TooltipProvider>
@@ -1155,12 +1202,15 @@ const Connection: React.FC<ConnectionProps> = ({
                           </span>
 
                           <div className="flex space-x-2">
+                            {/* Save file by filename */}
                             <Button
                               onClick={() => saveDataByFilename(dataset, canvasCount)}
                               className="rounded-xl px-4"
                             >
                               <Download size={16} />
                             </Button>
+
+                            {/* Delete file by filename */}
                             <Button
                               onClick={() => {
                                 deleteFilesByFilename(dataset);
@@ -1172,13 +1222,20 @@ const Connection: React.FC<ConnectionProps> = ({
 
                           </div>
                         </div>
-                      ))}
+                      ))
+                    ) : (
+                      <p className="text-black ">No datasets available</p>
+                    )}
+
+
+                    {/* Download all as ZIP and delete all options */}
+                    {datasets.length > 0 && (
                       <div className="flex justify-between mt-4">
                         <Button
                           onClick={saveAllDataAsZip}
                           className="rounded-xl p-2 w-full mr-2"
                         >
-                          Download Zip
+                          Download All as Zip
                         </Button>
                         <Button
                           onClick={deleteAllDataFromIndexedDB}
@@ -1187,12 +1244,250 @@ const Connection: React.FC<ConnectionProps> = ({
                           Delete All
                         </Button>
                       </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </TooltipProvider>
+        )}
+
+        {isConnected && (
+          <Popover
+            open={isFilterPopoverOpen}
+            onOpenChange={setIsFilterPopoverOpen}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                className="flex items-center justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
+                disabled={!isDisplay}
+
+              >
+                Filter
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-50 p-4 mx-4 mb-2">
+              <div className="flex flex-col ">
+                <div className="flex items-center pb-2 ">
+                  {/* Filter Name */}
+                  <div className="text-sm font-semibold w-12"><ReplaceAll size={20} /></div>
+                  {/* Buttons */}
+                  <div className="flex space-x-2">
+                    <div className="flex items-center border border-input rounded-xl mx-0 px-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeEXGFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
+                        className={`rounded-xl rounded-r-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 0
+                            ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <CircleOff size={17} />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 4)}
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <BicepsFlexed size={17} />
+                      </Button> <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 3)}
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <Brain size={17} />
+                      </Button> <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <Heart size={17} />
+                      </Button> <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
+                        className={`rounded-xl rounded-l-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <Eye size={17} />
+                      </Button>
+                    </div>
+                    <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeNotchFromAllChannels([0, 1, 2, 3, 4, 5])}
+                        className={`rounded-xl rounded-r-none border-0
+                          ${Object.keys(appliedFiltersRef.current).length === 0
+                            ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        <CircleOff size={17} />
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
+                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                          ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 1)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        50Hz
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
+                        className={`rounded-xl rounded-l-none border-0
+                          ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 2)
+                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                            : "bg-white-500" // Active background
+                          }`}
+                      >
+                        60Hz
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col space-y-2">
+                  {["CH1", "CH2", "CH3", "CH4", "CH5", "CH6"].map((filterName, index) => (
+                    <div key={filterName} className="flex items-center">
+                      {/* Filter Name */}
+                      <div className="text-sm font-semibold w-12">{filterName}</div>
+                      {/* Buttons */}
+                      <div className="flex space-x-2">
+                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeEXGFilter(index)}
+                            className={`rounded-xl rounded-r-none border-l-none border-0
+                              ${appliedEXGFiltersRef.current[index] === undefined
+                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <CircleOff size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionEXG(index, 4)}
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                              ${appliedEXGFiltersRef.current[index] === 4
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <BicepsFlexed size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionEXG(index, 3)}
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                              ${appliedEXGFiltersRef.current[index] === 3
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <Brain size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionEXG(index, 1)}
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                              ${appliedEXGFiltersRef.current[index] === 1
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <Heart size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelectionEXG(index, 2)}
+                            className={`rounded-xl rounded-l-none border-0
+                                      ${appliedEXGFiltersRef.current[index] === 2
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <Eye size={17} />
+                          </Button>
+                        </div>
+                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeNotchFilter(index)}
+                            className={`rounded-xl rounded-r-none border-0
+                              ${appliedFiltersRef.current[index] === undefined
+                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            <CircleOff size={17} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelection(index, 1)}
+                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                              ${appliedFiltersRef.current[index] === 1
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                : "bg-white-500" // Active background
+                              }`}
+                          >
+                            50Hz
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFrequencySelection(index, 2)}
+                            className={
+                              `rounded-xl rounded-l-none border-0 ${appliedFiltersRef.current[index] === 2
+                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white "
+                                : "bg-white-500 animate-fade-in-right"
+                              }`
+                            }
+                          >
+                            60Hz
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
 
         {/* Canvas control buttons with tooltip */}
@@ -1250,14 +1545,14 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseCanvas}
-                      disabled={canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6) || !isDisplay || isRecordButtonDisabled}
+                      disabled={canvasCount >=  maxCanvasCountRef.current || !isDisplay || isRecordButtonDisabled}
                     >
                       <Plus size={16} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {canvasCount >= 6
+                      {canvasCount >= maxCanvasCountRef.current
                         ? "Maximum Channels Reached"
                         : "Increase Channel"}
                     </p>
