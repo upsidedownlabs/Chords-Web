@@ -11,15 +11,15 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import { Separator } from "../components/ui/separator";
+import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Dialog, DialogContent, DialogTrigger } from "../components/ui/dialog";
 import { CircleAlert } from "lucide-react";
 import { Button } from "../components/ui/button";
 import Link from "next/link";
+import { VERSION } from "../../Version";
 import Chords from "./LandingComp/Chords";
 import { Badge } from "./ui/badge";
-import packageJson from '../../package.json';
 
 const contributors = [
   {
@@ -72,7 +72,7 @@ export default function Contributors() {
           <CardHeader className="p-0 mb-2">
             <CardTitle className="font-bold items-center gap-2 flex mb-1">
               <Chords />
-              <Badge className="text-xs bg-muted-foreground">v{packageJson.version}</Badge>
+              <Badge className="text-xs bg-muted-foreground">v{VERSION}</Badge>
             </CardTitle>
             <div className="flex flex-col justify-center items-center">
               <p className="text-2xl font-semibold">Contributors</p>
