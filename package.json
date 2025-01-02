@@ -1,6 +1,6 @@
 {
-  "name": "Chords",
-  "version": "0.1.0",
+  "name": "chords",
+  "version": "2.3.4a",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -38,8 +38,8 @@
     "framer-motion": "^11.5.4",
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
-    "lucide-react": "^0.383.0",
-    "next": "14.2.10",
+    "lucide-react": "^0.460.0",
+    "next": "14.2.20",
     "next-themes": "^0.3.0",
     "react": "^18",
     "react-dom": "^18",

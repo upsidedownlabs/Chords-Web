@@ -15,6 +15,7 @@ interface CanvasProps {
   selectedBits: BitSelection;
   isDisplay: boolean;
   canvasCount?: number;
+  currentValue?: number;
   Zoom: number;
 }
 interface Batch {
@@ -29,6 +30,7 @@ const Canvas = forwardRef(
       selectedBits,
       isDisplay,
       canvasCount = 6, // default value in case not provided
+      currentValue = 4,
       Zoom,
     }: CanvasProps,
     ref
@@ -37,29 +39,88 @@ const Canvas = forwardRef(
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const [numChannels, setNumChannels] = useState<number>(canvasCount);
+    const numXRef = useRef<number>(2000); // To track the calculated value
     const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
+    const [samplingRate, setSamplingRate] = useState<number>(500);
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
     const [lines, setLines] = useState<WebglLine[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
-    const samplingRate = 500; // Set the sampling rate in Hz
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
-    let numX: number;
+    const array3DRef = useRef<number[][][]>(
+      Array.from({ length: 6 }, () =>
+        Array.from({ length: 6 }, () => Array())
+      )
+    );
+    const activebuffer = useRef(0); // Initialize useRef with 0
+    const indicesRef = useRef<number[]>([]); // Use `useRef` for indices
 
+    //select point
     const getpoints = useCallback((bits: BitSelection): number => {
       switch (bits) {
         case "ten":
-          return samplingRate * 2;
+          return 250;
+        case "twelve":
         case "fourteen":
-          return samplingRate * 4;
+        case "sixteen":
+          return 500;
         default:
-          return 0; // Or any other fallback value you'd like
+          return 500; // Default fallback
       }
     }, []);
-    numX = getpoints(selectedBits);
+
+
+    useEffect(() => {
+      numXRef.current = (getpoints(selectedBits) * currentValue);
+
+    }, [currentValue]);
+
+    const prevCanvasCountRef = useRef<number>(canvasCount);
+
+    const processIncomingData = (incomingData: number[]) => {
+      for (let i = 0; i < canvasCount; i++) {
+
+        if (prevCanvasCountRef.current !== canvasCount) {
+          // Clear the entire buffer if canvasCount changes
+          for (let bufferIndex = 0; bufferIndex < 6; bufferIndex++) {
+            array3DRef.current[bufferIndex] = Array.from({ length: canvasCount }, () => []);
+            snapShotRef.current[bufferIndex] = false;
+          }
+          prevCanvasCountRef.current = canvasCount;
+        }
+        if (array3DRef.current[activebuffer.current][i].length >= numXRef.current) {
+          array3DRef.current[activebuffer.current][i] = [];
+        }
+        array3DRef.current[activebuffer.current][i].push(incomingData[i + 1]);
+
+        if (array3DRef.current[activebuffer.current][i].length < numXRef.current && !pauseRef.current) {
+          array3DRef.current[activebuffer.current][i] = [];
+        }
+      }
+
+
+      if (array3DRef.current[activebuffer.current][0].length >= numXRef.current) {
+        snapShotRef.current[activebuffer.current] = true;
+        activebuffer.current = (activebuffer.current + 1) % 6;
+        snapShotRef.current[activebuffer.current] = false;
+      }
+      indicesRef.current = [];
+      for (let i = 1; i < 6; i++) {
+        indicesRef.current.push((activebuffer.current - i + 6) % 6);
+      }
+    };
+
     useEffect(() => {
       setNumChannels(canvasCount);
     }, [canvasCount]);
+
+
+    useEffect(() => {
+      // Reset when currentValue changes
+      currentSweepPos.current = new Array(numChannels).fill(0);
+      sweepPositions.current = new Array(numChannels).fill(0);
+    }, [currentValue]);
+
 
     useImperativeHandle(
       ref,
@@ -70,7 +131,11 @@ const Canvas = forwardRef(
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
           }
-          updatePlots(data, Zoom);
+
+          if (pauseRef.current) {
+            processIncomingData(data);
+            updatePlots(data, Zoom);
+          }
           if (previousCounter !== null) {
             // If there was a previous counter value
             const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
@@ -84,7 +149,7 @@ const Canvas = forwardRef(
           previousCounter = data[6]; // Update the previous counter with the current counter
         },
       }),
-      [Zoom, numChannels]
+      [Zoom, numChannels, currentValue]
     );
 
     const createCanvases = () => {
@@ -121,7 +186,7 @@ const Canvas = forwardRef(
       const opacityLightMajor = "0.4"; // Opacity for every 5th line in light theme
       const opacityLightMinor = "0.1"; // Opacity for other lines in light theme
       const distanceminor = samplingRate * 0.04;
-      const numGridLines = numX / distanceminor;
+      const numGridLines = getpoints(selectedBits) * 4 / distanceminor;
       for (let j = 1; j < numGridLines; j++) {
         const gridLineX = document.createElement("div");
         gridLineX.className = "absolute bg-[rgb(128,128,128)]";
@@ -177,10 +242,10 @@ const Canvas = forwardRef(
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
-        const line = new WebglLine(getLineColor(i, theme), numX);
+        const line = new WebglLine(getLineColor(i, theme), numXRef.current);
         wglp.gOffsetY = 0;
         line.offsetY = 0;
-        line.lineSpaceX(-1, 2 / numX);
+        line.lineSpaceX(-1, 2 / numXRef.current);
 
         wglp.addLine(line);
         newLines.push(line);
@@ -248,19 +313,19 @@ const Canvas = forwardRef(
           line.setY(currentSweepPos.current[i] % line.numPoints, chData);
 
           // Clear the next point to create a gap (optional, for visual effect)
-          const clearPosition = (currentSweepPos.current[i] + (numX / 100)) % line.numPoints;
+          const clearPosition = Math.ceil((currentSweepPos.current[i] + (numXRef.current / 100)) % line.numPoints);
           line.setY(clearPosition, NaN);
 
           // Increment the sweep position for the current line
           sweepPositions.current[i] = (currentSweepPos.current[i] + 1) % line.numPoints;
         });
       },
-      [lines, wglPlots, numChannels, theme]
+      [lines, wglPlots, numChannels, theme, currentValue]
     );
 
     useEffect(() => {
       createCanvases();
-    }, [numChannels, theme]);
+    }, [numChannels, theme, currentValue]);
 
     const getValue = useCallback((bits: BitSelection): number => {
       switch (bits) {
@@ -280,25 +345,53 @@ const Canvas = forwardRef(
         wglPlots.forEach((wglp) => wglp.update());
         requestAnimationFrame(animate);
       }
-    }, [wglPlots, pauseRef]);
+    }, [currentSnapshot, numXRef.current, pauseRef.current, wglPlots, Zoom]);
 
-    useEffect(() => {
-      if (pauseRef.current) {
-        requestAnimationFrame(animate);
+
+    const updatePlotSnapshot = (currentSnapshot: number) => {
+      for (let i = 0; i < canvasCount; i++) {
+        wglPlots.forEach((wglp, index) => {
+          if (wglp) {
+            try {
+              wglp.gScaleY = Zoom; // Adjust the zoom value
+            } catch (error) {
+              console.error(
+                `Error setting gScaleY for WebglPlot instance at index ${index}:`,
+                error
+              );
+            }
+          } else {
+            console.warn(`WebglPlot instance at index ${index} is undefined.`);
+          }
+        });
+        if (
+          array3DRef.current &&
+          indicesRef.current &&
+          indicesRef.current[currentSnapshot] !== undefined &&
+          array3DRef.current[indicesRef.current[currentSnapshot]] !== undefined
+        ) {
+          const yArray = new Float32Array(array3DRef.current[indicesRef.current[currentSnapshot]][i]);
+          // Check if the line exists
+          const line = linesRef.current[i];
+          if (line) {
+            line.shiftAdd(yArray); // Efficiently add new points
+          } else {
+            console.error(`Line at index ${i} is undefined or null.`);
+          }
+
+        } else {
+          console.warn("One of the references is undefined or invalid");
+        }
+
+
       }
-    }, [pauseRef.current, animate]);
+      wglPlots.forEach((wglp) => wglp.update()); // Redraw the plots
+    };
 
     useEffect(() => {
-      const handleResize = () => {
-        createCanvases();
-      };
+      requestAnimationFrame(animate);
 
-      window.addEventListener("resize", handleResize);
-
-      return () => {
-        window.removeEventListener("resize", handleResize);
-      };
-    }, [createCanvases,]);
+    }, [animate]);
 
     return (
       <main className=" flex flex-col flex-[1_1_0%] min-h-80 bg-highlight  rounded-2xl m-4 relative"
