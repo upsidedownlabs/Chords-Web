@@ -418,7 +418,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
 
-        if (usbProductId === 29987) {
+        if (usbProductId === 29987|| usbProductId === 67) {
           baudRate = 115200;
         }
 
@@ -437,7 +437,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const portInfo = port.getInfo();
         const usbProductId = portInfo.usbProductId ?? 0;
 
-        if (usbProductId === 29987) {
+        if (usbProductId === 29987|| usbProductId === 67) {
           baudRate = 115200;
         }
 
@@ -458,9 +458,11 @@ const Connection: React.FC<ConnectionProps> = ({
         const writer = port.writable?.getWriter();
         if (writer) {
           // Query the board for its name
-          // Query the board for information
+          // Query the board for 
+          writerRef.current = writer;
+
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-          await writer.write(whoAreYouMessage);
+          await writerRef.current.write(whoAreYouMessage);
           setTimeout(() => writer.write(whoAreYouMessage), 2000);
 
           const { value, done } = await reader.read();
@@ -587,6 +589,8 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
+  
+
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
   const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
   const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
@@ -1541,14 +1545,14 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseCanvas}
-                      disabled={canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6) || !isDisplay || isRecordButtonDisabled}
+                      disabled={canvasCount >=  maxCanvasCountRef.current || !isDisplay || isRecordButtonDisabled}
                     >
                       <Plus size={16} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6)
+                      {canvasCount >= maxCanvasCountRef.current
                         ? "Maximum Channels Reached"
                         : "Increase Channel"}
                     </p>

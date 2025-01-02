@@ -25,7 +25,7 @@ Chords is an application based on Web Serial connection, you can connect [Compat
 3.  Open Chords in a web browser.
 4.  Click the "Connect" button to establish a connection with the Arduino and stream.
 5.  Click the "Zoom" button to zoom in on data visualization.
-6.  Click the "Play/Pause" to control data flow and navigate frames with forward/backward buttons.
+6.  Click the "Play/Pause" button to stop and start data on screen.
 7.  Click the "Record" button to record data.
 8.  Click the "download" button to download the recorded data.
 9.  Click the "Delete" button to delete recorded data.
@@ -74,7 +74,6 @@ Chords is an application based on Web Serial connection, you can connect [Compat
 ## Contributors
 
 Thank you for contributing to our project! Your support is invaluable in creating & enhancing Chords-Web and making it even better. 😊
-
 
 <center>
 <a href="https://github.com/upsidedownlabs/Chords-Web/graphs/contributors">
