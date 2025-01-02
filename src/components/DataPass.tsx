@@ -22,8 +22,8 @@ const DataPass = () => {
   const handlePauseChange = (newPauseState: boolean) => {
     pauseRef.current = newPauseState;
   };
-  const snapShotRef = useRef<boolean[]>(Array(6).fill(false));
-  const datastream = useCallback((data: number[]) => {
+
+  const datasctream = useCallback((data: number[]) => {
 
     if (canvasRef.current) {
       canvasRef.current.updateData(data); // Assuming data is the new data to be displayed
@@ -38,7 +38,7 @@ const DataPass = () => {
         );
       }
     }
-    previousCounter = data[0]; // Update the previous counter with the current counter
+    previousCounter =data[0]; // Update the previous counter with the current counter
   }, []);
   return (
     <div className="flex flex-col h-screen m-0 p-0 bg-g ">
@@ -60,9 +60,8 @@ const DataPass = () => {
         <Steps />
       )}
       <Connection
-        onPauseChange={handlePauseChange}
-        snapShotRef={snapShotRef}
-        datastream={datastream}
+      onPauseChange={handlePauseChange}
+        datasctream={datasctream}
         Connection={setIsConnected}
         selectedBits={selectedBits}
         setSelectedBits={setSelectedBits}

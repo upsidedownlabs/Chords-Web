@@ -2,8 +2,8 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { EXGFilter, Notch } from './filters';
 import JSZip from 'jszip';
+
 import {
   Cable,
   Circle,
@@ -13,6 +13,7 @@ import {
   Trash2,
   Download,
   FileArchive,
+  FileDown,
   Pause,
   Play,
   Plus,
@@ -47,7 +48,7 @@ import {
 
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
-  datastream: (data: number[]) => void;
+  datasctream: (data: number[]) => void;
   Connection: (isConnected: boolean) => void;
   selectedBits: BitSelection;
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
@@ -65,7 +66,7 @@ interface ConnectionProps {
 
 const Connection: React.FC<ConnectionProps> = ({
   onPauseChange,
-  datastream,
+  datasctream,
   Connection,
   selectedBits,
   setSelectedBits,
@@ -91,13 +92,12 @@ const Connection: React.FC<ConnectionProps> = ({
   const [hasData, setHasData] = useState(false);
   const [recData, setrecData] = useState(false);
   const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
-  const [elapsedTime, setElapsedTime] = useState<number>(0); // State to store the recording duration
   const recordingStartTime = useRef<number>(0);
+  // const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
-  const [popoverVisible, setPopoverVisible] = useState(false);
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
-  const indexedDBRef = useRef<IDBDatabase | null>(null);
+  const [popoverVisible, setPopoverVisible] = useState(false);
   const [ifBits, setifBits] = useState<BitSelection>("auto");
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
@@ -108,16 +108,16 @@ const Connection: React.FC<ConnectionProps> = ({
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(
     null
   );
-  const buffer: number[] = []; // Buffer to store incoming data
-  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
+  const serialBuffer: number[] = []; // Serial buffer to store incoming data
+
   const NUM_BUFFERS = 4;
   const MAX_BUFFER_SIZE = 500;
   const recordingBuffers = Array(NUM_BUFFERS)
     .fill(null)
     .map(() => [] as number[][]);
-  const fillingindex = useRef<number>(0); // Initialize useRef with 0
 
   let activeBufferIndex = 0;
+
   const togglePause = () => {
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
@@ -129,6 +129,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const increaseCanvas = () => {
     if (canvasCount < (detectedBitsRef.current == "twelve" ? 3 : 6)) {
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
+      canvasnumbersRef.current = canvasCount;
     }
   };
 
@@ -162,17 +163,21 @@ const Connection: React.FC<ConnectionProps> = ({
   const decreaseCanvas = () => {
     if (canvasCount > 1) {
       setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
+      canvasnumbersRef.current = canvasCount;
     }
   };
   const toggleShowAllChannels = () => {
     if (canvasCount === (detectedBitsRef.current == "twelve" ? 3 : 6)) {
       setCanvasCount(1); // If canvasCount is 6, reduce it to 1
       setShowAllChannels(false);
+      canvasnumbersRef.current = canvasCount;
     } else {
       setCanvasCount(detectedBitsRef.current == "twelve" ? 3 : 6); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
+      canvasnumbersRef.current = canvasCount;
     }
   };
+
 
   const increaseZoom = () => {
     if (Zoom < 10) {
@@ -195,8 +200,8 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-
   useEffect(() => {
+    console.log("Canvas count updated:", canvasCount);
     canvasnumbersRef.current = canvasCount; // Sync the ref with the state
   }, [canvasCount]);
 
@@ -399,9 +404,6 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Writable stream not available");
       }
-      const data = await getAllDataFromIndexedDB();
-      setDatasets(data); // Update datasets with the latest data
-
       readData();
       await navigator.wakeLock.request("screen");
 
@@ -462,65 +464,16 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
-  const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
-  const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
-  const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
-  const [, forceEXGUpdate] = React.useReducer((x) => x + 1, 0);
+  useEffect(() => {
+    // Fetch all datasets on component mount
+    const fetchData = async () => {
+      const data = await getAllDataFromIndexedDB();
+      setDatasets(data); // Update state with the data
+    };
 
-  const removeEXGFilter = (channelIndex: number) => {
-    delete appliedEXGFiltersRef.current[channelIndex]; // Remove the filter for the channel
-    forceEXGUpdate(); // Trigger re-render
+    fetchData();
+  }, []); // Run only once when the component mounts
 
-  };
-
-  // Function to handle frequency selection
-  const handleFrequencySelectionEXG = (channelIndex: number, frequency: number) => {
-    appliedEXGFiltersRef.current[channelIndex] = frequency; // Update the filter for the channel
-    forceEXGUpdate(); //Trigger re-render
-
-  };
-
-  // Function to set the same filter for all channels
-  const applyEXGFilterToAllChannels = (channels: number[], frequency: number) => {
-    channels.forEach((channelIndex) => {
-      appliedEXGFiltersRef.current[channelIndex] = frequency; // Set the filter for the channel
-    });
-    forceEXGUpdate(); // Trigger re-render
-
-  };
-  // Function to remove the filter for all channels
-  const removeEXGFilterFromAllChannels = (channels: number[]) => {
-    channels.forEach((channelIndex) => {
-      delete appliedEXGFiltersRef.current[channelIndex]; // Remove the filter for the channel
-    });
-    forceEXGUpdate(); // Trigger re-render
-
-  };
-  const removeNotchFilter = (channelIndex: number) => {
-    delete appliedFiltersRef.current[channelIndex]; // Remove the filter for the channel
-    forceUpdate(); // Trigger re-render
-  };
-  // Function to handle frequency selection
-  const handleFrequencySelection = (channelIndex: number, frequency: number) => {
-    appliedFiltersRef.current[channelIndex] = frequency; // Update the filter for the channel
-    forceUpdate(); //Trigger re-render
-  };
-
-  // Function to set the same filter for all channels
-  const applyFilterToAllChannels = (channels: number[], frequency: number) => {
-    channels.forEach((channelIndex) => {
-      appliedFiltersRef.current[channelIndex] = frequency; // Set the filter for the channel
-    });
-    forceUpdate(); // Trigger re-render
-  };
-
-  // Function to remove the filter for all channels
-  const removeNotchFromAllChannels = (channels: number[]) => {
-    channels.forEach((channelIndex) => {
-      delete appliedFiltersRef.current[channelIndex]; // Remove the filter for the channel
-    });
-    forceUpdate(); // Trigger re-render
-  };
 
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
@@ -550,69 +503,70 @@ const Connection: React.FC<ConnectionProps> = ({
         }
         if (streamData) {
           const { value } = streamData; // Destructure the stream data to get its value
-          buffer.push(...value); // Add the incoming data to the buffer
+          serialBuffer.push(...value); // Add the incoming data to the serial buffer
         }
 
         // Process packets while the buffer contains at least one full packet
-        while (buffer.length >= PACKET_LENGTH) {
-          // Find the index of the synchronization bytes in the buffer
-          const syncIndex = buffer.findIndex(
+        while (serialBuffer.length >= PACKET_LENGTH) {
+          // Find the index of the synchronization bytes in the serial buffer
+          const syncIndex = serialBuffer.findIndex(
             (byte, index) =>
-              byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2
+              byte === SYNC_BYTE1 && serialBuffer[index + 1] === SYNC_BYTE2
           );
 
           if (syncIndex === -1) {
             // If no sync bytes are found, clear the buffer and continue
-            buffer.length = 0; // Clear the buffer
+            serialBuffer.length = 0; // Clear the buffer
             continue;
           }
 
-          if (syncIndex + PACKET_LENGTH <= buffer.length) {
+          if (syncIndex + PACKET_LENGTH <= serialBuffer.length) {
             // Check if a full packet is available in the buffer
             const endByteIndex = syncIndex + PACKET_LENGTH - 1; // Calculate the index of the end byte
 
             if (
-              buffer[syncIndex] === SYNC_BYTE1 &&
-              buffer[syncIndex + 1] === SYNC_BYTE2 &&
-              buffer[endByteIndex] === END_BYTE
+              serialBuffer[syncIndex] === SYNC_BYTE1 &&
+              serialBuffer[syncIndex + 1] === SYNC_BYTE2 &&
+              serialBuffer[endByteIndex] === END_BYTE
             ) {
               // Validate the packet by checking the sync and end bytes
-              const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
+              const packet = serialBuffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
               const channelData: number[] = []; // Array to store the extracted channel data
               const counter = packet[2]; // Extract the counter value from the packet
               channelData.push(counter); // Add the counter to the channel data
               for (let channel = 0; channel < NUM_CHANNELS; channel++) {
-                const highByte = packet[channel * 2 + HEADER_LENGTH];
-                const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
-                const value = (highByte << 8) | lowByte;
-
-                channelData.push(
-                  notchFilters[channel].process(
-                    EXGFilters[channel].process(
-                      value,
-                      appliedEXGFiltersRef.current[channel]
-                    ),
-                    appliedFiltersRef.current[channel]
-                  )
-                );
-
+                // Loop through each channel in the packet
+                const highByte = packet[channel * 2 + HEADER_LENGTH]; // Extract the high byte for the channel
+                const lowByte = packet[channel * 2 + HEADER_LENGTH + 1]; // Extract the low byte for the channel
+                const value = (highByte << 8) | lowByte; // Combine high and low bytes to get the channel value
+                channelData.push(value); // Convert the value to string and store it in the array
               }
-              datastream(channelData); // Pass the channel data to the LineData function for further processing
+
+              datasctream(channelData);
+
+              const channeldatavalues = channelData
+                .slice(0, canvasnumbersRef.current + 1)
+                .map((value) => (value !== undefined ? value : null))
+                .filter((value): value is number => value !== null); // Filter out null values
+
+
               if (isRecordingRef.current) {
                 const channeldatavalues = channelData
                   .slice(0, canvasnumbersRef.current + 1)
                   .map((value) => (value !== undefined ? value : null))
                   .filter((value): value is number => value !== null); // Filter out null values
                 // Check if recording is enabled
-                recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
-                // activeBuffer.push(channeldatavalues); // Store the channel data in the recording buffer
-
-                if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
+                const activeBuffer = recordingBuffers[activeBufferIndex]
+                activeBuffer.push(channeldatavalues); // Store the channel data in the recording buffer
+                if (activeBuffer.length >= MAX_BUFFER_SIZE) {
                   processBuffer(activeBufferIndex);
+                  recordingBuffers[activeBufferIndex] = []; 
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
-                fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
                 const elapsedTime = Date.now() - recordingStartTime.current;
+                // console.log(recordingStartTime);
+                // console.log("realtime",Date.now());
+                // console.log(elapsedTime);
                 setRecordingElapsedTime((prev) => {
                   if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
                     stopRecording();
@@ -634,9 +588,9 @@ const Connection: React.FC<ConnectionProps> = ({
                 }
               }
               previousCounter = counter; // Update the previous counter with the current counter
-              buffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
+              serialBuffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
             } else {
-              buffer.splice(0, syncIndex + 1); // If packet is incomplete, remove bytes up to the sync byte
+              serialBuffer.splice(0, syncIndex + 1); // If packet is incomplete, remove bytes up to the sync byte
             }
           } else {
             break; // If a full packet is not available, exit the loop and wait for more data
@@ -650,12 +604,11 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-
   const convertToCSV = (data: any[], canvasCount: number): string => {
     if (data.length === 0) return "";
 
     // Generate the header dynamically based on the number of channels
-    const header = ["Counter", ...Array.from({ length: canvasCount }, (_, i) => `Channel${i + 1}`)];
+    const header = ["counter", ...Array.from({ length: canvasCount }, (_, i) => `ch${i + 1}`)];
 
     // Create rows by mapping data to match the header fields
     const rows = data.map((item, index) =>
@@ -669,116 +622,98 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
 
-  // // Function to process a buffer and save it to IndexedDB
-  // const processBuffer = async (bufferIndex: number) => {
+  // Function to process a buffer and save it to IndexedDB
+  const processBuffer = async (bufferIndex: number) => {
+    const buffer = recordingBuffers[bufferIndex];
 
-  //   // If the buffer is empty, return early
-  //   if (recordingBuffers[bufferIndex].length === 0) return;
+    // If the buffer is empty, return early
+    if (buffer.length === 0) return;
 
-  //   // Attempt to write data to IndexedDB
-  //   if (currentFilenameRef.current) {
-  //     const success = await writeToIndexedDB(recordingBuffers[bufferIndex]);
-  //     if (success) {
-  //       // Clear the buffer after successful write
-  //     } else {
-  //       console.error("Failed to save buffer to IndexedDB. Retrying...");
-  //     }
-  //   } else {
-  //     console.log("Filename is not set");
-  //   }
-  // };
-  // let dbInstance: IDBDatabase | null = null;
-  const existingRecordRef = useRef<any | undefined>(undefined);
-  // const getDBInstance = async (): Promise<IDBDatabase> => {
-  //   if (!dbInstance) {
-  //     dbInstance = await openIndexedDB();
-  //     console.log(dbInstance);
-  //   }
-  //   return dbInstance;
-  // };
+    // Attempt to write data to IndexedDB
+    if (currentFilenameRef.current) {
+      const success = await writeToIndexedDB(buffer);
+      if (success) {
+        // Clear the buffer after successful write
+        buffer.length = 0;
+      } else {
+        console.error("Failed to save buffer to IndexedDB. Retrying...");
+      }
+    } else {
+      console.log("Filename is not set");
+    }
+  };
 
-  // const writeToIndexedDB = useCallback(
-  //   async (data: number[][]): Promise<boolean> => {
-  //     if (!indexedDB) {
-  //       console.error("IndexedDB is not supported in this browser.");
-  //       return false;
-  //     }
+  // Function to write data to IndexedDB
+  const writeToIndexedDB = useCallback(
+    async (data: number[][]): Promise<boolean> => {
+      if (!indexedDB) {
+        console.error("IndexedDB is not supported in this browser.");
+        return false;
+      }
 
-  //     if (!currentFilenameRef.current) {
-  //       console.error("Filename is not set. Cannot write to IndexedDB.");
-  //       return false;
-  //     }
+      console.log(
+        `Attempting to write data for ${canvasCount} channels. Current filename: ${currentFilenameRef.current}`
+      );
 
-  //     // Use a ref to track if we already checked for the record
-  //     if (!existingRecordRef.current) {
-  //       try {
-  //         const db = await getDBInstance(); // Reuse existing connection
-  //         const tx = db.transaction("ChordsRecordings", "readwrite");
-  //         const store = tx.objectStore("ChordsRecordings");
+      if (!currentFilenameRef.current) {
+        console.error("Filename is not set. Cannot write to IndexedDB.");
+        return false;
+      }
 
-  //         // Check if record exists and cache the result
-  //         const existingRecord = await new Promise<any | undefined>(
-  //           (resolve, reject) => {
-  //             const getRequest = store.get(currentFilenameRef.current!);
-  //             getRequest.onsuccess = () => resolve(getRequest.result);
-  //             getRequest.onerror = () => reject(getRequest.error);
-  //           }
-  //         );
+      try {
+        const db = await openIndexedDB();
+        const tx = db.transaction("ChordsRecordings", "readwrite");
+        const store = tx.objectStore("ChordsRecordings");
 
-  //         // Cache the record in a ref for later use
-  //         existingRecordRef.current = existingRecord;
+        // Check if record already exists
+        const existingRecord = await new Promise<any | undefined>(
+          (resolve, reject) => {
+            const getRequest = store.get(currentFilenameRef.current!);
+            getRequest.onsuccess = () => resolve(getRequest.result);
+            getRequest.onerror = () => reject(getRequest.error);
+          }
+        );
 
-  //       } catch (error) {
-  //         console.error("Error checking for existing record:", error);
-  //         return false;
-  //       }
-  //     }
+        if (existingRecord) {
+          existingRecord.content.push(...data);
+          await new Promise<void>((resolve, reject) => {
+            const putRequest = store.put(existingRecord);
+            putRequest.onsuccess = () => resolve();
+            putRequest.onerror = () => reject(putRequest.error);
+          });
 
-  //     // Now use the cached existingRecordRef
-  //     const existingRecord = existingRecordRef.current;
+          console.log(
+            `Data appended to existing file: ${currentFilenameRef.current}`
+          );
+        } else {
+          const newRecord = {
+            filename: currentFilenameRef.current!,
+            content: [...data],
+          };
 
-  //     try {
-  //       const db = await getDBInstance(); // Reuse existing connection
-  //       const tx = db.transaction("ChordsRecordings", "readwrite");
-  //       const store = tx.objectStore("ChordsRecordings");
+          await new Promise<void>((resolve, reject) => {
+            const putRequest = store.put(newRecord);
+            putRequest.onsuccess = () => resolve();
+            putRequest.onerror = () => reject(putRequest.error);
+          });
 
-  //       if (existingRecord) {
-  //         // If the record exists, append data to it
-  //         existingRecord.content.push(...data);
-  //         await new Promise<void>((resolve, reject) => {
-  //           const putRequest = store.put(existingRecord);
-  //           putRequest.onsuccess = () => resolve();
-  //           putRequest.onerror = () => reject(putRequest.error);
-  //         });
+          console.log(
+            `New file created and data saved: ${currentFilenameRef.current}`
+          );
+        }
 
-  //         // Data appended to existing record
-  //       } else {
-  //         // If no record exists, create a new record and save data
-  //         const newRecord = {
-  //           filename: currentFilenameRef.current!,
-  //           content: [...data],
-  //         };
-
-  //         await new Promise<void>((resolve, reject) => {
-  //           const putRequest = store.put(newRecord);
-  //           putRequest.onsuccess = () => resolve();
-  //           putRequest.onerror = () => reject(putRequest.error);
-  //         });
-
-  //         // New record created and data saved
-  //       }
-
-  //       return true;
-  //     } catch (error) {
-  //       console.error("Error writing to IndexedDB:", error);
-  //       return false;
-  //     }
-  //   },
-  //   [canvasCount]
-  // );
+        return true;
+      } catch (error) {
+        console.error("Error writing to IndexedDB:", error);
+        return false;
+      }
+    },
+    [canvasCount]
+  );
 
   // Function to handle the recording process
   const handleRecord = async () => {
+
     if (isRecordingRef.current) {
       // Stop the recording if it is currently active
       stopRecording();
@@ -787,6 +722,8 @@ const Connection: React.FC<ConnectionProps> = ({
       isRecordingRef.current = true;
       const now = new Date();
       recordingStartTime.current = Date.now();
+      // setRecordingStartTime(Date.now()); // Set the start time reference
+      console.log("initialise", recordingStartTime.current);
       setRecordingElapsedTime(Date.now());
       setrecData(true);
 
@@ -795,6 +732,7 @@ const Connection: React.FC<ConnectionProps> = ({
         `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
 
       currentFilenameRef.current = filename;
+      console.log(currentFilenameRef.current);
     }
   };
 
@@ -813,8 +751,6 @@ const Connection: React.FC<ConnectionProps> = ({
     // Reset only after stopping
     // setRecordingStartTime(0);
     recordingStartTime.current = 0;
-    existingRecordRef.current = undefined;
-
 
     // Re-fetch datasets from IndexedDB after recording stops
     const fetchData = async () => {
@@ -825,6 +761,22 @@ const Connection: React.FC<ConnectionProps> = ({
     // Call fetchData after stopping the recording
     fetchData();
   };
+
+
+  // Call this function when your component mounts or when you suspect the data might change
+  useEffect(() => {
+    const checkDataAndConnection = async () => {
+      // Check if data exists in IndexedDB
+      const allData = await getAllDataFromIndexedDB();
+      setHasData(allData.length > 0);
+      // setDatasets(datasets.length)
+
+      // Disable the record button if there is data in IndexedDB and device is connected
+      setIsRecordButtonDisabled(allData.length > 0 || !isConnected);
+    };
+
+    checkDataAndConnection();
+  }, [isConnected, stopRecording]);
 
 
   // Function to format time from seconds into a "MM:SS" string format
@@ -838,45 +790,74 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   // Function to initialize the IndexedDB and return a promise with the database instance
-  // const openIndexedDB = async (): Promise<IDBDatabase> => {
-  //   return new Promise((resolve, reject) => {
-  //     // Open a connection to the IndexedDB database
-  //     const request = indexedDB.open("ChordsRecordings", 2); // Update version if schema changes
+  const openIndexedDB = async (): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+      // Open a connection to the IndexedDB database
+      const request = indexedDB.open("ChordsRecordings", 2); // Update version if schema changes
 
-  //     request.onupgradeneeded = (event) => {
-  //       const db = (event.target as IDBOpenDBRequest).result;
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
 
-  //       switch (event.oldVersion) {
-  //         case 0: // Database doesn't exist, create initial schema
-  //           const store = db.createObjectStore("ChordsRecordings", {
-  //             keyPath: "filename",
-  //           });
-  //           store.createIndex("filename", "filename", { unique: true });
-  //           break;
+        switch (event.oldVersion) {
+          case 0: // Database doesn't exist, create initial schema
+            const store = db.createObjectStore("ChordsRecordings", {
+              keyPath: "filename",
+            });
+            store.createIndex("filename", "filename", { unique: true });
+            break;
 
-  //         case 1: // Upgrade from version 1 to 2
-  //           const transaction = request.transaction;
-  //           if (transaction) {
-  //             const existingStore = transaction.objectStore("ChordsRecordings");
-  //             existingStore.createIndex("filename", "filename", { unique: true });
-  //           }
-  //           break;
+          case 1: // Upgrade from version 1 to 2
+            const transaction = request.transaction;
+            if (transaction) {
+              const existingStore = transaction.objectStore("ChordsRecordings");
+              existingStore.createIndex("filename", "filename", { unique: true });
+            }
+            break;
 
-  //         default:
-  //           console.warn("No schema updates for this version.");
-  //       }
-  //     };
+          default:
+            console.warn("No schema updates for this version.");
+        }
+      };
 
-  //     request.onsuccess = (event) => {
-  //       const db = (event.target as IDBOpenDBRequest).result;
-  //       resolve(db); // Resolve the promise with the database instance
-  //     };
+      request.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        resolve(db); // Resolve the promise with the database instance
+      };
 
-  //     request.onerror = () => {
-  //       reject(request.error); // Reject the promise with the error
-  //     };
-  //   });
-  // };
+      request.onerror = () => {
+        reject(request.error); // Reject the promise with the error
+      };
+    });
+  };
+
+  // Function to fetch data by filename from IndexedDB
+  const getDataByFilename = async (filename: string): Promise<any> => {
+    try {
+      // Open IndexedDB
+      const db = await openIndexedDB();
+      const tx = db.transaction("ChordsRecordings", "readonly");
+      const store = tx.objectStore("ChordsRecordings");
+
+      // Retrieve data by filename
+      const data = await new Promise((resolve, reject) => {
+        const request = store.get(filename); // Get record by filename
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject("Failed to fetch data.");
+      });
+
+      if (!data) {
+        console.error(`No data found for filename: ${filename}`);
+        return null;
+      }
+
+      console.log(`Data retrieved successfully for filename: ${filename}`);
+      return data;
+    } catch (error) {
+      console.error("Error fetching data by filename:", error);
+      return null;
+    }
+  };
+
 
   // Function to delete files by filename
   const deleteFilesByFilename = async (filename: string) => {
@@ -995,30 +976,15 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("An unexpected error occurred. Please try again.");
     }
   };
-  const openIndexedNDB = async (): Promise<IDBDatabase> => {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open("ChordsRecordings", 2);
-
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        const store = db.createObjectStore("ChordsRecordings", {
-          keyPath: "filename",
-        });
-        store.createIndex("filename", "filename", { unique: true });
-      };
-
-      request.onsuccess = (event) => resolve((event.target as IDBOpenDBRequest).result);
-      request.onerror = (event) => reject((event.target as IDBOpenDBRequest).error);
-    });
-  };
 
   // Function to get all data from IndexedDB
   const getAllDataFromIndexedDB = async (): Promise<any[]> => {
     try {
-      const db = await openIndexedNDB();
+      const db = await openIndexedDB();
       const tx = db.transaction(["ChordsRecordings"], "readonly");
       const store = tx.objectStore("ChordsRecordings");
       const request = store.getAll();
+
       return new Promise((resolve, reject) => {
         request.onsuccess = () => {
           const data = request.result.map((item: any, index: number) => ({
@@ -1065,6 +1031,8 @@ const Connection: React.FC<ConnectionProps> = ({
             // Close the database connection
             db.close();
 
+            // Clear state and update UI
+            setHasData(false);
             setDatasets([]);
             setPopoverVisible(false);
             toast.success("All files deleted successfully.");
@@ -1109,7 +1077,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const saveAllDataAsZip = async () => {
     try {
       // Open IndexedDB
-      const db = await openIndexedNDB();
+      const db = await openIndexedDB();
       const tx = db.transaction("ChordsRecordings", "readonly");
       const store = tx.objectStore("ChordsRecordings");
 
@@ -1138,15 +1106,13 @@ const Connection: React.FC<ConnectionProps> = ({
 
       // Download the ZIP file with a default name
       saveAs(content, `ChordsWeb.zip`); // FileSaver.js for downloading
+      setHasData(false);
       toast.success("ZIP file downloaded successfully.");
     } catch (error) {
       console.error("Error creating ZIP file:", error);
       toast.error("Failed to create ZIP file. Please try again.");
     }
   };
-
-
-
 
 
   return (
@@ -1251,7 +1217,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        {/* Autoscale/Bit selection */}
+        {/* Zoom  */}
         {isConnected && (
           <TooltipProvider>
             <Tooltip>
@@ -1262,7 +1228,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-r-none"
                       onClick={decreaseZoom}
-                      disabled={Zoom === 1}
+                      disabled={Zoom === 1 || !isDisplay}
                     >
                       <ZoomOut size={16} />
                     </Button>
@@ -1280,6 +1246,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="flex items-center justify-center px-3 py-2  rounded-none select-none min-w-12"
                       onClick={toggleZoom}
+                      disabled={!isDisplay}
                     >
                       {Zoom}x
                     </Button>
@@ -1297,7 +1264,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseZoom}
-                      disabled={Zoom === 10}
+                      disabled={Zoom === 10 || !isDisplay}
 
                     >
                       <ZoomIn size={16} />
@@ -1313,44 +1280,29 @@ const Connection: React.FC<ConnectionProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
+
         {/* Display (Play/Pause) button with tooltip */}
         {isConnected && (
-          <div className="flex items-center gap-0.5 mx-0 px-0">
-            <Button
-              className="rounded-xl rounded-r-none"
-              onClick={handlePrevSnapshot}
-              disabled={isDisplay || clickCount >= enabledClicks}
-
-            >
-              <ArrowLeftToLine size={16} />
-            </Button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button className="rounded-xl rounded-l-none rounded-r-none" onClick={togglePause}>
-                    {isDisplay ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="h-5 w-5" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    {isDisplay ? "Pause Data Display" : "Resume Data Display"}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Button
-              className="rounded-xl rounded-l-none"
-              onClick={handleNextSnapshot}
-              disabled={isDisplay || clickCount == 0}
-            >
-              <ArrowRightToLine size={16} />
-            </Button>
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button className="rounded-xl" onClick={togglePause}>
+                  {isDisplay ? (
+                    <Pause className="h-5 w-5" />
+                  ) : (
+                    <Play className="h-5 w-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
+
         {/* Record button with tooltip */}
         {isConnected && (
           <TooltipProvider>
@@ -1459,244 +1411,6 @@ const Connection: React.FC<ConnectionProps> = ({
           </TooltipProvider>
         )}
 
-        {isConnected && (
-          <Popover
-            open={isFilterPopoverOpen}
-            onOpenChange={setIsFilterPopoverOpen}
-          >
-            <PopoverTrigger asChild>
-              <Button
-                className="flex items-center justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
-                disabled={!isDisplay}
-
-              >
-                Filter
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-50 p-4 mx-4 mb-2">
-              <div className="flex flex-col ">
-                <div className="flex items-center pb-2 ">
-                  {/* Filter Name */}
-                  <div className="text-sm font-semibold w-12"><ReplaceAll size={20} /></div>
-                  {/* Buttons */}
-                  <div className="flex space-x-2">
-                    <div className="flex items-center border border-input rounded-xl mx-0 px-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeEXGFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
-                        className={`rounded-xl rounded-r-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === 0
-                            ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }`}
-                      >
-                        <CircleOff size={17} />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 4)}
-                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }`}
-                      >
-                        <BicepsFlexed size={17} />
-                      </Button> <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 3)}
-                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }`}
-                      >
-                        <Brain size={17} />
-                      </Button> <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
-                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }`}
-                      >
-                        <Heart size={17} />
-                      </Button> <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
-                        className={`rounded-xl rounded-l-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }`}
-                      >
-                        <Eye size={17} />
-                      </Button>
-                    </div>
-                    <div className="flex border border-input rounded-xl items-center mx-0 px-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeNotchFromAllChannels([0, 1, 2, 3, 4, 5])}
-                        className={`rounded-xl rounded-r-none border-0
-                          ${Object.keys(appliedFiltersRef.current).length === 0
-                            ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }`}
-                      >
-                        <CircleOff size={17} />
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
-                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                          ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 1)
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }`}
-                      >
-                        50Hz
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
-                        className={`rounded-xl rounded-l-none border-0
-                          ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 2)
-                            ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                            : "bg-white-500" // Active background
-                          }`}
-                      >
-                        60Hz
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-col space-y-2">
-                  {["CH1", "CH2", "CH3", "CH4", "CH5", "CH6"].map((filterName, index) => (
-                    <div key={filterName} className="flex items-center">
-                      {/* Filter Name */}
-                      <div className="text-sm font-semibold w-12">{filterName}</div>
-                      {/* Buttons */}
-                      <div className="flex space-x-2">
-                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeEXGFilter(index)}
-                            className={`rounded-xl rounded-r-none border-l-none border-0
-                              ${appliedEXGFiltersRef.current[index] === undefined
-                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
-                                : "bg-white-500" // Active background
-                              }`}
-                          >
-                            <CircleOff size={17} />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleFrequencySelectionEXG(index, 4)}
-                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedEXGFiltersRef.current[index] === 4
-                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                : "bg-white-500" // Active background
-                              }`}
-                          >
-                            <BicepsFlexed size={17} />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleFrequencySelectionEXG(index, 3)}
-                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedEXGFiltersRef.current[index] === 3
-                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                : "bg-white-500" // Active background
-                              }`}
-                          >
-                            <Brain size={17} />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleFrequencySelectionEXG(index, 1)}
-                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedEXGFiltersRef.current[index] === 1
-                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                : "bg-white-500" // Active background
-                              }`}
-                          >
-                            <Heart size={17} />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleFrequencySelectionEXG(index, 2)}
-                            className={`rounded-xl rounded-l-none border-0
-                                      ${appliedEXGFiltersRef.current[index] === 2
-                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                : "bg-white-500" // Active background
-                              }`}
-                          >
-                            <Eye size={17} />
-                          </Button>
-                        </div>
-                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeNotchFilter(index)}
-                            className={`rounded-xl rounded-r-none border-0
-                              ${appliedFiltersRef.current[index] === undefined
-                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
-                                : "bg-white-500" // Active background
-                              }`}
-                          >
-                            <CircleOff size={17} />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleFrequencySelection(index, 1)}
-                            className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedFiltersRef.current[index] === 1
-                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                : "bg-white-500" // Active background
-                              }`}
-                          >
-                            50Hz
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleFrequencySelection(index, 2)}
-                            className={
-                              `rounded-xl rounded-l-none border-0 ${appliedFiltersRef.current[index] === 2
-                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white "
-                                : "bg-white-500 animate-fade-in-right"
-                              }`
-                            }
-                          >
-                            60Hz
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
-
         {/* Canvas control buttons with tooltip */}
         {isConnected && (
           <TooltipProvider>
@@ -1752,14 +1466,14 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseCanvas}
-                      disabled={canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6) || !isDisplay || recData}
+                      disabled={canvasCount >= 6 || !isDisplay || recData}
                     >
                       <Plus size={16} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6)
+                      {canvasCount >= 6
                         ? "Maximum Channels Reached"
                         : "Increase Channel"}
                     </p>

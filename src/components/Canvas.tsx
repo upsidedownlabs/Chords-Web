@@ -287,6 +287,9 @@ const Canvas = forwardRef(
         });
 
         linesRef.current.forEach((line, i) => {
+          const bitsPoints = Math.pow(2, getValue(selectedBits)); // Adjust according to your ADC resolution
+          const yScale = 2 / bitsPoints;
+          const chData = (data[i+1] - bitsPoints / 2) * yScale;
 
           // Use a separate sweep position for each line
           currentSweepPos.current[i] = sweepPositions.current[i];
