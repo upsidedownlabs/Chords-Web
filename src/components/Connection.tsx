@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
@@ -56,10 +55,12 @@ interface ConnectionProps {
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
   channelCount: number;
-  currentValue: number;
-  setCurrentValue: React.Dispatch<React.SetStateAction<number>>;
+  timeBase: number;
+  settimeBase: React.Dispatch<React.SetStateAction<number>>;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
   SetcurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
+  currentsamplingRate:number;
+  setcurrentsamplingRate :React.Dispatch<React.SetStateAction<number>>;
   currentSnapshot: number;
   Zoom: number;
   snapShotRef: React.RefObject<boolean[]>;
@@ -79,8 +80,10 @@ const Connection: React.FC<ConnectionProps> = ({
   snapShotRef,
   SetZoom,
   Zoom,
-  currentValue,
-  setCurrentValue,
+  timeBase,
+  settimeBase,
+  currentsamplingRate,
+  setcurrentsamplingRate
 }) => {
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
@@ -135,8 +138,8 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const increaseValue = () => {
-    if (currentValue < 10) {
-      setCurrentValue(currentValue + 1);
+    if (timeBase < 10) {
+      settimeBase(timeBase + 1);
     }
   };
 
@@ -170,8 +173,8 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   const decreaseValue = () => {
-    if (currentValue > 1) {
-      setCurrentValue(currentValue - 1);
+    if (timeBase > 1) {
+      settimeBase(timeBase - 1);
     }
   };
 
@@ -334,46 +337,57 @@ const Connection: React.FC<ConnectionProps> = ({
     }
     setCustomTime("");
   };
+// Effect to log the updated sampling rate
+useEffect(() => {
+  if (currentsamplingRate !== null) {
+    console.log("Updated sampling rate in connection:", currentsamplingRate);
+  }
+}, [currentsamplingRate]);
 
-  const formatPortInfo = useCallback(
-    (info: SerialPortInfo, deviceName: string) => {
-      if (!info || !info.usbVendorId) {
-        return { formattedInfo: "Port with no info", bits: null, channel: null };
+ const formatPortInfo = useCallback(
+  (info: SerialPortInfo, deviceName: string) => {
+    if (!info || !info.usbVendorId) {
+      return { formattedInfo: "Port with no info", bits: null, channel: null };
+    }
+
+    // Check if the device name exists in the BoardsList
+    const board = BoardsList.find(
+      (b) => b.name.toLowerCase() === deviceName.toLowerCase() // Match Device Name
+    );
+
+    if (board) {
+      // Set the bits based on the matched board
+      setifBits(board.bits as BitSelection);
+      setSelectedBits(board.bits as BitSelection);
+      detectedBitsRef.current = board.bits as BitSelection;
+
+      // Safely parse the channel or set a default value
+      const channel = board.channel ? parseInt(board.channel, 10) : 0;
+      maxCanvasCountRef.current = channel;
+
+      // Set the sampling rate
+      if (board.sampling_rate) {
+        setcurrentsamplingRate(parseInt(board.sampling_rate, 10)); // Assuming sampling_rate is a number
       }
 
-      // Check if the device name exists in the BoardsList
-      const board = BoardsList.find(
-        (b) => b.name.toLowerCase() === deviceName.toLowerCase() // Match Device Name
-      );
+      return {
+        formattedInfo: (
+          <>
+            {board.name} <br /> Product ID: {info.usbProductId}
+          </>
+        ),
+        bits: board.bits,
+        channel: board.channel,
+      };
+    }
 
-      if (board) {
-        // Set the bits based on the matched board
-        setifBits(board.bits as BitSelection);
-        setSelectedBits(board.bits as BitSelection);
-        detectedBitsRef.current = board.bits as BitSelection;
-
-        // Safely parse the channel or set a default value
-        const channel = board.channel ? parseInt(board.channel, 10) : 0;
-        maxCanvasCountRef.current = channel;
-        return {
-          formattedInfo: (
-            <>
-              {board.name} <br /> Product ID: {info.usbProductId}
-            </>
-          ),
-          bits: board.bits,
-          channel: board.channel,
-        };
-      }
-
-      // If device not found in the list
-      setDetectedBits(null);
-      return { formattedInfo: `${deviceName}`, bits: null, channel: null };
-    },
-    []
-  );
-
-
+    // If device not found in the list
+    setDetectedBits(null);
+    return { formattedInfo: `${deviceName}`, bits: null, channel: null };
+  },
+  []
+);
+  
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
     if (isConnected) {
@@ -443,22 +457,12 @@ const Connection: React.FC<ConnectionProps> = ({
 
         await port.open({ baudRate });
       }
-
-      Connection(true);
-      setIsConnected(true);
-      onPauseChange(true);
-      setIsDisplay(true);
-      setCanvasCount(1);
-      isConnectedRef.current = true;
-      portRef.current = port;
-
       if (port.readable) {
         const reader = port.readable.getReader();
         readerRef.current = reader;
         const writer = port.writable?.getWriter();
         if (writer) {
           // Query the board for its name
-          // Query the board for 
           writerRef.current = writer;
 
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
@@ -478,7 +482,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 <div className="mt-2 flex flex-col space-y-1">
                   <p>Device: {formattedInfo}</p>
                   <p>Baud Rate: {baudRate}</p>
-                  {bits && <p>Bits: {bits}</p>}
+                  {bits && <p>Resolution: {bits} bits</p>}
                   {channel && <p>Channel: {channel}</p>}
                 </div>
               ),
@@ -498,6 +502,16 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Readable stream not available");
       }
+
+      Connection(true);
+      setIsConnected(true);
+      
+      onPauseChange(true);
+      setIsDisplay(true);
+      setCanvasCount(1);
+      isConnectedRef.current = true;
+      portRef.current = port;
+      
 
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
@@ -1572,7 +1586,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-r-none"
                       onClick={decreaseValue}
-                      disabled={currentValue == 1}
+                      disabled={timeBase == 1}
                     >
                       <Minus size={16} />
                     </Button>
@@ -1587,7 +1601,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="flex items-center justify-center px-3 py-2 rounded-none select-none"
                     >
-                      {currentValue} Sec
+                      {timeBase} Sec
                     </Button>
                   </TooltipTrigger>
                 </Tooltip>
@@ -1600,7 +1614,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseValue}
-                      disabled={currentValue >= 10}
+                      disabled={timeBase >= 10}
                     >
                       <Plus size={16} />
                     </Button>
