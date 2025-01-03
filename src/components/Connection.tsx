@@ -337,12 +337,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
     setCustomTime("");
   };
-// Effect to log the updated sampling rate
-useEffect(() => {
-  if (currentsamplingRate !== null) {
-    console.log("Updated sampling rate in connection:", currentsamplingRate);
-  }
-}, [currentsamplingRate]);
 
  const formatPortInfo = useCallback(
   (info: SerialPortInfo, deviceName: string) => {

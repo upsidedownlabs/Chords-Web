@@ -71,12 +71,9 @@ const Canvas = forwardRef(
       }
     }, []);
     
-    console.log("sampling rate in canvas",currentsamplingRate);
 
     useEffect(() => {
       numXRef.current = (currentsamplingRate * timeBase);
-      console.log(timeBase);
-console.log("numXRef",numXRef.current);
 
     }, [timeBase]);
 

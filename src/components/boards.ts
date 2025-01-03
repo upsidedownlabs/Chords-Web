@@ -70,10 +70,10 @@ export const BoardsList = Object.freeze([
     sampling_rate:"500"
   },
   {
-    name: "Arduino Giga R1",
+    name: "GIGA-R1",
     field_pid: "614",
     bits: "16",
     channel:"6",
-    sampling_rate:"550"
+    sampling_rate:"500"
   },
 ]);
