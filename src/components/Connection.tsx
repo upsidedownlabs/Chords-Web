@@ -56,10 +56,12 @@ interface ConnectionProps {
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
   channelCount: number;
-  currentValue: number;
-  setCurrentValue: React.Dispatch<React.SetStateAction<number>>;
+  timeBase: number;
+  settimeBase: React.Dispatch<React.SetStateAction<number>>;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
   SetcurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
+  currentsamplingRate: number;
+  setcurrentsamplingRate: React.Dispatch<React.SetStateAction<number>>;
   currentSnapshot: number;
   Zoom: number;
   snapShotRef: React.RefObject<boolean[]>;
@@ -79,8 +81,10 @@ const Connection: React.FC<ConnectionProps> = ({
   snapShotRef,
   SetZoom,
   Zoom,
-  currentValue,
-  setCurrentValue,
+  timeBase,
+  settimeBase,
+  currentsamplingRate,
+  setcurrentsamplingRate
 }) => {
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
@@ -135,8 +139,8 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const increaseValue = () => {
-    if (currentValue < 10) {
-      setCurrentValue(currentValue + 1);
+    if (timeBase < 10) {
+      settimeBase(timeBase + 1);
     }
   };
 
@@ -170,8 +174,8 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   const decreaseValue = () => {
-    if (currentValue > 1) {
-      setCurrentValue(currentValue - 1);
+    if (timeBase > 1) {
+      settimeBase(timeBase - 1);
     }
   };
 
@@ -361,6 +365,12 @@ const Connection: React.FC<ConnectionProps> = ({
         // Safely parse the channel or set a default value
         const channel = board.channel ? parseInt(board.channel, 10) : 0;
         maxCanvasCountRef.current = channel;
+
+        // Set the sampling rate
+        if (board.sampling_rate) {
+          setcurrentsamplingRate(parseInt(board.sampling_rate, 10)); // Assuming sampling_rate is a number
+        }
+
         return {
           formattedInfo: (
             <>
@@ -378,7 +388,6 @@ const Connection: React.FC<ConnectionProps> = ({
     },
     []
   );
-
 
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -424,7 +433,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
 
-        if (usbProductId === 29987) {
+        if (usbProductId === 29987 || usbProductId === 67) {
           baudRate = 115200;
         }
 
@@ -443,30 +452,22 @@ const Connection: React.FC<ConnectionProps> = ({
         const portInfo = port.getInfo();
         const usbProductId = portInfo.usbProductId ?? 0;
 
-        if (usbProductId === 29987) {
+        if (usbProductId === 29987 || usbProductId === 67) {
           baudRate = 115200;
         }
 
         await port.open({ baudRate });
       }
-
-      Connection(true);
-      setIsConnected(true);
-      onPauseChange(true);
-      setIsDisplay(true);
-      setCanvasCount(1);
-      isConnectedRef.current = true;
-      portRef.current = port;
-
       if (port.readable) {
         const reader = port.readable.getReader();
         readerRef.current = reader;
         const writer = port.writable?.getWriter();
         if (writer) {
           // Query the board for its name
-          // Query the board for information
+          writerRef.current = writer;
+
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-          await writer.write(whoAreYouMessage);
+          await writerRef.current.write(whoAreYouMessage);
           setTimeout(() => writer.write(whoAreYouMessage), 2000);
 
           const { value, done } = await reader.read();
@@ -503,6 +504,16 @@ const Connection: React.FC<ConnectionProps> = ({
         console.error("Readable stream not available");
       }
 
+      Connection(true);
+      setIsConnected(true);
+
+      onPauseChange(true);
+      setIsDisplay(true);
+      setCanvasCount(1);
+      isConnectedRef.current = true;
+      portRef.current = port;
+
+
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
@@ -514,7 +525,6 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to connect to device.");
     }
   };
-
 
   const getFileCountFromIndexedDB = async (): Promise<any[]> => {
     if (!workerRef.current) {
@@ -593,6 +603,8 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
+
+
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
   const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
   const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
@@ -1430,7 +1442,6 @@ const Connection: React.FC<ConnectionProps> = ({
             </PopoverContent>
           </Popover>
         )}
-
         {isConnected && (
           <Popover>
             <PopoverTrigger asChild>
@@ -1444,57 +1455,50 @@ const Connection: React.FC<ConnectionProps> = ({
                 <div className="space-y-8">
 
                   {/* Channel Selection */}
-                  <div className="flex items-start justify-center w-full">
-                    {/* Checkboxes */}
-                    <div className="grid grid-cols-8 gap-4">
-                      {Array.from({ length: 16 }, (_, index) => {
-                        const isActive = index < canvasCount; // Check if this channel is active
-                        const isFaded = index >= maxCanvasCountRef.current; // Determine faded state
+                  <div className="flex items-center justify-center bg-gray-100">
+                    {/* Curved Container */}
+                    <div className="relative rounded-xl bg-gray-300 w-full py-2">
+                      {/* Background overlay */}
+                      <div className="absolute inset-0 rounded-xl bg-gray-100 opacity-50 pointer-events-none"></div>
 
-                        return (
-                          <Tooltip key={index}>
-                            <TooltipTrigger asChild>
-                              <div className="flex flex-row items-center">
-                                {/* Checkbox */}
-                                <input
-                                  type="checkbox"
-                                  id={`channel-${index + 1}`}
-                                  className={`rounded-full w-3 h-3 cursor-pointer transition-transform duration-150 
-                  ${isFaded
-                                      ? 'bg-gray-100 text-gray-100 cursor-not-allowed'
-                                      : isActive
-                                        ? 'bg-black text-white border-2 border-black scale-110 shadow-md'
-                                        : 'bg-gray-100 text-white hover:bg-black hover:scale-105'
-                                    }`}
-                                  onChange={() => !isFaded && selectChannel(index + 1)}
+                      {/* Buttons */}
+                      <div id="button-container" className="relative space-y-4">
+                        {Array.from({ length: 2 }).map((_, row) => (
+                          <div key={row} className="grid grid-cols-8 gap-4">
+                            {Array.from({ length: 8 }).map((_, col) => {
+                              const index = row * 8 + col; // Calculate button index
+                              const isActive = index < canvasCount; // Check active state
+                              const isFaded = index >= maxCanvasCountRef.current; // Check faded state
+
+                              return (
+                                <button
+                                  key={index}
+                                  onClick={() => !isFaded && selectChannel(index + 1)}
                                   disabled={!isDisplay || isRecordButtonDisabled || isFaded}
-                                  checked={isActive}
-                                />
-                                {/* Label */}
-                                <label
-                                  htmlFor={`channel-${index + 1}`}
-                                  className={`m-1 text-sm font-medium ${isFaded ? 'text-gray-400' : 'text-gray-700'
-                                    }`}
+                                  className={`
+                  w-15 h-10 rounded-lg text-sm font-medium 
+                  ${isFaded
+                                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                      : isActive
+                                        ? 'bg-gray-500 text-white'
+                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400 hover:text-white'
+                                    }
+                `}
                                 >
-                                  CH {index + 1}
-                                </label>
-
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{`Select Channel ${index + 1}`}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        );
-                      })}
+                                  {`CH${index + 1}`}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-
 
                   {/* Zoom Controls */}
                   <div className="relative flex flex-col items-start w-full">
                     {/* Label */}
-                    <p className="absolute top-[-1.5rem] left-0 text-base font-semibold text-[0.7rem] text-gray-500">
+                    <p className="absolute top-[-1.5rem] left-0 text-base font-semibold text-[0.6rem] text-gray-500">
                       <span className="font-bold text-gray-700">ZOOM LEVEL:</span> {Zoom} X
                     </p>
 
@@ -1520,7 +1524,7 @@ const Connection: React.FC<ConnectionProps> = ({
       input[type="range"] {
         background: linear-gradient(
           to
-right,rgb(13, 42, 138) ${(Zoom - 1) * 11.11}%,
+right,rgb(79, 80, 82) ${(Zoom - 1) * 11.11}%,
 rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
         );
       }
@@ -1530,7 +1534,7 @@ rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
         appearance: none;
         width: 15px;
         height: 15px;
-        background-color: rgb(11, 48, 127);
+        background-color: rgb(73, 74, 75);
         border-radius: 50%;
       }
     `}</style>
@@ -1540,8 +1544,8 @@ rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
                   {/* Value Selection */}
                   <div className="relative w-full flex flex-col items-start mt-4">
                     {/* Label */}
-                    <p className="absolute top-[-1.5rem] left-0 text-[0.7rem] font-semibold text-gray-500">
-                    <span className="font-bold text-gray-700">TIME BASE:</span> {currentValue} SECONDS
+                    <p className="absolute top-[-1.5rem] left-0 text-[0.6rem] font-semibold text-gray-500">
+                      <span className="font-bold text-gray-700">TIME BASE:</span> {timeBase} SECONDS
                     </p>
 
                     {/* Slider with curved container and faded colors */}
@@ -1554,11 +1558,11 @@ rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
                         type="range"
                         min="1"
                         max="10"
-                        value={currentValue}
-                        onChange={(e) => setCurrentValue(Number(e.target.value))}
+                        value={timeBase}
+                        onChange={(e) => settimeBase(Number(e.target.value))}
                         style={{
-                          background: `linear-gradient(to right,rgb(13, 42, 138) ${((currentValue - 1) / 9) * 100
-                            }%, rgb(161, 159, 159) ${((currentValue - 1) / 9) * 11}%)`,
+                          background: `linear-gradient(to right,rgb(76, 76, 78) ${((timeBase - 1) / 9) * 100
+                            }%, rgb(161, 159, 159) ${((timeBase - 1) / 9) * 11}%)`,
                         }}
                         className="flex-1 h-[0.2rem] rounded-full appearance-none focus:outline-none focus:ring-0"
                       />
@@ -1573,7 +1577,7 @@ rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
         appearance: none;
         width: 15px;
         height: 15px;
-        background-color: rgb(11, 48, 127); /* Custom color */
+        background-color: rgb(76, 76, 79); /* Custom color */
         border-radius: 50%;
         cursor: pointer;
       }
