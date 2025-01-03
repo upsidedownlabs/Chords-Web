@@ -46,10 +46,8 @@ export class EXGFilter {
     // function to apply the 
     setSample(sample: string): void {
         this.sample = sample;
-        this.bitsPoints = Math.pow(2,
-            sample === "sixteen" ?16 :
-            sample === "fourteen" ? 14 : 
-            sample === "twelve" ? 12 : 10
+        console.log(sample);
+        this.bitsPoints = Math.pow(2,parseInt(sample)
         ); // Adjust according to your ADC resolution
         this.yScale = 2 / this.bitsPoints;
     }
@@ -60,9 +58,9 @@ export class EXGFilter {
         let chData=0;
         switch (this.sample) {
             //samplerate 500Hz
-            case "sixteen":
-            case "fourteen":
-            case "twelve":   // 500Hz
+            case "16":
+            case "14":
+            case "12":   // 500Hz
                 switch (type) {
                     case 1: // ECG Sampling rate: 500.0 Hz, frequency: 30.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -100,7 +98,7 @@ export class EXGFilter {
                         break;
                 }
                 break;
-            case "ten":
+            case "10":
                 //samplerate 250Hz
                 switch (type) {
                     case 1: // ECG Sampling rate: 250.0 Hz, frequency: 30.0 Hz.
@@ -180,9 +178,9 @@ export class Notch {
         if(!type) return input;
         let output = input;
         switch (this.sample) {
-            case "sixteen" :
-            case "fourteen": // 500Hz
-            case "twelve":   // 500Hz
+            case "16" :
+            case "14": // 500Hz
+            case "12":   // 500Hz
                 switch (type) {
                     case 1: // Notch Sampling rate: 500.0 Hz, frequency: [48.0, 52.0] Hz.
                         this.x_1 = output - (-1.56858163 * this.z1_1) - (0.96424138 * this.z2_1);
@@ -211,7 +209,7 @@ export class Notch {
                 }
                 break;
 
-            case "ten": // 250Hz
+            case "10": // 250Hz
                 switch (type) {
                     case 1: // Notch Sampling rate: 250.0 Hz, frequency: [48.0, 52.0] Hz.
                         this.x_1 = output - (-0.53127491 * this.z1_1) - (0.93061518 * this.z2_1);
