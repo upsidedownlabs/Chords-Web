@@ -46,7 +46,6 @@ export class EXGFilter {
     // function to apply the 
     setSample(sample: string): void {
         this.sample = sample;
-        console.log(sample);
         this.bitsPoints = Math.pow(2,parseInt(sample)
         ); // Adjust according to your ADC resolution
         this.yScale = 2 / this.bitsPoints;

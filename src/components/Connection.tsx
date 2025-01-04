@@ -338,49 +338,49 @@ const Connection: React.FC<ConnectionProps> = ({
     setCustomTime("");
   };
 
- const formatPortInfo = useCallback(
-  (info: SerialPortInfo, deviceName: string) => {
-    if (!info || !info.usbVendorId) {
-      return { formattedInfo: "Port with no info", bits: null, channel: null };
-    }
-
-    // Check if the device name exists in the BoardsList
-    const board = BoardsList.find(
-      (b) => b.name.toLowerCase() === deviceName.toLowerCase() // Match Device Name
-    );
-
-    if (board) {
-      // Set the bits based on the matched board
-      setifBits(board.bits as BitSelection);
-      setSelectedBits(board.bits as BitSelection);
-      detectedBitsRef.current = board.bits as BitSelection;
-
-      // Safely parse the channel or set a default value
-      const channel = board.channel ? parseInt(board.channel, 10) : 0;
-      maxCanvasCountRef.current = channel;
-
-      // Set the sampling rate
-      if (board.sampling_rate) {
-        setcurrentsamplingRate(parseInt(board.sampling_rate, 10)); // Assuming sampling_rate is a number
+  const formatPortInfo = useCallback(
+    (info: SerialPortInfo, deviceName: string) => {
+      if (!info || !info.usbVendorId) {
+        return { formattedInfo: "Port with no info", bits: null, channel: null };
       }
-
-      return {
-        formattedInfo: (
-          <>
-            {board.name} <br /> Product ID: {info.usbProductId}
-          </>
-        ),
-        bits: board.bits,
-        channel: board.channel,
-      };
-    }
-
+  
+    // Check if the device name exists in the BoardsList
+      const board = BoardsList.find(
+      (b) => b.name.toLowerCase() === deviceName.toLowerCase() // Match Device Name
+      );
+  
+      if (board) {
+      // Set the bits based on the matched board
+        setifBits(board.bits as BitSelection);
+        setSelectedBits(board.bits as BitSelection);
+        detectedBitsRef.current = board.bits as BitSelection;
+  
+      // Safely parse the channel or set a default value
+        const channel = board.channel ? parseInt(board.channel, 10) : 0;
+        maxCanvasCountRef.current = channel;
+  
+      // Set the sampling rate
+        if (board.sampling_rate) {
+        setcurrentsamplingRate(parseInt(board.sampling_rate, 10)); // Assuming sampling_rate is a number
+        }
+  
+        return {
+          formattedInfo: (
+            <>
+              {board.name} <br /> Product ID: {info.usbProductId}
+            </>
+          ),
+          bits: board.bits,
+          channel: board.channel,
+        };
+      }
+  
     // If device not found in the list
-    setDetectedBits(null);
-    return { formattedInfo: `${deviceName}`, bits: null, channel: null };
-  },
-  []
-);
+      setDetectedBits(null);
+      return { formattedInfo: `${deviceName}`, bits: null, channel: null };
+    },
+    []
+  );
   
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -402,53 +402,53 @@ const Connection: React.FC<ConnectionProps> = ({
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-
+  
       const savedPorts: SavedDevice[] = JSON.parse(localStorage.getItem('savedDevices') || '[]');
       let port: SerialPort | null = null;
       let baudRate = 230400; // Default baud rate
-
+  
       const ports = await navigator.serial.getPorts();
-
+  
       // Check for saved ports
       if (savedPorts.length > 0) {
         port = ports.find(p => {
-          const info = p.getInfo();
+            const info = p.getInfo();
           return savedPorts.some((saved: SavedDevice) =>
             saved.usbVendorId === (info.usbVendorId ?? 0) && saved.usbProductId === (info.usbProductId ?? 0)
-          );
-        }) || null;
+            );
+          }) || null;
       }
-
+  
       if (!port) {
         port = await navigator.serial.requestPort();
         const newPortInfo = await port.getInfo();
-
+  
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
-
+  
         if (usbProductId === 29987|| usbProductId === 67) {
           baudRate = 115200;
         }
-
+  
         const existingDevice = savedPorts.find(saved =>
           saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
         );
-
+  
         if (!existingDevice) {
           savedPorts.push({ usbVendorId, usbProductId, baudRate });
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
           console.log(`New device saved: Vendor ${usbVendorId}, Product ${usbProductId}, Baud Rate ${baudRate}`);
         }
-
+  
         await port.open({ baudRate });
       } else {
         const portInfo = port.getInfo();
         const usbProductId = portInfo.usbProductId ?? 0;
-
+  
         if (usbProductId === 29987|| usbProductId === 67) {
           baudRate = 115200;
         }
-
+  
         await port.open({ baudRate });
       }
       if (port.readable) {
@@ -458,38 +458,53 @@ const Connection: React.FC<ConnectionProps> = ({
         if (writer) {
           // Query the board for its name
           writerRef.current = writer;
-
+  
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
           await writerRef.current.write(whoAreYouMessage);
           setTimeout(() => writer.write(whoAreYouMessage), 2000);
-
-          const { value, done } = await reader.read();
-          if (!done && value) {
-           const response = new TextDecoder("utf-8", { fatal: true }).decode(value).trim();
-            const portInfo = port.getInfo();
-            console.log(`Board Response: ${response}`);
-
-            const { formattedInfo, bits, channel } = formatPortInfo(portInfo, response); // Pass info and name
-            setTimeout(() => {}, 3000);
-            toast.success("Connection Successful", {
-              description: (
-                <div className="mt-2 flex flex-col space-y-1">
-                  <p>Device: {formattedInfo}</p>
-                  <p>Baud Rate: {baudRate}</p>
-                  {bits && <p>Resolution: {bits} bits</p>}
-                  {channel && <p>Channel: {channel}</p>}
-                </div>
-              ),
-            });
+  
+  
+          let buffer = "";
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+  
+            if (value) {
+              buffer += new TextDecoder().decode(value);
+              if (buffer.includes("\n")) break; // End of message
+            }
           }
-          else {
-            console.error("No response from the board or reading incomplete");
-          }
+  
+          // Extract the device name
+          const response: string | undefined = buffer
+            .trim()
+            .split("\n")
+            .pop();
+  
+          const extractedName = response
+            ?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device"; // Use regex to extract the name
+          console.log(`Extracted Device Name: ${extractedName}`);
+  
+          const portInfo = port.getInfo();
+          const { formattedInfo, bits, channel } = formatPortInfo(
+            portInfo,
+            extractedName
+          );
+  
+          toast.success("Connection Successful", {
+            description: (
+              <div className="mt-2 flex flex-col space-y-1">
+                <p>Device: {formattedInfo}</p>
+                <p>Baud Rate: {baudRate}</p>
+                {bits && <p>Resolution: {bits} bits</p>}
+                {channel && <p>Channel: {channel}</p>}
+              </div>
+            ),
+          });
+  
           const startMessage = new TextEncoder().encode("START\n");
           setTimeout(() => writer.write(startMessage), 2000);
-
-        }
-        else {
+        } else {
           console.error("Writable stream not available");
         }
       } else {
@@ -504,7 +519,7 @@ const Connection: React.FC<ConnectionProps> = ({
       isConnectedRef.current = true;
       portRef.current = port;
       
-
+  
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
@@ -515,7 +530,7 @@ const Connection: React.FC<ConnectionProps> = ({
       console.error("Error connecting to device:", error);
       toast.error("Failed to connect to device.");
     }
-  };
+  };  
 
 
   const getFileCountFromIndexedDB = async (): Promise<any[]> => {
