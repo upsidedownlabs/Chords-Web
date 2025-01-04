@@ -465,12 +465,12 @@ const Connection: React.FC<ConnectionProps> = ({
 
           const { value, done } = await reader.read();
           if (!done && value) {
-            const response = new TextDecoder().decode(value).trim(); // Device name
+           const response = new TextDecoder("utf-8", { fatal: true }).decode(value).trim();
             const portInfo = port.getInfo();
             console.log(`Board Response: ${response}`);
 
             const { formattedInfo, bits, channel } = formatPortInfo(portInfo, response); // Pass info and name
-
+            setTimeout(() => {}, 3000);
             toast.success("Connection Successful", {
               description: (
                 <div className="mt-2 flex flex-col space-y-1">
@@ -485,7 +485,6 @@ const Connection: React.FC<ConnectionProps> = ({
           else {
             console.error("No response from the board or reading incomplete");
           }
-
           const startMessage = new TextEncoder().encode("START\n");
           setTimeout(() => writer.write(startMessage), 2000);
 
@@ -496,7 +495,6 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Readable stream not available");
       }
-
       Connection(true);
       setIsConnected(true);
       
