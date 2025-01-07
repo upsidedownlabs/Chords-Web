@@ -18,7 +18,7 @@ export class EXGFilter {
     private x2: number;
     private x3: number;
     private x4: number;
-    private sample: string | null;
+    private bits: string | null;
     private bitsPoints: number;
     private yScale: number;
 
@@ -31,11 +31,11 @@ export class EXGFilter {
         this.x2 = 0;
         this.x3 = 0;
         this.x4 = 0;
-        this.sample = null;
+        this.bits = null;
         this.bitsPoints=0;
         this.yScale=0;
     }
-    //sample-
+    //bits-
     //1.500 
     //2.250
     //TYPE-
@@ -44,12 +44,9 @@ export class EXGFilter {
     //3.EEG
     //4.EMG
     // function to apply the 
-    setSample(sample: string): void {
-        this.sample = sample;
-        this.bitsPoints = Math.pow(2,
-            sample === "sixteen" ?16 :
-            sample === "fourteen" ? 14 : 
-            sample === "twelve" ? 12 : 10
+    setbits(bits: string): void {
+        this.bits = bits;
+        this.bitsPoints = Math.pow(2,parseInt(bits)
         ); // Adjust according to your ADC resolution
         this.yScale = 2 / this.bitsPoints;
     }
@@ -58,11 +55,11 @@ export class EXGFilter {
         if(!type) return (input - this.bitsPoints / 2) * this.yScale;
         let output = input;
         let chData=0;
-        switch (this.sample) {
-            //samplerate 500Hz
-            case "sixteen":
-            case "fourteen":
-            case "twelve":   // 500Hz
+        switch (this.bits) {
+            //bitsrate 500Hz
+            case "16":
+            case "14":
+            case "12":   
                 switch (type) {
                     case 1: // ECG Sampling rate: 500.0 Hz, frequency: 30.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -100,8 +97,8 @@ export class EXGFilter {
                         break;
                 }
                 break;
-            case "ten":
-                //samplerate 250Hz
+            case "10":
+                //bitsrate 250Hz
                 switch (type) {
                     case 1: // ECG Sampling rate: 250.0 Hz, frequency: 30.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -158,7 +155,7 @@ export class Notch {
     private z2_2: number;
     private x_1: number;
     private x_2: number;
-    private sample: string | null;
+    private bits: string | null;
 
     constructor() {
         // Initialize state variables for both filter sections
@@ -168,21 +165,21 @@ export class Notch {
         this.z2_2 = 0;
         this.x_1 = 0;
         this.x_2 = 0;
-        this.sample = null;
+        this.bits = null;
     }
 
-    setSample(sample: string): void {
-        this.sample = sample;
+    setbits(bits: string): void {
+        this.bits = bits;
     }
 
     // Method to apply the filter
     process(input: number, type: number): number {
         if(!type) return input;
         let output = input;
-        switch (this.sample) {
-            case "sixteen" :
-            case "fourteen": // 500Hz
-            case "twelve":   // 500Hz
+        switch (this.bits) {
+            case "16" :
+            case "14": // 500Hz
+            case "12":   // 500Hz
                 switch (type) {
                     case 1: // Notch Sampling rate: 500.0 Hz, frequency: [48.0, 52.0] Hz.
                         this.x_1 = output - (-1.56858163 * this.z1_1) - (0.96424138 * this.z2_1);
@@ -211,7 +208,7 @@ export class Notch {
                 }
                 break;
 
-            case "ten": // 250Hz
+            case "10": // 250Hz
                 switch (type) {
                     case 1: // Notch Sampling rate: 250.0 Hz, frequency: [48.0, 52.0] Hz.
                         this.x_1 = output - (-0.53127491 * this.z1_1) - (0.93061518 * this.z2_1);

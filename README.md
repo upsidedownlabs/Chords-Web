@@ -75,7 +75,6 @@ Chords is an application based on Web Serial connection, you can connect [Compat
 
 Thank you for contributing to our project! Your support is invaluable in creating & enhancing Chords-Web and making it even better. 😊
 
-
 <center>
 <a href="https://github.com/upsidedownlabs/Chords-Web/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=upsidedownlabs/Chords-Web" />

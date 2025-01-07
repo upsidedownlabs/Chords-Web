@@ -55,10 +55,12 @@ interface ConnectionProps {
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
   channelCount: number;
-  currentValue:number;
-  setCurrentValue: React.Dispatch<React.SetStateAction<number>>;
+  timeBase: number;
+  setTimeBase: React.Dispatch<React.SetStateAction<number>>;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
-  SetcurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
+  SetCurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
+  currentSamplingRate:number;
+  setCurrentSamplingRate :React.Dispatch<React.SetStateAction<number>>;
   currentSnapshot: number;
   Zoom: number;
   snapShotRef: React.RefObject<boolean[]>;
@@ -73,13 +75,15 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsDisplay,
   setCanvasCount,
   canvasCount,
-  SetcurrentSnapshot,
+  SetCurrentSnapshot,
   currentSnapshot,
   snapShotRef,
   SetZoom,
   Zoom,
-  currentValue,
-  setCurrentValue,
+  timeBase,
+  setTimeBase,
+  currentSamplingRate,
+  setCurrentSamplingRate
 }) => {
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
@@ -101,6 +105,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
+  const maxCanvasCountRef = useRef<number>(1);
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -121,19 +126,20 @@ const Connection: React.FC<ConnectionProps> = ({
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
     onPauseChange(newPauseState); // Notify parent about the change
-    SetcurrentSnapshot(0);
+    SetCurrentSnapshot(0);
     setClickCount(0);
 
   };
   const increaseCanvas = () => {
-    if (canvasCount < (detectedBitsRef.current == "twelve" ? 3 : 6)) {
+    if (canvasCount < maxCanvasCountRef.current) {
+
       setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
     }
   };
 
   const increaseValue = () => {
-    if(currentValue < 10){
-      setCurrentValue(currentValue + 1);
+    if (timeBase < 10) {
+      setTimeBase(timeBase + 1);
     }
   };
 
@@ -146,9 +152,10 @@ const Connection: React.FC<ConnectionProps> = ({
     }
 
     if (currentSnapshot < 4) {
-      SetcurrentSnapshot(currentSnapshot + 1);
+      SetCurrentSnapshot(currentSnapshot + 1);
     }
   };
+
 
   // Handle right arrow click (reset count and disable button if needed)
   const handleNextSnapshot = () => {
@@ -156,7 +163,7 @@ const Connection: React.FC<ConnectionProps> = ({
       setClickCount(clickCount - 1); // Reset count after right arrow click
     }
     if (currentSnapshot > 0) {
-      SetcurrentSnapshot(currentSnapshot - 1);
+      SetCurrentSnapshot(currentSnapshot - 1);
     }
   };
 
@@ -166,17 +173,17 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
   const decreaseValue = () => {
-    if(currentValue > 1){
-      setCurrentValue(currentValue - 1);
+    if (timeBase > 1) {
+      setTimeBase(timeBase - 1);
     }
   };
 
   const toggleShowAllChannels = () => {
-    if (canvasCount === (detectedBitsRef.current == "twelve" ? 3 : 6)) {
+    if (canvasCount === maxCanvasCountRef.current) {
       setCanvasCount(1); // If canvasCount is 6, reduce it to 1
       setShowAllChannels(false);
     } else {
-      setCanvasCount(detectedBitsRef.current == "twelve" ? 3 : 6); // Otherwise, show all 6 canvases
+      setCanvasCount(maxCanvasCountRef.current); // Otherwise, show all 6 canvases
       setShowAllChannels(true);
     }
   };
@@ -201,10 +208,12 @@ const Connection: React.FC<ConnectionProps> = ({
       setFullZoom(true);
     }
   };
+ 
+ // Added useEffect to sync canvasCount state with the canvasnumbersRef and re-render when isRecordingRef changes
+useEffect(() => {
+  canvasnumbersRef.current = canvasCount; // Sync the ref with the state
+}, [canvasCount, isRecordingRef]);
 
-  useEffect(() => {
-    canvasnumbersRef.current = canvasCount; // Sync the ref with the state
-  }, [canvasCount, isRecordingRef]);
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -234,7 +243,7 @@ const Connection: React.FC<ConnectionProps> = ({
       });
     }
   };
-  const setCanvasCountInWorker = (canvasCount:number) => {
+  const setCanvasCountInWorker = (canvasCount: number) => {
     if (!workerRef.current) {
       initializeWorker();
     }
@@ -332,28 +341,47 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const formatPortInfo = useCallback(
-    // Function to format the port info, which includes the board name and product ID in toast message
-    (info: SerialPortInfo) => {
+    (info: SerialPortInfo, deviceName: string, fieldPid?: number) => {
       if (!info || !info.usbVendorId) {
-        return "Port with no info";
+        return { formattedInfo: "Port with no info", bits: null, channel: null };
       }
-
-      // First, check if the board exists in BoardsList
+  
+      // Find the board matching both name and field_pid
       const board = BoardsList.find(
-        (b) => parseInt(b.field_pid) === info.usbProductId
+        (b) =>
+          b.name.toLowerCase() === deviceName.toLowerCase() &&
+          (!fieldPid || parseInt(b.field_pid, 10) === fieldPid) // Match field_pid if provided
       );
+    
       if (board) {
         setifBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
         detectedBitsRef.current = board.bits as BitSelection;
-        return (<>{board.name} <br /> Product ID: {info.usbProductId}</>); // Return the board name and product ID
+  
+        const channel = board.channel ? parseInt(board.channel, 10) : 0;
+        maxCanvasCountRef.current = channel;
+  
+        if (board.sampling_rate) {
+          setCurrentSamplingRate(parseInt(board.sampling_rate, 10));
+        }
+  
+        return {
+          formattedInfo: (
+            <>
+              {board.device_name} <br /> Product ID: {info.usbProductId}
+            </>
+          ),
+          bits: board.bits,
+          channel: board.channel,
+        };
       }
-
+  
       setDetectedBits(null);
+      return { formattedInfo: `${deviceName}`, bits: null, channel: null };
     },
     []
   );
-
+  
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
     if (isConnected) {
@@ -374,103 +402,136 @@ const Connection: React.FC<ConnectionProps> = ({
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-
+  
       const savedPorts: SavedDevice[] = JSON.parse(localStorage.getItem('savedDevices') || '[]');
       let port: SerialPort | null = null;
       let baudRate = 230400; // Default baud rate
-
+  
       const ports = await navigator.serial.getPorts();
-
+      console.log(ports);
+      // Check for saved ports
       if (savedPorts.length > 0) {
-        port = ports.find(p => {
+        port = ports.find((p) => {
           const info = p.getInfo();
-          return savedPorts.some(saved =>
-            saved.usbVendorId === (info.usbVendorId ?? 0) && saved.usbProductId === (info.usbProductId ?? 0)
+          return savedPorts.some(
+            (saved: SavedDevice) =>
+              saved.usbVendorId === (info.usbVendorId ?? 0) &&
+              saved.usbProductId === (info.usbProductId ?? 0)
           );
         }) || null;
       }
-
+  
       if (!port) {
         port = await navigator.serial.requestPort();
         const newPortInfo = await port.getInfo();
-
-
+  
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
-
-        // Check for specific usbProductId 29987 and set baud rate
-        if (usbProductId === 29987) {
+  
+        if (usbProductId === 29987 ) {
           baudRate = 115200;
-
         }
-
-        const existingDevice = savedPorts.find(saved =>
-          saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
+  
+        const existingDevice = savedPorts.find(
+          (saved) =>
+            saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
         );
-
+  
         if (!existingDevice) {
-          savedPorts.push({
-            usbVendorId,
-            usbProductId,
-            baudRate
-          });
+          savedPorts.push({ usbVendorId, usbProductId, baudRate });
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
           console.log(`New device saved: Vendor ${usbVendorId}, Product ${usbProductId}, Baud Rate ${baudRate}`);
         }
-
+  
         await port.open({ baudRate });
       } else {
-        const portInfo = port.getInfo();
-        const usbProductId = portInfo.usbProductId ?? 0;
-
-        // Check again if the port has productId 29987
-        if (usbProductId === 29987) {
+        const newPortInfo = port.getInfo();
+        const usbProductId = newPortInfo.usbProductId ?? 0;
+  
+        if (usbProductId === 29987 ) {
           baudRate = 115200;
         }
-
+  
         await port.open({ baudRate });
       }
-
+  
+      if (port.readable) {
+        const reader = port.readable.getReader();
+        readerRef.current = reader;
+        const writer = port.writable?.getWriter();
+        if (writer) {
+          // Query the board for its name
+          writerRef.current = writer;
+  
+          const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
+          await writerRef.current.write(whoAreYouMessage);
+          setTimeout(() => writer.write(whoAreYouMessage), 2000);
+  
+          let buffer = "";
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+  
+            if (value) {
+              buffer += new TextDecoder().decode(value);
+              if (buffer.includes("\n")) break;
+            }
+          }
+  
+          // Extract the device name
+          const response: string | undefined = buffer.trim().split("\n").pop();
+          const extractedName = response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
+          
+          const currentPortInfo = port.getInfo(); // Ensure correct variable name and scope
+          const usbProductId = currentPortInfo.usbProductId ?? 0; // Access usbProductId correctly
+  
+          // Pass the name and field_pid to formatPortInfo
+          const { formattedInfo, bits, channel } = formatPortInfo(
+            currentPortInfo,
+            extractedName,
+            usbProductId
+          );
+  
+          toast.success("Connection Successful", {
+            description: (
+              <div className="mt-2 flex flex-col space-y-1">
+                <p>Device: {formattedInfo}</p>
+                <p>Baud Rate: {baudRate}</p>
+                {bits && <p>Resolution: {bits} bits</p>}
+                {channel && <p>Channel: {channel}</p>}
+              </div>
+            ),
+          });
+  
+          const startMessage = new TextEncoder().encode("START\n");
+          setTimeout(() => writer.write(startMessage), 2000);
+        } else {
+          console.error("Writable stream not available");
+        }
+      } else {
+        console.error("Readable stream not available");
+      }
+  
       Connection(true);
       setIsConnected(true);
+  
       onPauseChange(true);
       setIsDisplay(true);
       setCanvasCount(1);
       isConnectedRef.current = true;
       portRef.current = port;
-
-      toast.success("Connection Successful", {
-        description: (
-          <div className="mt-2 flex flex-col space-y-1">
-            <p>Device: {formatPortInfo(port.getInfo())}</p>
-            <p>Baud Rate: {baudRate}</p>
-          </div>
-        ),
-      });
-      const reader = port.readable?.getReader();
-      readerRef.current = reader;
-
-      const writer = port.writable?.getWriter();
-      if (writer) {
-        setTimeout(() => {
-          writerRef.current = writer;
-          const message = new TextEncoder().encode("START\n");
-          writerRef.current.write(message);
-        }, 2000);
-      } else {
-        console.error("Writable stream not available");
-      }
+  
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
       await navigator.wakeLock.request("screen");
-
     } catch (error) {
       await disconnectDevice();
       console.error("Error connecting to device:", error);
       toast.error("Failed to connect to device.");
     }
   };
+  
 
 
   const getFileCountFromIndexedDB = async (): Promise<any[]> => {
@@ -498,6 +559,7 @@ const Connection: React.FC<ConnectionProps> = ({
       }
     });
   };
+
 
   const disconnectDevice = async (): Promise<void> => {
     try {
@@ -549,6 +611,8 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
+  
+
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
   const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
   const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
@@ -608,23 +672,22 @@ const Connection: React.FC<ConnectionProps> = ({
     });
     forceUpdate(); // Trigger re-render
   };
-
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
     const HEADER_LENGTH = 3; // Length of the packet header
-    const NUM_CHANNELS = detectedBitsRef.current == "twelve" ? 3 : 6; // Number of channels in the data packet
-    const PACKET_LENGTH = detectedBitsRef.current == "twelve" ? 10 : 16; // Total length of each packet
+    const NUM_CHANNELS = maxCanvasCountRef.current; // Number of channels in the data packet
+    const PACKET_LENGTH = NUM_CHANNELS * 2 + HEADER_LENGTH + 1; // Total length of each packet
     const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    const notchFilters = Array.from({ length: 6 }, () => new Notch());
-    const EXGFilters = Array.from({ length: 6 }, () => new EXGFilter());
+    const notchFilters = Array.from({ length: maxCanvasCountRef.current }, () => new Notch());
+    const EXGFilters = Array.from({ length: maxCanvasCountRef.current }, () => new EXGFilter());
     notchFilters.forEach((filter) => {
-      filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
+      filter.setbits(detectedBitsRef.current); // Set the bits value for all instances
     });
     EXGFilters.forEach((filter) => {
-      filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
+      filter.setbits(detectedBitsRef.current); // Set the bits value for all instances
     });
     try {
       while (isConnectedRef.current) {
@@ -1504,14 +1567,14 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseCanvas}
-                      disabled={canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6) || !isDisplay || isRecordButtonDisabled}
+                      disabled={canvasCount >=  maxCanvasCountRef.current || !isDisplay || isRecordButtonDisabled}
                     >
                       <Plus size={16} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {canvasCount >= (detectedBitsRef.current == "twelve" ? 3 : 6)
+                      {canvasCount >= maxCanvasCountRef.current
                         ? "Maximum Channels Reached"
                         : "Increase Channel"}
                     </p>
@@ -1531,7 +1594,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-r-none"
                       onClick={decreaseValue}
-                      disabled={currentValue == 1}
+                      disabled={timeBase == 1}
                     >
                       <Minus size={16} />
                     </Button>
@@ -1546,7 +1609,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="flex items-center justify-center px-3 py-2 rounded-none select-none"
                     >
-                      {currentValue} Sec
+                      {timeBase} Sec
                     </Button>
                   </TooltipTrigger>
                 </Tooltip>
@@ -1559,7 +1622,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseValue}
-                      disabled={currentValue >= 10}
+                      disabled={timeBase >= 10}
                     >
                       <Plus size={16} />
                     </Button>
@@ -1575,4 +1638,3 @@ const Connection: React.FC<ConnectionProps> = ({
 };
 
 export default Connection;
-
