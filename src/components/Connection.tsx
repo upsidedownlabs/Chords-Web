@@ -56,11 +56,11 @@ interface ConnectionProps {
   canvasCount: number;
   channelCount: number;
   timeBase: number;
-  settimeBase: React.Dispatch<React.SetStateAction<number>>;
+  setTimeBase: React.Dispatch<React.SetStateAction<number>>;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
   SetcurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
-  currentsamplingRate:number;
-  setcurrentsamplingRate :React.Dispatch<React.SetStateAction<number>>;
+  currentSamplingRate:number;
+  setCurrentSamplingRate :React.Dispatch<React.SetStateAction<number>>;
   currentSnapshot: number;
   Zoom: number;
   snapShotRef: React.RefObject<boolean[]>;
@@ -81,9 +81,9 @@ const Connection: React.FC<ConnectionProps> = ({
   SetZoom,
   Zoom,
   timeBase,
-  settimeBase,
-  currentsamplingRate,
-  setcurrentsamplingRate
+  setTimeBase,
+  currentSamplingRate,
+  setCurrentSamplingRate
 }) => {
   const [isConnected, setIsConnected] = useState<boolean>(false); // State to track if the device is connected
   const isConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
@@ -139,7 +139,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const increaseValue = () => {
     if (timeBase < 10) {
-      settimeBase(timeBase + 1);
+      setTimeBase(timeBase + 1);
     }
   };
 
@@ -174,7 +174,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
   const decreaseValue = () => {
     if (timeBase > 1) {
-      settimeBase(timeBase - 1);
+      setTimeBase(timeBase - 1);
     }
   };
 
@@ -339,35 +339,35 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const formatPortInfo = useCallback(
-    (info: SerialPortInfo, deviceName: string) => {
+    (info: SerialPortInfo, deviceName: string, fieldPid?: number) => {
       if (!info || !info.usbVendorId) {
         return { formattedInfo: "Port with no info", bits: null, channel: null };
       }
   
-    // Check if the device name exists in the BoardsList
+      // Find the board matching both name and field_pid
       const board = BoardsList.find(
-      (b) => b.name.toLowerCase() === deviceName.toLowerCase() // Match Device Name
+        (b) =>
+          b.name.toLowerCase() === deviceName.toLowerCase() &&
+          (!fieldPid || parseInt(b.field_pid, 10) === fieldPid) // Match field_pid if provided
       );
+      console.log(board);
   
       if (board) {
-      // Set the bits based on the matched board
         setifBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
         detectedBitsRef.current = board.bits as BitSelection;
   
-      // Safely parse the channel or set a default value
         const channel = board.channel ? parseInt(board.channel, 10) : 0;
         maxCanvasCountRef.current = channel;
   
-      // Set the sampling rate
         if (board.sampling_rate) {
-        setcurrentsamplingRate(parseInt(board.sampling_rate, 10)); // Assuming sampling_rate is a number
+          setCurrentSamplingRate(parseInt(board.sampling_rate, 10));
         }
   
         return {
           formattedInfo: (
             <>
-              {board.name} <br /> Product ID: {info.usbProductId}
+              {board.device_name} <br /> Product ID: {info.usbProductId}
             </>
           ),
           bits: board.bits,
@@ -375,12 +375,13 @@ const Connection: React.FC<ConnectionProps> = ({
         };
       }
   
-    // If device not found in the list
       setDetectedBits(null);
       return { formattedInfo: `${deviceName}`, bits: null, channel: null };
     },
     []
   );
+  
+  
   
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
@@ -411,12 +412,14 @@ const Connection: React.FC<ConnectionProps> = ({
   
       // Check for saved ports
       if (savedPorts.length > 0) {
-        port = ports.find(p => {
-            const info = p.getInfo();
-          return savedPorts.some((saved: SavedDevice) =>
-            saved.usbVendorId === (info.usbVendorId ?? 0) && saved.usbProductId === (info.usbProductId ?? 0)
-            );
-          }) || null;
+        port = ports.find((p) => {
+          const info = p.getInfo();
+          return savedPorts.some(
+            (saved: SavedDevice) =>
+              saved.usbVendorId === (info.usbVendorId ?? 0) &&
+              saved.usbProductId === (info.usbProductId ?? 0)
+          );
+        }) || null;
       }
   
       if (!port) {
@@ -426,12 +429,13 @@ const Connection: React.FC<ConnectionProps> = ({
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
   
-        if (usbProductId === 29987|| usbProductId === 67) {
+        if (usbProductId === 29987 || usbProductId === 67) {
           baudRate = 115200;
         }
   
-        const existingDevice = savedPorts.find(saved =>
-          saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
+        const existingDevice = savedPorts.find(
+          (saved) =>
+            saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
         );
   
         if (!existingDevice) {
@@ -442,15 +446,16 @@ const Connection: React.FC<ConnectionProps> = ({
   
         await port.open({ baudRate });
       } else {
-        const portInfo = port.getInfo();
-        const usbProductId = portInfo.usbProductId ?? 0;
+        const newPortInfo = port.getInfo();
+        const usbProductId = newPortInfo.usbProductId ?? 0;
   
-        if (usbProductId === 29987|| usbProductId === 67) {
+        if (usbProductId === 29987 || usbProductId === 67) {
           baudRate = 115200;
         }
   
         await port.open({ baudRate });
       }
+  
       if (port.readable) {
         const reader = port.readable.getReader();
         readerRef.current = reader;
@@ -463,7 +468,6 @@ const Connection: React.FC<ConnectionProps> = ({
           await writerRef.current.write(whoAreYouMessage);
           setTimeout(() => writer.write(whoAreYouMessage), 2000);
   
-  
           let buffer = "";
           while (true) {
             const { value, done } = await reader.read();
@@ -471,24 +475,23 @@ const Connection: React.FC<ConnectionProps> = ({
   
             if (value) {
               buffer += new TextDecoder().decode(value);
-              if (buffer.includes("\n")) break; // End of message
+              if (buffer.includes("\n")) break;
             }
           }
   
           // Extract the device name
-          const response: string | undefined = buffer
-            .trim()
-            .split("\n")
-            .pop();
-  
-          const extractedName = response
-            ?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device"; // Use regex to extract the name
+          const response: string | undefined = buffer.trim().split("\n").pop();
+          const extractedName = response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
           console.log(`Extracted Device Name: ${extractedName}`);
   
-          const portInfo = port.getInfo();
+          const currentPortInfo = port.getInfo(); // Ensure correct variable name and scope
+          const usbProductId = currentPortInfo.usbProductId ?? 0; // Access usbProductId correctly
+  
+          // Pass the name and field_pid to formatPortInfo
           const { formattedInfo, bits, channel } = formatPortInfo(
-            portInfo,
-            extractedName
+            currentPortInfo,
+            extractedName,
+            usbProductId
           );
   
           toast.success("Connection Successful", {
@@ -510,27 +513,27 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Readable stream not available");
       }
+  
       Connection(true);
       setIsConnected(true);
-      
+  
       onPauseChange(true);
       setIsDisplay(true);
       setCanvasCount(1);
       isConnectedRef.current = true;
       portRef.current = port;
-      
   
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
       await navigator.wakeLock.request("screen");
-
     } catch (error) {
       await disconnectDevice();
       console.error("Error connecting to device:", error);
       toast.error("Failed to connect to device.");
     }
-  };  
+  };
+  
 
 
   const getFileCountFromIndexedDB = async (): Promise<any[]> => {
@@ -683,10 +686,10 @@ const Connection: React.FC<ConnectionProps> = ({
     const notchFilters = Array.from({ length: maxCanvasCountRef.current }, () => new Notch());
     const EXGFilters = Array.from({ length: maxCanvasCountRef.current }, () => new EXGFilter());
     notchFilters.forEach((filter) => {
-      filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
+      filter.setbits(detectedBitsRef.current); // Set the bits value for all instances
     });
     EXGFilters.forEach((filter) => {
-      filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
+      filter.setbits(detectedBitsRef.current); // Set the bits value for all instances
     });
     try {
       while (isConnectedRef.current) {

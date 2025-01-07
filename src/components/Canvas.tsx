@@ -16,7 +16,7 @@ interface CanvasProps {
   isDisplay: boolean;
   canvasCount?: number;
   timeBase?: number;
-  currentsamplingRate:number;
+  currentSamplingRate:number;
   Zoom: number;
   currentSnapshot: number;
   snapShotRef: React.MutableRefObject<boolean[]>;
@@ -30,7 +30,7 @@ const Canvas = forwardRef(
       isDisplay,
       canvasCount = 6, // default value in case not provided
       timeBase = 4,
-      currentsamplingRate,
+      currentSamplingRate,
       Zoom,
       currentSnapshot,
       snapShotRef,
@@ -73,7 +73,7 @@ const Canvas = forwardRef(
     
 
     useEffect(() => {
-      numXRef.current = (currentsamplingRate * timeBase);
+      numXRef.current = (currentSamplingRate * timeBase);
 
     }, [timeBase]);
 
