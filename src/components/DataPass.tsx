@@ -13,8 +13,8 @@ const DataPass = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
   const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
   const [canvasCount, setCanvasCount] = useState<number>(1); // Number of canvases
-  const [timeBase, settimeBase] = useState<number>(4); // To track the current index to show
-  const [currentsamplingRate, setcurrentsamplingRate] = useState<number>(0);
+  const [timeBase, setTimeBase] = useState<number>(4); // To track the current index to show
+  const [currentSamplingRate, setCurrentSamplingRate] = useState<number>(0);
   const [channelCount, setChannelCount] = useState<number>(1); // Number of channels
   const canvasRef = useRef<any>(null); // Create a ref for the Canvas component
   const [selectedChannels, setSelectedChannels] = useState<number[]>([1]);
@@ -60,7 +60,7 @@ const DataPass = () => {
           canvasCount={canvasCount} // Pass canvas count
           selectedChannels={selectedChannels}
           timeBase={timeBase}
-          currentsamplingRate={currentsamplingRate}
+          currentSamplingRate={currentSamplingRate}
         />
       ) : (
         <Steps />
@@ -76,12 +76,12 @@ const DataPass = () => {
         setIsDisplay={setIsDisplay}
         setCanvasCount={setCanvasCount}
         canvasCount={canvasCount}
+        setTimeBase={setTimeBase}
         selectedChannels={selectedChannels}
         setSelectedChannels={setSelectedChannels}
-        settimeBase={settimeBase}
         timeBase={timeBase}
-        setcurrentsamplingRate={setcurrentsamplingRate}
-        currentsamplingRate={currentsamplingRate}
+        setCurrentSamplingRate={setCurrentSamplingRate}
+        currentSamplingRate={currentSamplingRate}
         channelCount={channelCount}
         SetZoom={SetZoom}
         SetcurrentSnapshot={SetcurrentSnapshot}

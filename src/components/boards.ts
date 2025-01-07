@@ -1,69 +1,55 @@
 export const BoardsList = Object.freeze([
   {
-    name: "Uno-R3",
+    name: "UNO-R3",
+    device_name:"Arduino UNO R3",
     field_pid: "67",
     bits: "10",
     channel:"6",
     sampling_rate:"250"
   },
   {
-    name: "Nano-Clone",
-    field_pid: "24577",
+    name: "NANO-CLONE",
+    device_name:"Arduino Nano Clone",
+    field_pid: "29987",
     bits: "10",
     channel:"8",
     sampling_rate:"250"
   },
   {
-    name: "Genuino-Uno",
+    name: "GENUINO-UNO",
+    device_name:"Genuino UNO",
     field_pid: "579",
     bits: "10",
     channel:"6",
     sampling_rate:"250"
   },
   {
-    name: "Arduino Due",
-    field_pid: "61",
-    bits: "12",
-    channel:"6",
-    sampling_rate:"250"
-  },
-  {
     name: "UNO-R4",
+    device_name:"Arduino UNO R4 Minima",
     field_pid: "105",
     bits: "14",
     channel:"6",
     sampling_rate:"500"
   },
   {
-    name: "Arduino UNO R4 WiFi",
+    name: "UNO-R4",
+    device_name:"Arduino UNO R4 Wifi",
     field_pid: "4098",
     bits: "14",
-    channel:"6",
-    sampling_rate:"500"
-  },
+    channel: "6",
+    sampling_rate: "500"
+  },  
   {
-    name: "Maker Uno",
+    name: "UNO-CLONE",
+    device_name:"Maker UNO / UNO Clone",
     field_pid: "29987",
     bits: "10",
     channel:"6",
     sampling_rate:"250"
-  },
-  {
-    name: "Uno-Clone",
-    field_pid: "29987",
-    bits: "10",
-    channel:"6",
-    sampling_rate:"250"
-  },
-  {
-    name: "Maker Pi RP2040",
-    field_pid: "4096",
-    bits: "10",
-    channel:"6",
-    sampling_rate:"500"
   },
   {
     name: "RPI-PICO-RP2040",
+    device_name:"Raspberry Pi Pico",
     field_pid: "192",
     bits: "12",
     channel:"3",
@@ -71,6 +57,7 @@ export const BoardsList = Object.freeze([
   },
   {
     name: "GIGA-R1",
+    device_name:"Arduino GIGA R1",
     field_pid: "614",
     bits: "16",
     channel:"6",
