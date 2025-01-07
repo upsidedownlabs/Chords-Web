@@ -350,8 +350,7 @@ const Connection: React.FC<ConnectionProps> = ({
           b.name.toLowerCase() === deviceName.toLowerCase() &&
           (!fieldPid || parseInt(b.field_pid, 10) === fieldPid) // Match field_pid if provided
       );
-      console.log(board);
-  
+    
       if (board) {
         setifBits(board.bits as BitSelection);
         setSelectedBits(board.bits as BitSelection);
@@ -381,8 +380,6 @@ const Connection: React.FC<ConnectionProps> = ({
     []
   );
   
-  
-  
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
     if (isConnected) {
@@ -409,7 +406,7 @@ const Connection: React.FC<ConnectionProps> = ({
       let baudRate = 230400; // Default baud rate
   
       const ports = await navigator.serial.getPorts();
-  
+      console.log(ports);
       // Check for saved ports
       if (savedPorts.length > 0) {
         port = ports.find((p) => {
@@ -429,7 +426,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
   
-        if (usbProductId === 29987 || usbProductId === 67) {
+        if (usbProductId === 29987 ) {
           baudRate = 115200;
         }
   
@@ -449,7 +446,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const newPortInfo = port.getInfo();
         const usbProductId = newPortInfo.usbProductId ?? 0;
   
-        if (usbProductId === 29987 || usbProductId === 67) {
+        if (usbProductId === 29987 ) {
           baudRate = 115200;
         }
   
@@ -482,8 +479,7 @@ const Connection: React.FC<ConnectionProps> = ({
           // Extract the device name
           const response: string | undefined = buffer.trim().split("\n").pop();
           const extractedName = response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
-          console.log(`Extracted Device Name: ${extractedName}`);
-  
+          
           const currentPortInfo = port.getInfo(); // Ensure correct variable name and scope
           const usbProductId = currentPortInfo.usbProductId ?? 0; // Access usbProductId correctly
   
