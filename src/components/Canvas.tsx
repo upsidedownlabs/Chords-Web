@@ -9,13 +9,13 @@ import React, {
 import { useTheme } from "next-themes";
 import { BitSelection } from "./DataPass";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
-import { time } from "console";
 
 interface CanvasProps {
   pauseRef: React.RefObject<boolean>;
   selectedBits: BitSelection;
   isDisplay: boolean;
   canvasCount?: number;
+  selectedChannels: number[];
   timeBase?: number;
   currentsamplingRate: number;
   Zoom: number;
@@ -33,6 +33,7 @@ const Canvas = forwardRef(
       timeBase = 4,
       currentsamplingRate,
       Zoom,
+      selectedChannels,
       currentSnapshot,
       snapShotRef,
     }: CanvasProps,
@@ -42,6 +43,7 @@ const Canvas = forwardRef(
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const [numChannels, setNumChannels] = useState<number>(canvasCount);
+    const [showSelectedChannels, setShowSelectedChannels] = useState<number[]>(selectedChannels);
     const numXRef = useRef<number>(2000); // To track the calculated value
     const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
@@ -57,21 +59,7 @@ const Canvas = forwardRef(
     );
     const activebuffer = useRef(0); // Initialize useRef with 0
     const indicesRef = useRef<number[]>([]); // Use `useRef` for indices
-
-    //select point
-    const getpoints = useCallback((bits: BitSelection): number => {
-      switch (bits) {
-        case "ten":
-          return 250;
-        case "twelve":
-        case "fourteen":
-        case "sixteen":
-          return 500;
-        default:
-          return 500; // Default fallback
-      }
-    }, []);
-
+console.log("canvas",showSelectedChannels);
 
     useEffect(() => {
       numXRef.current = (currentsamplingRate * timeBase);
@@ -116,7 +104,9 @@ const Canvas = forwardRef(
     useEffect(() => {
       setNumChannels(canvasCount);
     }, [canvasCount]);
-
+    useEffect(() => {
+      setShowSelectedChannels(selectedChannels);
+    }, [selectedChannels]);
 
     useEffect(() => {
       // Reset when timeBase changes
@@ -156,111 +146,74 @@ const Canvas = forwardRef(
     );
 
     const createCanvases = () => {
-      if (!canvasContainerRef.current) return;
-
-      // Clean up all existing canvases and their WebGL contexts
-      while (canvasContainerRef.current.firstChild) {
-        const firstChild = canvasContainerRef.current.firstChild;
-        if (firstChild instanceof HTMLCanvasElement) {
-          const gl = firstChild.getContext("webgl");
-          if (gl) {
-            const loseContext = gl.getExtension("WEBGL_lose_context");
-            if (loseContext) {
-              loseContext.loseContext();
-            }
-          }
-        }
-        canvasContainerRef.current.removeChild(firstChild);
+      const container = canvasContainerRef.current;
+      if (!container) {
+          return; // Exit if the ref is null
       }
-
+  
+      // Clear existing child elements
+      while (container.firstChild) {
+          const firstChild = container.firstChild;
+          if (firstChild instanceof HTMLCanvasElement) {
+              const gl = firstChild.getContext("webgl");
+              if (gl) {
+                  const loseContext = gl.getExtension("WEBGL_lose_context");
+                  if (loseContext) {
+                      loseContext.loseContext();
+                  }
+              }
+          }
+          container.removeChild(firstChild);
+      }
+  
       setCanvases([]);
       setWglPlots([]);
       linesRef.current = [];
-      const newCanvases = [];
-      const newWglPlots = [];
-      const newLines = [];
-
-
-      // // Create grid lines
-      const canvasWrapper = document.createElement("div");
-      canvasWrapper.className = "absolute inset-0"; // Make the wrapper fill the parent container
-      const opacityDarkMajor = "0.2"; // Opacity for every 5th line in dark theme
-      const opacityDarkMinor = "0.05"; // Opacity for other lines in dark theme
-      const opacityLightMajor = "0.4"; // Opacity for every 5th line in light theme
-      const opacityLightMinor = "0.1"; // Opacity for other lines in light theme
-      const distanceminor = samplingRate * 0.04;
-      const numGridLines = getpoints(selectedBits) * 4 / distanceminor;
-      for (let j = 1; j < numGridLines; j++) {
-        const gridLineX = document.createElement("div");
-        gridLineX.className = "absolute bg-[rgb(128,128,128)]";
-        gridLineX.style.width = "1px";
-        gridLineX.style.height = "100%";
-        const divPoint = (j / numGridLines) * 100
-        const a = parseFloat(divPoint.toFixed(3));
-        gridLineX.style.left = `${a}%`
-        gridLineX.style.top = "0";
-        gridLineX.style.opacity = j % 5 === 0 ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor) : (theme === "dark" ? opacityDarkMinor : opacityLightMinor);
-
-        // Append grid lines to the wrapper
-        canvasWrapper.appendChild(gridLineX);
-      }
-      const horizontalline = 50;
-      for (let j = 1; j < horizontalline; j++) {
-        const gridLineY = document.createElement("div");
-        gridLineY.className = "absolute bg-[rgb(128,128,128)]";
-        gridLineY.style.height = "1px";
-        gridLineY.style.width = "100%";
-        const distance = (j / horizontalline) * 100
-        const distancetop = parseFloat(distance.toFixed(3));
-        gridLineY.style.top = `${distancetop}%`;
-        gridLineY.style.left = "0";
-        gridLineY.style.opacity = j % 5 === 0 ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor) : (theme === "dark" ? opacityDarkMinor : opacityLightMinor);
-
-        // Append grid lines to the wrapper
-        canvasWrapper.appendChild(gridLineY);
-      }
-      canvasContainerRef.current.appendChild(canvasWrapper);
-      for (let i = 0; i < numChannels; i++) {
-        const canvasWrapper = document.createElement("div");
-        canvasWrapper.className = "canvas-container relative flex-[1_1_0%]"; // Add relative positioning for absolute grid positioning
-
-        const canvas = document.createElement("canvas");
-        canvas.id = `canvas${i + 1}`;
-        canvas.width = canvasContainerRef.current.clientWidth;
-        const canvasHeight = (canvasContainerRef.current.clientHeight / numChannels);
-        canvas.height = canvasHeight;
-        canvas.className = "w-full h-full block rounded-xl";
-
-        // Create a badge for the channel number
-        const badge = document.createElement("div");
-        badge.className = "absolute text-gray-500 text-sm rounded-full p-2 m-2";
-        badge.innerText = `CH${i + 1}`;
-
-        // Append the canvas and badge to the container
-        canvasWrapper.appendChild(badge);
-        canvasWrapper.appendChild(canvas);
-        canvasContainerRef.current.appendChild(canvasWrapper);
-
-        newCanvases.push(canvas);
-        const wglp = new WebglPlot(canvas);
-        newWglPlots.push(wglp);
-        wglp.gScaleY = Zoom;
-        const line = new WebglLine(getLineColor(i, theme), numXRef.current);
-        wglp.gOffsetY = 0;
-        line.offsetY = 0;
-        line.lineSpaceX(-1, 2 / numXRef.current);
-
-        wglp.addLine(line);
-        newLines.push(line);
-      }
-
+      const newCanvases: HTMLCanvasElement[] = [];
+      const newWglPlots: WebglPlot[] = [];
+      const newLines: WebglLine[] = [];
+  
+      // Iterate only over selected channels
+      showSelectedChannels.forEach((channelNumber) => {
+          const canvasWrapper = document.createElement("div");
+          canvasWrapper.className = "canvas-container relative flex-[1_1_0%]"; // Add relative positioning for absolute grid positioning
+  
+          const canvas = document.createElement("canvas");
+          canvas.id = `canvas${channelNumber}`; // Use channelNumber directly
+          canvas.width = container.clientWidth;
+          canvas.height = container.clientHeight / showSelectedChannels.length;
+          canvas.className = "w-full h-full block rounded-xl";
+  
+          // Create a badge for the channel number
+          const badge = document.createElement("div");
+          badge.className = "absolute text-gray-500 text-sm rounded-full p-2 m-2";
+          badge.innerText = `CH${channelNumber}`; // Use channelNumber directly
+  
+          // Append the canvas and badge to the container
+          canvasWrapper.appendChild(badge);
+          canvasWrapper.appendChild(canvas);
+          container.appendChild(canvasWrapper);
+  
+          newCanvases.push(canvas);
+          const wglp = new WebglPlot(canvas);
+          newWglPlots.push(wglp);
+          wglp.gScaleY = Zoom;
+          const line = new WebglLine(getLineColor(channelNumber, theme), numXRef.current);
+          wglp.gOffsetY = 0;
+          line.offsetY = 0;
+          line.lineSpaceX(-1, 2 / numXRef.current);
+  
+          wglp.addLine(line);
+          newLines.push(line);
+      });
+  
       linesRef.current = newLines;
       setCanvases(newCanvases);
       setWglPlots(newWglPlots);
       setLines(newLines);
-    };
-
-
+  };
+  
+  
     const getLineColor = (i: number, theme: string | undefined): ColorRGBA => {
       // Define bright colors
       const colorsDark: ColorRGBA[] = [
@@ -325,7 +278,7 @@ const Canvas = forwardRef(
 
     useEffect(() => {
       createCanvases();
-    }, [numChannels, theme, timeBase]);
+    }, [numChannels,showSelectedChannels, theme, timeBase]);
 
 
     const animate = useCallback(() => {

@@ -14,10 +14,6 @@ import {
   FileArchive,
   Pause,
   Play,
-  Plus,
-  Minus,
-  ZoomIn, // For magnify/zoom in functionality
-  ZoomOut, // For zoom out functionality
   CircleOff,
   ReplaceAll,
   Heart,
@@ -55,6 +51,8 @@ interface ConnectionProps {
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
+  selectedChannels: number[]; // Array of selected channel indices
+  setSelectedChannels: React.Dispatch<React.SetStateAction<number[]>>; // State updater for selectedChannels
   channelCount: number;
   timeBase: number;
   settimeBase: React.Dispatch<React.SetStateAction<number>>;
@@ -76,6 +74,8 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsDisplay,
   setCanvasCount,
   canvasCount,
+  setSelectedChannels,
+  selectedChannels,
   SetcurrentSnapshot,
   currentSnapshot,
   snapShotRef,
@@ -103,8 +103,6 @@ const Connection: React.FC<ConnectionProps> = ({
   const [popoverVisible, setPopoverVisible] = useState(false);
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const [ifBits, setifBits] = useState<BitSelection>("auto");
-  const [showAllChannels, setShowAllChannels] = useState(false);
-  const [FullZoom, setFullZoom] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
   const maxCanvasCountRef = useRef<number>(1);
   const readerRef = useRef<
@@ -131,18 +129,6 @@ const Connection: React.FC<ConnectionProps> = ({
     setClickCount(0);
 
   };
-  const increaseCanvas = () => {
-    if (canvasCount < maxCanvasCountRef.current) {
-
-      setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
-    }
-  };
-
-  const increaseValue = () => {
-    if (timeBase < 10) {
-      settimeBase(timeBase + 1);
-    }
-  };
 
   const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
 
@@ -157,6 +143,16 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
+  const toggleChannel = (channelIndex: number) => {
+    setSelectedChannels((prevSelected) =>
+      prevSelected.includes(channelIndex)
+        ? prevSelected.filter((ch) => ch !== channelIndex)
+        : [...prevSelected, channelIndex]
+    );
+  };
+  useEffect(() => {
+    setSelectedChannels(selectedChannels)
+  }, [selectedChannels])
 
   // Handle right arrow click (reset count and disable button if needed)
   const handleNextSnapshot = () => {
@@ -168,53 +164,13 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const decreaseCanvas = () => {
-    if (canvasCount > 1) {
-      setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
-    }
-  };
-  const decreaseValue = () => {
-    if (timeBase > 1) {
-      settimeBase(timeBase - 1);
-    }
-  };
 
-  const toggleShowAllChannels = () => {
-    if (canvasCount === maxCanvasCountRef.current) {
-      setCanvasCount(1); // If canvasCount is 6, reduce it to 1
-      setShowAllChannels(false);
-    } else {
-      setCanvasCount(maxCanvasCountRef.current); // Otherwise, show all 6 canvases
-      setShowAllChannels(true);
-    }
-  };
+  // const selectChannel = (channel: number) => {
+  //   // Handle the channel selection logic here
+  //   console.log(`Channel ${channel} selected`);
+  //   setCanvasCount(channel);
+  // };
 
-  const selectChannel = (channel: number) => {
-    // Handle the channel selection logic here
-    console.log(`Channel ${channel} selected`);
-    setCanvasCount(channel);
-  };
-
-  const increaseZoom = () => {
-    if (Zoom < 10) {
-      SetZoom(Zoom + 1); // Increase canvas count up to 6
-    }
-  };
-
-  const decreaseZoom = () => {
-    if (Zoom > 1) {
-      SetZoom(Zoom - 1); // Decrease canvas count but not below 1
-    }
-  };
-  const toggleZoom = () => {
-    if (Zoom === 10) {
-      SetZoom(1); // If canvasCount is 6, reduce it to 1
-      setFullZoom(false);
-    } else {
-      SetZoom(10); // Otherwise, show all 6 canvases
-      setFullZoom(true);
-    }
-  };
 
   useEffect(() => {
     canvasnumbersRef.current = canvasCount; // Sync the ref with the state
@@ -470,32 +426,48 @@ const Connection: React.FC<ConnectionProps> = ({
           await writerRef.current.write(whoAreYouMessage);
           setTimeout(() => writer.write(whoAreYouMessage), 2000);
 
-          const { value, done } = await reader.read();
-          if (!done && value) {
-           const response = new TextDecoder("utf-8", { fatal: true }).decode(value).trim();
-            const portInfo = port.getInfo();
-            console.log(`Board Response: ${response}`);
 
-            const { formattedInfo, bits, channel } = formatPortInfo(portInfo, response); // Pass info and name
-            toast.success("Connection Successful", {
-              description: (
-                <div className="mt-2 flex flex-col space-y-1">
-                  <p>Device: {formattedInfo}</p>
-                  <p>Baud Rate: {baudRate}</p>
-                  {bits && <p>Resolution: {bits} bits</p>}
-                  {channel && <p>Channel: {channel}</p>}
-                </div>
-              ),
-            });
+          let buffer = "";
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            if (value) {
+              buffer += new TextDecoder().decode(value);
+              if (buffer.includes("\n")) break; // End of message
+            }
           }
-          else {
-            console.error("No response from the board or reading incomplete");
-          }
+
+          // Extract the device name
+          const response: string | undefined = buffer
+            .trim()
+            .split("\n")
+            .pop();
+
+          const extractedName = response
+            ?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device"; // Use regex to extract the name
+          console.log(`Extracted Device Name: ${extractedName}`);
+
+          const portInfo = port.getInfo();
+          const { formattedInfo, bits, channel } = formatPortInfo(
+            portInfo,
+            extractedName
+          );
+
+          toast.success("Connection Successful", {
+            description: (
+              <div className="mt-2 flex flex-col space-y-1">
+                <p>Device: {formattedInfo}</p>
+                <p>Baud Rate: {baudRate}</p>
+                {bits && <p>Resolution: {bits} bits</p>}
+                {channel && <p>Channel: {channel}</p>}
+              </div>
+            ),
+          });
+
           const startMessage = new TextEncoder().encode("START\n");
           setTimeout(() => writer.write(startMessage), 2000);
-
-        }
-        else {
+        } else {
           console.error("Writable stream not available");
         }
       } else {
@@ -522,6 +494,7 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to connect to device.");
     }
   };
+
 
   const getFileCountFromIndexedDB = async (): Promise<any[]> => {
     if (!workerRef.current) {
@@ -670,14 +643,16 @@ const Connection: React.FC<ConnectionProps> = ({
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    const notchFilters = Array.from({ length: maxCanvasCountRef.current }, () => new Notch());
-    const EXGFilters = Array.from({ length: maxCanvasCountRef.current }, () => new EXGFilter());
+    const notchFilters = Array.from({ length: NUM_CHANNELS }, () => new Notch());
+    const EXGFilters = Array.from({ length: NUM_CHANNELS }, () => new EXGFilter());
+
     notchFilters.forEach((filter) => {
       filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
     });
     EXGFilters.forEach((filter) => {
       filter.setSample(detectedBitsRef.current); // Set the sample value for all instances
     });
+
     try {
       while (isConnectedRef.current) {
         const streamData = await readerRef.current?.read(); // Read data from the device
@@ -714,76 +689,44 @@ const Connection: React.FC<ConnectionProps> = ({
               buffer[syncIndex + 1] === SYNC_BYTE2 &&
               buffer[endByteIndex] === END_BYTE
             ) {
-              // Validate the packet by checking the sync and end bytes
-              const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
-              const channelData: number[] = []; // Array to store the extracted channel data
-              const counter = packet[2]; // Extract the counter value from the packet
-              channelData.push(counter); // Add the counter to the channel data
-              for (let channel = 0; channel < NUM_CHANNELS; channel++) {
-                const highByte = packet[channel * 2 + HEADER_LENGTH];
-                const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
-                const value = (highByte << 8) | lowByte;
+              const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH);
+              const channelData: number[] = [packet[2]]; // Counter value
 
-                channelData.push(
-                  notchFilters[channel].process(
-                    EXGFilters[channel].process(
-                      value,
-                      appliedEXGFiltersRef.current[channel]
-                    ),
-                    appliedFiltersRef.current[channel]
-                  )
-                );
-
-              }
-              datastream(channelData); // Pass the channel data to the LineData function for further processing
-              if (isRecordingRef.current) {
-                const channeldatavalues = channelData
-                  .slice(0, canvasnumbersRef.current + 1)
-                  .map((value) => (value !== undefined ? value : null))
-                  .filter((value): value is number => value !== null); // Filter out null values
-                // Check if recording is enabled
-                recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
-
-                if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
-                  processBuffer(activeBufferIndex, canvasnumbersRef.current);
-                  activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
-                }
-                fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
-                const elapsedTime = Date.now() - recordingStartTime.current;
-                setRecordingElapsedTime((prev) => {
-                  if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
-                    stopRecording();
-                    return endTimeRef.current;
+              selectedChannels
+                .filter((channelIndex) => channelIndex >= 0 && channelIndex < NUM_CHANNELS)
+                .forEach((channelIndex) => {
+                  const dataStart = HEADER_LENGTH + channelIndex * 2;
+                  if (dataStart + 1 < packet.length) {
+                    const highByte = packet[dataStart];
+                    const lowByte = packet[dataStart + 1];
+                    const rawValue = (highByte << 8) | lowByte;
+                    const filteredValue = notchFilters[channelIndex].process(
+                      EXGFilters[channelIndex].process(
+                        rawValue,
+                        appliedEXGFiltersRef.current[channelIndex]
+                      ),
+                      appliedFiltersRef.current[channelIndex]
+                    );
+                    channelData.push(filteredValue);
+                  } else {
+                    console.error(`Invalid channel index ${channelIndex}`);
                   }
-                  return elapsedTime;
                 });
 
-              }
-
-              if (previousCounter !== null) {
-                // If there was a previous counter value, check for data loss
-                const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
-                if (counter !== expectedCounter) {
-                  // Check for data loss by comparing the current counter with the expected counter
-                  console.warn(
-                    `Data loss detected! Previous counter: ${previousCounter}, Current counter: ${counter}`
-                  );
-                }
-              }
-              previousCounter = counter; // Update the previous counter with the current counter
-              buffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
+              datastream(channelData); // Pass the filtered channel data
+              buffer.splice(0, endByteIndex + 1);
             } else {
-              buffer.splice(0, syncIndex + 1); // If packet is incomplete, remove bytes up to the sync byte
+              buffer.splice(0, syncIndex + 1); // Remove until sync byte if packet is incomplete
             }
           } else {
-            break; // If a full packet is not available, exit the loop and wait for more data
+            break; // Exit loop if packet is not fully available
           }
         }
       }
     } catch (error) {
-      console.error("Error reading from device:", error); // Handle any errors that occur during the read process
+      console.error("Error reading from device:", error); // Handle errors
     } finally {
-      await disconnectDevice(); // Ensure the device is disconnected when finished
+      await disconnectDevice(); // Ensure the device is disconnected
     }
   };
 
@@ -1463,24 +1406,23 @@ const Connection: React.FC<ConnectionProps> = ({
                         {Array.from({ length: 2 }).map((_, row) => (
                           <div key={row} className="grid grid-cols-8 gap-4">
                             {Array.from({ length: 8 }).map((_, col) => {
-                              const index = row * 8 + col; // Calculate button index
-                              const isActive = index < canvasCount; // Check active state
-                              const isFaded = index >= maxCanvasCountRef.current; // Check faded state
+                              const index = row * 8 + col;
+                              const isFaded = index >= maxCanvasCountRef.current;
 
                               return (
                                 <button
                                   key={index}
-                                  onClick={() => !isFaded && selectChannel(index + 1)}
-                                  disabled={!isDisplay || isRecordButtonDisabled || isFaded}
+                                  onClick={() => !isFaded && toggleChannel(index + 1)}
+                                  disabled={isFaded || isRecordButtonDisabled}
                                   className={`
-                  w-15 h-10 rounded-lg text-sm font-medium 
-                  ${isFaded
+            w-15 h-10 rounded-lg text-sm font-medium m-2
+            ${isFaded
                                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                      : isActive
+                                      : selectedChannels.includes(index + 1)
                                         ? 'bg-gray-500 text-white'
-                                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400 hover:text-white'
+                                        : 'bg-gray-300 text-gray-700'
                                     }
-                `}
+          `}
                                 >
                                   {`CH${index + 1}`}
                                 </button>
@@ -1541,7 +1483,7 @@ rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
                   {/* Value Selection */}
                   <div className="relative w-full flex flex-col items-start mt-4">
                     {/* Label */}
-                    <p className="absolute top-[-1.5rem] left-0 text-[0.6rem] font-semibold text-gray-500">
+                    <p className="absolute top-[-1.5rem] left-0 text-[0.60rem] font-semibold text-gray-500">
                       <span className="font-bold text-gray-700">TIME BASE:</span> {timeBase} SECONDS
                     </p>
 
@@ -1594,3 +1536,4 @@ rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
 };
 
 export default Connection;
+
