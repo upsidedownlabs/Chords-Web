@@ -58,7 +58,7 @@ interface ConnectionProps {
   timeBase: number;
   setTimeBase: React.Dispatch<React.SetStateAction<number>>;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
-  SetcurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
+  SetCurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
   currentSamplingRate:number;
   setCurrentSamplingRate :React.Dispatch<React.SetStateAction<number>>;
   currentSnapshot: number;
@@ -75,7 +75,7 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsDisplay,
   setCanvasCount,
   canvasCount,
-  SetcurrentSnapshot,
+  SetCurrentSnapshot,
   currentSnapshot,
   snapShotRef,
   SetZoom,
@@ -126,7 +126,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
     onPauseChange(newPauseState); // Notify parent about the change
-    SetcurrentSnapshot(0);
+    SetCurrentSnapshot(0);
     setClickCount(0);
 
   };
@@ -152,7 +152,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
 
     if (currentSnapshot < 4) {
-      SetcurrentSnapshot(currentSnapshot + 1);
+      SetCurrentSnapshot(currentSnapshot + 1);
     }
   };
 
@@ -163,7 +163,7 @@ const Connection: React.FC<ConnectionProps> = ({
       setClickCount(clickCount - 1); // Reset count after right arrow click
     }
     if (currentSnapshot > 0) {
-      SetcurrentSnapshot(currentSnapshot - 1);
+      SetCurrentSnapshot(currentSnapshot - 1);
     }
   };
 
@@ -208,10 +208,12 @@ const Connection: React.FC<ConnectionProps> = ({
       setFullZoom(true);
     }
   };
+ 
+ // Added useEffect to sync canvasCount state with the canvasnumbersRef and re-render when isRecordingRef changes
+useEffect(() => {
+  canvasnumbersRef.current = canvasCount; // Sync the ref with the state
+}, [canvasCount, isRecordingRef]);
 
-  useEffect(() => {
-    canvasnumbersRef.current = canvasCount; // Sync the ref with the state
-  }, [canvasCount, isRecordingRef]);
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection

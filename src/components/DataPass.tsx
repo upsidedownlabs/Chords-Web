@@ -19,7 +19,7 @@ const DataPass = () => {
   const canvasRef = useRef<any>(null); // Create a ref for the Canvas component
   let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
   const [Zoom, SetZoom] = useState<number>(1); // Number of canvases
-  const [currentSnapshot, SetcurrentSnapshot] = useState<number>(0); // Number of canvases
+  const [currentSnapshot, SetCurrentSnapshot] = useState<number>(0); // Number of canvases
   const pauseRef = useRef<boolean>(true);
   const handlePauseChange = (newPauseState: boolean) => {
     pauseRef.current = newPauseState;
@@ -80,7 +80,7 @@ const DataPass = () => {
         currentSamplingRate={currentSamplingRate}
         channelCount={channelCount}
         SetZoom={SetZoom}
-        SetcurrentSnapshot={SetcurrentSnapshot}
+        SetCurrentSnapshot={SetCurrentSnapshot}
         currentSnapshot={currentSnapshot}
         Zoom={Zoom}
       />
