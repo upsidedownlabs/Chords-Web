@@ -59,8 +59,8 @@ interface ConnectionProps {
   setTimeBase: React.Dispatch<React.SetStateAction<number>>;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
   SetCurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
-  currentSamplingRate:number;
-  setCurrentSamplingRate :React.Dispatch<React.SetStateAction<number>>;
+  currentSamplingRate: number;
+  setCurrentSamplingRate: React.Dispatch<React.SetStateAction<number>>;
   currentSnapshot: number;
   Zoom: number;
   snapShotRef: React.RefObject<boolean[]>;
@@ -208,11 +208,11 @@ const Connection: React.FC<ConnectionProps> = ({
       setFullZoom(true);
     }
   };
- 
- // Added useEffect to sync canvasCount state with the canvasnumbersRef and re-render when isRecordingRef changes
-useEffect(() => {
-  canvasnumbersRef.current = canvasCount; // Sync the ref with the state
-}, [canvasCount, isRecordingRef]);
+
+  // Added useEffect to sync canvasCount state with the canvasnumbersRef and re-render when isRecordingRef changes
+  useEffect(() => {
+    canvasnumbersRef.current = canvasCount; // Sync the ref with the state
+  }, [canvasCount, isRecordingRef]);
 
 
   const handleTimeSelection = (minutes: number | null) => {
@@ -343,45 +343,49 @@ useEffect(() => {
   const formatPortInfo = useCallback(
     (info: SerialPortInfo, deviceName: string, fieldPid?: number) => {
       if (!info || !info.usbVendorId) {
-        return { formattedInfo: "Port with no info", bits: null, channel: null };
+        return { formattedInfo: "Port with no info", bits: null, channel: null, baudRate: null, serialTimeout: null };
       }
-  
+
       // Find the board matching both name and field_pid
       const board = BoardsList.find(
         (b) =>
-          b.name.toLowerCase() === deviceName.toLowerCase() &&
+          b.chords_id.toLowerCase() === deviceName.toLowerCase() &&
           (!fieldPid || parseInt(b.field_pid, 10) === fieldPid) // Match field_pid if provided
       );
-    
+
       if (board) {
-        setifBits(board.bits as BitSelection);
-        setSelectedBits(board.bits as BitSelection);
-        detectedBitsRef.current = board.bits as BitSelection;
-  
-        const channel = board.channel ? parseInt(board.channel, 10) : 0;
+        setifBits(board.adc_resolution as BitSelection);
+        setSelectedBits(board.adc_resolution as BitSelection);
+        detectedBitsRef.current = board.adc_resolution as BitSelection;
+
+        const channel = board.channel_count ? parseInt(board.channel_count, 10) : 0;
         maxCanvasCountRef.current = channel;
-  
+
         if (board.sampling_rate) {
           setCurrentSamplingRate(parseInt(board.sampling_rate, 10));
         }
-  
+
         return {
           formattedInfo: (
             <>
               {board.device_name} <br /> Product ID: {info.usbProductId}
             </>
           ),
-          bits: board.bits,
-          channel: board.channel,
+          adcResolution: board.adc_resolution,
+          channelCount: board.channel_count,
+          baudRate: parseInt(board.baud_Rate, 10),   // Return baudRate
+          serialTimeout: parseInt(board.serial_timeout, 10), // Return serialTimeout
         };
       }
-  
+
       setDetectedBits(null);
-      return { formattedInfo: `${deviceName}`, bits: null, channel: null };
+      return { formattedInfo: `${deviceName}`, adcResolution: null, channelCount: null, baudRate: null, serialTimeout: null };
     },
     []
   );
-  
+
+
+
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
     if (isConnected) {
@@ -402,107 +406,121 @@ useEffect(() => {
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-  
-      const savedPorts: SavedDevice[] = JSON.parse(localStorage.getItem('savedDevices') || '[]');
-      let port: SerialPort | null = null;
-      let baudRate = 230400; // Default baud rate
-  
+
+      const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+      let port = null;
+
       const ports = await navigator.serial.getPorts();
-      console.log(ports);
+
       // Check for saved ports
       if (savedPorts.length > 0) {
-        port = ports.find((p) => {
-          const info = p.getInfo();
-          return savedPorts.some(
-            (saved: SavedDevice) =>
-              saved.usbVendorId === (info.usbVendorId ?? 0) &&
-              saved.usbProductId === (info.usbProductId ?? 0)
-          );
-        }) || null;
+        port =
+          ports.find((p) => {
+            const info = p.getInfo();
+            return savedPorts.some(
+              (saved: SavedDevice) =>
+                saved.usbVendorId === (info.usbVendorId ?? 0) &&
+                saved.usbProductId === (info.usbProductId ?? 0)
+            );
+          }) || null;
       }
-  
+
+      // Request a new port if no saved port matches
+      port = await navigator.serial.requestPort();
+      const newPortInfo = await port.getInfo();
+      const usbVendorId = newPortInfo.usbVendorId ?? 0;
+      const usbProductId = newPortInfo.usbProductId ?? 0;
+
+      // Match the board from BoardsList
+      const board = BoardsList.find(
+        (b) => parseInt(b.field_pid, 10) === usbProductId
+      );
+
+      let baudRate = board ? parseInt(board.baud_Rate, 10) : 0;
+      let serialTimeout = board ? parseInt(board.serial_timeout, 10) : 0;
+
+
       if (!port) {
         port = await navigator.serial.requestPort();
         const newPortInfo = await port.getInfo();
-  
+
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
-  
-        if (usbProductId === 29987 ) {
-          baudRate = 115200;
-        }
-  
+
         const existingDevice = savedPorts.find(
-          (saved) =>
-            saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
+          (saved: SavedDevice) =>
+            saved.usbVendorId === usbVendorId &&
+            saved.usbProductId === usbProductId
         );
-  
+
         if (!existingDevice) {
           savedPorts.push({ usbVendorId, usbProductId, baudRate });
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-          console.log(`New device saved: Vendor ${usbVendorId}, Product ${usbProductId}, Baud Rate ${baudRate}`);
         }
-  
+
         await port.open({ baudRate });
       } else {
         const newPortInfo = port.getInfo();
         const usbProductId = newPortInfo.usbProductId ?? 0;
-  
-        if (usbProductId === 29987 ) {
-          baudRate = 115200;
-        }
-  
+
         await port.open({ baudRate });
       }
-  
+
       if (port.readable) {
         const reader = port.readable.getReader();
         readerRef.current = reader;
         const writer = port.writable?.getWriter();
         if (writer) {
-          // Query the board for its name
           writerRef.current = writer;
-  
+
+          // Query the board for its name
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-          await writerRef.current.write(whoAreYouMessage);
-          setTimeout(() => writer.write(whoAreYouMessage), 2000);
-  
+
+          setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
+
           let buffer = "";
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
-  
+
             if (value) {
               buffer += new TextDecoder().decode(value);
               if (buffer.includes("\n")) break;
             }
           }
-  
+
           // Extract the device name
-          const response: string | undefined = buffer.trim().split("\n").pop();
-          const extractedName = response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
-          
-          const currentPortInfo = port.getInfo(); // Ensure correct variable name and scope
-          const usbProductId = currentPortInfo.usbProductId ?? 0; // Access usbProductId correctly
-  
+          const response = buffer.trim().split("\n").pop();
+          const extractedName =
+            response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
+
+          const currentPortInfo = port.getInfo();
+          const usbProductId = currentPortInfo.usbProductId ?? 0;
+
           // Pass the name and field_pid to formatPortInfo
-          const { formattedInfo, bits, channel } = formatPortInfo(
-            currentPortInfo,
-            extractedName,
-            usbProductId
-          );
-  
+          const {
+            formattedInfo,
+            adcResolution,
+            channelCount,
+            baudRate: extractedBaudRate,
+            serialTimeout: extractedSerialTimeout,
+          } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
+
+          // Use extracted baudRate and serialTimeout
+          baudRate = extractedBaudRate ?? baudRate;
+          serialTimeout = extractedSerialTimeout ?? serialTimeout;
+
           toast.success("Connection Successful", {
             description: (
               <div className="mt-2 flex flex-col space-y-1">
                 <p>Device: {formattedInfo}</p>
                 <p>Baud Rate: {baudRate}</p>
-                {bits && <p>Resolution: {bits} bits</p>}
-                {channel && <p>Channel: {channel}</p>}
+                {adcResolution && <p>Resolution: {adcResolution} bits</p>}
+                {channelCount && <p>Channel: {channelCount}</p>}
               </div>
             ),
           });
-  
+
           const startMessage = new TextEncoder().encode("START\n");
           setTimeout(() => writer.write(startMessage), 2000);
         } else {
@@ -511,16 +529,16 @@ useEffect(() => {
       } else {
         console.error("Readable stream not available");
       }
-  
+
       Connection(true);
       setIsConnected(true);
-  
+
       onPauseChange(true);
       setIsDisplay(true);
       setCanvasCount(1);
       isConnectedRef.current = true;
       portRef.current = port;
-  
+
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
@@ -531,7 +549,6 @@ useEffect(() => {
       toast.error("Failed to connect to device.");
     }
   };
-  
 
 
   const getFileCountFromIndexedDB = async (): Promise<any[]> => {
@@ -611,7 +628,7 @@ useEffect(() => {
       Connection(false);
     }
   };
-  
+
 
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
   const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
@@ -1567,7 +1584,7 @@ useEffect(() => {
                     <Button
                       className="rounded-xl rounded-l-none"
                       onClick={increaseCanvas}
-                      disabled={canvasCount >=  maxCanvasCountRef.current || !isDisplay || isRecordButtonDisabled}
+                      disabled={canvasCount >= maxCanvasCountRef.current || !isDisplay || isRecordButtonDisabled}
                     >
                       <Plus size={16} />
                     </Button>
