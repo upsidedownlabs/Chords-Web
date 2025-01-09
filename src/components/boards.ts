@@ -7,7 +7,7 @@ export const BoardsList = Object.freeze([
     channel_count: "6",
     sampling_rate: "250",
     serial_timeout: "2000",
-    baud_Rate: "115200"
+    baud_Rate: "230400"
   },
   {
     chords_id: "NANO-CLONE",
@@ -27,7 +27,7 @@ export const BoardsList = Object.freeze([
     channel_count: "6",
     sampling_rate: "250",
     serial_timeout: "2000",
-    baud_Rate: "115200"
+    baud_Rate: "230400"
   },
   {
     chords_id: "UNO-R4",

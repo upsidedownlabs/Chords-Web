@@ -384,8 +384,6 @@ const Connection: React.FC<ConnectionProps> = ({
     []
   );
 
-
-
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
     if (isConnected) {
@@ -424,28 +422,29 @@ const Connection: React.FC<ConnectionProps> = ({
             );
           }) || null;
       }
-
       // Request a new port if no saved port matches
-      port = await navigator.serial.requestPort();
-      const newPortInfo = await port.getInfo();
-      const usbVendorId = newPortInfo.usbVendorId ?? 0;
-      const usbProductId = newPortInfo.usbProductId ?? 0;
+      // port = await navigator.serial.requestPort();
 
-      // Match the board from BoardsList
-      const board = BoardsList.find(
-        (b) => parseInt(b.field_pid, 10) === usbProductId
-      );
-
-      let baudRate = board ? parseInt(board.baud_Rate, 10) : 0;
-      let serialTimeout = board ? parseInt(board.serial_timeout, 10) : 0;
-
+      let baudRate;
+      let serialTimeout
 
       if (!port) {
         port = await navigator.serial.requestPort();
+        // const newPortInfo = await port.getInfo();
         const newPortInfo = await port.getInfo();
+        // const usbVendorId = newPortInfo.usbVendorId ?? 0;
+        const usbProductId = newPortInfo.usbProductId ?? 0;
+
+        // Match the board from BoardsList
+        const board = BoardsList.find(
+          (b) => parseInt(b.field_pid, 10) === usbProductId
+        );
+
+        baudRate = board ? parseInt(board.baud_Rate, 10) : 0;
+        serialTimeout = board ? parseInt(board.serial_timeout, 10) : 0;
 
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
-        const usbProductId = newPortInfo.usbProductId ?? 0;
+        // const usbProductId = newPortInfo.usbProductId ?? 0;
 
         const existingDevice = savedPorts.find(
           (saved: SavedDevice) =>
@@ -454,14 +453,21 @@ const Connection: React.FC<ConnectionProps> = ({
         );
 
         if (!existingDevice) {
-          savedPorts.push({ usbVendorId, usbProductId, baudRate });
+          savedPorts.push({ usbVendorId, usbProductId, baudRate, serialTimeout });
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
         }
 
         await port.open({ baudRate });
       } else {
-        const newPortInfo = port.getInfo();
-        const usbProductId = newPortInfo.usbProductId ?? 0;
+        const info = port.getInfo();
+
+        const savedDevice = savedPorts.find(
+          (saved: SavedDevice) =>
+            saved.usbVendorId === (info.usbVendorId ?? 0) &&
+            saved.usbProductId === (info.usbProductId ?? 0)
+        );
+        const baudRate = savedDevice.baudRate || 'default_baud_rate'; // Use baudRate from saved device info
+        serialTimeout = savedDevice.serialTimeout;
 
         await port.open({ baudRate });
       }
@@ -477,7 +483,6 @@ const Connection: React.FC<ConnectionProps> = ({
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
 
           setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
-
           let buffer = "";
           while (true) {
             const { value, done } = await reader.read();
