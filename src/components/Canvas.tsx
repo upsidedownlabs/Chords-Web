@@ -12,11 +12,11 @@ import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 
 interface CanvasProps {
   pauseRef: React.RefObject<boolean>;
-  selectedBits: BitSelection;
+  selectedBits?: BitSelection; // Add `?` to make it optional
   isDisplay: boolean;
   canvasCount?: number;
   timeBase?: number;
-  currentSamplingRate:number;
+  currentSamplingRate: number;
   Zoom: number;
   currentSnapshot: number;
   snapShotRef: React.MutableRefObject<boolean[]>;
@@ -60,17 +60,17 @@ const Canvas = forwardRef(
     //select point
     const getpoints = useCallback((bits: BitSelection): number => {
       switch (bits) {
-        case "ten":
+        case 10:
           return 250;
-        case "twelve":
-        case "fourteen":
-        case "sixteen":
+        case 12:
+        case 14:
+        case 16:
           return 500;
         default:
           return 500; // Default fallback
       }
     }, []);
-    
+
 
     useEffect(() => {
       numXRef.current = (currentSamplingRate * timeBase);
@@ -188,7 +188,7 @@ const Canvas = forwardRef(
       const opacityLightMajor = "0.4"; // Opacity for every 5th line in light theme
       const opacityLightMinor = "0.1"; // Opacity for other lines in light theme
       const distanceminor = samplingRate * 0.04;
-      const numGridLines = getpoints(selectedBits) * 4 / distanceminor;
+      const numGridLines = getpoints(selectedBits ?? 10) * 4 / distanceminor;
       for (let j = 1; j < numGridLines; j++) {
         const gridLineX = document.createElement("div");
         gridLineX.className = "absolute bg-[rgb(128,128,128)]";

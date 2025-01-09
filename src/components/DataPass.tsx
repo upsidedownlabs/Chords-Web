@@ -6,10 +6,10 @@ import React, { useState, useCallback, useRef } from "react";
 import Canvas from "./Canvas";
 import Navbar from "./Navbar"; // Import the Navbar
 
-export type BitSelection = "ten" | "twelve" | "fourteen" | "sixteen" | "auto";
+export type BitSelection = 10 | 12 | 14 | 16;
 
 const DataPass = () => {
-  const [selectedBits, setSelectedBits] = useState<BitSelection>("auto"); // Selected bits
+  const [selectedBits, setSelectedBits] = useState<BitSelection>(10); // Default to 10
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
   const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
   const [canvasCount, setCanvasCount] = useState<number>(1); // Number of canvases

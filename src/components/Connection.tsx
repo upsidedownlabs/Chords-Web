@@ -48,7 +48,7 @@ interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
   datastream: (data: number[]) => void;
   Connection: (isConnected: boolean) => void;
-  selectedBits: BitSelection;
+  selectedBits?: BitSelection; // Add `?` if it's optional
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
   isDisplay: boolean;
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
@@ -90,7 +90,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
-  const detectedBitsRef = React.useRef<BitSelection>("ten");
+  const detectedBitsRef = React.useRef<BitSelection>(10);
   const [datasets, setDatasets] = useState<any[]>([]);
   const currentFilenameRef = useRef<string>("");
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false);
@@ -101,7 +101,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const [popoverVisible, setPopoverVisible] = useState(false);
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
-  const [ifBits, setifBits] = useState<BitSelection>("auto");
+  const [ifBits, setifBits] = useState<BitSelection>(10);
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [FullZoom, setFullZoom] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
@@ -350,7 +350,7 @@ const Connection: React.FC<ConnectionProps> = ({
       const board = BoardsList.find(
         (b) =>
           b.chords_id.toLowerCase() === deviceName.toLowerCase() &&
-          (!fieldPid || parseInt(b.field_pid, 10) === fieldPid) // Match field_pid if provided
+          (!fieldPid || (b.field_pid) === fieldPid) // Match field_pid if provided
       );
 
       if (board) {
@@ -358,11 +358,10 @@ const Connection: React.FC<ConnectionProps> = ({
         setSelectedBits(board.adc_resolution as BitSelection);
         detectedBitsRef.current = board.adc_resolution as BitSelection;
 
-        const channel = board.channel_count ? parseInt(board.channel_count, 10) : 0;
+        const channel = board.channel_count ? (board.channel_count) : 0;
         maxCanvasCountRef.current = channel;
-
         if (board.sampling_rate) {
-          setCurrentSamplingRate(parseInt(board.sampling_rate, 10));
+          setCurrentSamplingRate(board.sampling_rate);
         }
 
         return {
@@ -373,8 +372,8 @@ const Connection: React.FC<ConnectionProps> = ({
           ),
           adcResolution: board.adc_resolution,
           channelCount: board.channel_count,
-          baudRate: parseInt(board.baud_Rate, 10),   // Return baudRate
-          serialTimeout: parseInt(board.serial_timeout, 10), // Return serialTimeout
+          baudRate: (board.baud_Rate),   // Return baudRate
+          serialTimeout: (board.serial_timeout), // Return serialTimeout
         };
       }
 
@@ -405,6 +404,7 @@ const Connection: React.FC<ConnectionProps> = ({
         await disconnectDevice();
       }
 
+
       const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
       let port = null;
 
@@ -422,8 +422,6 @@ const Connection: React.FC<ConnectionProps> = ({
             );
           }) || null;
       }
-      // Request a new port if no saved port matches
-      // port = await navigator.serial.requestPort();
 
       let baudRate;
       let serialTimeout
@@ -437,11 +435,11 @@ const Connection: React.FC<ConnectionProps> = ({
 
         // Match the board from BoardsList
         const board = BoardsList.find(
-          (b) => parseInt(b.field_pid, 10) === usbProductId
+          (b) => (b.field_pid) === usbProductId
         );
 
-        baudRate = board ? parseInt(board.baud_Rate, 10) : 0;
-        serialTimeout = board ? parseInt(board.serial_timeout, 10) : 0;
+        baudRate = board ? (board.baud_Rate) : 0;
+        serialTimeout = board ? (board.serial_timeout) : 0;
 
         const usbVendorId = newPortInfo.usbVendorId ?? 0;
         // const usbProductId = newPortInfo.usbProductId ?? 0;
@@ -706,10 +704,10 @@ const Connection: React.FC<ConnectionProps> = ({
     const notchFilters = Array.from({ length: maxCanvasCountRef.current }, () => new Notch());
     const EXGFilters = Array.from({ length: maxCanvasCountRef.current }, () => new EXGFilter());
     notchFilters.forEach((filter) => {
-      filter.setbits(detectedBitsRef.current); // Set the bits value for all instances
+      filter.setbits(detectedBitsRef.current.toString()); // Set the bits value for all instances
     });
     EXGFilters.forEach((filter) => {
-      filter.setbits(detectedBitsRef.current); // Set the bits value for all instances
+      filter.setbits(detectedBitsRef.current.toString()); // Set the bits value for all instances
     });
     try {
       while (isConnectedRef.current) {
