@@ -1443,12 +1443,13 @@ const Connection: React.FC<ConnectionProps> = ({
               <TooltipProvider>
                 <div className="space-y-8">
 
+
                   {/* Channel Selection */}
-                  <div className="flex items-center justify-center bg-gray-100">
+                  <div className="flex items-center justify-center bg-gray-100 dark:bg-gray-800">
                     {/* Curved Container */}
-                    <div className="relative rounded-xl bg-gray-300 w-full py-2">
+                    <div className="relative rounded-xl bg-gray-300 dark:bg-gray-700 w-full py-2">
                       {/* Background overlay */}
-                      <div className="absolute inset-0 rounded-xl bg-gray-100 opacity-50 pointer-events-none"></div>
+                      <div className="absolute inset-0 rounded-xl bg-gray-100 dark:bg-gray-800 opacity-50 pointer-events-none"></div>
 
                       {/* Buttons */}
                       <div id="button-container" className="relative space-y-4">
@@ -1464,14 +1465,14 @@ const Connection: React.FC<ConnectionProps> = ({
                                   onClick={() => !isFaded && toggleChannel(index + 1)}
                                   disabled={isFaded || isRecordButtonDisabled}
                                   className={`
-            w-15 h-10 rounded-lg text-sm font-medium m-2
-            ${isFaded
-                                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  w-15 h-10 rounded-lg text-sm font-medium m-2
+                  ${isFaded
+                                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
                                       : selectedChannels.includes(index + 1)
-                                        ? 'bg-gray-500 text-white'
-                                        : 'bg-gray-300 text-gray-700'
+                                        ? 'bg-gray-500 dark:bg-gray-500 text-white'
+                                        : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                                     }
-          `}
+                `}
                                 >
                                   {`CH${index + 1}`}
                                 </button>
@@ -1483,15 +1484,16 @@ const Connection: React.FC<ConnectionProps> = ({
                     </div>
                   </div>
 
+
                   {/* Zoom Controls */}
                   <div className="relative flex flex-col items-start w-full">
                     {/* Label */}
-                    <p className="absolute top-[-1.5rem] left-0 text-base font-semibold text-[0.6rem] text-gray-500">
+                    <p className="absolute top-[-1.5rem] left-0 text-base font-semibold text-[.6rem] text-gray-500">
                       <span className="font-bold text-gray-700">ZOOM LEVEL:</span> {Zoom} X
                     </p>
 
                     {/* Slider with min and max values */}
-                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3">
+                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3 dark:bg-gray-700">
                       {/* Min value */}
                       <p className="text-gray-800 mx-2 px-2">1</p>
 
@@ -1537,7 +1539,7 @@ rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
                     </p>
 
                     {/* Slider with curved container and faded colors */}
-                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3">
+                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3 dark:bg-gray-700">
                       {/* Min value */}
                       <p className="text-gray-800 mx-2 px-2">1</p>
 
