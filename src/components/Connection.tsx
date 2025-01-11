@@ -45,7 +45,7 @@ interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
   datastream: (data: number[]) => void;
   Connection: (isConnected: boolean) => void;
-  selectedBits: BitSelection;
+  selectedBits?: BitSelection; // Add `?` if it's optional
   setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
   isDisplay: boolean;
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
@@ -57,9 +57,9 @@ interface ConnectionProps {
   timeBase: number;
   setTimeBase: React.Dispatch<React.SetStateAction<number>>;
   SetZoom: React.Dispatch<React.SetStateAction<number>>;
-  SetcurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
-  currentSamplingRate:number;
-  setCurrentSamplingRate :React.Dispatch<React.SetStateAction<number>>;
+  SetCurrentSnapshot: React.Dispatch<React.SetStateAction<number>>;
+  currentSamplingRate: number;
+  setCurrentSamplingRate: React.Dispatch<React.SetStateAction<number>>;
   currentSnapshot: number;
   Zoom: number;
   snapShotRef: React.RefObject<boolean[]>;
@@ -76,7 +76,7 @@ const Connection: React.FC<ConnectionProps> = ({
   canvasCount,
   setSelectedChannels,
   selectedChannels,
-  SetcurrentSnapshot,
+  SetCurrentSnapshot,
   currentSnapshot,
   snapShotRef,
   SetZoom,
@@ -91,7 +91,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
-  const detectedBitsRef = React.useRef<BitSelection>("ten");
+  const detectedBitsRef = React.useRef<BitSelection>(10);
   const [datasets, setDatasets] = useState<any[]>([]);
   const currentFilenameRef = useRef<string>("");
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false);
@@ -102,7 +102,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
   const [popoverVisible, setPopoverVisible] = useState(false);
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
-  const [ifBits, setifBits] = useState<BitSelection>("auto");
+  const [ifBits, setifBits] = useState<BitSelection>(10);
   const canvasnumbersRef = useRef<number>(1);
   const maxCanvasCountRef = useRef<number>(1);
   const readerRef = useRef<
@@ -125,7 +125,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const newPauseState = !isDisplay;
     setIsDisplay(newPauseState);
     onPauseChange(newPauseState); // Notify parent about the change
-    SetcurrentSnapshot(0);
+    SetCurrentSnapshot(0);
     setClickCount(0);
 
   };
@@ -139,7 +139,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
 
     if (currentSnapshot < 4) {
-      SetcurrentSnapshot(currentSnapshot + 1);
+      SetCurrentSnapshot(currentSnapshot + 1);
     }
   };
 
@@ -160,21 +160,16 @@ const Connection: React.FC<ConnectionProps> = ({
       setClickCount(clickCount - 1); // Reset count after right arrow click
     }
     if (currentSnapshot > 0) {
-      SetcurrentSnapshot(currentSnapshot - 1);
+      SetCurrentSnapshot(currentSnapshot - 1);
     }
   };
 
 
-  // const selectChannel = (channel: number) => {
-  //   // Handle the channel selection logic here
-  //   console.log(`Channel ${channel} selected`);
-  //   setCanvasCount(channel);
-  // };
-
-
+  // Added useEffect to sync canvasCount state with the canvasnumbersRef and re-render when isRecordingRef changes
   useEffect(() => {
     canvasnumbersRef.current = canvasCount; // Sync the ref with the state
   }, [canvasCount, isRecordingRef]);
+
 
   const handleTimeSelection = (minutes: number | null) => {
     // Function to handle the time selection
@@ -304,45 +299,46 @@ const Connection: React.FC<ConnectionProps> = ({
   const formatPortInfo = useCallback(
     (info: SerialPortInfo, deviceName: string, fieldPid?: number) => {
       if (!info || !info.usbVendorId) {
-        return { formattedInfo: "Port with no info", bits: null, channel: null };
+        return { formattedInfo: "Port with no info", bits: null, channel: null, baudRate: null, serialTimeout: null };
       }
-  
+
       // Find the board matching both name and field_pid
       const board = BoardsList.find(
         (b) =>
-          b.name.toLowerCase() === deviceName.toLowerCase() &&
-          (!fieldPid || parseInt(b.field_pid, 10) === fieldPid) // Match field_pid if provided
+          b.chords_id.toLowerCase() === deviceName.toLowerCase() &&
+          (!fieldPid || (b.field_pid) === fieldPid) // Match field_pid if provided
       );
-    
+
       if (board) {
-        setifBits(board.bits as BitSelection);
-        setSelectedBits(board.bits as BitSelection);
-        detectedBitsRef.current = board.bits as BitSelection;
-  
-        const channel = board.channel ? parseInt(board.channel, 10) : 0;
+        setifBits(board.adc_resolution as BitSelection);
+        setSelectedBits(board.adc_resolution as BitSelection);
+        detectedBitsRef.current = board.adc_resolution as BitSelection;
+
+        const channel = board.channel_count ? (board.channel_count) : 0;
         maxCanvasCountRef.current = channel;
-  
         if (board.sampling_rate) {
-          setCurrentSamplingRate(parseInt(board.sampling_rate, 10));
+          setCurrentSamplingRate(board.sampling_rate);
         }
-  
+
         return {
           formattedInfo: (
             <>
               {board.device_name} <br /> Product ID: {info.usbProductId}
             </>
           ),
-          bits: board.bits,
-          channel: board.channel,
+          adcResolution: board.adc_resolution,
+          channelCount: board.channel_count,
+          baudRate: (board.baud_Rate),   // Return baudRate
+          serialTimeout: (board.serial_timeout), // Return serialTimeout
         };
       }
-  
+
       setDetectedBits(null);
-      return { formattedInfo: `${deviceName}`, bits: null, channel: null };
+      return { formattedInfo: `${deviceName}`, adcResolution: null, channelCount: null, baudRate: null, serialTimeout: null };
     },
     []
   );
-  
+
   const handleClick = () => {
     // Function to handle toggle for connect/disconnect button
     if (isConnected) {
@@ -363,107 +359,127 @@ const Connection: React.FC<ConnectionProps> = ({
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-  
-      const savedPorts: SavedDevice[] = JSON.parse(localStorage.getItem('savedDevices') || '[]');
-      let port: SerialPort | null = null;
-      let baudRate = 230400; // Default baud rate
-  
+
+
+      const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+      let port = null;
+
       const ports = await navigator.serial.getPorts();
-      console.log(ports);
+
       // Check for saved ports
       if (savedPorts.length > 0) {
-        port = ports.find((p) => {
-          const info = p.getInfo();
-          return savedPorts.some(
-            (saved: SavedDevice) =>
-              saved.usbVendorId === (info.usbVendorId ?? 0) &&
-              saved.usbProductId === (info.usbProductId ?? 0)
-          );
-        }) || null;
+        port =
+          ports.find((p) => {
+            const info = p.getInfo();
+            return savedPorts.some(
+              (saved: SavedDevice) =>
+                saved.usbVendorId === (info.usbVendorId ?? 0) &&
+                saved.usbProductId === (info.usbProductId ?? 0)
+            );
+          }) || null;
       }
-  
+
+      let baudRate;
+      let serialTimeout
+
       if (!port) {
         port = await navigator.serial.requestPort();
+        // const newPortInfo = await port.getInfo();
         const newPortInfo = await port.getInfo();
-  
-        const usbVendorId = newPortInfo.usbVendorId ?? 0;
+        // const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
-  
-        if (usbProductId === 29987 ) {
-          baudRate = 115200;
-        }
-  
-        const existingDevice = savedPorts.find(
-          (saved) =>
-            saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
+
+        // Match the board from BoardsList
+        const board = BoardsList.find(
+          (b) => (b.field_pid) === usbProductId
         );
-  
+
+        baudRate = board ? (board.baud_Rate) : 0;
+        serialTimeout = board ? (board.serial_timeout) : 0;
+
+        const usbVendorId = newPortInfo.usbVendorId ?? 0;
+        // const usbProductId = newPortInfo.usbProductId ?? 0;
+
+        const existingDevice = savedPorts.find(
+          (saved: SavedDevice) =>
+            saved.usbVendorId === usbVendorId &&
+            saved.usbProductId === usbProductId
+        );
+
         if (!existingDevice) {
-          savedPorts.push({ usbVendorId, usbProductId, baudRate });
+          savedPorts.push({ usbVendorId, usbProductId, baudRate, serialTimeout });
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-          console.log(`New device saved: Vendor ${usbVendorId}, Product ${usbProductId}, Baud Rate ${baudRate}`);
         }
-  
+
         await port.open({ baudRate });
       } else {
-        const newPortInfo = port.getInfo();
-        const usbProductId = newPortInfo.usbProductId ?? 0;
-  
-        if (usbProductId === 29987 ) {
-          baudRate = 115200;
-        }
-  
+        const info = port.getInfo();
+
+        const savedDevice = savedPorts.find(
+          (saved: SavedDevice) =>
+            saved.usbVendorId === (info.usbVendorId ?? 0) &&
+            saved.usbProductId === (info.usbProductId ?? 0)
+        );
+        const baudRate = savedDevice.baudRate || 'default_baud_rate'; // Use baudRate from saved device info
+        serialTimeout = savedDevice.serialTimeout;
+
         await port.open({ baudRate });
       }
-  
+
       if (port.readable) {
         const reader = port.readable.getReader();
         readerRef.current = reader;
         const writer = port.writable?.getWriter();
         if (writer) {
-          // Query the board for its name
           writerRef.current = writer;
-  
+
+          // Query the board for its name
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-          await writerRef.current.write(whoAreYouMessage);
-          setTimeout(() => writer.write(whoAreYouMessage), 2000);
-  
+
+          setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
           let buffer = "";
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
-  
+
             if (value) {
               buffer += new TextDecoder().decode(value);
               if (buffer.includes("\n")) break;
             }
           }
-  
+
           // Extract the device name
-          const response: string | undefined = buffer.trim().split("\n").pop();
-          const extractedName = response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
-          
-          const currentPortInfo = port.getInfo(); // Ensure correct variable name and scope
-          const usbProductId = currentPortInfo.usbProductId ?? 0; // Access usbProductId correctly
-  
+          const response = buffer.trim().split("\n").pop();
+          const extractedName =
+            response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
+
+          const currentPortInfo = port.getInfo();
+          const usbProductId = currentPortInfo.usbProductId ?? 0;
+
           // Pass the name and field_pid to formatPortInfo
-          const { formattedInfo, bits, channel } = formatPortInfo(
-            currentPortInfo,
-            extractedName,
-            usbProductId
-          );
-  
+          const {
+            formattedInfo,
+            adcResolution,
+            channelCount,
+            baudRate: extractedBaudRate,
+            serialTimeout: extractedSerialTimeout,
+          } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
+
+          // Use extracted baudRate and serialTimeout
+          baudRate = extractedBaudRate ?? baudRate;
+          serialTimeout = extractedSerialTimeout ?? serialTimeout;
+
           toast.success("Connection Successful", {
             description: (
               <div className="mt-2 flex flex-col space-y-1">
                 <p>Device: {formattedInfo}</p>
                 <p>Baud Rate: {baudRate}</p>
-                {bits && <p>Resolution: {bits} bits</p>}
-                {channel && <p>Channel: {channel}</p>}
+                {adcResolution && <p>Resolution: {adcResolution} bits</p>}
+                {channelCount && <p>Channel: {channelCount}</p>}
               </div>
             ),
           });
-  
+
           const startMessage = new TextEncoder().encode("START\n");
           setTimeout(() => writer.write(startMessage), 2000);
         } else {
@@ -472,16 +488,16 @@ const Connection: React.FC<ConnectionProps> = ({
       } else {
         console.error("Readable stream not available");
       }
-  
+
       Connection(true);
       setIsConnected(true);
-  
+
       onPauseChange(true);
       setIsDisplay(true);
       setCanvasCount(1);
       isConnectedRef.current = true;
       portRef.current = port;
-  
+
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
@@ -492,7 +508,6 @@ const Connection: React.FC<ConnectionProps> = ({
       toast.error("Failed to connect to device.");
     }
   };
-  
 
 
   const getFileCountFromIndexedDB = async (): Promise<any[]> => {
@@ -633,6 +648,10 @@ const Connection: React.FC<ConnectionProps> = ({
     });
     forceUpdate(); // Trigger re-render
   };
+  useEffect(() => {
+    setSelectedChannels(selectedChannels)
+    console.log("selected channels --", selectedChannels)
+  }, [selectedChannels]);
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
     const HEADER_LENGTH = 3; // Length of the packet header
@@ -642,16 +661,14 @@ const Connection: React.FC<ConnectionProps> = ({
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    const notchFilters = Array.from({ length: NUM_CHANNELS }, () => new Notch());
-    const EXGFilters = Array.from({ length: NUM_CHANNELS }, () => new EXGFilter());
-
+    const notchFilters = Array.from({ length: maxCanvasCountRef.current }, () => new Notch());
+    const EXGFilters = Array.from({ length: maxCanvasCountRef.current }, () => new EXGFilter());
     notchFilters.forEach((filter) => {
-      filter.setbits(detectedBitsRef.current); // Set the bits value for all instances
+      filter.setbits(detectedBitsRef.current.toString()); // Set the bits value for all instances
     });
     EXGFilters.forEach((filter) => {
-      filter.setbits(detectedBitsRef.current); // Set the bits value for all instances
+      filter.setbits(detectedBitsRef.current.toString()); // Set the bits value for all instances
     });
-
     try {
       while (isConnectedRef.current) {
         const streamData = await readerRef.current?.read(); // Read data from the device
@@ -688,44 +705,76 @@ const Connection: React.FC<ConnectionProps> = ({
               buffer[syncIndex + 1] === SYNC_BYTE2 &&
               buffer[endByteIndex] === END_BYTE
             ) {
-              const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH);
-              const channelData: number[] = [packet[2]]; // Counter value
+              // Validate the packet by checking the sync and end bytes
+              const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
+              const channelData: number[] = []; // Array to store the extracted channel data
+              const counter = packet[2]; // Extract the counter value from the packet
+              channelData.push(counter); // Add the counter to the channel data
+              for (let channel = 0; channel < NUM_CHANNELS; channel++) {
+                const highByte = packet[channel * 2 + HEADER_LENGTH];
+                const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
+                const value = (highByte << 8) | lowByte;
 
-              selectedChannels
-                .filter((channelIndex) => channelIndex >= 0 && channelIndex < NUM_CHANNELS)
-                .forEach((channelIndex) => {
-                  const dataStart = HEADER_LENGTH + channelIndex * 2;
-                  if (dataStart + 1 < packet.length) {
-                    const highByte = packet[dataStart];
-                    const lowByte = packet[dataStart + 1];
-                    const rawValue = (highByte << 8) | lowByte;
-                    const filteredValue = notchFilters[channelIndex].process(
-                      EXGFilters[channelIndex].process(
-                        rawValue,
-                        appliedEXGFiltersRef.current[channelIndex]
-                      ),
-                      appliedFiltersRef.current[channelIndex]
-                    );
-                    channelData.push(filteredValue);
-                  } else {
-                    console.error(`Invalid channel index ${channelIndex}`);
+                channelData.push(
+                  notchFilters[channel].process(
+                    EXGFilters[channel].process(
+                      value,
+                      appliedEXGFiltersRef.current[channel]
+                    ),
+                    appliedFiltersRef.current[channel]
+                  )
+                );
+
+              }
+              datastream(channelData); // Pass the channel data to the LineData function for further processing
+              if (isRecordingRef.current) {
+                const channeldatavalues = channelData
+                  .slice(0, canvasnumbersRef.current + 1)
+                  .map((value) => (value !== undefined ? value : null))
+                  .filter((value): value is number => value !== null); // Filter out null values
+                // Check if recording is enabled
+                recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
+
+                if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
+                  processBuffer(activeBufferIndex, canvasnumbersRef.current);
+                  activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
+                }
+                fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
+                const elapsedTime = Date.now() - recordingStartTime.current;
+                setRecordingElapsedTime((prev) => {
+                  if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
+                    stopRecording();
+                    return endTimeRef.current;
                   }
+                  return elapsedTime;
                 });
 
-              datastream(channelData); // Pass the filtered channel data
-              buffer.splice(0, endByteIndex + 1);
+              }
+
+              if (previousCounter !== null) {
+                // If there was a previous counter value, check for data loss
+                const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
+                if (counter !== expectedCounter) {
+                  // Check for data loss by comparing the current counter with the expected counter
+                  console.warn(
+                    `Data loss detected! Previous counter: ${previousCounter}, Current counter: ${counter}`
+                  );
+                }
+              }
+              previousCounter = counter; // Update the previous counter with the current counter
+              buffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
             } else {
-              buffer.splice(0, syncIndex + 1); // Remove until sync byte if packet is incomplete
+              buffer.splice(0, syncIndex + 1); // If packet is incomplete, remove bytes up to the sync byte
             }
           } else {
-            break; // Exit loop if packet is not fully available
+            break; // If a full packet is not available, exit the loop and wait for more data
           }
         }
       }
     } catch (error) {
-      console.error("Error reading from device:", error); // Handle errors
+      console.error("Error reading from device:", error); // Handle any errors that occur during the read process
     } finally {
-      await disconnectDevice(); // Ensure the device is disconnected
+      await disconnectDevice(); // Ensure the device is disconnected when finished
     }
   };
 
