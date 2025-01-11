@@ -652,6 +652,7 @@ const Connection: React.FC<ConnectionProps> = ({
     setSelectedChannels(selectedChannels)
 
   }, [selectedChannels]);
+  console.log("selected channels in connection", selectedChannels)
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
     const HEADER_LENGTH = 3; // Length of the packet header
@@ -1485,7 +1486,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   {/* Zoom Controls */}
                   <div className="relative flex flex-col items-start w-full">
                     {/* Label */}
-                    <p className="absolute top-[-1.5rem] left-0 text-base font-semibold text-[0.7rem] text-gray-500">
+                    <p className="absolute top-[-1.5rem] left-0 text-base font-semibold text-[0.6rem] text-gray-500">
                       <span className="font-bold text-gray-700">ZOOM LEVEL:</span> {Zoom} X
                     </p>
 

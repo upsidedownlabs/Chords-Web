@@ -56,8 +56,13 @@ const Canvas = forwardRef(
         Array.from({ length: 6 }, () => Array())
       )
     );
+    const selectedChannelsRef = useRef(selectedChannels);
     const activebuffer = useRef(0); // Initialize useRef with 0
     const indicesRef = useRef<number[]>([]); // Use `useRef` for indices
+
+    useEffect(() => {
+      selectedChannelsRef.current = selectedChannels;
+    }, [selectedChannels]);
 
     //select point
     const getpoints = useCallback((bits: BitSelection): number => {
@@ -290,6 +295,8 @@ const Canvas = forwardRef(
 
     const updatePlots = useCallback(
       (data: number[], Zoom: number) => {
+        // Access the latest selectedChannels via the ref
+        const currentSelectedChannels = selectedChannelsRef.current;
         // Adjust zoom for each WebglPlot
         wglPlots.forEach((wglp, index) => {
           if (wglp) {
@@ -305,14 +312,14 @@ const Canvas = forwardRef(
             console.warn(`WebglPlot instance at index ${index} is undefined.`);
           }
         });
-
+        console.log("selected channel", selectedChannelsRef);
         // Update lines based on selected channels
         linesRef.current.forEach((line, i) => { //[1,2,3,4,5,6]
           // Get the channel number from showSelectedChannels
-          const channelNumber = selectedChannels[i]; //[3,2,1]
+          const channelNumber = currentSelectedChannels[i];
 
           if (channelNumber != null && channelNumber > 0 && channelNumber <= data.length) {
-            const channelData = data[channelNumber]; // Use channelNumber-1 to map correctly to data array
+            const channelData = data[channelNumber + 1]; // Use channelNumber-1 to map correctly to data array
 
             // Use a separate sweep position for each line
             currentSweepPos.current[i] = sweepPositions.current[i];
