@@ -650,7 +650,7 @@ const Connection: React.FC<ConnectionProps> = ({
   };
   useEffect(() => {
     setSelectedChannels(selectedChannels)
-    console.log("selected channels --", selectedChannels)
+
   }, [selectedChannels]);
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {

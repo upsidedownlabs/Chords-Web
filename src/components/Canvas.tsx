@@ -43,7 +43,6 @@ const Canvas = forwardRef(
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const [numChannels, setNumChannels] = useState<number>(canvasCount);
-    const [showSelectedChannels, setShowSelectedChannels] = useState<number[]>(selectedChannels);
     const numXRef = useRef<number>(2000); // To track the calculated value
     const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
@@ -73,8 +72,6 @@ const Canvas = forwardRef(
           return 500; // Default fallback
       }
     }, []);
-
-    console.log("canvas", showSelectedChannels);
 
     useEffect(() => {
       numXRef.current = (currentSamplingRate * timeBase);
@@ -119,6 +116,7 @@ const Canvas = forwardRef(
     useEffect(() => {
       setNumChannels(canvasCount);
     }, [canvasCount]);
+
 
     useEffect(() => {
       // Reset when timeBase changes
@@ -224,16 +222,15 @@ const Canvas = forwardRef(
         canvasWrapper.appendChild(gridLineY);
       }
       canvasContainerRef.current.appendChild(canvasWrapper);
-      console.log(showSelectedChannels);
       // Iterate only over selected channels
-      showSelectedChannels.forEach((channelNumber) => {
+      selectedChannels.forEach((channelNumber) => {
         const canvasWrapper = document.createElement("div");
         canvasWrapper.className = "canvas-container relative flex-[1_1_0%]"; // Add relative positioning for absolute grid positioning
 
         const canvas = document.createElement("canvas");
         canvas.id = `canvas${channelNumber}`; // Use channelNumber directly
         canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight / showSelectedChannels.length;
+        canvas.height = container.clientHeight / selectedChannels.length;
         canvas.className = "w-full h-full block rounded-xl";
 
         // Create a badge for the channel number
@@ -251,7 +248,6 @@ const Canvas = forwardRef(
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
         const line = new WebglLine(getLineColor(channelNumber, theme), numXRef.current);
-        console.log("inside create", channelNumber);
         wglp.gOffsetY = 0;
         line.offsetY = 0;
         line.lineSpaceX(-1, 2 / numXRef.current);
@@ -313,14 +309,13 @@ const Canvas = forwardRef(
         // Update lines based on selected channels
         linesRef.current.forEach((line, i) => { //[1,2,3,4,5,6]
           // Get the channel number from showSelectedChannels
-          const channelNumber = showSelectedChannels[i]; //[3,2,1]
-          // console.log("channels number",channelNumber);
+          const channelNumber = selectedChannels[i]; //[3,2,1]
+
           if (channelNumber != null && channelNumber > 0 && channelNumber <= data.length) {
             const channelData = data[channelNumber]; // Use channelNumber-1 to map correctly to data array
 
             // Use a separate sweep position for each line
             currentSweepPos.current[i] = sweepPositions.current[i];
-            console.log("channels data", channelData);
             // Plot the data for the current sweep position
             line.setY(currentSweepPos.current[i] % line.numPoints, channelData);
 
@@ -337,13 +332,13 @@ const Canvas = forwardRef(
           }
         });
       },
-      [linesRef, wglPlots, showSelectedChannels, numXRef, sweepPositions]
+      [linesRef, wglPlots, selectedChannels, numXRef, sweepPositions]
     );
 
 
     useEffect(() => {
       createCanvases();
-    }, [numChannels, theme, timeBase]);
+    }, [numChannels, theme, timeBase, selectedChannels]);
 
 
     const animate = useCallback(() => {
