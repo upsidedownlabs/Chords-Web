@@ -297,11 +297,12 @@ const Canvas = forwardRef(
       (data: number[], Zoom: number) => {
         // Access the latest selectedChannels via the ref
         const currentSelectedChannels = selectedChannelsRef.current;
-        // Adjust zoom for each WebglPlot
+
+        // Adjust zoom level for each WebglPlot
         wglPlots.forEach((wglp, index) => {
           if (wglp) {
             try {
-              wglp.gScaleY = Zoom; // Set zoom level
+              wglp.gScaleY = Zoom; // Adjust zoom value
             } catch (error) {
               console.error(
                 `Error setting gScaleY for WebglPlot instance at index ${index}:`,
@@ -312,36 +313,59 @@ const Canvas = forwardRef(
             console.warn(`WebglPlot instance at index ${index} is undefined.`);
           }
         });
-        console.log("selected channel", selectedChannelsRef.current);
-        // Update lines based on selected channels
-        linesRef.current.forEach((line, i) => { //[1,2,3,4,5,6]
-          // Get the channel number from showSelectedChannels
-          const channelNumber = currentSelectedChannels[i];
-
-          if (channelNumber != null && channelNumber > 0 && channelNumber <= data.length) {
-            const channelData = data[channelNumber]; // Use channelNumber to map correctly to data array
-
-            // Use a separate sweep position for each line
-            currentSweepPos.current[i] = sweepPositions.current[i];
-            // Plot the data for the current sweep position
-            line.setY(currentSweepPos.current[i] % line.numPoints, channelData);
-
-            // Clear the next point to create a gap (optional, for visual effect)
-            const clearPosition = Math.ceil(
-              (currentSweepPos.current[i] + numXRef.current / 100) % line.numPoints
-            );
-            line.setY(clearPosition, NaN);
-
-            // Increment the sweep position for the current line
-            sweepPositions.current[i] = (currentSweepPos.current[i] + 1) % line.numPoints;
-          } else {
-            console.warn(`Invalid channel number: ${channelNumber}. Skipping plot.`);
+        linesRef.current.forEach((line, i) => {
+          if (!line) {
+            console.warn(`Line at index ${i} is undefined.`);
+            return;
           }
-        });
-      },
-      [linesRef, wglPlots, selectedChannels, numXRef, sweepPositions]
-    );
 
+          // Map channel number from selectedChannels
+          const channelNumber = currentSelectedChannels[i];
+          if (channelNumber == null || channelNumber < 0 || channelNumber >= data.length) {
+            console.warn(`Invalid channel number: ${channelNumber}. Skipping.`);
+            return;
+          }
+
+          const channelData = data[channelNumber];
+
+          // Ensure sweepPositions.current[i] is initialized
+          if (sweepPositions.current[i] === undefined) {
+            sweepPositions.current[i] = 0;
+          }
+
+          // Calculate the current position
+          const currentPos = sweepPositions.current[i] % line.numPoints;
+
+          if (isNaN(currentPos)) {
+            console.error(`Invalid currentPos at index ${i}. sweepPositions.current[i]:`, sweepPositions.current[i]);
+            return;
+          }
+
+          // Plot the data
+          try {
+            line.setY(currentPos, channelData);
+          } catch (error) {
+            console.error(`Error plotting data for line ${i} at position ${currentPos}:`, error);
+          }
+
+          // Clear the next point for visual effect
+          const clearPosition = Math.ceil((currentPos + numXRef.current / 100) % line.numPoints);
+          try {
+            line.setY(clearPosition, NaN);
+          } catch (error) {
+            console.error(`Error clearing data at position ${clearPosition} for line ${i}:`, error);
+          }
+
+          // Increment the sweep position
+          sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
+          console.log(`Channel ${channelNumber} plotted. Sweep Position: ${sweepPositions.current[i]}`);
+        });
+
+
+
+      },
+      [linesRef, wglPlots, selectedChannelsRef, numXRef, sweepPositions]
+    );
 
     useEffect(() => {
       createCanvases();
