@@ -215,7 +215,22 @@ const Connection: React.FC<ConnectionProps> = ({
   };
   setCanvasCountInWorker(canvasnumbersRef.current);
 
-  const processBuffer = async (bufferIndex: number, canvasCount: number) => {
+  const setSelectedChannelsInWorker = (selectedChannels: number[]) => {
+    if (!workerRef.current) {
+      initializeWorker();
+    }
+
+    // Send selectedChannels independently to the worker
+    workerRef.current?.postMessage({
+      action: 'setSelectedChannels',
+      selectedChannels: selectedChannels,
+    });
+
+    console.log('Sent selectedChannels to worker:', selectedChannels);
+  };
+  setSelectedChannelsInWorker(selectedChannels)
+
+  const processBuffer = async (bufferIndex: number, canvasCount: number, selectChannel: number[]) => {
     if (!workerRef.current) {
       initializeWorker();
     }
@@ -228,19 +243,19 @@ const Connection: React.FC<ConnectionProps> = ({
 
     if (filename) {
       // Check if the record already exists
-      workerRef.current?.postMessage({ action: 'checkExistence', filename, canvasCount });
-      writeToIndexedDB(data, filename, canvasCount);
+      workerRef.current?.postMessage({ action: 'checkExistence', filename, canvasCount, selectChannel });
+      writeToIndexedDB(data, filename, canvasCount, selectChannel);
     }
   };
 
-  const writeToIndexedDB = (data: number[][], filename: string, canvasCount: number) => {
-    workerRef.current?.postMessage({ action: 'write', data, filename, canvasCount });
+  const writeToIndexedDB = (data: number[][], filename: string, canvasCount: number, selectChannel: number[]) => {
+    workerRef.current?.postMessage({ action: 'write', data, filename, canvasCount, selectChannel });
   };
 
   const saveAllDataAsZip = async () => {
     try {
       if (workerRef.current) {
-        workerRef.current.postMessage({ action: 'saveAsZip', canvasCount });
+        workerRef.current.postMessage({ action: 'saveAsZip', canvasCount, selectedChannels });
 
         workerRef.current.onmessage = async (event) => {
           const { zipBlob, error } = event.data;
@@ -258,9 +273,9 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   // Function to handle saving data by filename
-  const saveDataByFilename = async (filename: string, canvasCount: number) => {
+  const saveDataByFilename = async (filename: string, canvasCount: number, selectChannel: number[]) => {
     if (workerRef.current) {
-      workerRef.current.postMessage({ action: "saveDataByFilename", filename, canvasCount });
+      workerRef.current.postMessage({ action: "saveDataByFilename", filename, canvasCount, selectChannel });
       workerRef.current.onmessage = (event) => {
         const { blob, error } = event.data;
 
@@ -744,7 +759,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
 
                 if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
-                  processBuffer(activeBufferIndex, canvasnumbersRef.current);
+                  processBuffer(activeBufferIndex, canvasnumbersRef.current, selectedChannels);
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
                 fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
@@ -1153,7 +1168,7 @@ const Connection: React.FC<ConnectionProps> = ({
                           <div className="flex space-x-2">
                             {/* Save file by filename */}
                             <Button
-                              onClick={() => saveDataByFilename(dataset, canvasCount)}
+                              onClick={() => saveDataByFilename(dataset, canvasCount, selectedChannels)}
                               className="rounded-xl px-4"
                             >
                               <Download size={16} />
@@ -1495,7 +1510,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   {/* Zoom Controls */}
                   <div className="relative flex flex-col items-start w-full">
                     {/* Label */}
-                    <p className="absolute top-[-1.5rem] text-[0.6em] left-0 text-base font-semibold text-gray-500">
+                    <p className="absolute top-[-1.5rem] left-0 text-base text-[0.6rem] font-semibold text-gray-500">
                       <span className="font-bold text-gray-700">ZOOM LEVEL:</span> {Zoom} X
                     </p>
 

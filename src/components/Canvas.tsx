@@ -358,8 +358,7 @@ const Canvas = forwardRef(
 
           // Increment the sweep position
           sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
-          console.log(`Channel ${channelNumber} plotted. Sweep Position: ${sweepPositions.current[i]}`);
-        });
+          });
 
 
 
