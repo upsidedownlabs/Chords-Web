@@ -144,12 +144,19 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   const toggleChannel = (channelIndex: number) => {
-    setSelectedChannels((prevSelected) =>
-      prevSelected.includes(channelIndex)
-        ? prevSelected.filter((ch) => ch !== channelIndex)
-        : [...prevSelected, channelIndex]
-    );
+    setSelectedChannels((prevSelected) => {
+      // Ensure at least one channel remains selected
+      if (prevSelected.length === 1 && prevSelected.includes(channelIndex)) {
+        return prevSelected;  // Do not remove the only element
+      }
+
+      // Toggle the selection of the channel
+      return prevSelected.includes(channelIndex)
+        ? prevSelected.filter((ch) => ch !== channelIndex)  // Remove channel
+        : [...prevSelected, channelIndex];  // Add channel
+    });
   };
+
   useEffect(() => {
     setSelectedChannels(selectedChannels)
   }, [selectedChannels])
@@ -1488,7 +1495,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   {/* Zoom Controls */}
                   <div className="relative flex flex-col items-start w-full">
                     {/* Label */}
-                    <p className="absolute top-[-1.5rem] left-0 text-base font-semibold text-[0.6em] text-gray-500">
+                    <p className="absolute top-[-1.5rem] text-[0.6em] left-0 text-base font-semibold text-gray-500">
                       <span className="font-bold text-gray-700">ZOOM LEVEL:</span> {Zoom} X
                     </p>
 
