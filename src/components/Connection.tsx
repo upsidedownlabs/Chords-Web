@@ -161,8 +161,8 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   useEffect(() => {
-    setSelectedChannels(selectedChannels)
-  }, [selectedChannels])
+    setSelectedChannels(selectedChannels);
+  }, [selectedChannels]);
 
   // Handle right arrow click (reset count and disable button if needed)
   const handleNextSnapshot = () => {
@@ -1471,7 +1471,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   {/* Channel Selection */}
                   <div className="flex items-center justify-center bg-gray-100 dark:bg-gray-800">
                     {/* Curved Container */}
-                    <div className="relative rounded-xl bg-gray-300 dark:bg-gray-700 w-full py-2">
+                    <div className="relative rounded-xl bg-gray-300 dark:bg-gray-700 w-full p-4">
                       {/* Background overlay */}
                       <div className="absolute inset-0 rounded-xl bg-gray-100 dark:bg-gray-800 opacity-50 pointer-events-none"></div>
 
@@ -1502,11 +1502,12 @@ const Connection: React.FC<ConnectionProps> = ({
                                     color: isFaded ? "lightgray" : "white",
                                     cursor: isFaded ? "not-allowed" : "pointer",
                                   }}
-                                  className={`w-15 h-10 rounded-lg text-sm font-medium m-2 ${selectedChannels.includes(index + 1) ? "ring-2 ring-offset-2 ring-gray-600" : ""
-                                    }`}
+                                  className={`w-15 h-10 rounded-lg text-sm font-medium m-2 py-2 
+    ${selectedChannels.includes(index + 1) ? "ring-2 ring-offset-2 ring-gray-600" : ""}`}
                                 >
                                   {`CH${index + 1}`}
                                 </button>
+
                               );
                             })}
                           </div>
