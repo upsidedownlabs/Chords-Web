@@ -147,13 +147,16 @@ const Connection: React.FC<ConnectionProps> = ({
     setSelectedChannels((prevSelected) => {
       // Ensure at least one channel remains selected
       if (prevSelected.length === 1 && prevSelected.includes(channelIndex)) {
-        return prevSelected;  // Do not remove the only element
+        return prevSelected; // Do not remove the only element
       }
 
       // Toggle the selection of the channel
-      return prevSelected.includes(channelIndex)
-        ? prevSelected.filter((ch) => ch !== channelIndex)  // Remove channel
-        : [...prevSelected, channelIndex];  // Add channel
+      const updatedChannels = prevSelected.includes(channelIndex)
+        ? prevSelected.filter((ch) => ch !== channelIndex) // Remove channel
+        : [...prevSelected, channelIndex]; // Add channel
+
+      // Return the sorted array
+      return updatedChannels.sort((a, b) => a - b);
     });
   };
 
@@ -381,7 +384,6 @@ const Connection: React.FC<ConnectionProps> = ({
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
-
 
       const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
       let port = null;
@@ -1481,20 +1483,27 @@ const Connection: React.FC<ConnectionProps> = ({
                               const index = row * 8 + col;
                               const isFaded = index >= maxCanvasCountRef.current;
 
+                              // Define the color array
+                              const buttonColors = [
+                                "#EC6FAA", "#CE6FAC", "#B47EB7", "#9D8DC4", "#689AD2", "#35A5CC", "#30A8B4", "#32ABA2",
+                                "#2EAD8D", "#31B068", "#6CAB43", "#94A135", "#B19B31", "#CC9136", "#F2793B", "#F2728B"
+                              ];
+
+                              // Get the background color based on the index
+                              const backgroundColor = buttonColors[index % buttonColors.length];
+
                               return (
                                 <button
                                   key={index}
                                   onClick={() => !isFaded && toggleChannel(index + 1)}
                                   disabled={isFaded || isRecordButtonDisabled}
-                                  className={`
-                  w-15 h-10 rounded-lg text-sm font-medium m-2
-                  ${isFaded
-                                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
-                                      : selectedChannels.includes(index + 1)
-                                        ? 'bg-gray-500 dark:bg-gray-500 text-white'
-                                        : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                                    }
-                `}
+                                  style={{
+                                    backgroundColor: isFaded ? "gray" : backgroundColor,
+                                    color: isFaded ? "lightgray" : "white",
+                                    cursor: isFaded ? "not-allowed" : "pointer",
+                                  }}
+                                  className={`w-15 h-10 rounded-lg text-sm font-medium m-2 ${selectedChannels.includes(index + 1) ? "ring-2 ring-offset-2 ring-gray-600" : ""
+                                    }`}
                                 >
                                   {`CH${index + 1}`}
                                 </button>
@@ -1502,6 +1511,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             })}
                           </div>
                         ))}
+
                       </div>
                     </div>
                   </div>
@@ -1510,7 +1520,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   {/* Zoom Controls */}
                   <div className="relative flex flex-col items-start w-full">
                     {/* Label */}
-                    <p className="absolute top-[-1.5rem] left-0 text-base text-[0.6rem] font-semibold text-gray-500">
+                    <p style={{ fontSize: '0.60rem' }} className="absolute top-[-1.5rem] left-0 text-base font-semibold text-gray-500">
                       <span className="font-bold text-gray-700">ZOOM LEVEL:</span> {Zoom} X
                     </p>
 
@@ -1561,7 +1571,7 @@ rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
                     </p>
 
                     {/* Slider with curved container and faded colors */}
-                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3 dark:bg-gray-700">
+                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3 dark:bg-gray-600">
                       {/* Min value */}
                       <p className="text-gray-800 mx-2 px-2">1</p>
 

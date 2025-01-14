@@ -268,30 +268,35 @@ const Canvas = forwardRef(
     };
 
     const getLineColor = (i: number, theme: string | undefined): ColorRGBA => {
-      // Define bright colors
+      // Define the updated dark colors
       const colorsDark: ColorRGBA[] = [
-        new ColorRGBA(1, 0.286, 0.529, 1), // Bright Pink
-        new ColorRGBA(0.475, 0.894, 0.952, 1), // Light Blue
-        new ColorRGBA(0, 1, 0.753, 1), // Bright Cyan
-        new ColorRGBA(0.431, 0.761, 0.031, 1), // Bright Green
-        new ColorRGBA(0.678, 0.286, 0.882, 1), // Bright Purple
-        new ColorRGBA(0.914, 0.361, 0.051, 1), // Bright Orange
+        new ColorRGBA(180 / 255, 70 / 255, 120 / 255, 1), // Darkened #EC6FAA
+        new ColorRGBA(150 / 255, 70 / 255, 125 / 255, 1), // Darkened #CE6FAC
+        new ColorRGBA(130 / 255, 90 / 255, 140 / 255, 1), // Darkened #B47EB7
+        new ColorRGBA(110 / 255, 110 / 255, 160 / 255, 1), // Darkened #9D8DC4
+        new ColorRGBA(70 / 255, 100 / 255, 150 / 255, 1),  // Darkened #689AD2
+        new ColorRGBA(40 / 255, 110 / 255, 140 / 255, 1),  // Darkened #35A5CC
+        new ColorRGBA(35 / 255, 120 / 255, 130 / 255, 1),  // Darkened #30A8B4
+        new ColorRGBA(35 / 255, 125 / 255, 120 / 255, 1),  // Darkened #32ABA2
       ];
+
       const colorsLight: ColorRGBA[] = [
-        new ColorRGBA(0.820, 0.000, 0.329, 1), // #D10054 - Bright Pink
-        new ColorRGBA(0.000, 0.478, 0.549, 1), // #007A8C - Light Blue
-        new ColorRGBA(0.039, 0.408, 0.278, 1), // #0A6847 - Dark Green
-        new ColorRGBA(0.404, 0.255, 0.533, 1), // #674188 - Bright Purple
-        new ColorRGBA(0.902, 0.361, 0.098, 1), // #E65C19 - Bright Orange
-        new ColorRGBA(0.180, 0.027, 0.247, 1), // #2E073F - Dark Purple
+        new ColorRGBA(236 / 255, 111 / 255, 170 / 255, 0.8), // Slightly transparent #EC6FAA
+        new ColorRGBA(206 / 255, 111 / 255, 172 / 255, 0.8), // Slightly transparent #CE6FAC
+        new ColorRGBA(180 / 255, 126 / 255, 183 / 255, 0.8), // Slightly transparent #B47EB7
+        new ColorRGBA(157 / 255, 141 / 255, 196 / 255, 0.8), // Slightly transparent #9D8DC4
+        new ColorRGBA(104 / 255, 154 / 255, 210 / 255, 0.8), // Slightly transparent #689AD2
+        new ColorRGBA(53 / 255, 165 / 255, 204 / 255, 0.8),  // Slightly transparent #35A5CC
+        new ColorRGBA(48 / 255, 168 / 255, 180 / 255, 0.8),  // Slightly transparent #30A8B4
+        new ColorRGBA(50 / 255, 171 / 255, 162 / 255, 0.8),  // Slightly transparent #32ABA2
       ];
 
-
-      // Return color based on the index, cycling through if necessary
+      // Swap light and dark colors for themes
       return theme === "dark"
-        ? colorsDark[i % colorsDark.length]
-        : colorsLight[i % colorsLight.length];
+        ? colorsLight[i % colorsLight.length] // Use lighter colors in dark theme
+        : colorsDark[i % colorsDark.length]; // Use darker colors in light theme
     };
+
 
     const updatePlots = useCallback(
       (data: number[], Zoom: number) => {
@@ -358,7 +363,7 @@ const Canvas = forwardRef(
 
           // Increment the sweep position
           sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
-          });
+        });
 
 
 
