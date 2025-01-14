@@ -155,8 +155,28 @@ const Connection: React.FC<ConnectionProps> = ({
         ? prevSelected.filter((ch) => ch !== channelIndex) // Remove channel
         : [...prevSelected, channelIndex]; // Add channel
 
+      // Sort the updated channels before returning
+      const sortedChannels = updatedChannels.sort((a, b) => a - b);
+      console.log("Sorted Channels:", sortedChannels); // Debugging sorted channels
+
+      // Update `selectedChannels` in localStorage for the connected device
+      const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+      const portInfo = portRef.current?.getInfo();
+      if (portInfo) {
+        const { usbVendorId, usbProductId } = portInfo;
+        const deviceIndex = savedPorts.findIndex(
+          (saved: SavedDevice) =>
+            saved.usbVendorId === (usbVendorId ?? 0) &&
+            saved.usbProductId === (usbProductId ?? 0)
+        );
+        if (deviceIndex !== -1) {
+          savedPorts[deviceIndex].selectedChannels = sortedChannels;
+          localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+        }
+      }
+
       // Return the sorted array
-      return updatedChannels.sort((a, b) => a - b);
+      return sortedChannels;
     });
   };
 
@@ -381,16 +401,19 @@ const Connection: React.FC<ConnectionProps> = ({
 
   const connectToDevice = async () => {
     try {
+      // Disconnect any previous connection if port is open
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
 
+      // Retrieve saved devices from localStorage
       const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
       let port = null;
 
+      // Get available serial ports
       const ports = await navigator.serial.getPorts();
 
-      // Check for saved ports
+      // Check if there is a saved port and match with available ports
       if (savedPorts.length > 0) {
         port =
           ports.find((p) => {
@@ -404,52 +427,54 @@ const Connection: React.FC<ConnectionProps> = ({
       }
 
       let baudRate;
-      let serialTimeout
+      let serialTimeout;
 
+      // If no saved port is found, request a new port and save it
       if (!port) {
         port = await navigator.serial.requestPort();
-        // const newPortInfo = await port.getInfo();
         const newPortInfo = await port.getInfo();
-        // const usbVendorId = newPortInfo.usbVendorId ?? 0;
+        const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
 
-        // Match the board from BoardsList
-        const board = BoardsList.find(
-          (b) => (b.field_pid) === usbProductId
-        );
+        // Match the board from BoardsList based on usbProductId
+        const board = BoardsList.find((b) => b.field_pid === usbProductId);
 
-        baudRate = board ? (board.baud_Rate) : 0;
-        serialTimeout = board ? (board.serial_timeout) : 0;
+        baudRate = board ? board.baud_Rate : 0;
+        serialTimeout = board ? board.serial_timeout : 0;
 
-        const usbVendorId = newPortInfo.usbVendorId ?? 0;
-        // const usbProductId = newPortInfo.usbProductId ?? 0;
+        // Save the new device details in localStorage, including default selected channels
+        savedPorts.push({
+          usbVendorId,
+          usbProductId,
+          baudRate,
+          serialTimeout,
+          selectedChannels: [1], // Default to CH1 if not saved
+        });
+        localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
 
-        const existingDevice = savedPorts.find(
-          (saved: SavedDevice) =>
-            saved.usbVendorId === usbVendorId &&
-            saved.usbProductId === usbProductId
-        );
-
-        if (!existingDevice) {
-          savedPorts.push({ usbVendorId, usbProductId, baudRate, serialTimeout });
-          localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-        }
-
+        // Open the port with the determined baud rate
         await port.open({ baudRate });
       } else {
+        // If device is already found, retrieve its settings
         const info = port.getInfo();
-
         const savedDevice = savedPorts.find(
           (saved: SavedDevice) =>
             saved.usbVendorId === (info.usbVendorId ?? 0) &&
             saved.usbProductId === (info.usbProductId ?? 0)
         );
-        const baudRate = savedDevice.baudRate || 'default_baud_rate'; // Use baudRate from saved device info
-        serialTimeout = savedDevice.serialTimeout;
 
+        baudRate = savedDevice?.baudRate || 230400; // Default to 230400 if no saved baud rate
+        serialTimeout = savedDevice?.serialTimeout || 2000; // Default timeout if not saved
+
+        // Open the port with the saved baud rate
         await port.open({ baudRate });
+
+        // Set the previously selected channels or default to [1]
+        const lastSelectedChannels = savedDevice?.selectedChannels || [1];
+        setSelectedChannels(lastSelectedChannels);
       }
 
+      // Logic for handling device communication, e.g., reading from the port
       if (port.readable) {
         const reader = port.readable.getReader();
         readerRef.current = reader;
@@ -457,10 +482,10 @@ const Connection: React.FC<ConnectionProps> = ({
         if (writer) {
           writerRef.current = writer;
 
-          // Query the board for its name
+          // Query the device for its name
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-
           setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
+
           let buffer = "";
           while (true) {
             const { value, done } = await reader.read();
@@ -472,7 +497,7 @@ const Connection: React.FC<ConnectionProps> = ({
             }
           }
 
-          // Extract the device name
+          // Extract device name from response
           const response = buffer.trim().split("\n").pop();
           const extractedName =
             response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
@@ -480,7 +505,7 @@ const Connection: React.FC<ConnectionProps> = ({
           const currentPortInfo = port.getInfo();
           const usbProductId = currentPortInfo.usbProductId ?? 0;
 
-          // Pass the name and field_pid to formatPortInfo
+          // Format port info with device name and other details
           const {
             formattedInfo,
             adcResolution,
@@ -489,7 +514,7 @@ const Connection: React.FC<ConnectionProps> = ({
             serialTimeout: extractedSerialTimeout,
           } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
 
-          // Use extracted baudRate and serialTimeout
+          // Update baudRate and serialTimeout with extracted values
           baudRate = extractedBaudRate ?? baudRate;
           serialTimeout = extractedSerialTimeout ?? serialTimeout;
 
@@ -504,6 +529,7 @@ const Connection: React.FC<ConnectionProps> = ({
             ),
           });
 
+          // Start the communication with the device
           const startMessage = new TextEncoder().encode("START\n");
           setTimeout(() => writer.write(startMessage), 2000);
         } else {
@@ -513,6 +539,7 @@ const Connection: React.FC<ConnectionProps> = ({
         console.error("Readable stream not available");
       }
 
+      // Update connection state
       Connection(true);
       setIsConnected(true);
 
@@ -522,9 +549,12 @@ const Connection: React.FC<ConnectionProps> = ({
       isConnectedRef.current = true;
       portRef.current = port;
 
+      // Retrieve datasets and initiate data reading
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
+
+      // Request wake lock to prevent screen sleep
       await navigator.wakeLock.request("screen");
     } catch (error) {
       await disconnectDevice();
@@ -1471,7 +1501,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   {/* Channel Selection */}
                   <div className="flex items-center justify-center bg-gray-100 dark:bg-gray-800">
                     {/* Curved Container */}
-                    <div className="relative rounded-xl bg-gray-300 dark:bg-gray-700 w-full p-4">
+                    <div className="relative rounded-xl bg-gray-100 dark:bg-gray-700 w-full p-5">
                       {/* Background overlay */}
                       <div className="absolute inset-0 rounded-xl bg-gray-100 dark:bg-gray-800 opacity-50 pointer-events-none"></div>
 
