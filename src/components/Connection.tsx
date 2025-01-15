@@ -22,7 +22,8 @@ import {
   BicepsFlexed,
   ArrowRightToLine,
   ArrowLeftToLine,
-  Settings
+  Settings,
+  Loader
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -103,6 +104,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [popoverVisible, setPopoverVisible] = useState(false);
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const [ifBits, setifBits] = useState<BitSelection>(10);
+  const [isLoading, setIsLoading] = useState(false);
   const canvasnumbersRef = useRef<number>(1);
   const maxCanvasCountRef = useRef<number>(1);
   const readerRef = useRef<
@@ -128,6 +130,15 @@ const Connection: React.FC<ConnectionProps> = ({
     SetCurrentSnapshot(0);
     setClickCount(0);
 
+  };
+
+  const handleButtonClick = async () => {
+    setIsLoading(true); // Set loading state to true
+    try {
+      await handleClick(); // Attempt to connect or disconnect
+    } finally {
+      setIsLoading(false); // Reset loading state after operation
+    }
   };
 
   const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
@@ -157,7 +168,11 @@ const Connection: React.FC<ConnectionProps> = ({
 
       // Sort the updated channels before returning
       const sortedChannels = updatedChannels.sort((a, b) => a - b);
-      console.log("Sorted Channels:", sortedChannels); // Debugging sorted channels
+
+      // If no channel is selected after the toggle, set channel 1 as the default
+      if (sortedChannels.length === 0) {
+        sortedChannels.push(1); // Default to channel 1 if no channels are selected
+      }
 
       // Update `selectedChannels` in localStorage for the connected device
       const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
@@ -233,6 +248,7 @@ const Connection: React.FC<ConnectionProps> = ({
     if (!workerRef.current) {
       initializeWorker();
     }
+    setCanvasCount(selectedChannels.length)
     // Send canvasCount independently to the worker
     workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasnumbersRef.current });
   };
@@ -249,7 +265,6 @@ const Connection: React.FC<ConnectionProps> = ({
       selectedChannels: selectedChannels,
     });
 
-    console.log('Sent selectedChannels to worker:', selectedChannels);
   };
   setSelectedChannelsInWorker(selectedChannels)
 
@@ -451,7 +466,7 @@ const Connection: React.FC<ConnectionProps> = ({
           selectedChannels: [1], // Default to CH1 if not saved
         });
         localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-
+        setSelectedChannels([1]); // Set channel 1 as the default
         // Open the port with the determined baud rate
         await port.open({ baudRate });
       } else {
@@ -542,7 +557,6 @@ const Connection: React.FC<ConnectionProps> = ({
       // Update connection state
       Connection(true);
       setIsConnected(true);
-
       onPauseChange(true);
       setIsDisplay(true);
       setCanvasCount(1);
@@ -641,7 +655,6 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
-
 
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
   const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
@@ -839,6 +852,7 @@ const Connection: React.FC<ConnectionProps> = ({
     if (isRecordingRef.current) {
       // Stop the recording if it is currently active
       stopRecording();
+
     } else {
       // Start a new recording session
       isRecordingRef.current = true;
@@ -846,7 +860,7 @@ const Connection: React.FC<ConnectionProps> = ({
       recordingStartTime.current = Date.now();
       setRecordingElapsedTime(Date.now());
       setIsRecordButtonDisabled(true);
-
+      setIsDisplay(false);
       const filename = `ChordsWeb-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
         `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
 
@@ -862,6 +876,7 @@ const Connection: React.FC<ConnectionProps> = ({
     isRecordingRef.current = false;
     setRecordingElapsedTime(0);
     setIsRecordButtonDisabled(false);
+    setIsDisplay(true);
     // setRecordingStartTime(0);
     recordingStartTime.current = 0;
     existingRecordRef.current = undefined;
@@ -1090,8 +1105,17 @@ const Connection: React.FC<ConnectionProps> = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button className="flex items-center justify-center gap-1 py-2 px-2 sm:py-3 sm:px-4 rounded-xl font-semibold" onClick={handleClick}>
-                {isConnected ? (
+              <Button
+                className="flex items-center justify-center gap-1 py-2 px-2 sm:py-3 sm:px-4 rounded-xl font-semibold"
+                onClick={handleButtonClick}
+                disabled={isLoading} // Disable button during loading
+              >
+                {isLoading ? (
+                  <>
+                    <Loader size={17} className="animate-spin" /> {/* Show spinning loader */}
+                    Connecting...
+                  </>
+                ) : isConnected ? (
                   <>
                     Disconnect
                     <CircleX size={17} />
@@ -1499,7 +1523,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
 
                   {/* Channel Selection */}
-                  <div className="flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                  <div className="flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl">
                     {/* Curved Container */}
                     <div className="relative rounded-xl bg-gray-100 dark:bg-gray-700 w-full p-5">
                       {/* Background overlay */}
@@ -1522,18 +1546,24 @@ const Connection: React.FC<ConnectionProps> = ({
                               // Get the background color based on the index
                               const backgroundColor = buttonColors[index % buttonColors.length];
 
+                              // Check for dark mode
+                              const isDarkMode = document.body.classList.contains('dark');
+
                               return (
                                 <button
                                   key={index}
                                   onClick={() => !isFaded && toggleChannel(index + 1)}
                                   disabled={isFaded || isRecordButtonDisabled}
                                   style={{
-                                    backgroundColor: isFaded ? "gray" : backgroundColor,
-                                    color: isFaded ? "lightgray" : "white",
+                                    backgroundColor: isFaded
+                                      ? isDarkMode ? "gray" : "#dedcdc" // Red for disabled in dark mode, light gray for light theme
+                                      : selectedChannels.includes(index + 1)
+                                        ? backgroundColor // Darker color for selected buttons
+                                        : "white", // White for unselected buttons
+                                    color: isFaded ? "black" : selectedChannels.includes(index + 1) ? "white" : "black", // Black text for disabled or unselected, white for selected
                                     cursor: isFaded ? "not-allowed" : "pointer",
                                   }}
-                                  className={`w-15 h-10 rounded-lg text-sm font-medium m-2 py-2 
-    ${selectedChannels.includes(index + 1) ? "ring-2 ring-offset-2 ring-gray-600" : ""}`}
+                                  className={`w-15 h-10 rounded-lg text-sm font-medium m-2 py-2`}
                                 >
                                   {`CH${index + 1}`}
                                 </button>
@@ -1542,11 +1572,9 @@ const Connection: React.FC<ConnectionProps> = ({
                             })}
                           </div>
                         ))}
-
                       </div>
                     </div>
                   </div>
-
 
                   {/* Zoom Controls */}
                   <div className="relative flex flex-col items-start w-full">
@@ -1602,7 +1630,7 @@ rgb(161, 159, 159) ${(Zoom - 1) * 11.11}%
                     </p>
 
                     {/* Slider with curved container and faded colors */}
-                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3 dark:bg-gray-600">
+                    <div className="relative w-[40rem] flex items-center rounded-xl bg-gray-100 py-3 dark:bg-gray-700">
                       {/* Min value */}
                       <p className="text-gray-800 mx-2 px-2">1</p>
 

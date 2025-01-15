@@ -12,7 +12,7 @@ import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 
 interface CanvasProps {
   pauseRef: React.RefObject<boolean>;
-  selectedBits?: BitSelection; // Add `?` to make it optional
+  selectedBits?: BitSelection;
   isDisplay: boolean;
   canvasCount?: number;
   selectedChannels: number[];
@@ -28,7 +28,6 @@ const Canvas = forwardRef(
     {
       pauseRef,
       selectedBits,
-      isDisplay,
       canvasCount = 6, // default value in case not provided
       timeBase = 4,
       currentSamplingRate,
@@ -42,7 +41,7 @@ const Canvas = forwardRef(
     const { theme } = useTheme();
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     const canvasContainerRef = useRef<HTMLDivElement>(null);
-    const [numChannels, setNumChannels] = useState<number>(canvasCount);
+    const [numChannels, setNumChannels] = useState<number>(selectedChannels.length);
     const numXRef = useRef<number>(2000); // To track the calculated value
     const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
@@ -59,10 +58,6 @@ const Canvas = forwardRef(
     const selectedChannelsRef = useRef(selectedChannels);
     const activebuffer = useRef(0); // Initialize useRef with 0
     const indicesRef = useRef<number[]>([]); // Use `useRef` for indices
-
-    useEffect(() => {
-      selectedChannelsRef.current = selectedChannels;
-    }, [selectedChannels]);
 
     //select point
     const getpoints = useCallback((bits: BitSelection): number => {
@@ -82,6 +77,10 @@ const Canvas = forwardRef(
       numXRef.current = (currentSamplingRate * timeBase);
 
     }, [timeBase]);
+
+    useEffect(() => {
+      selectedChannelsRef.current = selectedChannels;
+    }, [selectedChannels]);
 
     const prevCanvasCountRef = useRef<number>(canvasCount);
 
@@ -119,16 +118,15 @@ const Canvas = forwardRef(
     };
 
     useEffect(() => {
-      setNumChannels(canvasCount);
-    }, [canvasCount]);
+      setNumChannels(selectedChannels.length);
+    }, [selectedChannels]);
 
 
     useEffect(() => {
       // Reset when timeBase changes
       currentSweepPos.current = new Array(numChannels).fill(0);
       sweepPositions.current = new Array(numChannels).fill(0);
-    }, [timeBase]);
-
+    }, [timeBase, theme]);
 
     useImperativeHandle(
       ref,
@@ -278,6 +276,7 @@ const Canvas = forwardRef(
         new ColorRGBA(40 / 255, 110 / 255, 140 / 255, 1),  // Darkened #35A5CC
         new ColorRGBA(35 / 255, 120 / 255, 130 / 255, 1),  // Darkened #30A8B4
         new ColorRGBA(35 / 255, 125 / 255, 120 / 255, 1),  // Darkened #32ABA2
+        
       ];
 
       const colorsLight: ColorRGBA[] = [
@@ -289,6 +288,7 @@ const Canvas = forwardRef(
         new ColorRGBA(53 / 255, 165 / 255, 204 / 255, 0.8),  // Slightly transparent #35A5CC
         new ColorRGBA(48 / 255, 168 / 255, 180 / 255, 0.8),  // Slightly transparent #30A8B4
         new ColorRGBA(50 / 255, 171 / 255, 162 / 255, 0.8),  // Slightly transparent #32ABA2
+        
       ];
 
       // Swap light and dark colors for themes
@@ -296,7 +296,6 @@ const Canvas = forwardRef(
         ? colorsLight[i % colorsLight.length] // Use lighter colors in dark theme
         : colorsDark[i % colorsDark.length]; // Use darker colors in light theme
     };
-
 
     const updatePlots = useCallback(
       (data: number[], Zoom: number) => {
@@ -364,9 +363,6 @@ const Canvas = forwardRef(
           // Increment the sweep position
           sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
         });
-
-
-
       },
       [linesRef, wglPlots, selectedChannelsRef, numXRef, sweepPositions]
     );
