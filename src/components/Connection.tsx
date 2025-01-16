@@ -1410,7 +1410,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                         size="sm"
                                                         onClick={() => removeEXGFilter(index)}
                                                         className={`rounded-xl rounded-r-none border-l-none border-0
-                              ${appliedEXGFiltersRef.current[index] === undefined
+                                                        ${appliedEXGFiltersRef.current[index] === undefined
                                                                 ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
                                                                 : "bg-white-500" // Active background
                                                             }`}
@@ -1422,7 +1422,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                         size="sm"
                                                         onClick={() => handleFrequencySelectionEXG(index, 4)}
                                                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedEXGFiltersRef.current[index] === 4
+                                                        ${appliedEXGFiltersRef.current[index] === 4
                                                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                                 : "bg-white-500" // Active background
                                                             }`}
@@ -1434,7 +1434,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                         size="sm"
                                                         onClick={() => handleFrequencySelectionEXG(index, 3)}
                                                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedEXGFiltersRef.current[index] === 3
+                                                      ${appliedEXGFiltersRef.current[index] === 3
                                                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                                 : "bg-white-500" // Active background
                                                             }`}
@@ -1446,7 +1446,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                         size="sm"
                                                         onClick={() => handleFrequencySelectionEXG(index, 1)}
                                                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedEXGFiltersRef.current[index] === 1
+                                                        ${appliedEXGFiltersRef.current[index] === 1
                                                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                                 : "bg-white-500" // Active background
                                                             }`}
@@ -1458,7 +1458,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                         size="sm"
                                                         onClick={() => handleFrequencySelectionEXG(index, 2)}
                                                         className={`rounded-xl rounded-l-none border-0
-                                      ${appliedEXGFiltersRef.current[index] === 2
+                                                        ${appliedEXGFiltersRef.current[index] === 2
                                                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                                 : "bg-white-500" // Active background
                                                             }`}
@@ -1472,7 +1472,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                         size="sm"
                                                         onClick={() => removeNotchFilter(index)}
                                                         className={`rounded-xl rounded-r-none border-0
-                              ${appliedFiltersRef.current[index] === undefined
+                                                        ${appliedFiltersRef.current[index] === undefined
                                                                 ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
                                                                 : "bg-white-500" // Active background
                                                             }`}
@@ -1484,7 +1484,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                         size="sm"
                                                         onClick={() => handleFrequencySelection(index, 1)}
                                                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedFiltersRef.current[index] === 1
+                                                        ${appliedFiltersRef.current[index] === 1
                                                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                                 : "bg-white-500" // Active background
                                                             }`}
@@ -1516,54 +1516,57 @@ const Connection: React.FC<ConnectionProps> = ({
                 {isConnected && (
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-xl">
+                            <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-lg">
                                 <Settings size={16} />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[43rem] p-6 rounded-lg shadow-lg  text-base">
-
+                        <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm">
                             <TooltipProvider>
-                                <div className="space-y-8">
-
+                                <div className="space-y-6">
                                     {/* Channel Selection */}
-                                    <div className="flex items-center justify-center rounded-xl">
-                                        {/* Curved Container */}
-                                        <div className="relative rounded-xl border border-gray-400 dark:border-gray-700 w-full p-5">
-                                            {/* Background overlay */}
-                                            <div className="absolute inset-0 rounded-xl border-gray-400 dark:border-gray-700 opacity-50 pointer-events-none"></div>
-
-                                            <div id="button-container" className="relative space-y-4">
+                                    <div className="flex items-center justify-center rounded-lg">
+                                        <div className="relative rounded-lg border border-gray-300 dark:border-gray-600 w-full p-4">
+                                            <div className="absolute inset-0 rounded-lg border-gray-300 dark:border-gray-600 opacity-50 pointer-events-none"></div>
+                                            <div id="button-container" className="relative space-y-2 border border-gray-300 rounded-lg">
                                                 {Array.from({ length: 2 }).map((_, row) => (
-                                                    <div key={row} className="grid grid-cols-8 gap-4">
+                                                    <div key={row} className="grid grid-cols-8 gap-0">
                                                         {Array.from({ length: 8 }).map((_, col) => {
                                                             const index = row * 8 + col;
                                                             const isChannelDisabled = index >= maxCanvasCountRef.current;
 
-                                                            // Define the custom color classes (from Tailwind config)
                                                             const buttonColors = [
                                                                 "bg-custom-1", "bg-custom-2", "bg-custom-3", "bg-custom-4",
                                                                 "bg-custom-5", "bg-custom-6", "bg-custom-7", "bg-custom-8",
                                                                 "bg-custom-9", "bg-custom-10", "bg-custom-11", "bg-custom-12",
                                                                 "bg-custom-13", "bg-custom-14", "bg-custom-15", "bg-custom-16"
                                                             ];
-                                                            // Get the Tailwind class for the current button
-                                                            const backgroundColorClass = buttonColors[index % buttonColors.length];
 
-                                                            // Determine the dynamic class based on the state
+                                                            const backgroundColorClass = buttonColors[index % buttonColors.length];
                                                             const buttonClass = isChannelDisabled
                                                                 ? isDarkMode
-                                                                    ? "bg-gray-500 text-gray-400 cursor-not-allowed" // Dark mode disabled button
-                                                                    : "bg-gray-300 text-gray-500 cursor-not-allowed" // Light mode disabled button
+                                                                    ? "bg-gray-400 text-gray-500 cursor-not-allowed"
+                                                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                                                 : selectedChannels.includes(index + 1)
-                                                                    ? `${backgroundColorClass} text-white` // Selected channel style
-                                                                    : "bg-white text-black hover:bg-gray-100"; // Default style
+                                                                    ? `${backgroundColorClass} text-white`
+                                                                    : "bg-white text-black hover:bg-gray-100";
+
+                                                            const isFirstInRow = col === 0;
+                                                            const isLastInRow = col === 7;
+                                                            const isFirstInColumn = row === 0;
+                                                            const isLastInColumn = row === 1;
+
+                                                            // Adjust rounded corners for the four corners of the grid
+                                                            const roundedClass = `${isFirstInRow && isFirstInColumn ? "rounded-tl-lg" : ""} 
+                                                           ${isLastInRow && isFirstInColumn ? "rounded-tr-lg" : ""} 
+                                                           ${isFirstInRow && isLastInColumn ? "rounded-bl-lg" : ""} 
+                                                           ${isLastInRow && isLastInColumn ? "rounded-br-lg" : ""}`;
 
                                                             return (
                                                                 <button
                                                                     key={index}
                                                                     onClick={() => !isChannelDisabled && toggleChannel(index + 1)}
                                                                     disabled={isChannelDisabled || isRecordButtonDisabled}
-                                                                    className={`w-15 h-10 rounded-lg text-sm font-medium m-2 py-2 border border-gray-200 transition-colors duration-200 ${buttonClass}`}
+                                                                    className={`w-full h-8 text-xs font-medium py-1 border border-gray-200 transition-colors duration-200 ${buttonClass} ${roundedClass}`}
                                                                 >
                                                                     {`CH${index + 1}`}
                                                                 </button>
@@ -1572,68 +1575,41 @@ const Connection: React.FC<ConnectionProps> = ({
                                                     </div>
                                                 ))}
                                             </div>
+
                                         </div>
                                     </div>
 
                                     {/* Zoom Controls */}
-                                    <div className="relative flex flex-col items-start w-full">
-                                        {/* Label */}
-                                        <p style={{ fontSize: '0.60rem' }} className="absolute top-[-1.5rem] left-0 text-base font-semibold text-gray-500">
+                                    <div className="relative w-full flex flex-col items-start mt-3">
+                                        <p className="absolute top-[-1.2rem] left-0 text-[0.50rem] font-semibold text-gray-500">
                                             <span className="font-bold text-gray-700">ZOOM LEVEL:</span> {Zoom} X
                                         </p>
-
-                                        {/* Slider with min and max values */}
-                                        <div className="relative w-[40rem] flex items-center rounded-xl py-3 border border-gray-400 dark:border-gray-700">
-                                            {/* Min value */}
-                                            <p className="text-gray-700 dark:text-gray-400 mx-2 px-2">1</p>
-
-                                            {/* Slider */}
+                                        <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
+                                            <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">1</p>
                                             <input
                                                 type="range"
                                                 min="1"
                                                 max="10"
                                                 value={Zoom}
                                                 onChange={(e) => SetZoom(Number(e.target.value))}
-                                                className="flex-1 h-[0.2rem] appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
+                                                style={{
+                                                    background: `linear-gradient(to right, rgb(101, 136, 205) ${((Zoom - 1) / 9) * 100}%, rgb(165, 165, 165) ${((Zoom - 1) / 9) * 11}%)`,
+                                                }}
+                                                className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-800 focus:outline-none focus:ring-0 slider-input"
                                             />
-
-                                            {/* Max value */}
-                                            <p className="text-gray-700 dark:text-gray-400 mx-2 px-2">10</p>
-
-                                            <style jsx>{`
-      input[type="range"] {
-        background: linear-gradient(
-          to
-right,rgb(101, 136, 205) ${(Zoom - 1) * 11.11}%,
-rgb(165, 165, 165) ${(Zoom - 1) * 11.11}%
-        );
-      }
-
-      input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 15px;
-        height: 15px;
-        background-color: rgb(101, 136, 205);
-        border-radius: 50%;
-      }
-    `}</style>
+                                            <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">10</p>
+                                            <style jsx>{`  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px;
+                                            background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
                                         </div>
                                     </div>
 
-                                    {/* Value Selection */}
-                                    <div className="relative w-full flex flex-col items-start mt-4">
-                                        {/* Label */}
-                                        <p className="absolute top-[-1.5rem] left-0 text-[0.60rem] font-semibold text-gray-500">
+                                    {/* Time-Base Selection */}
+                                    <div className="relative w-full flex flex-col items-start mt-3">
+                                        <p className="absolute top-[-1.2rem] left-0 text-[0.50rem] font-semibold text-gray-500">
                                             <span className="font-bold text-gray-700">TIME BASE:</span> {timeBase} SECONDS
                                         </p>
-
-                                        {/* Slider with curved container and faded colors */}
-                                        <div className="relative w-[40rem] flex items-center rounded-xl py-3 border border-gray-400 dark:border-gray-700">
-                                            {/* Min value */}
-                                            <p className="text-gray-700 dark:text-gray-400 mx-2 px-2">1</p>
-
-                                            {/* Slider */}
+                                        <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
+                                            <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">1</p>
                                             <input
                                                 type="range"
                                                 min="1"
@@ -1641,36 +1617,20 @@ rgb(165, 165, 165) ${(Zoom - 1) * 11.11}%
                                                 value={timeBase}
                                                 onChange={(e) => setTimeBase(Number(e.target.value))}
                                                 style={{
-                                                    background: `linear-gradient(to right,rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100
-                                                        }%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
+                                                    background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
                                                 }}
-                                                className="flex-1 h-[0.2rem] rounded-full appearance-none focus:outline-none focus:ring-0"
+                                                className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
                                             />
-
-                                            {/* Max value */}
-                                            <p className="text-gray-700 dark:text-gray-400 mx-2 px-2">10</p>
-
-                                            {/* Custom thumb color */}
-                                            <style jsx>{`
-      input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 15px;
-        height: 15px;
-        background-color: rgb(101, 136, 205); /* Custom color */
-        border-radius: 50%;
-        cursor: pointer;
-      }
-    `}</style>
+                                            <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">10</p>
+                                            <style jsx>{` input[type="range"]::-webkit-slider-thumb {   -webkit-appearance: none;  appearance: none; width: 15px; height: 15px; background-color: rgb(101, 136, 205); /* Custom color */ border-radius: 50%;
+                                           cursor: pointer; }`}</style>
                                         </div>
                                     </div>
-
                                 </div>
                             </TooltipProvider>
                         </PopoverContent>
                     </Popover>
                 )}
-
             </div>
         </div>
     );
