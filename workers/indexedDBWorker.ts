@@ -1,10 +1,9 @@
 import JSZip from 'jszip';
 import { toast } from "sonner";
-let canvasCount = 0; 
+let canvasCount = 0;
 let selectedChannels: number[] = []; // Explicitly specify the type as an array of numbers
 self.onmessage = async (event) => {
-  const { action, data, filename,selectedChannels: channels } = event.data;
-  // console.log('selectedChannels:', selectedChannels); // Debugging: Check current state
+  const { action, data, filename, selectedChannels: channels } = event.data;
 
   // Open IndexedDB
   const db = await openIndexedDB();
@@ -14,18 +13,18 @@ self.onmessage = async (event) => {
       canvasCount = event.data.canvasCount; // Update canvas count independently
       self.postMessage({ success: true, message: 'Canvas count updated' });
       break;
-      case 'setSelectedChannels':
-        if (Array.isArray(channels) && channels.every((ch) => typeof ch === 'number')) {
-          selectedChannels = channels; // Update selectedChannels in the worker
-          console.log('Updated selectedChannels in worker:', selectedChannels);
-          self.postMessage({ success: true, message: 'Selected channels updated' });
-        } else {
-          console.error('Invalid selectedChannels received:', channels);
-          self.postMessage({ success: false, message: 'Invalid selectedChannels format' });
-        }
-        break;
+    case 'setSelectedChannels':
+      if (Array.isArray(channels) && channels.every((ch) => typeof ch === 'number')) {
+        selectedChannels = channels; // Update selectedChannels in the worker
+
+        self.postMessage({ success: true, message: 'Selected channels updated' });
+      } else {
+        console.error('Invalid selectedChannels received:', channels);
+        self.postMessage({ success: false, message: 'Invalid selectedChannels format' });
+      }
+      break;
     case 'write':
-      const success = await writeToIndexedDB(db, data, filename, canvasCount,selectedChannels);
+      const success = await writeToIndexedDB(db, data, filename, canvasCount, selectedChannels);
       self.postMessage({ success });
       break;
     case 'getAllData':
@@ -46,7 +45,7 @@ self.onmessage = async (event) => {
       break;
     case 'saveAsZip':
       try {
-        const zipBlob = await saveAllDataAsZip(canvasCount,selectedChannels);
+        const zipBlob = await saveAllDataAsZip(canvasCount, selectedChannels);
         self.postMessage({ zipBlob });
       } catch (error) {
         self.postMessage({ error: 'Failed to create ZIP file' });
@@ -54,7 +53,7 @@ self.onmessage = async (event) => {
       break;
     case 'saveDataByFilename':
       try {
-        const blob = await saveDataByFilename(filename, canvasCount,selectedChannels);
+        const blob = await saveDataByFilename(filename, canvasCount, selectedChannels);
         self.postMessage({ blob });
       } catch (error) {
         self.postMessage({ error });
@@ -84,13 +83,12 @@ const openIndexedDB = async (): Promise<IDBDatabase> => {
 };
 
 // Function to write data to IndexedDB
-const writeToIndexedDB = async (db: IDBDatabase, data: number[][], filename: string, canvasCount: number,selectedChannels:number[]): Promise<boolean> => {
+const writeToIndexedDB = async (db: IDBDatabase, data: number[][], filename: string, canvasCount: number, selectedChannels: number[]): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("ChordsRecordings", "readwrite");
     const store = tx.objectStore("ChordsRecordings");
-// console.log("selected channels in worker",selectedChannels)
+
     const getRequest = store.get(filename);
-    console.log("data",data)
 
     getRequest.onsuccess = () => {
       const existingRecord = getRequest.result;
@@ -139,37 +137,41 @@ const convertToCSV = (data: any[], canvasCount: number, selectedChannels: number
 
   // Generate the header dynamically for the selected channels
   const header = ["Counter", ...selectedChannels.map((channel) => `Channel${channel}`)];
-  console.log("filtered row",data)
 
   // Create rows by filtering and mapping valid data
   const rows = data
     .filter((item, index) => {
-      if (!item || !Array.isArray(item)) {
-        
+      // Ensure each item is an array and has valid data
+      if (!item || !Array.isArray(item) || item.length === 0) {
         console.warn(`Skipping invalid data at index ${index}:`, item);
         return false;
-      }
+      } ``
       return true;
     })
-    
-    .map((item) => {
+    .map((item, index) => {
+      // Generate filtered row with Counter and selected channel data
       const filteredRow = [
         item[0], // Counter
-        ...selectedChannels.map((channel) => (channel < item.length ? item[channel] : "")),
-      ];
-    console.log("item",item)
+        ...selectedChannels.map((channel, i) => {
+          if (channel) {
 
-      // console.log("row",data)
-      console.log("filtered row",filteredRow)
+            return item[i + 1];//1,3,8
+          } else {
+            console.warn(`Missing data for channel ${channel} in item ${index}:`, item);
+            return ""; // Default empty value for missing data
+          }
+        }),
+      ];
 
       return filteredRow
-        .map((field) => (field !== undefined && field !== null ? JSON.stringify(field) : ""))
+        .map((field) => (field !== undefined && field !== null ? JSON.stringify(field) : "")) // Ensure proper formatting
         .join(",");
     });
-    
 
   // Combine header and rows into a CSV format
-  return [header.join(","), ...rows].join("\n");
+  const csvContent = [header.join(","), ...rows].join("\n");
+
+  return csvContent;
 };
 
 
@@ -194,16 +196,14 @@ const saveAllDataAsZip = async (canvasCount: number, selectedChannels: number[])
 
     allData.forEach((record) => {
       try {
-    console.log("record conetent",record.content)
-        
-        console.log("Record content before conversion:", record.content);
+
         const csvData = convertToCSV(record.content, canvasCount, selectedChannels);
         zip.file(record.filename, csvData);
       } catch (error) {
         console.error(`Error processing record ${record.filename}:`, error);
       }
     });
-    
+
 
     toast.success("Data successfully downloaded as ZIP.");
 
@@ -251,7 +251,6 @@ const saveDataByFilename = async (
             reject(new Error("Content data contains invalid or non-array elements."));
             return;
           }
-          console.log("result",result.content)
 
           try {
             // Convert data to CSV with selected channels
