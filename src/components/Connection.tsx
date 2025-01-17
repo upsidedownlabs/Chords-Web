@@ -1555,8 +1555,8 @@ const Connection: React.FC<ConnectionProps> = ({
                                             <div className="relative">
                                                 {/* Heading and Select All Button */}
                                                 <div className="flex items-center justify-between mb-4">
-                                                    <h3 className="text-sm font-semibold text-gray-700">
-                                                        Channels Count: {selectedChannels.length}
+                                                    <h3 className="text-sm font-semibold text-gray-500">
+                                                    <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                                                     </h3>
                                                     <button
                                                         onClick={handleSelectAllToggle}
@@ -1609,7 +1609,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                                         key={index}
                                                                         onClick={() => !isChannelDisabled && toggleChannel(index + 1)}
                                                                         disabled={isChannelDisabled || isRecordButtonDisabled}
-                                                                        className={`w-full h-8 text-xs font-medium py-1 border-[0.3px] border-gray-300 dark:border-gray-600 transition-colors duration-200 ${buttonClass} ${roundedClass}`}
+                                                                        className={`w-full h-8 text-xs font-medium py-1 border-[0.05px] border-gray-300 dark:border-gray-600 transition-colors duration-200 ${buttonClass} ${roundedClass}`}
                                                                         >
                                                                         {`CH${index + 1}`}
                                                                     </button>
@@ -1626,7 +1626,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                     {/* Zoom Controls */}
                                     <div className="relative w-full flex flex-col items-start mt-3">
                                         <p className="absolute top-[-1.2rem] left-0 text-[0.50rem] font-semibold text-gray-500">
-                                            <span className="font-bold text-gray-700">ZOOM LEVEL:</span> {Zoom} X
+                                            <span className="font-bold text-gray-600">ZOOM LEVEL:</span> {Zoom} X
                                         </p>
                                         <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
                                             <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">1</p>
@@ -1650,7 +1650,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                     {/* Time-Base Selection */}
                                     <div className="relative w-full flex flex-col items-start mt-3">
                                         <p className="absolute top-[-1.2rem] left-0 text-[0.50rem] font-semibold text-gray-500">
-                                            <span className="font-bold text-gray-700">TIME BASE:</span> {timeBase} SECONDS
+                                            <span className="font-bold text-gray-600">TIME BASE:</span> {timeBase} SECONDS
                                         </p>
                                         <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
                                             <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">1</p>
