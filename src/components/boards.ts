@@ -70,6 +70,16 @@ export const BoardsList = Object.freeze([
     baud_Rate: 115200
   },
   {
+    chords_id: "UNO-CLONE",
+    device_name: "Maker UNO / UNO Clone",
+    field_pid: 32832,
+    adc_resolution: 10,
+    channel_count: 6,
+    sampling_rate: 250,
+    serial_timeout: 2000,
+    baud_Rate: 115200
+  },
+  {
     chords_id: "RPI-PICO-RP2040",
     device_name: "Raspberry Pi Pico",
     field_pid: 192,

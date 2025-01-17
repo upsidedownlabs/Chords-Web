@@ -110,6 +110,10 @@ const Connection: React.FC<ConnectionProps> = ({
     const isDarkMode = theme === "dark"; // Check if the theme is dark mode
     const canvasnumbersRef = useRef<number>(1);
     const maxCanvasCountRef = useRef<number>(1);
+    // Inside your component
+    const [isAllEnabledSelected, setIsAllEnabledSelected] = useState(false);
+    const [initialSelection, setInitialSelection] = useState<number[]>([1, 3, 5]); // Example of initial selected channels
+
     const readerRef = useRef<
         ReadableStreamDefaultReader<Uint8Array> | null | undefined
     >(null); // Ref to store the reader for the serial port
@@ -157,6 +161,28 @@ const Connection: React.FC<ConnectionProps> = ({
         }
     };
 
+    const handleSelectAllToggle = () => {
+        const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+
+        if (!isAllEnabledSelected) {
+            // Select all enabled channels
+            enabledChannels.forEach((channel) => {
+                if (!selectedChannels.includes(channel)) {
+                    toggleChannel(channel);
+                }
+            });
+        } else {
+            // Deselect all enabled channels and return to the initial state
+            selectedChannels.forEach((channel) => {
+                if (!initialSelection.includes(channel)) {
+                    toggleChannel(channel);
+                }
+            });
+        }
+
+        // Toggle the state to indicate whether all channels are selected
+        setIsAllEnabledSelected(!isAllEnabledSelected);
+    };
     const toggleChannel = (channelIndex: number) => {
         setSelectedChannels((prevSelected) => {
             // Ensure at least one channel remains selected
@@ -197,7 +223,6 @@ const Connection: React.FC<ConnectionProps> = ({
             return sortedChannels;
         });
     };
-
 
     useEffect(() => {
         setSelectedChannels(selectedChannels);
@@ -1248,7 +1273,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                 </div>
                                             ))
                                         ) : (
-                                            <p className="text-black ">No datasets available</p>
+                                            <p className="text-base ">No datasets available</p>
                                         )}
 
 
@@ -1527,57 +1552,76 @@ const Connection: React.FC<ConnectionProps> = ({
                                     <div className="flex items-center justify-center rounded-lg">
                                         <div className="relative rounded-lg border border-gray-300 dark:border-gray-600 w-full p-4">
                                             <div className="absolute inset-0 rounded-lg border-gray-300 dark:border-gray-600 opacity-50 pointer-events-none"></div>
-                                            <div id="button-container" className="relative space-y-2 border border-gray-300 rounded-lg">
-                                                {Array.from({ length: 2 }).map((_, row) => (
-                                                    <div key={row} className="grid grid-cols-8 gap-0">
-                                                        {Array.from({ length: 8 }).map((_, col) => {
-                                                            const index = row * 8 + col;
-                                                            const isChannelDisabled = index >= maxCanvasCountRef.current;
+                                            <div className="relative">
+                                                {/* Heading and Select All Button */}
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-sm font-semibold text-gray-700">
+                                                        Channels Count: {selectedChannels.length}
+                                                    </h3>
+                                                    <button
+                                                        onClick={handleSelectAllToggle}
+                                                        className="px-3 py-1 text-sm font-medium text-white bg-black dark:text-black rounded-lg hover:bg-gray-700 dark:bg-white dark:border dark:border-gray-500 dark:hover:bg-primary/70 transition"
+                                                    >
+                                                        {isAllEnabledSelected ? "Deselect All" : "Select All "}
+                                                    </button>
+                                                </div>
 
-                                                            const buttonColors = [
-                                                                "bg-custom-1", "bg-custom-2", "bg-custom-3", "bg-custom-4",
-                                                                "bg-custom-5", "bg-custom-6", "bg-custom-7", "bg-custom-8",
-                                                                "bg-custom-9", "bg-custom-10", "bg-custom-11", "bg-custom-12",
-                                                                "bg-custom-13", "bg-custom-14", "bg-custom-15", "bg-custom-16"
-                                                            ];
+                                                {/* Button Grid */}
+                                                <div id="button-container" className="relative space-y-2 rounded-lg">
+                                                    {Array.from({ length: 2 }).map((_, container) => (
+                                                        <div
+                                                            key={container}
+                                                            className={`grid grid-cols-8 gap-0 ${container === 0 ? "border-b border-gray-300" : ""}`}
+                                                        >
+                                                            {Array.from({ length: 8 }).map((_, col) => {
+                                                                const index = container * 8 + col;
+                                                                const isChannelDisabled = index >= maxCanvasCountRef.current;
 
-                                                            const backgroundColorClass = buttonColors[index % buttonColors.length];
-                                                            const buttonClass = isChannelDisabled
-                                                                ? isDarkMode
-                                                                    ? "bg-gray-400 text-gray-500 cursor-not-allowed"
-                                                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                                                : selectedChannels.includes(index + 1)
-                                                                    ? `${backgroundColorClass} text-white`
-                                                                    : "bg-white text-black hover:bg-gray-100";
+                                                                const buttonColors = [
+                                                                    "bg-custom-1", "bg-custom-2", "bg-custom-3", "bg-custom-4",
+                                                                    "bg-custom-5", "bg-custom-6", "bg-custom-7", "bg-custom-8",
+                                                                    "bg-custom-9", "bg-custom-10", "bg-custom-11", "bg-custom-12",
+                                                                    "bg-custom-13", "bg-custom-14", "bg-custom-15", "bg-custom-16",
+                                                                ];
 
-                                                            const isFirstInRow = col === 0;
-                                                            const isLastInRow = col === 7;
-                                                            const isFirstInColumn = row === 0;
-                                                            const isLastInColumn = row === 1;
+                                                                const backgroundColorClass = buttonColors[index % buttonColors.length];
+                                                                const buttonClass = isChannelDisabled
+                                                                    ? isDarkMode
+                                                                        ? "bg-[#030c21] text-gray-700 cursor-not-allowed"
+                                                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                                                    : selectedChannels.includes(index + 1)
+                                                                        ? `${backgroundColorClass} text-white`
+                                                                        : "bg-white text-black hover:bg-gray-100";
 
-                                                            // Adjust rounded corners for the four corners of the grid
-                                                            const roundedClass = `${isFirstInRow && isFirstInColumn ? "rounded-tl-lg" : ""} 
-                                                           ${isLastInRow && isFirstInColumn ? "rounded-tr-lg" : ""} 
-                                                           ${isFirstInRow && isLastInColumn ? "rounded-bl-lg" : ""} 
-                                                           ${isLastInRow && isLastInColumn ? "rounded-br-lg" : ""}`;
+                                                                const isFirstInRow = col === 0;
+                                                                const isLastInRow = col === 7;
+                                                                const isFirstContainer = container === 0;
+                                                                const isLastContainer = container === 1;
 
-                                                            return (
-                                                                <button
-                                                                    key={index}
-                                                                    onClick={() => !isChannelDisabled && toggleChannel(index + 1)}
-                                                                    disabled={isChannelDisabled || isRecordButtonDisabled}
-                                                                    className={`w-full h-8 text-xs font-medium py-1 border border-gray-200 transition-colors duration-200 ${buttonClass} ${roundedClass}`}
-                                                                >
-                                                                    {`CH${index + 1}`}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ))}
+                                                                // Adjust rounded corners for each container individually
+                                                                const roundedClass = `${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
+                                                               ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
+                                                               ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
+                                                               ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}`;
+
+                                                                return (
+                                                                    <button
+                                                                        key={index}
+                                                                        onClick={() => !isChannelDisabled && toggleChannel(index + 1)}
+                                                                        disabled={isChannelDisabled || isRecordButtonDisabled}
+                                                                        className={`w-full h-8 text-xs font-medium py-1 border-[0.3px] border-gray-300 dark:border-gray-600 transition-colors duration-200 ${buttonClass} ${roundedClass}`}
+                                                                        >
+                                                                        {`CH${index + 1}`}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-
                                         </div>
                                     </div>
+
 
                                     {/* Zoom Controls */}
                                     <div className="relative w-full flex flex-col items-start mt-3">
