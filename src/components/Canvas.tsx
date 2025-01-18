@@ -340,7 +340,7 @@ const Canvas = forwardRef(
           // Calculate the current position
           const currentPos = sweepPositions.current[i] % line.numPoints;
 
-          if (isNaN(currentPos)) {
+          if (Number.isNaN(currentPos)) {
             console.error(`Invalid currentPos at index ${i}. sweepPositions.current[i]:`, sweepPositions.current[i]);
             return;
           }

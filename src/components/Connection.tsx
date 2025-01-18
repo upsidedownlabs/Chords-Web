@@ -112,7 +112,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const maxCanvasCountRef = useRef<number>(1);
     // Inside your component
     const [isAllEnabledSelected, setIsAllEnabledSelected] = useState(false);
-    const [initialSelection, setInitialSelection] = useState<number[]>([1, 3, 5]); // Example of initial selected channels
+    const [initialSelection, setInitialSelection] = useState<number[]>([1, 3, 5]);
 
     const readerRef = useRef<
         ReadableStreamDefaultReader<Uint8Array> | null | undefined
@@ -139,15 +139,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
     };
 
-    const handleButtonClick = async () => {
-        setIsLoading(true); // Set loading state to true
-        try {
-            await handleClick(); // Attempt to connect or disconnect
-        } finally {
-            setIsLoading(false); // Reset loading state after operation
-        }
-    };
-
     const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
 
     // Enable/Disable left arrow button
@@ -171,10 +162,20 @@ const Connection: React.FC<ConnectionProps> = ({
                     toggleChannel(channel);
                 }
             });
+
+            // Set initialSelection to the current selected channels when "Select All" is clicked
+            setInitialSelection([...selectedChannels]);
         } else {
             // Deselect all enabled channels and return to the initial state
             selectedChannels.forEach((channel) => {
                 if (!initialSelection.includes(channel)) {
+                    toggleChannel(channel);
+                }
+            });
+
+            // Restore the initial selection (previously selected channels)
+            initialSelection.forEach((channel) => {
+                if (!selectedChannels.includes(channel)) {
                     toggleChannel(channel);
                 }
             });
@@ -183,13 +184,9 @@ const Connection: React.FC<ConnectionProps> = ({
         // Toggle the state to indicate whether all channels are selected
         setIsAllEnabledSelected(!isAllEnabledSelected);
     };
+
     const toggleChannel = (channelIndex: number) => {
         setSelectedChannels((prevSelected) => {
-            // Ensure at least one channel remains selected
-            if (prevSelected.length === 1 && prevSelected.includes(channelIndex)) {
-                return prevSelected; // Do not remove the only element
-            }
-
             // Toggle the selection of the channel
             const updatedChannels = prevSelected.includes(channelIndex)
                 ? prevSelected.filter((ch) => ch !== channelIndex) // Remove channel
@@ -428,15 +425,6 @@ const Connection: React.FC<ConnectionProps> = ({
         []
     );
 
-    const handleClick = () => {
-        // Function to handle toggle for connect/disconnect button
-        if (isConnected) {
-            disconnectDevice();
-        } else {
-            connectToDevice();
-        }
-    };
-
     interface SavedDevice {
         usbVendorId: number;
         usbProductId: number;
@@ -444,6 +432,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
 
     const connectToDevice = async () => {
+        setIsLoading(true); // Set loading state to true
         try {
             // Disconnect any previous connection if port is open
             if (portRef.current && portRef.current.readable) {
@@ -604,6 +593,7 @@ const Connection: React.FC<ConnectionProps> = ({
             console.error("Error connecting to device:", error);
             toast.error("Failed to connect to device.");
         }
+        setIsLoading(false); // Always stop loading
     };
 
 
@@ -667,7 +657,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     await portRef.current.close();
                 }
                 portRef.current = null;
-
+                setIsConnected(false); // Update connection state
                 toast("Disconnected from device", {
                     action: {
                         label: "Reconnect",
@@ -1136,12 +1126,12 @@ const Connection: React.FC<ConnectionProps> = ({
                         <TooltipTrigger asChild>
                             <Button
                                 className="flex items-center justify-center gap-1 py-2 px-2 sm:py-3 sm:px-4 rounded-xl font-semibold"
-                                onClick={handleButtonClick}
+                                onClick={isConnected ? disconnectDevice : connectToDevice}
                                 disabled={isLoading} // Disable button during loading
                             >
                                 {isLoading ? (
                                     <>
-                                        <Loader size={17} className="animate-spin" /> {/* Show spinning loader */}
+                                        <Loader size={17} className="animate-spin" /> {/* Spinning loader */}
                                         Connecting...
                                     </>
                                 ) : isConnected ? (
@@ -1162,6 +1152,8 @@ const Connection: React.FC<ConnectionProps> = ({
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
+
+
                 {/* Display (Play/Pause) button with tooltip */}
                 {isConnected && (
                     <div className="flex items-center gap-0.5 mx-0 px-0">
@@ -1556,7 +1548,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                 {/* Heading and Select All Button */}
                                                 <div className="flex items-center justify-between mb-4">
                                                     <h3 className="text-sm font-semibold text-gray-500">
-                                                    <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
+                                                        <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                                                     </h3>
                                                     <button
                                                         onClick={handleSelectAllToggle}
@@ -1610,7 +1602,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                                         onClick={() => !isChannelDisabled && toggleChannel(index + 1)}
                                                                         disabled={isChannelDisabled || isRecordButtonDisabled}
                                                                         className={`w-full h-8 text-xs font-medium py-1 border-[0.05px] border-gray-300 dark:border-gray-600 transition-colors duration-200 ${buttonClass} ${roundedClass}`}
-                                                                        >
+                                                                    >
                                                                         {`CH${index + 1}`}
                                                                     </button>
                                                                 );
@@ -1621,7 +1613,6 @@ const Connection: React.FC<ConnectionProps> = ({
                                             </div>
                                         </div>
                                     </div>
-
 
                                     {/* Zoom Controls */}
                                     <div className="relative w-full flex flex-col items-start mt-3">
