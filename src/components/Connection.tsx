@@ -432,7 +432,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
 
     const connectToDevice = async () => {
-        setIsLoading(true); // Set loading state to true
+
         try {
             // Disconnect any previous connection if port is open
             if (portRef.current && portRef.current.readable) {
@@ -485,9 +485,12 @@ const Connection: React.FC<ConnectionProps> = ({
                 });
                 localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
                 setSelectedChannels([1]); // Set channel 1 as the default
+
                 // Open the port with the determined baud rate
                 await port.open({ baudRate });
+                setIsLoading(true); // Set loading state to true
             } else {
+                setIsLoading(true); // Set loading state to true
                 // If device is already found, retrieve its settings
                 const info = port.getInfo();
                 const savedDevice = savedPorts.find(
