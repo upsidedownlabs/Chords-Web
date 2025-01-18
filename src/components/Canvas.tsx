@@ -164,6 +164,9 @@ const Canvas = forwardRef(
         return; // Exit if the ref is null
       }
 
+      currentSweepPos.current = new Array(numChannels).fill(0);
+      sweepPositions.current = new Array(numChannels).fill(0);
+
       // Clear existing child elements
       while (container.firstChild) {
         const firstChild = container.firstChild;
@@ -186,62 +189,53 @@ const Canvas = forwardRef(
       const newWglPlots: WebglPlot[] = [];
       const newLines: WebglLine[] = [];
 
-      // // Create grid lines
+      // Create grid lines
       const canvasWrapper = document.createElement("div");
-      canvasWrapper.className = "absolute inset-0"; // Make the wrapper fill the parent container
-      const opacityDarkMajor = "0.2"; // Opacity for every 5th line in dark theme
-      const opacityDarkMinor = "0.05"; // Opacity for other lines in dark theme
-      const opacityLightMajor = "0.4"; // Opacity for every 5th line in light theme
-      const opacityLightMinor = "0.1"; // Opacity for other lines in light theme
+      canvasWrapper.className = "absolute inset-0";
+      const opacityDarkMajor = "0.2";
+      const opacityDarkMinor = "0.05";
+      const opacityLightMajor = "0.4";
+      const opacityLightMinor = "0.1";
       const distanceminor = samplingRate * 0.04;
-      const numGridLines = getpoints(selectedBits ?? 10) * 4 / distanceminor;
+      const numGridLines = (getpoints(selectedBits ?? 10) * 4) / distanceminor;
+
       for (let j = 1; j < numGridLines; j++) {
         const gridLineX = document.createElement("div");
         gridLineX.className = "absolute bg-[rgb(128,128,128)]";
         gridLineX.style.width = "1px";
         gridLineX.style.height = "100%";
-        const divPoint = (j / numGridLines) * 100
-        const a = parseFloat(divPoint.toFixed(3));
-        gridLineX.style.left = `${a}%`
-        gridLineX.style.top = "0";
+        gridLineX.style.left = `${((j / numGridLines) * 100).toFixed(3)}%`;
         gridLineX.style.opacity = j % 5 === 0 ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor) : (theme === "dark" ? opacityDarkMinor : opacityLightMinor);
-
-        // Append grid lines to the wrapper
         canvasWrapper.appendChild(gridLineX);
       }
+
       const horizontalline = 50;
       for (let j = 1; j < horizontalline; j++) {
         const gridLineY = document.createElement("div");
         gridLineY.className = "absolute bg-[rgb(128,128,128)]";
         gridLineY.style.height = "1px";
         gridLineY.style.width = "100%";
-        const distance = (j / horizontalline) * 100
-        const distancetop = parseFloat(distance.toFixed(3));
-        gridLineY.style.top = `${distancetop}%`;
-        gridLineY.style.left = "0";
+        gridLineY.style.top = `${((j / horizontalline) * 100).toFixed(3)}%`;
         gridLineY.style.opacity = j % 5 === 0 ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor) : (theme === "dark" ? opacityDarkMinor : opacityLightMinor);
-
-        // Append grid lines to the wrapper
         canvasWrapper.appendChild(gridLineY);
       }
-      canvasContainerRef.current.appendChild(canvasWrapper);
-      // Iterate only over selected channels
+      container.appendChild(canvasWrapper);
+
+      // Create canvases for each selected channel
       selectedChannels.forEach((channelNumber) => {
         const canvasWrapper = document.createElement("div");
-        canvasWrapper.className = "canvas-container relative flex-[1_1_0%]"; // Add relative positioning for absolute grid positioning
+        canvasWrapper.className = "canvas-container relative flex-[1_1_0%]";
 
         const canvas = document.createElement("canvas");
-        canvas.id = `canvas${channelNumber}`; // Use channelNumber directly
+        canvas.id = `canvas${channelNumber}`;
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight / selectedChannels.length;
         canvas.className = "w-full h-full block rounded-xl";
 
-        // Create a badge for the channel number
         const badge = document.createElement("div");
         badge.className = "absolute text-gray-500 text-sm rounded-full p-2 m-2";
-        badge.innerText = `CH${channelNumber}`; // Use channelNumber directly
+        badge.innerText = `CH${channelNumber}`;
 
-        // Append the canvas and badge to the container
         canvasWrapper.appendChild(badge);
         canvasWrapper.appendChild(canvas);
         container.appendChild(canvasWrapper);
@@ -276,7 +270,7 @@ const Canvas = forwardRef(
         new ColorRGBA(40 / 255, 110 / 255, 140 / 255, 1),  // Darkened #35A5CC
         new ColorRGBA(35 / 255, 120 / 255, 130 / 255, 1),  // Darkened #30A8B4
         new ColorRGBA(35 / 255, 125 / 255, 120 / 255, 1),  // Darkened #32ABA2
-        
+
       ];
 
       const colorsLight: ColorRGBA[] = [
@@ -288,7 +282,7 @@ const Canvas = forwardRef(
         new ColorRGBA(53 / 255, 165 / 255, 204 / 255, 0.8),  // Slightly transparent #35A5CC
         new ColorRGBA(48 / 255, 168 / 255, 180 / 255, 0.8),  // Slightly transparent #30A8B4
         new ColorRGBA(50 / 255, 171 / 255, 162 / 255, 0.8),  // Slightly transparent #32ABA2
-        
+
       ];
 
       // Swap light and dark colors for themes
@@ -428,6 +422,18 @@ const Canvas = forwardRef(
       requestAnimationFrame(animate);
 
     }, [animate]);
+
+    useEffect(() => {
+      const handleResize = () => {
+        createCanvases();
+
+      };
+      window.addEventListener("resize", handleResize);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    }, [createCanvases]);
+
 
     return (
       <main className=" flex flex-col flex-[1_1_0%] min-h-80 bg-highlight  rounded-2xl m-4 relative"

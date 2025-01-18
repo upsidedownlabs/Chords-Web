@@ -1270,8 +1270,6 @@ const Connection: React.FC<ConnectionProps> = ({
                                         ) : (
                                             <p className="text-base ">No datasets available</p>
                                         )}
-
-
                                         {/* Download all as ZIP and delete all options */}
                                         {datasets.length > 0 && (
                                             <div className="flex justify-between mt-4">
@@ -1321,7 +1319,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => removeEXGFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
+                                                onClick={() => removeEXGFilterFromAllChannels([0, 1, 2, 3, 4, 5, 6, 7])}
                                                 className={`rounded-xl rounded-r-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 0
                                                         ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
@@ -1333,7 +1331,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 4)}
+                                                onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5, 6, 7], 4)}
                                                 className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
@@ -1355,7 +1353,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                             </Button> <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
+                                                onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5, 6, 7], 1)}
                                                 className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
@@ -1366,7 +1364,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                             </Button> <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
+                                                onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5, 6, 7], 2)}
                                                 className={`rounded-xl rounded-l-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
@@ -1380,7 +1378,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => removeNotchFromAllChannels([0, 1, 2, 3, 4, 5])}
+                                                onClick={() => removeNotchFromAllChannels([0, 1, 2, 3, 4, 5, 6, 7])}
                                                 className={`rounded-xl rounded-r-none border-0
                           ${Object.keys(appliedFiltersRef.current).length === 0
                                                         ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
@@ -1393,7 +1391,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
+                                                onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5, 6, 7], 1)}
                                                 className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                           ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 1)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
@@ -1405,7 +1403,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
+                                                onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5, 6, 7], 2)}
                                                 className={`rounded-xl rounded-l-none border-0
                           ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 2)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
@@ -1418,7 +1416,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                     </div>
                                 </div>
                                 <div className="flex flex-col space-y-2">
-                                    {["CH1", "CH2", "CH3", "CH4", "CH5", "CH6"].map((filterName, index) => (
+                                    {["CH1", "CH2", "CH3", "CH4", "CH5", "CH6", "CH7", "CH8"].map((filterName, index) => (
                                         <div key={filterName} className="flex items-center">
                                             {/* Filter Name */}
                                             <div className="text-sm font-semibold w-12">{filterName}</div>
@@ -1544,20 +1542,20 @@ const Connection: React.FC<ConnectionProps> = ({
                             <TooltipProvider>
                                 <div className="space-y-6">
                                     {/* Channel Selection */}
-                                    <div className="flex items-center justify-center rounded-lg">
-                                        <div className="relative rounded-lg border border-gray-300 dark:border-gray-600 w-full p-4">
+                                    <div className="flex items-center justify-center rounded-lg mb-[2.5rem]">
+                                        <div className=" w-full">
                                             <div className="absolute inset-0 rounded-lg border-gray-300 dark:border-gray-600 opacity-50 pointer-events-none"></div>
                                             <div className="relative">
                                                 {/* Heading and Select All Button */}
                                                 <div className="flex items-center justify-between mb-4">
-                                                    <h3 className="text-sm font-semibold text-gray-500">
+                                                    <h3 className="text-xs font-semibold text-gray-500">
                                                         <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                                                     </h3>
                                                     <button
                                                         onClick={handleSelectAllToggle}
-                                                        className="px-3 py-1 text-sm font-medium text-white bg-black dark:text-black rounded-lg hover:bg-gray-700 dark:bg-white dark:border dark:border-gray-500 dark:hover:bg-primary/70 transition"
+                                                        className="px-4 py-1 text-xs font-light text-white bg-black dark:text-black rounded-lg hover:bg-gray-700 dark:bg-white dark:border dark:border-gray-500 dark:hover:bg-primary/70 transition"
                                                     >
-                                                        {isAllEnabledSelected ? "Deselect All" : "Select All "}
+                                                        {isAllEnabledSelected ? "RESET" : "Select All "}
                                                     </button>
                                                 </div>
 
@@ -1566,7 +1564,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                     {Array.from({ length: 2 }).map((_, container) => (
                                                         <div
                                                             key={container}
-                                                            className={`grid grid-cols-8 gap-0 ${container === 0 ? "border-b border-gray-300" : ""}`}
+                                                            className={`grid grid-cols-8 gap-2`}
                                                         >
                                                             {Array.from({ length: 8 }).map((_, col) => {
                                                                 const index = container * 8 + col;
@@ -1618,12 +1616,19 @@ const Connection: React.FC<ConnectionProps> = ({
                                     </div>
 
                                     {/* Zoom Controls */}
-                                    <div className="relative w-full flex flex-col items-start mt-3">
-                                        <p className="absolute top-[-1.2rem] left-0 text-[0.50rem] font-semibold text-gray-500">
-                                            <span className="font-bold text-gray-600">ZOOM LEVEL:</span> {Zoom} X
+                                    <div className="relative w-full flex flex-col items-start text-sm mb-[2rem]">
+                                        <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
+                                            <span className="font-bold text-gray-600">Zoom Level:</span> {Zoom}x
                                         </p>
-                                        <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
-                                            <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">1</p>
+                                        <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600 mb-4">
+                                            {/* Button for setting Zoom to 1 */}
+                                            <button
+                                                className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                onClick={() => SetZoom(1)}
+                                            >
+                                                1
+                                            </button>
+
                                             <input
                                                 type="range"
                                                 min="1"
@@ -1635,19 +1640,33 @@ const Connection: React.FC<ConnectionProps> = ({
                                                 }}
                                                 className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-800 focus:outline-none focus:ring-0 slider-input"
                                             />
-                                            <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">10</p>
-                                            <style jsx>{`  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px;
-                                            background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
+
+                                            {/* Button for setting Zoom to 10 */}
+                                            <button
+                                                className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                onClick={() => SetZoom(10)}
+                                            >
+                                                10
+                                            </button>
+                                            <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px;
+                                            background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; } `}</style>
                                         </div>
                                     </div>
 
                                     {/* Time-Base Selection */}
-                                    <div className="relative w-full flex flex-col items-start mt-3">
-                                        <p className="absolute top-[-1.2rem] left-0 text-[0.50rem] font-semibold text-gray-500">
-                                            <span className="font-bold text-gray-600">TIME BASE:</span> {timeBase} SECONDS
+                                    <div className="relative w-full flex flex-col items-start mt-3 text-sm">
+                                        <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
+                                            <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
                                         </p>
                                         <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
-                                            <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">1</p>
+                                            {/* Button for setting Time Base to 1 */}
+                                            <button
+                                                className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                onClick={() => setTimeBase(1)}
+                                            >
+                                                1
+                                            </button>
+
                                             <input
                                                 type="range"
                                                 min="1"
@@ -1659,9 +1678,16 @@ const Connection: React.FC<ConnectionProps> = ({
                                                 }}
                                                 className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
                                             />
-                                            <p className="text-gray-700 dark:text-gray-400 mx-1 px-1 text-xs">10</p>
-                                            <style jsx>{` input[type="range"]::-webkit-slider-thumb {   -webkit-appearance: none;  appearance: none; width: 15px; height: 15px; background-color: rgb(101, 136, 205); /* Custom color */ border-radius: 50%;
-                                           cursor: pointer; }`}</style>
+
+                                            {/* Button for setting Time Base to 10 */}
+                                            <button
+                                                className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                onClick={() => setTimeBase(10)}
+                                            >
+                                                10
+                                            </button>
+                                            <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;appearance: none; width: 15px; height: 15px;
+                                             background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
                                         </div>
                                     </div>
                                 </div>
