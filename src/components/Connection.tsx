@@ -97,6 +97,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const [datasets, setDatasets] = useState<any[]>([]);
     const currentFilenameRef = useRef<string>("");
     const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false);
+    const [isSelectAllDisabled, setIsSelectAllDisabled] = useState(false);
     const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
     const recordingStartTime = useRef<number>(0);
     const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
@@ -112,7 +113,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const maxCanvasCountRef = useRef<number>(1);
     // Inside your component
     const [isAllEnabledSelected, setIsAllEnabledSelected] = useState(false);
-    const [initialSelection, setInitialSelection] = useState<number[]>([1, 3, 5]);
+
 
     const readerRef = useRef<
         ReadableStreamDefaultReader<Uint8Array> | null | undefined
@@ -151,15 +152,15 @@ const Connection: React.FC<ConnectionProps> = ({
             SetCurrentSnapshot(currentSnapshot + 1);
         }
     };
-    // UseEffect to load the initial state when the page is loaded or refreshed
     useEffect(() => {
         const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
 
-        // Check if there is saved data in localStorage to load previously selected channels
+        // Check localStorage for saved data
         const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
         const portInfo = portRef.current?.getInfo();
 
-        // Default selected channel to 1 if no saved channels are found in localStorage
+        let initialSelectedChannels = [1]; // Default to channel 1 if no saved channels are found
+
         if (portInfo) {
             const { usbVendorId, usbProductId } = portInfo;
             const deviceIndex = savedPorts.findIndex(
@@ -170,13 +171,36 @@ const Connection: React.FC<ConnectionProps> = ({
 
             if (deviceIndex !== -1) {
                 const savedChannels = savedPorts[deviceIndex].selectedChannels;
-                setSelectedChannels(savedChannels.length > 0 ? savedChannels : [1]); // Default to [1] if no channels are saved
+                initialSelectedChannels = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
             }
         }
 
-        // Set the state for "Select All" button based on whether all channels are selected
-        setIsAllEnabledSelected(selectedChannels.length === enabledChannels.length);
+        // Set initial selected channels
+        setSelectedChannels(initialSelectedChannels);
+
+        // Update the "Select All" button state based on the loaded channels
+        const allSelected = initialSelectedChannels.length === enabledChannels.length;
+        const selectAllDisabled = initialSelectedChannels.length === enabledChannels.length - 1;
+
+        setIsAllEnabledSelected(allSelected);
+        setIsSelectAllDisabled(selectAllDisabled);
     }, []); // Runs only on component mount
+
+
+    useEffect(() => {
+        setSelectedChannels(selectedChannels);
+    }, [selectedChannels]);
+
+    // UseEffect to track changes in selectedChannels and enabledChannels
+    useEffect(() => {
+        const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+
+        // Disable "Select All" button if the difference is exactly 1
+        setIsSelectAllDisabled(selectedChannels.length === enabledChannels.length - 1);
+
+        // Update the "Select All" button state
+        setIsAllEnabledSelected(selectedChannels.length === enabledChannels.length);
+    }, [selectedChannels]); // Trigger whenever selectedChannels changes
 
     const handleSelectAllToggle = () => {
         const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
@@ -247,14 +271,6 @@ const Connection: React.FC<ConnectionProps> = ({
         setIsAllEnabledSelected(selectedChannels.length === enabledChannels.length);
     }, [selectedChannels]); // Trigger on any update to selectedChannels
 
-
-
-    // Disable "Select All" button when selectedChannels count is less than enabledChannels count
-    const isSelectAllDisabled = selectedChannels.length >= maxCanvasCountRef.current - 1;
-
-    useEffect(() => {
-        setSelectedChannels(selectedChannels);
-    }, [selectedChannels]);
 
     // Handle right arrow click (reset count and disable button if needed)
     const handleNextSnapshot = () => {
@@ -1584,10 +1600,15 @@ const Connection: React.FC<ConnectionProps> = ({
                                                     </h3>
                                                     <button
                                                         onClick={handleSelectAllToggle}
-                                                        className="px-4 py-1 text-xs font-light text-white bg-black dark:text-black rounded-lg hover:bg-gray-700 dark:bg-white dark:border dark:border-gray-500 dark:hover:bg-primary/70 transition"
+                                                        className={`px-4 py-1 text-xs font-light rounded-lg transition ${isSelectAllDisabled
+                                                            ? "text-gray-400 bg-gray-200 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
+                                                            : "text-white bg-black hover:bg-gray-700 dark:bg-white dark:text-black dark:border dark:border-gray-500 dark:hover:bg-primary/70"
+                                                            }`}
+                                                        disabled={isSelectAllDisabled}
                                                     >
-                                                        {isAllEnabledSelected ? "RESET" : "Select All "}
+                                                        {isAllEnabledSelected ? "RESET" : "Select All"}
                                                     </button>
+
                                                 </div>
 
                                                 {/* Button Grid */}
