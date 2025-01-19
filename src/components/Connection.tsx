@@ -151,34 +151,52 @@ const Connection: React.FC<ConnectionProps> = ({
             SetCurrentSnapshot(currentSnapshot + 1);
         }
     };
+    // UseEffect to load the initial state when the page is loaded or refreshed
+    useEffect(() => {
+        const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+
+        // Check if there is saved data in localStorage to load previously selected channels
+        const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+        const portInfo = portRef.current?.getInfo();
+
+        // Default selected channel to 1 if no saved channels are found in localStorage
+        if (portInfo) {
+            const { usbVendorId, usbProductId } = portInfo;
+            const deviceIndex = savedPorts.findIndex(
+                (saved: SavedDevice) =>
+                    saved.usbVendorId === (usbVendorId ?? 0) &&
+                    saved.usbProductId === (usbProductId ?? 0)
+            );
+
+            if (deviceIndex !== -1) {
+                const savedChannels = savedPorts[deviceIndex].selectedChannels;
+                setSelectedChannels(savedChannels.length > 0 ? savedChannels : [1]); // Default to [1] if no channels are saved
+            }
+        }
+
+        // Set the state for "Select All" button based on whether all channels are selected
+        setIsAllEnabledSelected(selectedChannels.length === enabledChannels.length);
+    }, []); // Runs only on component mount
 
     const handleSelectAllToggle = () => {
         const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+        const remainingChannels = enabledChannels.filter(channel => !selectedChannels.includes(channel));
 
         if (!isAllEnabledSelected) {
-            // Select all enabled channels
-            enabledChannels.forEach((channel) => {
-                if (!selectedChannels.includes(channel)) {
-                    toggleChannel(channel);
-                }
-            });
-
-            // Set initialSelection to the current selected channels when "Select All" is clicked
-            setInitialSelection([...selectedChannels]);
+            // If all channels are not selected, and only one channel is remaining, simulate selecting it
+            if (remainingChannels.length === 1) {
+                toggleChannel(remainingChannels[0]);
+            } else {
+                // Select all enabled channels
+                enabledChannels.forEach((channel) => {
+                    if (!selectedChannels.includes(channel)) {
+                        toggleChannel(channel);
+                    }
+                });
+            }
         } else {
-            // Deselect all enabled channels and return to the initial state
-            selectedChannels.forEach((channel) => {
-                if (!initialSelection.includes(channel)) {
-                    toggleChannel(channel);
-                }
-            });
-
-            // Restore the initial selection (previously selected channels)
-            initialSelection.forEach((channel) => {
-                if (!selectedChannels.includes(channel)) {
-                    toggleChannel(channel);
-                }
-            });
+            // If "RESET" is clicked, reset to channel 1 or remove all selected channels
+            setSelectedChannels([1]);
         }
 
         // Toggle the state to indicate whether all channels are selected
@@ -220,6 +238,19 @@ const Connection: React.FC<ConnectionProps> = ({
             return sortedChannels;
         });
     };
+
+    // Use effect to track when all channels are selected manually
+    useEffect(() => {
+        const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+
+        // Check if all enabled channels are selected to update the "Select All" state
+        setIsAllEnabledSelected(selectedChannels.length === enabledChannels.length);
+    }, [selectedChannels]); // Trigger on any update to selectedChannels
+
+
+
+    // Disable "Select All" button when selectedChannels count is less than enabledChannels count
+    const isSelectAllDisabled = selectedChannels.length >= maxCanvasCountRef.current - 1;
 
     useEffect(() => {
         setSelectedChannels(selectedChannels);
