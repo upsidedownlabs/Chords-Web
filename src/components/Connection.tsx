@@ -508,7 +508,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
       let baudRate;
       let serialTimeout;
-
+      let initialSelectedChannels
       // If no saved port is found, request a new port and save it
       if (!port) {
         port = await navigator.serial.requestPort();
@@ -545,6 +545,16 @@ const Connection: React.FC<ConnectionProps> = ({
             saved.usbVendorId === (info.usbVendorId ?? 0) &&
             saved.usbProductId === (info.usbProductId ?? 0)
         );
+        const deviceIndex = savedPorts.findIndex(
+          (saved: SavedDevice) =>
+            saved.usbVendorId === (info.usbVendorId ?? 0) &&
+            saved.usbProductId === (info.usbProductId ?? 0)
+        );
+  
+        if (deviceIndex !== -1) {
+          const savedChannels = savedPorts[deviceIndex].selectedChannels;
+          initialSelectedChannels = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
+        }
 
         baudRate = savedDevice?.baudRate || 230400; // Default to 230400 if no saved baud rate
         serialTimeout = savedDevice?.serialTimeout || 2000; // Default timeout if not saved
@@ -568,7 +578,6 @@ const Connection: React.FC<ConnectionProps> = ({
           // Query the device for its name
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
           setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
-
           let buffer = "";
           while (true) {
             const { value, done } = await reader.read();
@@ -596,7 +605,8 @@ const Connection: React.FC<ConnectionProps> = ({
             baudRate: extractedBaudRate,
             serialTimeout: extractedSerialTimeout,
           } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
-
+          const allSelected = initialSelectedChannels.length === channelCount;
+          setIsAllEnabledSelected(allSelected);
           // Update baudRate and serialTimeout with extracted values
           baudRate = extractedBaudRate ?? baudRate;
           serialTimeout = extractedSerialTimeout ?? serialTimeout;
