@@ -3,6 +3,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { EXGFilter, Notch } from './filters';
+import { useTheme } from "next-themes";
 import {
   Cable,
   Circle,
@@ -14,10 +15,6 @@ import {
   FileArchive,
   Pause,
   Play,
-  Plus,
-  Minus,
-  ZoomIn, // For magnify/zoom in functionality
-  ZoomOut, // For zoom out functionality
   CircleOff,
   ReplaceAll,
   Heart,
@@ -26,6 +23,8 @@ import {
   BicepsFlexed,
   ArrowRightToLine,
   ArrowLeftToLine,
+  Settings,
+  Loader
 } from "lucide-react";
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
@@ -54,6 +53,8 @@ interface ConnectionProps {
   setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
   setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
   canvasCount: number;
+  selectedChannels: number[]; // Array of selected channel indices
+  setSelectedChannels: React.Dispatch<React.SetStateAction<number[]>>; // State updater for selectedChannels
   channelCount: number;
   timeBase: number;
   setTimeBase: React.Dispatch<React.SetStateAction<number>>;
@@ -75,6 +76,8 @@ const Connection: React.FC<ConnectionProps> = ({
   setIsDisplay,
   setCanvasCount,
   canvasCount,
+  setSelectedChannels,
+  selectedChannels,
   SetCurrentSnapshot,
   currentSnapshot,
   snapShotRef,
@@ -94,6 +97,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [datasets, setDatasets] = useState<any[]>([]);
   const currentFilenameRef = useRef<string>("");
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false);
+  const [isSelectAllDisabled, setIsSelectAllDisabled] = useState(false);
   const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
   const recordingStartTime = useRef<number>(0);
   const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
@@ -102,10 +106,16 @@ const Connection: React.FC<ConnectionProps> = ({
   const [popoverVisible, setPopoverVisible] = useState(false);
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
   const [ifBits, setifBits] = useState<BitSelection>(10);
-  const [showAllChannels, setShowAllChannels] = useState(false);
-  const [FullZoom, setFullZoom] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { theme } = useTheme(); // Get the current theme
+  const isDarkMode = theme === "dark"; // Check if the theme is dark mode
   const canvasnumbersRef = useRef<number>(1);
   const maxCanvasCountRef = useRef<number>(1);
+  const [isAllEnabledSelected, setIsAllEnabledSelected] = useState(false);
+  const channelNamesfil = Array.from({ length: maxCanvasCountRef.current }, (_, i) => `CH${i + 1}`);
+  const initialSelectedChannel = useRef<any[]>([1]);
+
+
   const readerRef = useRef<
     ReadableStreamDefaultReader<Uint8Array> | null | undefined
   >(null); // Ref to store the reader for the serial port
@@ -130,18 +140,6 @@ const Connection: React.FC<ConnectionProps> = ({
     setClickCount(0);
 
   };
-  const increaseCanvas = () => {
-    if (canvasCount < maxCanvasCountRef.current) {
-
-      setCanvasCount(canvasCount + 1); // Increase canvas count up to 6
-    }
-  };
-
-  const increaseValue = () => {
-    if (timeBase < 10) {
-      setTimeBase(timeBase + 1);
-    }
-  };
 
   const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
 
@@ -155,6 +153,124 @@ const Connection: React.FC<ConnectionProps> = ({
       SetCurrentSnapshot(currentSnapshot + 1);
     }
   };
+  useEffect(() => {
+    const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+
+    // Check localStorage for saved data
+    const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+    const portInfo = portRef.current?.getInfo();
+
+    let initialSelectedChannels = [1]; // Default to channel 1 if no saved channels are found
+
+    if (portInfo) {
+      const { usbVendorId, usbProductId } = portInfo;
+      const deviceIndex = savedPorts.findIndex(
+        (saved: SavedDevice) =>
+          saved.usbVendorId === (usbVendorId ?? 0) &&
+          saved.usbProductId === (usbProductId ?? 0)
+      );
+
+      if (deviceIndex !== -1) {
+        const savedChannels = savedPorts[deviceIndex].selectedChannels;
+        initialSelectedChannels = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
+      }
+    }
+
+    // Set initial selected channels
+    setSelectedChannels(initialSelectedChannels);
+
+    // Update the "Select All" button state based on the loaded channels
+    const allSelected = initialSelectedChannels.length === enabledChannels.length;
+    const selectAllDisabled = initialSelectedChannels.length === enabledChannels.length - 1;
+
+    setIsAllEnabledSelected(allSelected);
+    setIsSelectAllDisabled(selectAllDisabled);
+  }, []); // Runs only on component mount
+
+
+  useEffect(() => {
+    setSelectedChannels(selectedChannels);
+  }, [selectedChannels]);
+
+  // UseEffect to track changes in selectedChannels and enabledChannels
+  useEffect(() => {
+    const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+
+    // Disable "Select All" button if the difference is exactly 1
+    setIsSelectAllDisabled(selectedChannels.length === enabledChannels.length - 1);
+
+    // Update the "Select All" button state
+    setIsAllEnabledSelected(selectedChannels.length === enabledChannels.length);
+  }, [selectedChannels]); // Trigger whenever selectedChannels changes
+
+  const handleSelectAllToggle = () => {
+    const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+    const remainingChannels = enabledChannels.filter(channel => !selectedChannels.includes(channel));
+
+    if (!isAllEnabledSelected) {
+      // If all channels are not selected, and only one channel is remaining, simulate selecting it
+      if (remainingChannels.length === 1) {
+        toggleChannel(remainingChannels[0]);
+      } else {
+        // Select all enabled channels
+        enabledChannels.forEach((channel) => {
+          if (!selectedChannels.includes(channel)) {
+            toggleChannel(channel);
+          }
+        });
+      }
+    } else {
+      // If "RESET" is clicked, reset to channel 1 or remove all selected channels
+      setSelectedChannels([1]);
+    }
+
+    // Toggle the state to indicate whether all channels are selected
+    setIsAllEnabledSelected(!isAllEnabledSelected);
+  };
+
+  const toggleChannel = (channelIndex: number) => {
+    setSelectedChannels((prevSelected) => {
+      // Toggle the selection of the channel
+      const updatedChannels = prevSelected.includes(channelIndex)
+        ? prevSelected.filter((ch) => ch !== channelIndex) // Remove channel
+        : [...prevSelected, channelIndex]; // Add channel
+
+      // Sort the updated channels before returning
+      const sortedChannels = updatedChannels.sort((a, b) => a - b);
+
+      // If no channel is selected after the toggle, set channel 1 as the default
+      if (sortedChannels.length === 0) {
+        sortedChannels.push(1); // Default to channel 1 if no channels are selected
+      }
+
+      // Update `selectedChannels` in localStorage for the connected device
+      const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+      const portInfo = portRef.current?.getInfo();
+      if (portInfo) {
+        const { usbVendorId, usbProductId } = portInfo;
+        const deviceIndex = savedPorts.findIndex(
+          (saved: SavedDevice) =>
+            saved.usbVendorId === (usbVendorId ?? 0) &&
+            saved.usbProductId === (usbProductId ?? 0)
+        );
+        if (deviceIndex !== -1) {
+          savedPorts[deviceIndex].selectedChannels = sortedChannels;
+          localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+        }
+      }
+
+      // Return the sorted array
+      return sortedChannels;
+    });
+  };
+
+  // Use effect to track when all channels are selected manually
+  useEffect(() => {
+    const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+
+    // Check if all enabled channels are selected to update the "Select All" state
+    setIsAllEnabledSelected(selectedChannels.length === enabledChannels.length);
+  }, [selectedChannels]); // Trigger on any update to selectedChannels
 
 
   // Handle right arrow click (reset count and disable button if needed)
@@ -167,47 +283,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const decreaseCanvas = () => {
-    if (canvasCount > 1) {
-      setCanvasCount(canvasCount - 1); // Decrease canvas count but not below 1
-    }
-  };
-  const decreaseValue = () => {
-    if (timeBase > 1) {
-      setTimeBase(timeBase - 1);
-    }
-  };
-
-  const toggleShowAllChannels = () => {
-    if (canvasCount === maxCanvasCountRef.current) {
-      setCanvasCount(1); // If canvasCount is 6, reduce it to 1
-      setShowAllChannels(false);
-    } else {
-      setCanvasCount(maxCanvasCountRef.current); // Otherwise, show all 6 canvases
-      setShowAllChannels(true);
-    }
-  };
-
-  const increaseZoom = () => {
-    if (Zoom < 10) {
-      SetZoom(Zoom + 1); // Increase canvas count up to 6
-    }
-  };
-
-  const decreaseZoom = () => {
-    if (Zoom > 1) {
-      SetZoom(Zoom - 1); // Decrease canvas count but not below 1
-    }
-  };
-  const toggleZoom = () => {
-    if (Zoom === 10) {
-      SetZoom(1); // If canvasCount is 6, reduce it to 1
-      setFullZoom(false);
-    } else {
-      SetZoom(10); // Otherwise, show all 6 canvases
-      setFullZoom(true);
-    }
-  };
 
   // Added useEffect to sync canvasCount state with the canvasnumbersRef and re-render when isRecordingRef changes
   useEffect(() => {
@@ -233,7 +308,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  //////////////////////////////////
   const workerRef = useRef<Worker | null>(null);
 
   const initializeWorker = () => {
@@ -247,12 +321,27 @@ const Connection: React.FC<ConnectionProps> = ({
     if (!workerRef.current) {
       initializeWorker();
     }
+    setCanvasCount(selectedChannels.length)
     // Send canvasCount independently to the worker
     workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasnumbersRef.current });
   };
   setCanvasCountInWorker(canvasnumbersRef.current);
 
-  const processBuffer = async (bufferIndex: number, canvasCount: number) => {
+  const setSelectedChannelsInWorker = (selectedChannels: number[]) => {
+    if (!workerRef.current) {
+      initializeWorker();
+    }
+
+    // Send selectedChannels independently to the worker
+    workerRef.current?.postMessage({
+      action: 'setSelectedChannels',
+      selectedChannels: selectedChannels,
+    });
+
+  };
+  setSelectedChannelsInWorker(selectedChannels)
+
+  const processBuffer = async (bufferIndex: number, canvasCount: number, selectChannel: number[]) => {
     if (!workerRef.current) {
       initializeWorker();
     }
@@ -265,19 +354,19 @@ const Connection: React.FC<ConnectionProps> = ({
 
     if (filename) {
       // Check if the record already exists
-      workerRef.current?.postMessage({ action: 'checkExistence', filename, canvasCount });
-      writeToIndexedDB(data, filename, canvasCount);
+      workerRef.current?.postMessage({ action: 'checkExistence', filename, canvasCount, selectChannel });
+      writeToIndexedDB(data, filename, canvasCount, selectChannel);
     }
   };
 
-  const writeToIndexedDB = (data: number[][], filename: string, canvasCount: number) => {
-    workerRef.current?.postMessage({ action: 'write', data, filename, canvasCount });
+  const writeToIndexedDB = (data: number[][], filename: string, canvasCount: number, selectChannel: number[]) => {
+    workerRef.current?.postMessage({ action: 'write', data, filename, canvasCount, selectChannel });
   };
 
   const saveAllDataAsZip = async () => {
     try {
       if (workerRef.current) {
-        workerRef.current.postMessage({ action: 'saveAsZip', canvasCount });
+        workerRef.current.postMessage({ action: 'saveAsZip', canvasCount, selectedChannels });
 
         workerRef.current.onmessage = async (event) => {
           const { zipBlob, error } = event.data;
@@ -295,9 +384,9 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   // Function to handle saving data by filename
-  const saveDataByFilename = async (filename: string, canvasCount: number) => {
+  const saveDataByFilename = async (filename: string, canvasCount: number, selectChannel: number[]) => {
     if (workerRef.current) {
-      workerRef.current.postMessage({ action: "saveDataByFilename", filename, canvasCount });
+      workerRef.current.postMessage({ action: "saveDataByFilename", filename, canvasCount, selectChannel });
       workerRef.current.onmessage = (event) => {
         const { blob, error } = event.data;
 
@@ -320,8 +409,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
 
   };
-
-  //////////////////////////////////////////
 
   const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Function to handle the custom time input change
@@ -383,34 +470,29 @@ const Connection: React.FC<ConnectionProps> = ({
     []
   );
 
-  const handleClick = () => {
-    // Function to handle toggle for connect/disconnect button
-    if (isConnected) {
-      disconnectDevice();
-    } else {
-      connectToDevice();
-    }
-  };
-
   interface SavedDevice {
     usbVendorId: number;
     usbProductId: number;
     baudRate: number;
   }
 
+
   const connectToDevice = async () => {
+
     try {
+      // Disconnect any previous connection if port is open
       if (portRef.current && portRef.current.readable) {
         await disconnectDevice();
       }
 
-
+      // Retrieve saved devices from localStorage
       const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
       let port = null;
 
+      // Get available serial ports
       const ports = await navigator.serial.getPorts();
 
-      // Check for saved ports
+      // Check if there is a saved port and match with available ports
       if (savedPorts.length > 0) {
         port =
           ports.find((p) => {
@@ -424,52 +506,66 @@ const Connection: React.FC<ConnectionProps> = ({
       }
 
       let baudRate;
-      let serialTimeout
-
+      let serialTimeout;
+      // If no saved port is found, request a new port and save it
       if (!port) {
         port = await navigator.serial.requestPort();
-        // const newPortInfo = await port.getInfo();
         const newPortInfo = await port.getInfo();
-        // const usbVendorId = newPortInfo.usbVendorId ?? 0;
+        const usbVendorId = newPortInfo.usbVendorId ?? 0;
         const usbProductId = newPortInfo.usbProductId ?? 0;
 
-        // Match the board from BoardsList
-        const board = BoardsList.find(
-          (b) => (b.field_pid) === usbProductId
-        );
+        // Match the board from BoardsList based on usbProductId
+        const board = BoardsList.find((b) => b.field_pid === usbProductId);
 
-        baudRate = board ? (board.baud_Rate) : 0;
-        serialTimeout = board ? (board.serial_timeout) : 0;
+        baudRate = board ? board.baud_Rate : 0;
+        serialTimeout = board ? board.serial_timeout : 0;
 
-        const usbVendorId = newPortInfo.usbVendorId ?? 0;
-        // const usbProductId = newPortInfo.usbProductId ?? 0;
+        // Save the new device details in localStorage, including default selected channels
+        savedPorts.push({
+          usbVendorId,
+          usbProductId,
+          baudRate,
+          serialTimeout,
+          selectedChannels: [1], // Default to CH1 if not saved
+        });
+        localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+        setSelectedChannels([1]); // Set channel 1 as the default
 
-        const existingDevice = savedPorts.find(
-          (saved: SavedDevice) =>
-            saved.usbVendorId === usbVendorId &&
-            saved.usbProductId === usbProductId
-        );
-
-        if (!existingDevice) {
-          savedPorts.push({ usbVendorId, usbProductId, baudRate, serialTimeout });
-          localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-        }
-
+        // Open the port with the determined baud rate
         await port.open({ baudRate });
+        setIsLoading(true); // Set loading state to true
       } else {
+        setIsLoading(true); // Set loading state to true
+        // If device is already found, retrieve its settings
         const info = port.getInfo();
-
         const savedDevice = savedPorts.find(
           (saved: SavedDevice) =>
             saved.usbVendorId === (info.usbVendorId ?? 0) &&
             saved.usbProductId === (info.usbProductId ?? 0)
         );
-        const baudRate = savedDevice.baudRate || 'default_baud_rate'; // Use baudRate from saved device info
-        serialTimeout = savedDevice.serialTimeout;
+        const deviceIndex = savedPorts.findIndex(
+          (saved: SavedDevice) =>
+            saved.usbVendorId === (info.usbVendorId ?? 0) &&
+            saved.usbProductId === (info.usbProductId ?? 0)
+        );
+  
+        if (deviceIndex !== -1) {
+          const savedChannels = savedPorts[deviceIndex].selectedChannels;
+          initialSelectedChannel.current = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
+        }
 
+        baudRate = savedDevice?.baudRate || 230400; // Default to 230400 if no saved baud rate
+        serialTimeout = savedDevice?.serialTimeout || 2000; // Default timeout if not saved
+
+        // Open the port with the saved baud rate
         await port.open({ baudRate });
+
+        // Set the previously selected channels or default to [1]
+        const lastSelectedChannels = savedDevice?.selectedChannels || [1];
+        setSelectedChannels(lastSelectedChannels);
       }
 
+      // Logic for handling device communication, e.g., reading from the port
       if (port.readable) {
         const reader = port.readable.getReader();
         readerRef.current = reader;
@@ -477,9 +573,8 @@ const Connection: React.FC<ConnectionProps> = ({
         if (writer) {
           writerRef.current = writer;
 
-          // Query the board for its name
+          // Query the device for its name
           const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-
           setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
           let buffer = "";
           while (true) {
@@ -492,7 +587,7 @@ const Connection: React.FC<ConnectionProps> = ({
             }
           }
 
-          // Extract the device name
+          // Extract device name from response
           const response = buffer.trim().split("\n").pop();
           const extractedName =
             response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
@@ -500,7 +595,7 @@ const Connection: React.FC<ConnectionProps> = ({
           const currentPortInfo = port.getInfo();
           const usbProductId = currentPortInfo.usbProductId ?? 0;
 
-          // Pass the name and field_pid to formatPortInfo
+          // Format port info with device name and other details
           const {
             formattedInfo,
             adcResolution,
@@ -508,8 +603,9 @@ const Connection: React.FC<ConnectionProps> = ({
             baudRate: extractedBaudRate,
             serialTimeout: extractedSerialTimeout,
           } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
-
-          // Use extracted baudRate and serialTimeout
+          const allSelected = initialSelectedChannel.current.length == channelCount;
+          setIsAllEnabledSelected(allSelected);
+          // Update baudRate and serialTimeout with extracted values
           baudRate = extractedBaudRate ?? baudRate;
           serialTimeout = extractedSerialTimeout ?? serialTimeout;
 
@@ -524,6 +620,7 @@ const Connection: React.FC<ConnectionProps> = ({
             ),
           });
 
+          // Start the communication with the device
           const startMessage = new TextEncoder().encode("START\n");
           setTimeout(() => writer.write(startMessage), 2000);
         } else {
@@ -533,24 +630,28 @@ const Connection: React.FC<ConnectionProps> = ({
         console.error("Readable stream not available");
       }
 
+      // Update connection state
       Connection(true);
       setIsConnected(true);
-
       onPauseChange(true);
       setIsDisplay(true);
       setCanvasCount(1);
       isConnectedRef.current = true;
       portRef.current = port;
 
+      // Retrieve datasets and initiate data reading
       const data = await getFileCountFromIndexedDB();
       setDatasets(data); // Update datasets with the latest data
       readData();
+
+      // Request wake lock to prevent screen sleep
       await navigator.wakeLock.request("screen");
     } catch (error) {
       await disconnectDevice();
       console.error("Error connecting to device:", error);
       toast.error("Failed to connect to device.");
     }
+    setIsLoading(false); // Always stop loading
   };
 
 
@@ -614,7 +715,7 @@ const Connection: React.FC<ConnectionProps> = ({
           await portRef.current.close();
         }
         portRef.current = null;
-
+        setIsConnected(false); // Update connection state
         toast("Disconnected from device", {
           action: {
             label: "Reconnect",
@@ -631,7 +732,6 @@ const Connection: React.FC<ConnectionProps> = ({
       Connection(false);
     }
   };
-
 
   const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
   const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
@@ -692,6 +792,11 @@ const Connection: React.FC<ConnectionProps> = ({
     });
     forceUpdate(); // Trigger re-render
   };
+  useEffect(() => {
+    setSelectedChannels(selectedChannels)
+
+  }, [selectedChannels]);
+
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
     const HEADER_LENGTH = 3; // Length of the packet header
@@ -776,7 +881,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
 
                 if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
-                  processBuffer(activeBufferIndex, canvasnumbersRef.current);
+                  processBuffer(activeBufferIndex, canvasnumbersRef.current, selectedChannels);
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
                 fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
@@ -824,6 +929,7 @@ const Connection: React.FC<ConnectionProps> = ({
     if (isRecordingRef.current) {
       // Stop the recording if it is currently active
       stopRecording();
+
     } else {
       // Start a new recording session
       isRecordingRef.current = true;
@@ -831,7 +937,7 @@ const Connection: React.FC<ConnectionProps> = ({
       recordingStartTime.current = Date.now();
       setRecordingElapsedTime(Date.now());
       setIsRecordButtonDisabled(true);
-
+      setIsDisplay(false);
       const filename = `ChordsWeb-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
         `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
 
@@ -847,6 +953,7 @@ const Connection: React.FC<ConnectionProps> = ({
     isRecordingRef.current = false;
     setRecordingElapsedTime(0);
     setIsRecordButtonDisabled(false);
+    setIsDisplay(true);
     // setRecordingStartTime(0);
     recordingStartTime.current = 0;
     existingRecordRef.current = undefined;
@@ -1075,8 +1182,17 @@ const Connection: React.FC<ConnectionProps> = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button className="flex items-center justify-center gap-1 py-2 px-2 sm:py-3 sm:px-4 rounded-xl font-semibold" onClick={handleClick}>
-                {isConnected ? (
+              <Button
+                className="flex items-center justify-center gap-1 py-2 px-2 sm:py-3 sm:px-4 rounded-xl font-semibold"
+                onClick={isConnected ? disconnectDevice : connectToDevice}
+                disabled={isLoading} // Disable button during loading
+              >
+                {isLoading ? (
+                  <>
+                    <Loader size={17} className="animate-spin" /> {/* Spinning loader */}
+                    Connecting...
+                  </>
+                ) : isConnected ? (
                   <>
                     Disconnect
                     <CircleX size={17} />
@@ -1094,68 +1210,8 @@ const Connection: React.FC<ConnectionProps> = ({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        {/* Autoscale/Bit selection */}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseZoom}
-                      disabled={Zoom === 1}
-                    >
-                      <ZoomOut size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{Zoom === 1 ? "We can't shrinkage" : "Decrease Zoom"}</p>
-                  </TooltipContent>
-                </Tooltip>
 
-                <Separator orientation="vertical" className="h-full" />
 
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2  rounded-none select-none min-w-12"
-                      onClick={toggleZoom}
-                    >
-                      {Zoom}x
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{FullZoom ? "Remove Full Zoom" : "Full Zoom"}</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseZoom}
-                      disabled={Zoom === 10}
-
-                    >
-                      <ZoomIn size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {Zoom >= 10 ? "Maximum Zoom Reached" : "Increase Zoom"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
-        )}
         {/* Display (Play/Pause) button with tooltip */}
         {isConnected && (
           <div className="flex items-center gap-0.5 mx-0 px-0">
@@ -1194,6 +1250,7 @@ const Connection: React.FC<ConnectionProps> = ({
             </Button>
           </div>
         )}
+
         {/* Record button with tooltip */}
         {isConnected && (
           <TooltipProvider>
@@ -1232,21 +1289,21 @@ const Connection: React.FC<ConnectionProps> = ({
                     <FileArchive size={16} />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="p-4 bg-white shadow-lg rounded-xl w-full">
+                <PopoverContent className="p-4 text-base shadow-lg rounded-xl w-full">
                   <div className="space-y-4">
                     {/* List each file with download and delete actions */}
                     {datasets.length > 0 ? (
                       datasets.map((dataset) => (
                         <div key={dataset} className="flex justify-between items-center">
                           {/* Display the filename directly */}
-                          <span className="font-medium mr-4 text-black">
+                          <span className=" mr-4">
                             {dataset}
                           </span>
 
                           <div className="flex space-x-2">
                             {/* Save file by filename */}
                             <Button
-                              onClick={() => saveDataByFilename(dataset, canvasCount)}
+                              onClick={() => saveDataByFilename(dataset, canvasCount, selectedChannels)}
                               className="rounded-xl px-4"
                             >
                               <Download size={16} />
@@ -1266,10 +1323,8 @@ const Connection: React.FC<ConnectionProps> = ({
                         </div>
                       ))
                     ) : (
-                      <p className="text-black ">No datasets available</p>
+                      <p className="text-base ">No datasets available</p>
                     )}
-
-
                     {/* Download all as ZIP and delete all options */}
                     {datasets.length > 0 && (
                       <div className="flex justify-between mt-4">
@@ -1319,7 +1374,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => removeEXGFilterFromAllChannels([0, 1, 2, 3, 4, 5])}
+                        onClick={() => removeEXGFilterFromAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i))}
                         className={`rounded-xl rounded-r-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 0
                             ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
@@ -1331,9 +1386,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 4)}
+                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 4)}
                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1342,9 +1397,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       </Button> <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 3)}
+                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 3)}
                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current&& Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1353,9 +1408,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       </Button> <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
+                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 1)}
                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1364,9 +1419,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       </Button> <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyEXGFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
+                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 2)}
                         className={`rounded-xl rounded-l-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === 6 && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1378,7 +1433,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => removeNotchFromAllChannels([0, 1, 2, 3, 4, 5])}
+                        onClick={() => removeNotchFromAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i))}
                         className={`rounded-xl rounded-r-none border-0
                           ${Object.keys(appliedFiltersRef.current).length === 0
                             ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
@@ -1391,9 +1446,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 1)}
+                        onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 1)}
                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                          ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 1)
+                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 1)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1403,9 +1458,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyFilterToAllChannels([0, 1, 2, 3, 4, 5], 2)}
+                        onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 2)}
                         className={`rounded-xl rounded-l-none border-0
-                          ${Object.keys(appliedFiltersRef.current).length === 6 && Object.values(appliedFiltersRef.current).every((value) => value === 2)
+                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 2)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1416,7 +1471,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   </div>
                 </div>
                 <div className="flex flex-col space-y-2">
-                  {["CH1", "CH2", "CH3", "CH4", "CH5", "CH6"].map((filterName, index) => (
+                  {channelNamesfil.map((filterName, index) => (
                     <div key={filterName} className="flex items-center">
                       {/* Filter Name */}
                       <div className="text-sm font-semibold w-12">{filterName}</div>
@@ -1428,7 +1483,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             size="sm"
                             onClick={() => removeEXGFilter(index)}
                             className={`rounded-xl rounded-r-none border-l-none border-0
-                              ${appliedEXGFiltersRef.current[index] === undefined
+                                                        ${appliedEXGFiltersRef.current[index] === undefined
                                 ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
                                 : "bg-white-500" // Active background
                               }`}
@@ -1440,7 +1495,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             size="sm"
                             onClick={() => handleFrequencySelectionEXG(index, 4)}
                             className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedEXGFiltersRef.current[index] === 4
+                                                        ${appliedEXGFiltersRef.current[index] === 4
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
                               }`}
@@ -1452,7 +1507,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             size="sm"
                             onClick={() => handleFrequencySelectionEXG(index, 3)}
                             className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedEXGFiltersRef.current[index] === 3
+                                                      ${appliedEXGFiltersRef.current[index] === 3
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
                               }`}
@@ -1464,7 +1519,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             size="sm"
                             onClick={() => handleFrequencySelectionEXG(index, 1)}
                             className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedEXGFiltersRef.current[index] === 1
+                                                        ${appliedEXGFiltersRef.current[index] === 1
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
                               }`}
@@ -1476,7 +1531,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             size="sm"
                             onClick={() => handleFrequencySelectionEXG(index, 2)}
                             className={`rounded-xl rounded-l-none border-0
-                                      ${appliedEXGFiltersRef.current[index] === 2
+                                                        ${appliedEXGFiltersRef.current[index] === 2
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
                               }`}
@@ -1490,7 +1545,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             size="sm"
                             onClick={() => removeNotchFilter(index)}
                             className={`rounded-xl rounded-r-none border-0
-                              ${appliedFiltersRef.current[index] === undefined
+                                                        ${appliedFiltersRef.current[index] === undefined
                                 ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
                                 : "bg-white-500" // Active background
                               }`}
@@ -1502,7 +1557,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             size="sm"
                             onClick={() => handleFrequencySelection(index, 1)}
                             className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                              ${appliedFiltersRef.current[index] === 1
+                                                        ${appliedFiltersRef.current[index] === 1
                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                 : "bg-white-500" // Active background
                               }`}
@@ -1532,125 +1587,176 @@ const Connection: React.FC<ConnectionProps> = ({
           </Popover>
         )}
 
-        {/* Canvas control buttons with tooltip */}
+
+
         {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseCanvas}
-                      disabled={canvasCount === 1 || !isDisplay || isRecordButtonDisabled}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount === 1
-                        ? "At Least One Canvas Required"
-                        : "Decrease Channel"}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-lg">
+                <Settings size={16} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm">
+              <TooltipProvider>
+                <div className="space-y-6">
+                  {/* Channel Selection */}
+                  <div className="flex items-center justify-center rounded-lg mb-[2.5rem]">
+                    <div className=" w-full">
+                      <div className="absolute inset-0 rounded-lg border-gray-300 dark:border-gray-600 opacity-50 pointer-events-none"></div>
+                      <div className="relative">
+                        {/* Heading and Select All Button */}
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xs font-semibold text-gray-500">
+                            <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
+                          </h3>
+                          <button
+                            onClick={handleSelectAllToggle}
+                            className={`px-4 py-1 text-xs font-light rounded-lg transition ${isSelectAllDisabled
+                              ? "text-gray-400 bg-gray-200 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
+                              : "text-white bg-black hover:bg-gray-700 dark:bg-white dark:text-black dark:border dark:border-gray-500 dark:hover:bg-primary/70"
+                              }`}
+                            disabled={isSelectAllDisabled}
+                          >
+                            {isAllEnabledSelected ? "RESET" : "Select All"}
+                          </button>
+
+                        </div>
+
+                        {/* Button Grid */}
+                        <div id="button-container" className="relative space-y-2 rounded-lg">
+                          {Array.from({ length: 2 }).map((_, container) => (
+                            <div
+                              key={container}
+                              className={`grid grid-cols-8 gap-2`}
+                            >
+                              {Array.from({ length: 8 }).map((_, col) => {
+                                const index = container * 8 + col;
+                                const isChannelDisabled = index >= maxCanvasCountRef.current;
+
+                                const buttonColors = [
+                                  "bg-custom-1", "bg-custom-2", "bg-custom-3", "bg-custom-4",
+                                  "bg-custom-5", "bg-custom-6", "bg-custom-7", "bg-custom-8",
+                                  "bg-custom-9", "bg-custom-10", "bg-custom-11", "bg-custom-12",
+                                  "bg-custom-13", "bg-custom-14", "bg-custom-15", "bg-custom-16",
+                                ];
+
+                                const backgroundColorClass = buttonColors[index % buttonColors.length];
+                                const buttonClass = isChannelDisabled
+                                  ? isDarkMode
+                                    ? "bg-[#030c21] text-gray-700 cursor-not-allowed"
+                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  : selectedChannels.includes(index + 1)
+                                    ? `${backgroundColorClass} text-white`
+                                    : "bg-white text-black hover:bg-gray-100";
+
+                                const isFirstInRow = col === 0;
+                                const isLastInRow = col === 7;
+                                const isFirstContainer = container === 0;
+                                const isLastContainer = container === 1;
+
+                                // Adjust rounded corners for each container individually
+                                const roundedClass = `${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
+                                                               ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
+                                                               ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
+                                                               ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}`;
+
+                                return (
+                                  <button
+                                    key={index}
+                                    onClick={() => !isChannelDisabled && toggleChannel(index + 1)}
+                                    disabled={isChannelDisabled || isRecordButtonDisabled}
+                                    className={`w-full h-8 text-xs font-medium py-1 border-[0.05px] border-gray-300 dark:border-gray-600 transition-colors duration-200 ${buttonClass} ${roundedClass}`}
+                                  >
+                                    {`CH${index + 1}`}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Zoom Controls */}
+                  <div className="relative w-full flex flex-col items-start text-sm mb-[2rem]">
+                    <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
+                      <span className="font-bold text-gray-600">Zoom Level:</span> {Zoom}x
                     </p>
-                  </TooltipContent>
-                </Tooltip>
+                    <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600 mb-4">
+                      {/* Button for setting Zoom to 1 */}
+                      <button
+                        className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                        onClick={() => SetZoom(1)}
+                      >
+                        1
+                      </button>
 
-                <Separator orientation="vertical" className="h-full" />
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={Zoom}
+                        onChange={(e) => SetZoom(Number(e.target.value))}
+                        style={{
+                          background: `linear-gradient(to right, rgb(101, 136, 205) ${((Zoom - 1) / 9) * 100}%, rgb(165, 165, 165) ${((Zoom - 1) / 9) * 11}%)`,
+                        }}
+                        className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-800 focus:outline-none focus:ring-0 slider-input"
+                      />
 
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 rounded-none select-none"
-                      onClick={toggleShowAllChannels}
-                      disabled={!isDisplay || isRecordButtonDisabled}
-                    >
-                      CH
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {showAllChannels
-                        ? "Hide All Channels"
-                        : "Show All Channels"}
+                      {/* Button for setting Zoom to 10 */}
+                      <button
+                        className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                        onClick={() => SetZoom(10)}
+                      >
+                        10
+                      </button>
+                      <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px;
+                                            background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; } `}</style>
+                    </div>
+                  </div>
+
+                  {/* Time-Base Selection */}
+                  <div className="relative w-full flex flex-col items-start mt-3 text-sm">
+                    <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
+                      <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
                     </p>
-                  </TooltipContent>
-                </Tooltip>
+                    <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
+                      {/* Button for setting Time Base to 1 */}
+                      <button
+                        className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                        onClick={() => setTimeBase(1)}
+                      >
+                        1
+                      </button>
 
-                <Separator orientation="vertical" className="h-full" />
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={timeBase}
+                        onChange={(e) => setTimeBase(Number(e.target.value))}
+                        style={{
+                          background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
+                        }}
+                        className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
+                      />
 
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseCanvas}
-                      disabled={canvasCount >= maxCanvasCountRef.current || !isDisplay || isRecordButtonDisabled}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {canvasCount >= maxCanvasCountRef.current
-                        ? "Maximum Channels Reached"
-                        : "Increase Channel"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {isConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <div className="flex items-center mx-0 px-0">
-                {/* Decrease Current Value */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-r-none"
-                      onClick={decreaseValue}
-                      disabled={timeBase == 1}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Toggle All Channels Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="flex items-center justify-center px-3 py-2 rounded-none select-none"
-                    >
-                      {timeBase} Sec
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
-
-                <Separator orientation="vertical" className="h-full" />
-
-                {/* Increase Canvas Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="rounded-xl rounded-l-none"
-                      onClick={increaseValue}
-                      disabled={timeBase >= 10}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                </Tooltip>
-              </div>
-            </Tooltip>
-          </TooltipProvider>
+                      {/* Button for setting Time Base to 10 */}
+                      <button
+                        className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                        onClick={() => setTimeBase(10)}
+                      >
+                        10
+                      </button>
+                      <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;appearance: none; width: 15px; height: 15px;
+                                             background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
+                    </div>
+                  </div>
+                </div>
+              </TooltipProvider>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
     </div>
@@ -1658,3 +1764,4 @@ const Connection: React.FC<ConnectionProps> = ({
 };
 
 export default Connection;
+

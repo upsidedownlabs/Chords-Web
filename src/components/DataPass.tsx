@@ -17,6 +17,7 @@ const DataPass = () => {
   const [currentSamplingRate, setCurrentSamplingRate] = useState<number>(0);
   const [channelCount, setChannelCount] = useState<number>(1); // Number of channels
   const canvasRef = useRef<any>(null); // Create a ref for the Canvas component
+  const [selectedChannels, setSelectedChannels] = useState<number[]>([1]);
   let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
   const [Zoom, SetZoom] = useState<number>(1); // Number of canvases
   const [currentSnapshot, SetCurrentSnapshot] = useState<number>(0); // Number of canvases
@@ -57,6 +58,7 @@ const DataPass = () => {
           selectedBits={selectedBits}
           isDisplay={isDisplay}
           canvasCount={canvasCount} // Pass canvas count
+          selectedChannels={selectedChannels}
           timeBase={timeBase}
           currentSamplingRate={currentSamplingRate}
         />
@@ -75,6 +77,8 @@ const DataPass = () => {
         setCanvasCount={setCanvasCount}
         canvasCount={canvasCount}
         setTimeBase={setTimeBase}
+        selectedChannels={selectedChannels}
+        setSelectedChannels={setSelectedChannels}
         timeBase={timeBase}
         setCurrentSamplingRate={setCurrentSamplingRate}
         currentSamplingRate={currentSamplingRate}

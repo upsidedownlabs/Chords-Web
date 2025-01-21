@@ -20,6 +20,16 @@ export const BoardsList = Object.freeze([
     baud_Rate: 115200
   },
   {
+    chords_id: "NANO-CLONE",
+    device_name: "Arduino Nano Clone",
+    field_pid: 32832,
+    adc_resolution: 10,
+    channel_count: 8,
+    sampling_rate: 250,
+    serial_timeout: 2000,
+    baud_Rate: 115200
+  },
+  {
     chords_id: "GENUINO-UNO",
     device_name: "Genuino UNO",
     field_pid: 579,
@@ -53,6 +63,16 @@ export const BoardsList = Object.freeze([
     chords_id: "UNO-CLONE",
     device_name: "Maker UNO / UNO Clone",
     field_pid: 29987,
+    adc_resolution: 10,
+    channel_count: 6,
+    sampling_rate: 250,
+    serial_timeout: 2000,
+    baud_Rate: 115200
+  },
+  {
+    chords_id: "UNO-CLONE",
+    device_name: "Maker UNO / UNO Clone",
+    field_pid: 32832,
     adc_resolution: 10,
     channel_count: 6,
     sampling_rate: 250,
