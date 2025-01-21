@@ -42,6 +42,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../components/ui/popover";
+import { customColors } from "./Colors";
 
 interface ConnectionProps {
   onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
@@ -180,7 +181,7 @@ const Connection: React.FC<ConnectionProps> = ({
     setSelectedChannels(initialSelectedChannels);
 
     // Update the "Select All" button state based on the loaded channels
-    const allSelected = initialSelectedChannels.length === enabledChannels.length;
+    const allSelected = initialSelectedChannels.length == enabledChannels.length;
     const selectAllDisabled = initialSelectedChannels.length === enabledChannels.length - 1;
 
     setIsAllEnabledSelected(allSelected);
@@ -548,7 +549,7 @@ const Connection: React.FC<ConnectionProps> = ({
             saved.usbVendorId === (info.usbVendorId ?? 0) &&
             saved.usbProductId === (info.usbProductId ?? 0)
         );
-  
+
         if (deviceIndex !== -1) {
           const savedChannels = savedPorts[deviceIndex].selectedChannels;
           initialSelectedChannel.current = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
@@ -1399,7 +1400,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         size="sm"
                         onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 3)}
                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current&& Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1586,9 +1587,6 @@ const Connection: React.FC<ConnectionProps> = ({
             </PopoverContent>
           </Popover>
         )}
-
-
-
         {isConnected && (
           <Popover>
             <PopoverTrigger asChild>
@@ -1625,10 +1623,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         {/* Button Grid */}
                         <div id="button-container" className="relative space-y-2 rounded-lg">
                           {Array.from({ length: 2 }).map((_, container) => (
-                            <div
-                              key={container}
-                              className={`grid grid-cols-8 gap-2`}
-                            >
+                            <div key={container} className="grid grid-cols-8 gap-2">
                               {Array.from({ length: 8 }).map((_, col) => {
                                 const index = container * 8 + col;
                                 const isChannelDisabled = index >= maxCanvasCountRef.current;
@@ -1654,11 +1649,11 @@ const Connection: React.FC<ConnectionProps> = ({
                                 const isFirstContainer = container === 0;
                                 const isLastContainer = container === 1;
 
-                                // Adjust rounded corners for each container individually
+                                // Apply rounded corners based on position
                                 const roundedClass = `${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
-                                                               ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
-                                                               ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
-                                                               ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}`;
+                                                       ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
+                                                       ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
+                                                       ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}`;
 
                                 return (
                                   <button
@@ -1712,7 +1707,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         10
                       </button>
                       <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px;
-                                            background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; } `}</style>
+                                             background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; } `}</style>
                     </div>
                   </div>
 

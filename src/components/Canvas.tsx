@@ -9,6 +9,7 @@ import React, {
 import { useTheme } from "next-themes";
 import { BitSelection } from "./DataPass";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
+import { lightThemeColors, darkThemeColors } from "./Colors";
 
 interface CanvasProps {
   pauseRef: React.RefObject<boolean>;
@@ -58,6 +59,10 @@ const Canvas = forwardRef(
     const selectedChannelsRef = useRef(selectedChannels);
     const activebuffer = useRef(0); // Initialize useRef with 0
     const indicesRef = useRef<number[]>([]); // Use `useRef` for indices
+
+    class ColorRGBA {
+      constructor(public r: number, public g: number, public b: number, public a: number) { }
+    }
 
     //select point
     const getpoints = useCallback((bits: BitSelection): number => {
@@ -260,35 +265,20 @@ const Canvas = forwardRef(
     };
 
     const getLineColor = (i: number, theme: string | undefined): ColorRGBA => {
-      // Define the updated dark colors
-      const colorsDark: ColorRGBA[] = [
-        new ColorRGBA(180 / 255, 70 / 255, 120 / 255, 1), // Darkened #EC6FAA
-        new ColorRGBA(150 / 255, 70 / 255, 125 / 255, 1), // Darkened #CE6FAC
-        new ColorRGBA(130 / 255, 90 / 255, 140 / 255, 1), // Darkened #B47EB7
-        new ColorRGBA(110 / 255, 110 / 255, 160 / 255, 1), // Darkened #9D8DC4
-        new ColorRGBA(70 / 255, 100 / 255, 150 / 255, 1),  // Darkened #689AD2
-        new ColorRGBA(40 / 255, 110 / 255, 140 / 255, 1),  // Darkened #35A5CC
-        new ColorRGBA(35 / 255, 120 / 255, 130 / 255, 1),  // Darkened #30A8B4
-        new ColorRGBA(35 / 255, 125 / 255, 120 / 255, 1),  // Darkened #32ABA2
+      // Get the appropriate colors based on the theme
+      const colors = theme === "dark" ? darkThemeColors : lightThemeColors;
 
-      ];
+      const hex = colors[i % colors.length];
 
-      const colorsLight: ColorRGBA[] = [
-        new ColorRGBA(236 / 255, 111 / 255, 170 / 255, 0.8), // Slightly transparent #EC6FAA
-        new ColorRGBA(206 / 255, 111 / 255, 172 / 255, 0.8), // Slightly transparent #CE6FAC
-        new ColorRGBA(180 / 255, 126 / 255, 183 / 255, 0.8), // Slightly transparent #B47EB7
-        new ColorRGBA(157 / 255, 141 / 255, 196 / 255, 0.8), // Slightly transparent #9D8DC4
-        new ColorRGBA(104 / 255, 154 / 255, 210 / 255, 0.8), // Slightly transparent #689AD2
-        new ColorRGBA(53 / 255, 165 / 255, 204 / 255, 0.8),  // Slightly transparent #35A5CC
-        new ColorRGBA(48 / 255, 168 / 255, 180 / 255, 0.8),  // Slightly transparent #30A8B4
-        new ColorRGBA(50 / 255, 171 / 255, 162 / 255, 0.8),  // Slightly transparent #32ABA2
+      const r = parseInt(hex.slice(1, 3), 16) / 255;
+      const g = parseInt(hex.slice(3, 5), 16) / 255;
+      const b = parseInt(hex.slice(5, 7), 16) / 255;
 
-      ];
+      // Adjust the alpha value based on the theme
+      const alpha = theme === "dark" ? 1 : 0.8;  // Slight transparency for light theme
 
-      // Swap light and dark colors for themes
-      return theme === "dark"
-        ? colorsLight[i % colorsLight.length] // Use lighter colors in dark theme
-        : colorsDark[i % colorsDark.length]; // Use darker colors in light theme
+      // Return a ColorRGBA object with adjusted alpha
+      return new ColorRGBA(r, g, b, alpha);
     };
 
     const updatePlots = useCallback(

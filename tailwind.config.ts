@@ -1,3 +1,4 @@
+import { customColors } from "./src/components/Colors";
 import type { Config } from "tailwindcss";
 
 const config = {
@@ -7,6 +8,7 @@ const config = {
     "./components/**/*.{ts,tsx}",
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
+    
   ],
   prefix: "",
   theme: {
@@ -32,6 +34,7 @@ const config = {
         'shadow-multiple': '1px 1px 2px rgba(0, 0, 0, 0.3), 0 0 5px rgba(0, 0, 0, 0.1)',
       },
       colors: {
+        ...customColors, // This is the correct way to merge custom colors
         plot: "#21bbdc",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -66,23 +69,7 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Add custom colors here
-        'custom-1': '#EC6FAA',
-        'custom-2': '#CE6FAC',
-        'custom-3': '#B47EB7',
-        'custom-4': '#9D8DC4',
-        'custom-5': '#689AD2',
-        'custom-6': '#35A5CC',
-        'custom-7': '#30A8B4',
-        'custom-8': '#32ABA2',
-        'custom-9': '#2EAD8D',
-        'custom-10': '#31B068',
-        'custom-11': '#6CAB43',
-        'custom-12': '#94A135',
-        'custom-13': '#B19B31',
-        'custom-14': '#CC9136',
-        'custom-15': '#F2793B',
-        'custom-16': '#F2728B',
+        colors: customColors,
       },
       borderRadius: {
         lg: "var(--radius)",
