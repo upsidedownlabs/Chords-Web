@@ -38,26 +38,26 @@ const Canvas = forwardRef(
     }: CanvasProps,
     ref
   ) => {
-    const { theme } = useTheme();
-    let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+    const { theme } = useTheme(); // Extract theme context
+    let previousCounter: number | null = null; // Tracks the previous counter value for detecting data loss
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const [numChannels, setNumChannels] = useState<number>(selectedChannels.length);
-    const numXRef = useRef<number>(2000); // To track the calculated value
-    const [canvases, setCanvases] = useState<HTMLCanvasElement[]>([]);
+    const dataPointCountRef = useRef<number>(2000); // Ref to track the number of data points per line
+    const [canvasElements, setCanvasElements] = useState<HTMLCanvasElement[]>([]); // Array of canvas elements
     const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
     const [lines, setLines] = useState<WebglLine[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
     const [samplingRate, setSamplingRate] = useState<number>(500);
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
-    const array3DRef = useRef<number[][][]>(
+    const array3DRef = useRef<number[][][]>( // 3D buffer array for storing data
       Array.from({ length: 6 }, () =>
         Array.from({ length: 6 }, () => Array())
       )
     );
-    const selectedChannelsRef = useRef(selectedChannels);
-    const activebuffer = useRef(0); // Initialize useRef with 0
-    const indicesRef = useRef<number[]>([]); // Use `useRef` for indices
+    const selectedChannelsRef = useRef(selectedChannels); // Ref for selected channels
+    const activeBufferIndexRef =  useRef<number>(0); // Ref to track the active buffer index
+    const dataIndicesRef = useRef<number[]>([]);  // Ref to store data indices
 
     //select point
     const getpoints = useCallback((bits: BitSelection): number => {
@@ -74,7 +74,7 @@ const Canvas = forwardRef(
     }, []);
 
     useEffect(() => {
-      numXRef.current = (currentSamplingRate * timeBase);
+      dataPointCountRef.current = (currentSamplingRate * timeBase);
 
     }, [timeBase]);
 
@@ -85,37 +85,40 @@ const Canvas = forwardRef(
     const prevCanvasCountRef = useRef<number>(canvasCount);
 
     const processIncomingData = (incomingData: number[]) => {
-      for (let i = 0; i < canvasCount; i++) {
-
-        if (prevCanvasCountRef.current !== canvasCount) {
-          // Clear the entire buffer if canvasCount changes
-          for (let bufferIndex = 0; bufferIndex < 6; bufferIndex++) {
-            array3DRef.current[bufferIndex] = Array.from({ length: canvasCount }, () => []);
-            snapShotRef.current[bufferIndex] = false;
-          }
-          prevCanvasCountRef.current = canvasCount;
+      const currentBuffer = array3DRef.current[activeBufferIndexRef.current];
+    
+      // Handle canvas count changes and reset buffers
+      if (prevCanvasCountRef.current !== canvasCount) {
+        for (let bufferIndex = 0; bufferIndex < 6; bufferIndex++) {
+          array3DRef.current[bufferIndex] = Array.from({ length: canvasCount }, () => []);
+          snapShotRef.current[bufferIndex] = false;
         }
-        if (array3DRef.current[activebuffer.current][i].length >= numXRef.current) {
-          array3DRef.current[activebuffer.current][i] = [];
+        prevCanvasCountRef.current = canvasCount;
+      }
+    
+      // Process incoming data for each canvas
+      currentBuffer.forEach((buffer, i) => {
+        if (buffer.length >= dataPointCountRef.current || 
+            (!pauseRef.current && buffer.length < dataPointCountRef.current)) {
+          currentBuffer[i] = [];
         }
-        array3DRef.current[activebuffer.current][i].push(incomingData[i + 1]);
-
-        if (array3DRef.current[activebuffer.current][i].length < numXRef.current && !pauseRef.current) {
-          array3DRef.current[activebuffer.current][i] = [];
-        }
+        currentBuffer[i].push(incomingData[i + 1]);
+      });
+    
+      // Update snapshot and buffer index when data is ready
+      if (currentBuffer[0].length >= dataPointCountRef.current) {
+        snapShotRef.current[activeBufferIndexRef.current] = true;
+        activeBufferIndexRef.current = (activeBufferIndexRef.current + 1) % 6;
+        snapShotRef.current[activeBufferIndexRef.current] = false;
       }
-
-
-      if (array3DRef.current[activebuffer.current][0].length >= numXRef.current) {
-        snapShotRef.current[activebuffer.current] = true;
-        activebuffer.current = (activebuffer.current + 1) % 6;
-        snapShotRef.current[activebuffer.current] = false;
-      }
-      indicesRef.current = [];
-      for (let i = 1; i < 6; i++) {
-        indicesRef.current.push((activebuffer.current - i + 6) % 6);
-      }
+    
+      // Update data indices for referencing past buffers
+      dataIndicesRef.current = Array.from(
+        { length: 5 },
+        (_, i) => (activeBufferIndexRef.current - i - 1 + 6) % 6
+      );
     };
+    
 
     useEffect(() => {
       setNumChannels(selectedChannels.length);
@@ -132,33 +135,40 @@ const Canvas = forwardRef(
       ref,
       () => ({
         updateData(data: number[]) {
-          // Reset the sweep positions if the number of channels has changed
+          const [counter, ...channelData] = data;
+    
+          // Reset sweep positions if the number of channels changes or when not paused
           if (currentSweepPos.current.length !== numChannels || !pauseRef.current) {
-            currentSweepPos.current = new Array(numChannels).fill(0);
-            sweepPositions.current = new Array(numChannels).fill(0);
+            const resetArray = new Array(numChannels).fill(0);
+            currentSweepPos.current = resetArray;
+            sweepPositions.current = resetArray;
           }
-
+    
+          // Process and update plots if paused
           if (pauseRef.current) {
             processIncomingData(data);
-            updatePlots(data, Zoom);
+            updatePlots(channelData, Zoom);
           }
+    
+          // Handle counter validation for data loss detection
           if (previousCounter !== null) {
-            // If there was a previous counter value
-            const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
-            if (data[0] !== expectedCounter) {
-              // Check for data loss by comparing the current counter with the expected counter
+            const expectedCounter = (previousCounter + 1) % 256;
+            if (counter !== expectedCounter) {
               console.warn(
-                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[0]}`
+                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${counter}`
               );
             }
           }
-          previousCounter = data[0]; // Update the previous counter with the current counter
+    
+          // Update the previous counter
+          previousCounter = counter;
         },
       }),
       [Zoom, numChannels, timeBase]
     );
+    
 
-    const createCanvases = () => {
+    const createcanvasElements = () => {
       const container = canvasContainerRef.current;
       if (!container) {
         return; // Exit if the ref is null
@@ -182,10 +192,10 @@ const Canvas = forwardRef(
         container.removeChild(firstChild);
       }
 
-      setCanvases([]);
+      setCanvasElements([]);
       setWglPlots([]);
       linesRef.current = [];
-      const newCanvases: HTMLCanvasElement[] = [];
+      const newcanvasElements: HTMLCanvasElement[] = [];
       const newWglPlots: WebglPlot[] = [];
       const newLines: WebglLine[] = [];
 
@@ -221,7 +231,7 @@ const Canvas = forwardRef(
       }
       container.appendChild(canvasWrapper);
 
-      // Create canvases for each selected channel
+      // Create canvasElements for each selected channel
       selectedChannels.forEach((channelNumber) => {
         const canvasWrapper = document.createElement("div");
         canvasWrapper.className = "canvas-container relative flex-[1_1_0%]";
@@ -240,27 +250,27 @@ const Canvas = forwardRef(
         canvasWrapper.appendChild(canvas);
         container.appendChild(canvasWrapper);
 
-        newCanvases.push(canvas);
+        newcanvasElements.push(canvas);
         const wglp = new WebglPlot(canvas);
         newWglPlots.push(wglp);
         wglp.gScaleY = Zoom;
-        const line = new WebglLine(getLineColor(channelNumber, theme), numXRef.current);
+        const line = new WebglLine(getLineColor(channelNumber, theme), dataPointCountRef.current);
         wglp.gOffsetY = 0;
         line.offsetY = 0;
-        line.lineSpaceX(-1, 2 / numXRef.current);
+        line.lineSpaceX(-1, 2 / dataPointCountRef.current);
 
         wglp.addLine(line);
         newLines.push(line);
       });
 
       linesRef.current = newLines;
-      setCanvases(newCanvases);
+      setCanvasElements(newcanvasElements);
       setWglPlots(newWglPlots);
       setLines(newLines);
     };
 
     const getLineColor = (i: number, theme: string | undefined): ColorRGBA => {
-      // Define the updated dark colors
+      // Predefine the color arrays for dark and light themes
       const colorsDark: ColorRGBA[] = [
         new ColorRGBA(180 / 255, 70 / 255, 120 / 255, 1), // Darkened #EC6FAA
         new ColorRGBA(150 / 255, 70 / 255, 125 / 255, 1), // Darkened #CE6FAC
@@ -272,7 +282,7 @@ const Canvas = forwardRef(
         new ColorRGBA(35 / 255, 125 / 255, 120 / 255, 1),  // Darkened #32ABA2
 
       ];
-
+    
       const colorsLight: ColorRGBA[] = [
         new ColorRGBA(236 / 255, 111 / 255, 170 / 255, 0.8), // Slightly transparent #EC6FAA
         new ColorRGBA(206 / 255, 111 / 255, 172 / 255, 0.8), // Slightly transparent #CE6FAC
@@ -284,85 +294,85 @@ const Canvas = forwardRef(
         new ColorRGBA(50 / 255, 171 / 255, 162 / 255, 0.8),  // Slightly transparent #32ABA2
 
       ];
-
-      // Swap light and dark colors for themes
-      return theme === "dark"
-        ? colorsLight[i % colorsLight.length] // Use lighter colors in dark theme
-        : colorsDark[i % colorsDark.length]; // Use darker colors in light theme
+    
+      // Select the appropriate color array based on the theme
+      const colors = theme === "dark" ? colorsLight : colorsDark;
+    
+      // Return the color for the given index, wrapped with modulo for looping
+      return colors[i % colors.length];
     };
+    
 
     const updatePlots = useCallback(
       (data: number[], Zoom: number) => {
-        // Access the latest selectedChannels via the ref
         const currentSelectedChannels = selectedChannelsRef.current;
-
-        // Adjust zoom level for each WebglPlot
+    
+        // Adjust zoom level for each WebglPlot only once per iteration
         wglPlots.forEach((wglp, index) => {
           if (wglp) {
             try {
               wglp.gScaleY = Zoom; // Adjust zoom value
             } catch (error) {
-              console.error(
-                `Error setting gScaleY for WebglPlot instance at index ${index}:`,
-                error
-              );
+              console.error(`Error setting gScaleY for WebglPlot instance at index ${index}:`, error);
             }
           } else {
             console.warn(`WebglPlot instance at index ${index} is undefined.`);
           }
         });
+    
+        // Plot each line, with early returns for validation checks
         linesRef.current.forEach((line, i) => {
           if (!line) {
             console.warn(`Line at index ${i} is undefined.`);
             return;
           }
-
+    
           // Map channel number from selectedChannels
           const channelNumber = currentSelectedChannels[i];
           if (channelNumber == null || channelNumber < 0 || channelNumber >= data.length) {
             console.warn(`Invalid channel number: ${channelNumber}. Skipping.`);
             return;
           }
-
+    
           const channelData = data[channelNumber];
-
-          // Ensure sweepPositions.current[i] is initialized
+    
+          // Initialize sweepPositions.current[i] if undefined
           if (sweepPositions.current[i] === undefined) {
             sweepPositions.current[i] = 0;
           }
-
+    
           // Calculate the current position
-          const currentPos = sweepPositions.current[i] % line.numPoints;
-
+          let currentPos = sweepPositions.current[i] % line.numPoints;
           if (Number.isNaN(currentPos)) {
             console.error(`Invalid currentPos at index ${i}. sweepPositions.current[i]:`, sweepPositions.current[i]);
             return;
           }
-
+    
           // Plot the data
           try {
             line.setY(currentPos, channelData);
           } catch (error) {
             console.error(`Error plotting data for line ${i} at position ${currentPos}:`, error);
           }
-
+    
           // Clear the next point for visual effect
-          const clearPosition = Math.ceil((currentPos + numXRef.current / 100) % line.numPoints);
+          const clearPosition = Math.ceil((currentPos + dataPointCountRef.current / 100) % line.numPoints);
           try {
             line.setY(clearPosition, NaN);
           } catch (error) {
             console.error(`Error clearing data at position ${clearPosition} for line ${i}:`, error);
           }
-
-          // Increment the sweep position
+    
+          // Increment the sweep position for the next iteration
           sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
         });
       },
-      [linesRef, wglPlots, selectedChannelsRef, numXRef, sweepPositions]
+      [wglPlots, linesRef, selectedChannelsRef, dataPointCountRef, sweepPositions]
     );
+    
 
     useEffect(() => {
-      createCanvases();
+      createcanvasElements();
     }, [numChannels, theme, timeBase, selectedChannels]);
 
 
@@ -375,48 +385,56 @@ const Canvas = forwardRef(
         wglPlots.forEach((wglp) => wglp.update());
         requestAnimationFrame(animate); // Continue the animation loop
       }
-    }, [currentSnapshot, numXRef.current, pauseRef.current, wglPlots, Zoom]);
+    }, [currentSnapshot, dataPointCountRef.current, pauseRef.current, wglPlots, Zoom]);
 
 
     const updatePlotSnapshot = (currentSnapshot: number) => {
-      for (let i = 0; i < canvasCount; i++) {
-        wglPlots.forEach((wglp, index) => {
-          if (wglp) {
-            try {
-              wglp.gScaleY = Zoom; // Adjust the zoom value
-            } catch (error) {
-              console.error(
-                `Error setting gScaleY for WebglPlot instance at index ${index}:`,
-                error
-              );
-            }
-          } else {
-            console.warn(`WebglPlot instance at index ${index} is undefined.`);
+      // Access references and validate once to avoid repeated checks
+      const dataIndices = dataIndicesRef.current;
+      const array3D = array3DRef.current;
+    
+      // Early validation to avoid repeated checks inside the loop
+      if (!dataIndices || !array3D || dataIndices[currentSnapshot] === undefined) {
+        console.warn("One of the references is undefined or invalid");
+        return;
+      }
+    
+      // Process zoom settings for each WebglPlot only once
+      wglPlots.forEach((wglp, index) => {
+        if (wglp) {
+          try {
+            wglp.gScaleY = Zoom; // Adjust the zoom value
+          } catch (error) {
+            console.error(`Error setting gScaleY for WebglPlot instance at index ${index}:`, error);
           }
-        });
-        if (
-          array3DRef.current &&
-          indicesRef.current &&
-          indicesRef.current[currentSnapshot] !== undefined &&
-          array3DRef.current[indicesRef.current[currentSnapshot]] !== undefined
-        ) {
-          const yArray = new Float32Array(array3DRef.current[indicesRef.current[currentSnapshot]][i]);
-          // Check if the line exists
+        } else {
+          console.warn(`WebglPlot instance at index ${index} is undefined.`);
+        }
+      });
+    
+      // Process each canvas (or line) and update
+      for (let i = 0; i < canvasCount; i++) {
+        const lineData = array3D[dataIndices[currentSnapshot]];
+    
+        if (lineData && lineData[i]) {
+          const yArray = new Float32Array(lineData[i]);
+    
+          // Ensure line exists before adding data
           const line = linesRef.current[i];
           if (line) {
             line.shiftAdd(yArray); // Efficiently add new points
           } else {
             console.error(`Line at index ${i} is undefined or null.`);
           }
-
         } else {
-          console.warn("One of the references is undefined or invalid");
+          console.warn(`No data found for snapshot ${currentSnapshot}, index ${i}.`);
         }
-
-
       }
-      wglPlots.forEach((wglp) => wglp.update()); // Redraw the plots
+    
+      // Redraw the plots after all updates
+      wglPlots.forEach((wglp) => wglp.update());
     };
+    
 
     useEffect(() => {
       requestAnimationFrame(animate);
@@ -425,15 +443,14 @@ const Canvas = forwardRef(
 
     useEffect(() => {
       const handleResize = () => {
-        createCanvases();
+        createcanvasElements();
 
       };
       window.addEventListener("resize", handleResize);
       return () => {
         window.removeEventListener("resize", handleResize);
       };
-    }, [createCanvases]);
-
+    }, [createcanvasElements]);
 
     return (
       <main className=" flex flex-col flex-[1_1_0%] min-h-80 bg-highlight  rounded-2xl m-4 relative"
