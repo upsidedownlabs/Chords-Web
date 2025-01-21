@@ -113,6 +113,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const maxCanvasCountRef = useRef<number>(1);
   const [isAllEnabledSelected, setIsAllEnabledSelected] = useState(false);
   const channelNamesfil = Array.from({ length: maxCanvasCountRef.current }, (_, i) => `CH${i + 1}`);
+  const initialSelectedChannel = useRef<any[]>([1]);
 
 
   const readerRef = useRef<
@@ -307,7 +308,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  //////////////////////////////////
   const workerRef = useRef<Worker | null>(null);
 
   const initializeWorker = () => {
@@ -410,8 +410,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
   };
 
-  //////////////////////////////////////////
-
   const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Function to handle the custom time input change
     const value = e.target.value.replace(/[^0-9]/g, "");
@@ -478,6 +476,7 @@ const Connection: React.FC<ConnectionProps> = ({
     baudRate: number;
   }
 
+
   const connectToDevice = async () => {
 
     try {
@@ -508,7 +507,6 @@ const Connection: React.FC<ConnectionProps> = ({
 
       let baudRate;
       let serialTimeout;
-      let initialSelectedChannels
       // If no saved port is found, request a new port and save it
       if (!port) {
         port = await navigator.serial.requestPort();
@@ -553,7 +551,7 @@ const Connection: React.FC<ConnectionProps> = ({
   
         if (deviceIndex !== -1) {
           const savedChannels = savedPorts[deviceIndex].selectedChannels;
-          initialSelectedChannels = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
+          initialSelectedChannel.current = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
         }
 
         baudRate = savedDevice?.baudRate || 230400; // Default to 230400 if no saved baud rate
@@ -605,7 +603,7 @@ const Connection: React.FC<ConnectionProps> = ({
             baudRate: extractedBaudRate,
             serialTimeout: extractedSerialTimeout,
           } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
-          const allSelected = initialSelectedChannels.length === channelCount;
+          const allSelected = initialSelectedChannel.current.length == channelCount;
           setIsAllEnabledSelected(allSelected);
           // Update baudRate and serialTimeout with extracted values
           baudRate = extractedBaudRate ?? baudRate;
