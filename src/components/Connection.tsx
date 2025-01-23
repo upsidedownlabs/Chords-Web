@@ -96,7 +96,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // UI States for Popovers and Buttons
   const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
-  const [isAllEnabledSelected, setIsAllEnabledSelected] = useState(false);
+  const [isAllEnabledChannelSelected, setIsAllEnabledChannelSelected] = useState(false);
   const [isSelectAllDisabled, setIsSelectAllDisabled] = useState(false);
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false);
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
@@ -106,17 +106,17 @@ const Connection: React.FC<ConnectionProps> = ({
   const detectedBitsRef = React.useRef<BitSelection>(10);
   const [datasets, setDatasets] = useState<any[]>([]);
   const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
-  const [customTime, setCustomTime] = useState<string>(""); // State to store the custom stop time input
-  const [clickCount, setClickCount] = useState(0); // Track how many times the left arrow is clicked
+  const [customTimeInput, setCustomTimeInput] = useState<string>(""); // State to store the custom stop time input
+  const [leftArrowClickCount, setLeftArrowClickCount] = useState(0); // Track how many times the left arrow is clicked
   const [popoverVisible, setPopoverVisible] = useState(false);
-  const [ifBits, setifBits] = useState<BitSelection>(10);
+  const [selectedBitsValue, setSelectedBitsValue] = useState<BitSelection>(10);
 
   // UI Themes & Modes
   const { theme } = useTheme(); // Current theme of the app
-  const isDarkMode = theme === "dark"; // Boolean to check if dark mode is enabled
+  const isDarkModeEnabled = theme === "dark"; // Boolean to check if dark mode is enabled
 
   // Time and End Time Tracking
-  const recordingStartTime = useRef<number>(0);
+  const recordingStartTimeRef = useRef<number>(0);
   const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
 
   // Serial Port States
@@ -129,11 +129,11 @@ const Connection: React.FC<ConnectionProps> = ({
   const portRef = useRef<SerialPort | null>(null); // Ref to store the serial port
 
   // Canvas Settings & Channels
-  const canvasnumbersRef = useRef<number>(1);
-  const maxCanvasCountRef = useRef<number>(1);
-  const channelNamesfil = Array.from({ length: maxCanvasCountRef.current }, (_, i) => `CH${i + 1}`);
-  const currentFilenameRef = useRef<string>("");
-  const initialSelectedChannel = useRef<any[]>([1]);
+  const canvasElementCountRef = useRef<number>(1);
+  const maxCanvasElementCountRef = useRef<number>(1);
+  const channelNames = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => `CH${i + 1}`);
+  const currentFileNameRef = useRef<string>("");
+  const initialSelectedChannelsRef = useRef<any[]>([1]);
 
   // Buffer Management
   const buffer: number[] = []; // Buffer to store incoming data
@@ -154,7 +154,7 @@ const Connection: React.FC<ConnectionProps> = ({
     setIsDisplay(newPauseState);
     onPauseChange(newPauseState); // Notify parent about the change
     SetCurrentSnapshot(0);
-    setClickCount(0);
+    setLeftArrowClickCount(0);
 
   };
 
@@ -162,8 +162,8 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // Enable/Disable left arrow button
   const handlePrevSnapshot = () => {
-    if (clickCount < enabledClicks) {
-      setClickCount((prevCount) => prevCount + 1); // Use functional update
+    if (leftArrowClickCount < enabledClicks) {
+      setLeftArrowClickCount((prevCount) => prevCount + 1); // Use functional update
     }
 
     if (currentSnapshot < 4) {
@@ -172,13 +172,13 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   useEffect(() => {
-    const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+    const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
 
     // Check localStorage for saved data
     const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
     const portInfo = portRef.current?.getInfo();
 
-    let initialSelectedChannels: number[] = [1]; // Default to channel 1 if no saved channels are found
+    let initialSelectedChannelsRefs: number[] = [1]; // Default to channel 1 if no saved channels are found
 
     if (portInfo) {
       const { usbVendorId, usbProductId } = portInfo;
@@ -190,44 +190,44 @@ const Connection: React.FC<ConnectionProps> = ({
 
       if (deviceIndex !== -1) {
         const savedChannels = savedPorts[deviceIndex].selectedChannels;
-        initialSelectedChannel.current = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
+        initialSelectedChannelsRef.current = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
       }
     }
 
     // Set initial selected channels
-    setSelectedChannels(initialSelectedChannels);
+    setSelectedChannels(initialSelectedChannelsRefs);
 
     // Update the "Select All" button state based on the loaded channels
-    const allSelected = initialSelectedChannels.length == enabledChannels.length;
-    const selectAllDisabled = initialSelectedChannels.length === enabledChannels.length - 1;
+    const allSelected = initialSelectedChannelsRefs.length == enabledChannels.length;
+    const selectAllDisabled = initialSelectedChannelsRefs.length === enabledChannels.length - 1;
 
-    setIsAllEnabledSelected(allSelected);
+    setIsAllEnabledChannelSelected(allSelected);
     setIsSelectAllDisabled(selectAllDisabled);
   }, []); // Runs only on component mount
 
   useEffect(() => {
     // Only update state if the selectedChannels actually changed
-    if (selectedChannels !== initialSelectedChannel.current) {
+    if (selectedChannels !== initialSelectedChannelsRef.current) {
       setSelectedChannels(selectedChannels);
     }
   }, [selectedChannels]);
 
   // UseEffect to track changes in selectedChannels and enabledChannels
   useEffect(() => {
-    const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+    const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
 
     // Disable "Select All" button if the difference is exactly 1
     setIsSelectAllDisabled(selectedChannels.length === enabledChannels.length - 1);
 
     // Update the "Select All" button state
-    setIsAllEnabledSelected(selectedChannels.length === enabledChannels.length);
-  }, [selectedChannels, maxCanvasCountRef.current]); // Trigger whenever selectedChannels or maxCanvasCountRef changes
+    setIsAllEnabledChannelSelected(selectedChannels.length === enabledChannels.length);
+  }, [selectedChannels, maxCanvasElementCountRef.current]); // Trigger whenever selectedChannels or maxCanvasElementCountRef changes
 
   const handleSelectAllToggle = () => {
-    const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+    const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
     const remainingChannels = enabledChannels.filter(channel => !selectedChannels.includes(channel));
 
-    if (!isAllEnabledSelected) {
+    if (!isAllEnabledChannelSelected) {
       if (remainingChannels.length === 1) {
         // If only one remaining channel, select it
         toggleChannel(remainingChannels[0]);
@@ -245,7 +245,7 @@ const Connection: React.FC<ConnectionProps> = ({
     }
 
     // Toggle the state to indicate whether all channels are selected
-    setIsAllEnabledSelected(prevState => !prevState); // Functional update for toggle
+    setIsAllEnabledChannelSelected(prevState => !prevState); // Functional update for toggle
   };
 
 
@@ -286,25 +286,25 @@ const Connection: React.FC<ConnectionProps> = ({
 
   // UseEffect to track when all channels are selected manually
   useEffect(() => {
-    const enabledChannels = Array.from({ length: maxCanvasCountRef.current }, (_, i) => i + 1);
+    const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
 
     // Check if all enabled channels are selected to update the "Select All" state
-    setIsAllEnabledSelected(selectedChannels.length === enabledChannels.length);
-  }, [selectedChannels, maxCanvasCountRef.current]); // Trigger when selectedChannels or maxCanvasCountRef changes
+    setIsAllEnabledChannelSelected(selectedChannels.length === enabledChannels.length);
+  }, [selectedChannels, maxCanvasElementCountRef.current]); // Trigger when selectedChannels or maxCanvasElementCountRef changes
 
   // Handle right arrow click (reset count and disable button if needed)
   const handleNextSnapshot = () => {
-    if (clickCount > 0) {
-      setClickCount((prevCount) => prevCount - 1); // Use functional update for more clarity
+    if (leftArrowClickCount > 0) {
+      setLeftArrowClickCount((prevCount) => prevCount - 1); // Use functional update for more clarity
     }
     if (currentSnapshot > 0) {
       SetCurrentSnapshot((prevSnapshot) => prevSnapshot - 1); // Use functional update for more clarity
     }
   };
 
-  // Added useEffect to sync canvasCount state with the canvasnumbersRef and re-render when isRecordingRef changes
+  // Added useEffect to sync canvasCount state with the canvasElementCountRef and re-render when isRecordingRef changes
   useEffect(() => {
-    canvasnumbersRef.current = canvasCount; // Sync the ref with the state
+    canvasElementCountRef.current = canvasCount; // Sync the ref with the state
   }, [canvasCount, isRecordingRef]);
 
 
@@ -342,9 +342,9 @@ const Connection: React.FC<ConnectionProps> = ({
     }
     setCanvasCount(selectedChannels.length)
     // Send canvasCount independently to the worker
-    workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasnumbersRef.current });
+    workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasElementCountRef.current });
   };
-  setCanvasCountInWorker(canvasnumbersRef.current);
+  setCanvasCountInWorker(canvasElementCountRef.current);
 
   const setSelectedChannelsInWorker = (selectedChannels: number[]) => {
     if (!workerRef.current) {
@@ -369,7 +369,7 @@ const Connection: React.FC<ConnectionProps> = ({
     if (recordingBuffers[bufferIndex].length === 0) return;
 
     const data = recordingBuffers[bufferIndex];
-    const filename = currentFilenameRef.current;
+    const filename = currentFileNameRef.current;
 
     if (filename) {
       // Check if the record already exists
@@ -429,66 +429,134 @@ const Connection: React.FC<ConnectionProps> = ({
 
   };
 
+  const deleteFileByFilename = async (filename: string) => {
+    if (!workerRef.current) initializeWorker();
+
+    return new Promise<void>((resolve, reject) => {
+      workerRef.current?.postMessage({ action: 'deleteFile', filename });
+
+      workerRef.current!.onmessage = (event) => {
+        const { success, action, error } = event.data;
+
+        if (action === 'deleteFile') {
+          if (success) {
+            toast.success(`File '${filename}' deleted successfully.`);
+
+            setDatasets((prev) => prev.filter((file) => file !== filename)); // Update datasets
+            resolve();
+          } else {
+            console.error(`Failed to delete file '${filename}': ${error}`);
+            reject(new Error(error));
+          }
+        }
+      };
+    });
+  };
+
+  const deleteAllDataFromIndexedDB = async () => {
+    if (!workerRef.current) initializeWorker();
+
+    return new Promise<void>((resolve, reject) => {
+      workerRef.current?.postMessage({ action: 'deleteAll' });
+
+      workerRef.current!.onmessage = (event) => {
+        const { success, action, error } = event.data;
+
+        if (action === 'deleteAll') {
+          if (success) {
+            toast.success(`All files deleted successfully.`);
+            setDatasets([]); // Clear all datasets from state
+            resolve();
+          } else {
+            console.error('Failed to delete all files:', error);
+            reject(new Error(error));
+          }
+        }
+      };
+    });
+  };
+
+
+
   //////////////////////////////////////////
 
-  const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Function to handle the custom time input change
-    const value = e.target.value.replace(/[^0-9]/g, "");
-    setCustomTime(value);
+  const handlecustomTimeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Update custom time input with only numeric values
+    setCustomTimeInput(e.target.value.replace(/\D/g, ""));
   };
 
-  const handleCustomTimeSet = () => {
-    // Function to handle the custom time input set
-    const time = parseInt(customTime);
-    if (!isNaN(time) && time > 0) {
-      handleTimeSelection(time);
+  const handlecustomTimeInputSet = () => {
+    // Parse and validate the custom time input
+    const time = parseInt(customTimeInput, 10);
+
+    if (time > 0) {
+      handleTimeSelection(time); // Proceed with valid time
     } else {
-      toast.error("Please enter a valid time in minutes");
+      toast.error("Please enter a valid time in minutes"); // Show error for invalid input
     }
-    setCustomTime("");
+
+    // Clear the input field after handling
+    setCustomTimeInput("");
   };
+
 
   const formatPortInfo = useCallback(
     (info: SerialPortInfo, deviceName: string, fieldPid?: number) => {
-      if (!info || !info.usbVendorId) {
-        return { formattedInfo: "Port with no info", bits: null, channel: null, baudRate: null, serialTimeout: null };
+      if (!info?.usbVendorId) {
+        return {
+          formattedInfo: "Port with no info",
+          adcResolution: null,
+          channelCount: null,
+          baudRate: null,
+          serialTimeout: null,
+        };
       }
 
-      // Find the board matching both name and field_pid
+      // Find the board matching the device name and optionally fieldPid
       const board = BoardsList.find(
         (b) =>
           b.chords_id.toLowerCase() === deviceName.toLowerCase() &&
-          (!fieldPid || (b.field_pid) === fieldPid) // Match field_pid if provided
+          (!fieldPid || b.field_pid === fieldPid)
       );
 
       if (board) {
-        setifBits(board.adc_resolution as BitSelection);
-        setSelectedBits(board.adc_resolution as BitSelection);
-        detectedBitsRef.current = board.adc_resolution as BitSelection;
+        const { adc_resolution, channel_count, sampling_rate, baud_Rate, serial_timeout, device_name } = board;
 
-        const channel = board.channel_count ? (board.channel_count) : 0;
-        maxCanvasCountRef.current = channel;
-        if (board.sampling_rate) {
-          setCurrentSamplingRate(board.sampling_rate);
+        // Update state and refs
+        const bitSelection = adc_resolution as BitSelection;
+        setSelectedBitsValue(bitSelection);
+        setSelectedBits(bitSelection);
+        detectedBitsRef.current = bitSelection;
+        maxCanvasElementCountRef.current = channel_count || 0;
+
+        if (sampling_rate) {
+          setCurrentSamplingRate(sampling_rate);
         }
 
         return {
           formattedInfo: (
             <>
-              {board.device_name} <br /> Product ID: {info.usbProductId}
+              {device_name} <br /> Product ID: {info.usbProductId}
             </>
           ),
-          adcResolution: board.adc_resolution,
-          channelCount: board.channel_count,
-          baudRate: (board.baud_Rate),   // Return baudRate
-          serialTimeout: (board.serial_timeout), // Return serialTimeout
+          adcResolution: adc_resolution,
+          channelCount: channel_count,
+          baudRate: baud_Rate,
+          serialTimeout: serial_timeout,
         };
       }
 
+      // Handle case where no matching board is found
       setDetectedBits(null);
-      return { formattedInfo: `${deviceName}`, adcResolution: null, channelCount: null, baudRate: null, serialTimeout: null };
+      return {
+        formattedInfo: `${deviceName}`,
+        adcResolution: null,
+        channelCount: null,
+        baudRate: null,
+        serialTimeout: null,
+      };
     },
-    []
+    [] // Dependency array
   );
 
   interface SavedDevice {
@@ -527,7 +595,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
       let baudRate;
       let serialTimeout;
-      let initialSelectedChannels
+      let initialSelectedChannelsRefs
       // If no saved port is found, request a new port and save it
       if (!port) {
         port = await navigator.serial.requestPort();
@@ -572,7 +640,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
         if (deviceIndex !== -1) {
           const savedChannels = savedPorts[deviceIndex].selectedChannels;
-          initialSelectedChannel.current = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
+          initialSelectedChannelsRef.current = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
         }
 
         baudRate = savedDevice?.baudRate || 230400; // Default to 230400 if no saved baud rate
@@ -608,10 +676,13 @@ const Connection: React.FC<ConnectionProps> = ({
             }
           }
 
-          // Extract device name from response
+          // Extract the last line as the response
           const response = buffer.trim().split("\n").pop();
+
+          // Extract the device name using a regex that allows letters, numbers, dashes, spaces, and underscores
           const extractedName =
-            response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
+            response?.match(/[A-Za-z0-9\-_\s]+$/)?.[0]?.trim() || "Unknown Device";
+
 
           const currentPortInfo = port.getInfo();
           const usbProductId = currentPortInfo.usbProductId ?? 0;
@@ -624,8 +695,8 @@ const Connection: React.FC<ConnectionProps> = ({
             baudRate: extractedBaudRate,
             serialTimeout: extractedSerialTimeout,
           } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
-          const allSelected = initialSelectedChannel.current.length == channelCount;
-          setIsAllEnabledSelected(allSelected);
+          const allSelected = initialSelectedChannelsRef.current.length == channelCount;
+          setIsAllEnabledChannelSelected(allSelected);
           // Update baudRate and serialTimeout with extracted values
           baudRate = extractedBaudRate ?? baudRate;
           serialTimeout = extractedSerialTimeout ?? serialTimeout;
@@ -674,7 +745,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
     setIsLoading(false); // Always stop loading
   };
-
 
   const getFileCountFromIndexedDB = async (): Promise<any[]> => {
     if (!workerRef.current) {
@@ -821,14 +891,14 @@ const Connection: React.FC<ConnectionProps> = ({
   // Function to read data from a connected device and process it
   const readData = async (): Promise<void> => {
     const HEADER_LENGTH = 3; // Length of the packet header
-    const NUM_CHANNELS = maxCanvasCountRef.current; // Number of channels in the data packet
+    const NUM_CHANNELS = maxCanvasElementCountRef.current; // Number of channels in the data packet
     const PACKET_LENGTH = NUM_CHANNELS * 2 + HEADER_LENGTH + 1; // Total length of each packet
     const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
     const SYNC_BYTE2 = 0x7c; // Second synchronization byte
     const END_BYTE = 0x01; // End byte to signify the end of a packet
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
-    const notchFilters = Array.from({ length: maxCanvasCountRef.current }, () => new Notch());
-    const EXGFilters = Array.from({ length: maxCanvasCountRef.current }, () => new EXGFilter());
+    const notchFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
+    const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
     notchFilters.forEach((filter) => {
       filter.setbits(detectedBitsRef.current.toString()); // Set the bits value for all instances
     });
@@ -895,18 +965,18 @@ const Connection: React.FC<ConnectionProps> = ({
               datastream(channelData); // Pass the channel data to the LineData function for further processing
               if (isRecordingRef.current) {
                 const channeldatavalues = channelData
-                  .slice(0, canvasnumbersRef.current + 1)
+                  .slice(0, canvasElementCountRef.current + 1)
                   .map((value) => (value !== undefined ? value : null))
                   .filter((value): value is number => value !== null); // Filter out null values
                 // Check if recording is enabled
                 recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
 
                 if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
-                  processBuffer(activeBufferIndex, canvasnumbersRef.current, selectedChannels);
+                  processBuffer(activeBufferIndex, canvasElementCountRef.current, selectedChannels);
                   activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
                 }
                 fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
-                const elapsedTime = Date.now() - recordingStartTime.current;
+                const elapsedTime = Date.now() - recordingStartTimeRef.current;
                 setRecordingElapsedTime((prev) => {
                   if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
                     stopRecording();
@@ -955,19 +1025,19 @@ const Connection: React.FC<ConnectionProps> = ({
       // Start a new recording session
       isRecordingRef.current = true;
       const now = new Date();
-      recordingStartTime.current = Date.now();
+      recordingStartTimeRef.current = Date.now();
       setRecordingElapsedTime(Date.now());
       setIsRecordButtonDisabled(true);
       setIsDisplay(false);
       const filename = `ChordsWeb-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
         `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
 
-      currentFilenameRef.current = filename;
+      currentFileNameRef.current = filename;
     }
   };
 
   const stopRecording = async () => {
-    if (!recordingStartTime) {
+    if (!recordingStartTimeRef) {
       toast.error("Recording start time was not captured.");
       return;
     }
@@ -975,8 +1045,8 @@ const Connection: React.FC<ConnectionProps> = ({
     setRecordingElapsedTime(0);
     setIsRecordButtonDisabled(false);
     setIsDisplay(true);
-    // setRecordingStartTime(0);
-    recordingStartTime.current = 0;
+    // setrecordingStartTimeRef(0);
+    recordingStartTimeRef.current = 0;
     existingRecordRef.current = undefined;
     // Re-fetch datasets from IndexedDB after recording stops
     const fetchData = async () => {
@@ -996,129 +1066,6 @@ const Connection: React.FC<ConnectionProps> = ({
     return `${hours}:${minutes}:${seconds}`;
   };
 
-  const deleteFilesByFilename = async (filename: string) => {
-    try {
-      const dbRequest = indexedDB.open("ChordsRecordings");
-
-      dbRequest.onsuccess = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        const transaction = db.transaction("ChordsRecordings", "readwrite");
-        const store = transaction.objectStore("ChordsRecordings");
-
-        // Check if the "filename" index exists
-        if (!store.indexNames.contains("filename")) {
-          console.error("Index 'filename' does not exist.");
-          toast.error("Unable to delete files: index not found.");
-          return;
-        }
-
-        const index = store.index("filename");
-        const deleteRequest = index.openCursor(IDBKeyRange.only(filename));
-
-        // Make this callback async
-        deleteRequest.onsuccess = async (event) => {
-          const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-
-          if (cursor) {
-            cursor.delete(); // Delete the current record
-            // Fetch the updated data and update state
-            const data = await getFileCountFromIndexedDB();
-            setDatasets(data); // Update datasets with the latest data
-          } else {
-            console.log(`No file found with filename: ${filename}`);
-            toast.success("File deleted successfully.");
-          }
-        };
-
-        deleteRequest.onerror = () => {
-          console.error("Error during delete operation.");
-          toast.error("Failed to delete the file. Please try again.");
-        };
-
-        transaction.oncomplete = () => {
-          console.log("File deletion transaction completed.");
-        };
-
-        transaction.onerror = () => {
-          console.error("Transaction failed during deletion.");
-          toast.error("Failed to delete the file. Please try again.");
-        };
-      };
-
-      dbRequest.onerror = () => {
-        console.error("Failed to open IndexedDB database.");
-        toast.error("An error occurred while accessing the database.");
-      };
-    } catch (error) {
-      console.error("Error occurred during file deletion:", error);
-      toast.error("An unexpected error occurred. Please try again.");
-    }
-  };
-
-  // Function to delete all data from IndexedDB (for ZIP files or clear all)
-  const deleteAllDataFromIndexedDB = async () => {
-    return new Promise<void>((resolve, reject) => {
-      try {
-        const dbRequest = indexedDB.open("ChordsRecordings", 2);
-
-        dbRequest.onerror = (error) => {
-          console.error("Failed to open IndexedDB:", error);
-          reject(new Error("Failed to open database"));
-        };
-
-        dbRequest.onsuccess = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-
-          // Start a transaction and get the object store
-          const transaction = db.transaction(["ChordsRecordings"], "readwrite");
-          const store = transaction.objectStore("ChordsRecordings");
-
-          // Clear all records from the store
-          const clearRequest = store.clear();
-
-          clearRequest.onsuccess = () => {
-            // Close the database connection
-            db.close();
-
-            setDatasets([]);
-            setPopoverVisible(false);
-            toast.success("All files deleted successfully.");
-            resolve();
-          };
-
-          clearRequest.onerror = (error) => {
-            console.error("Failed to clear IndexedDB store:", error);
-            toast.error("Failed to delete all files. Please try again.");
-            reject(error);
-          };
-
-          transaction.onerror = (error) => {
-            console.error("Transaction failed:", error);
-            toast.error("Failed to delete all files. Please try again.");
-            reject(error);
-          };
-        };
-
-        dbRequest.onupgradeneeded = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-
-          // Create the object store if it doesn't exist
-          if (!db.objectStoreNames.contains("ChordsRecordings")) {
-            const store = db.createObjectStore("ChordsRecordings", {
-              keyPath: "filename",
-
-            });
-            store.createIndex("filename", "filename", { unique: false });
-
-          }
-        };
-
-      } catch (error) {
-        console.error("Error in deleteAllDataFromIndexedDB:", error);
-        reject(error);
-      }
-    });
-  };
 
   return (
     <div className="flex-none items-center justify-center pb-4 bg-g">
@@ -1173,12 +1120,12 @@ const Connection: React.FC<ConnectionProps> = ({
                         inputMode="numeric"
                         pattern="[0-9]*"
                         placeholder="Custom"
-                        value={customTime}
-                        onBlur={handleCustomTimeSet}
+                        value={customTimeInput}
+                        onBlur={handlecustomTimeInputSet}
                         onKeyDown={(e) =>
-                          e.key === "Enter" && handleCustomTimeSet()
+                          e.key === "Enter" && handlecustomTimeInputSet()
                         }
-                        onChange={handleCustomTimeChange}
+                        onChange={handlecustomTimeInputChange}
                         className="w-20"
                       />
                       <Button
@@ -1232,14 +1179,13 @@ const Connection: React.FC<ConnectionProps> = ({
           </Tooltip>
         </TooltipProvider>
 
-
         {/* Display (Play/Pause) button with tooltip */}
         {isDeviceConnected && (
           <div className="flex items-center gap-0.5 mx-0 px-0">
             <Button
               className="rounded-xl rounded-r-none"
               onClick={handlePrevSnapshot}
-              disabled={isDisplay || clickCount >= enabledClicks}
+              disabled={isDisplay || leftArrowClickCount >= enabledClicks}
 
             >
               <ArrowLeftToLine size={16} />
@@ -1265,7 +1211,7 @@ const Connection: React.FC<ConnectionProps> = ({
             <Button
               className="rounded-xl rounded-l-none"
               onClick={handleNextSnapshot}
-              disabled={isDisplay || clickCount == 0}
+              disabled={isDisplay || leftArrowClickCount == 0}
             >
               <ArrowRightToLine size={16} />
             </Button>
@@ -1333,7 +1279,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             {/* Delete file by filename */}
                             <Button
                               onClick={() => {
-                                deleteFilesByFilename(dataset);
+                                deleteFileByFilename(dataset);
                               }}
                               className="rounded-xl px-4"
                             >
@@ -1395,7 +1341,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => removeEXGFilterFromAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i))}
+                        onClick={() => removeEXGFilterFromAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i))}
                         className={`rounded-xl rounded-r-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 0
                             ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
@@ -1407,9 +1353,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 4)}
+                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 4)}
                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1418,9 +1364,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       </Button> <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 3)}
+                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 3)}
                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1429,9 +1375,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       </Button> <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 1)}
+                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 1)}
                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1440,9 +1386,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       </Button> <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 2)}
+                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 2)}
                         className={`rounded-xl rounded-l-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1454,7 +1400,7 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => removeNotchFromAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i))}
+                        onClick={() => removeNotchFromAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i))}
                         className={`rounded-xl rounded-r-none border-0
                           ${Object.keys(appliedFiltersRef.current).length === 0
                             ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
@@ -1467,9 +1413,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 1)}
+                        onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 1)}
                         className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 1)
+                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 1)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1479,9 +1425,9 @@ const Connection: React.FC<ConnectionProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasCountRef.current }, (_, i) => i), 2)}
+                        onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 2)}
                         className={`rounded-xl rounded-l-none border-0
-                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 2)
+                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 2)
                             ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                             : "bg-white-500" // Active background
                           }`}
@@ -1492,7 +1438,7 @@ const Connection: React.FC<ConnectionProps> = ({
                   </div>
                 </div>
                 <div className="flex flex-col space-y-2">
-                  {channelNamesfil.map((filterName, index) => (
+                  {channelNames.map((filterName, index) => (
                     <div key={filterName} className="flex items-center">
                       {/* Filter Name */}
                       <div className="text-sm font-semibold w-12">{filterName}</div>
@@ -1636,18 +1582,16 @@ const Connection: React.FC<ConnectionProps> = ({
                               }`}
                             disabled={isSelectAllDisabled}
                           >
-                            {isAllEnabledSelected ? "RESET" : "Select All"}
+                            {isAllEnabledChannelSelected ? "RESET" : "Select All"}
                           </button>
-
                         </div>
-
                         {/* Button Grid */}
                         <div id="button-container" className="relative space-y-2 rounded-lg">
                           {Array.from({ length: 2 }).map((_, container) => (
                             <div key={container} className="grid grid-cols-8 gap-2">
                               {Array.from({ length: 8 }).map((_, col) => {
                                 const index = container * 8 + col;
-                                const isChannelDisabled = index >= maxCanvasCountRef.current;
+                                const isChannelDisabled = index >= maxCanvasElementCountRef.current;
 
                                 const buttonColors = [
                                   "bg-custom-1", "bg-custom-2", "bg-custom-3", "bg-custom-4",
@@ -1658,7 +1602,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
                                 const backgroundColorClass = buttonColors[index % buttonColors.length];
                                 const buttonClass = isChannelDisabled
-                                  ? isDarkMode
+                                  ? isDarkModeEnabled
                                     ? "bg-[#030c21] text-gray-700 cursor-not-allowed"
                                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                   : selectedChannels.includes(index + 1)
