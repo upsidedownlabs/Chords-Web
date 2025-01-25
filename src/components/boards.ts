@@ -26,16 +26,28 @@ const createBoardConfig = ({
   sampling_rate = COMMON_SAMPLING_RATE,
   serial_timeout = COMMON_TIMEOUT,
   baud_Rate = COMMON_BAUD_RATE, // Default value for baud_Rate
-}: Partial<BoardConfig> & { chords_id: string; device_name: string; field_pid: number; adc_resolution: number; channel_count: number }) => ({
-  chords_id,
-  device_name,
-  field_pid,
-  adc_resolution,
-  channel_count,
-  sampling_rate,
-  serial_timeout,
-  baud_Rate,
-});
+}: Partial<BoardConfig> & { chords_id: string; device_name: string; field_pid: number; adc_resolution: number; channel_count: number }) => {
+  // Validate required parameters
+  if (!chords_id || !device_name || !field_pid || !adc_resolution || !channel_count) {
+    throw new Error('Missing required board configuration parameters');
+  }
+
+  // Validate numeric parameters
+  if (adc_resolution <= 0 || channel_count <= 0 || sampling_rate <= 0 || serial_timeout <= 0 || baud_Rate <= 0) {
+    throw new Error('Invalid numeric parameters in board configuration');
+  }
+
+  return {
+    chords_id,
+    device_name,
+    field_pid,
+    adc_resolution,
+    channel_count,
+    sampling_rate,
+    serial_timeout,
+    baud_Rate,
+  };
+};
 
 export const BoardsList: ReadonlyArray<BoardConfig> = Object.freeze([
   createBoardConfig({
