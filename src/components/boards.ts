@@ -66,17 +66,6 @@ export const BoardsList: ReadonlyArray<BoardConfig> = Object.freeze([
     baud_Rate: 115200,
   }),
   createBoardConfig({
-    chords_id: "BLACK-PILL",
-    device_name: "Black Pill - STM32F4",
-    field_pid: 22336,
-    adc_resolution: 12,
-    channel_count: 10,
-    sampling_rate: 500,
-    serial_timeout: 200,
-    baud_Rate: 230400
-  }),
-
-  createBoardConfig({
     chords_id: "NANO-CLONE",
     device_name: "Arduino Nano Clone",
     field_pid: 32832,
