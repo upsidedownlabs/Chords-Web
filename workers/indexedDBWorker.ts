@@ -110,7 +110,7 @@ const openIndexedDB = async (): Promise<IDBDatabase> => {
 };
 
 // Helper function for IndexedDB transactions
-const performTransaction = async <T>(
+const performIndexDBTransaction = async <T>(
   db: IDBDatabase,
   storeName: string,
   mode: IDBTransactionMode,
@@ -133,7 +133,7 @@ const writeToIndexedDB = async (
   filename: string
 ): Promise<boolean> => {
   try {
-    const existingRecord = await performTransaction(db, "ChordsRecordings", "readwrite", (store) => {
+    const existingRecord = await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", (store) => {
       return new Promise<any>((resolve, reject) => {
         const getRequest = store.get(filename);
         getRequest.onsuccess = () => resolve(getRequest.result);
@@ -143,7 +143,7 @@ const writeToIndexedDB = async (
 
     if (existingRecord) {
       existingRecord.content.push(...data);
-      await performTransaction(db, "ChordsRecordings", "readwrite", (store) => {
+      await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", (store) => {
         return new Promise<void>((resolve, reject) => {
           const putRequest = store.put(existingRecord);
           putRequest.onsuccess = () => resolve();
@@ -152,7 +152,7 @@ const writeToIndexedDB = async (
       });
     } else {
       const newRecord = { filename, content: [...data] };
-      await performTransaction(db, "ChordsRecordings", "readwrite", (store) => {
+      await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", (store) => {
         return new Promise<void>((resolve, reject) => {
           const putRequest = store.put(newRecord);
           putRequest.onsuccess = () => resolve();
@@ -172,7 +172,7 @@ const writeToIndexedDB = async (
 // Function to get all data from IndexedDB
 const getAllDataFromIndexedDB = async (db: IDBDatabase): Promise<any[]> => {
   try {
-    return await performTransaction(db, "ChordsRecordings", "readonly", (store) => {
+    return await performIndexDBTransaction(db, "ChordsRecordings", "readonly", (store) => {
       return new Promise<any[]>((resolve, reject) => {
         const request = store.getAll();
         request.onsuccess = () => resolve(request.result);
@@ -233,7 +233,7 @@ const saveAllDataAsZip = async (canvasCount: number, selectedChannels: number[])
   try {
     const db = await openIndexedDB();
 
-    const allData = await performTransaction(db, "ChordsRecordings", "readonly", (store) => {
+    const allData = await performIndexDBTransaction(db, "ChordsRecordings", "readonly", (store) => {
       return new Promise<any[]>((resolve, reject) => {
         const request = store.getAll();
         request.onsuccess = () => resolve(request.result);
@@ -275,7 +275,7 @@ const saveDataByFilename = async (
   try {
     const db = await openIndexedDB();
 
-    const record = await performTransaction(db, "ChordsRecordings", "readonly", (store) => {
+    const record = await performIndexDBTransaction(db, "ChordsRecordings", "readonly", (store) => {
       return new Promise<any>((resolve, reject) => {
         const index = store.index("filename");
         const getRequest = index.get(filename);
@@ -310,7 +310,7 @@ const saveDataByFilename = async (
 
 // Function to get file count from IndexedDB
 const getFileCountFromIndexedDB = async (db: IDBDatabase): Promise<string[]> => {
-  return performTransaction(db, "ChordsRecordings", "readonly", (store) => {
+  return performIndexDBTransaction(db, "ChordsRecordings", "readonly", (store) => {
     return new Promise<string[]>((resolve, reject) => {
       const filenames: string[] = [];
       const cursorRequest = store.openCursor();
@@ -342,7 +342,7 @@ const deleteFilesByFilename = async (filename: string) => {
       const db = (event.target as IDBOpenDBRequest).result;
 
       try {
-        await performTransaction(db, "ChordsRecordings", "readwrite", async (store) => {
+        await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", async (store) => {
           if (!store.indexNames.contains("filename")) {
             throw new Error("Index 'filename' does not exist.");
           }
@@ -383,7 +383,7 @@ const deleteAllDataFromIndexedDB = async () => {
       const db = (event.target as IDBOpenDBRequest).result;
 
       try {
-        await performTransaction(db, "ChordsRecordings", "readwrite", async (store) => {
+        await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", async (store) => {
           const clearRequest = store.clear();
 
           return new Promise<void>((resolveClear, rejectClear) => {

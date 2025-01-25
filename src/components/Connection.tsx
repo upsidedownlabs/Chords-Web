@@ -509,6 +509,7 @@ const Connection: React.FC<ConnectionProps> = ({
           channelCount: null,
           baudRate: null,
           serialTimeout: null,
+          usbProductId: null, // Add usbProductId to the return value
         };
       }
 
@@ -520,7 +521,14 @@ const Connection: React.FC<ConnectionProps> = ({
       );
 
       if (board) {
-        const { adc_resolution, channel_count, sampling_rate, baud_Rate, serial_timeout, device_name } = board;
+        const {
+          adc_resolution,
+          channel_count,
+          sampling_rate,
+          baud_Rate,
+          serial_timeout,
+          device_name,
+        } = board;
 
         // Update state and refs
         const bitSelection = adc_resolution as BitSelection;
@@ -536,13 +544,14 @@ const Connection: React.FC<ConnectionProps> = ({
         return {
           formattedInfo: (
             <>
-              {device_name} <br /> Product ID: {info.usbProductId}
+              {device_name}
             </>
           ),
           adcResolution: adc_resolution,
           channelCount: channel_count,
           baudRate: baud_Rate,
           serialTimeout: serial_timeout,
+          usbProductId: info.usbProductId, // Return usbProductId as well
         };
       }
 
@@ -554,10 +563,12 @@ const Connection: React.FC<ConnectionProps> = ({
         channelCount: null,
         baudRate: null,
         serialTimeout: null,
+        usbProductId: info.usbProductId, // Return the usbProductId even if no matching board is found
       };
     },
     [] // Dependency array
   );
+
 
   interface SavedDevice {
     usbVendorId: number;
@@ -705,6 +716,7 @@ const Connection: React.FC<ConnectionProps> = ({
             description: (
               <div className="mt-2 flex flex-col space-y-1">
                 <p>Device: {formattedInfo}</p>
+                <p>Product ID: {usbProductId}</p> {/* Display the Product ID */}
                 <p>Baud Rate: {baudRate}</p>
                 {adcResolution && <p>Resolution: {adcResolution} bits</p>}
                 {channelCount && <p>Channel: {channelCount}</p>}
@@ -807,7 +819,7 @@ const Connection: React.FC<ConnectionProps> = ({
         }
         portRef.current = null;
         setIsDeviceConnected(false); // Update connection state
-        toast("DisDeviceConnected from device", {
+        toast("Disconnected from device", {
           action: {
             label: "Reconnect",
             onClick: () => connectToDevice(),

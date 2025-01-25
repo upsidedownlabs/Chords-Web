@@ -60,10 +60,6 @@ const Canvas = forwardRef(
     const activeBufferIndexRef = useRef(0); // Initialize useRef with 0
     const dataIndicesRef = useRef<number[]>([]);  // Ref to store data indices
 
-    class ColorRGBA {
-      constructor(public r: number, public g: number, public b: number, public a: number) { }
-    }
-
     //select point
     const getpoints = useCallback((bits: BitSelection): number => {
       switch (bits) {
@@ -91,7 +87,7 @@ const Canvas = forwardRef(
 
     const processIncomingData = (incomingData: number[]) => {
       const currentBuffer = array3DRef.current[activeBufferIndexRef.current];
-    
+
       // Handle canvas count changes and reset buffers
       if (prevCanvasCountRef.current !== canvasCount) {
         for (let bufferIndex = 0; bufferIndex < 6; bufferIndex++) {
@@ -100,23 +96,23 @@ const Canvas = forwardRef(
         }
         prevCanvasCountRef.current = canvasCount;
       }
-    
+
       // Process incoming data for each canvas
       currentBuffer.forEach((buffer, i) => {
-        if (buffer.length >= dataPointCountRef.current || 
-            (!pauseRef.current && buffer.length < dataPointCountRef.current)) {
+        if (buffer.length >= dataPointCountRef.current ||
+          (!pauseRef.current && buffer.length < dataPointCountRef.current)) {
           currentBuffer[i] = [];
         }
         currentBuffer[i].push(incomingData[i + 1]);
       });
-    
+
       // Update snapshot and buffer index when data is ready
       if (currentBuffer[0].length >= dataPointCountRef.current) {
         snapShotRef.current[activeBufferIndexRef.current] = true;
         activeBufferIndexRef.current = (activeBufferIndexRef.current + 1) % 6;
         snapShotRef.current[activeBufferIndexRef.current] = false;
       }
-    
+
       // Update data indices for referencing past buffers
       dataIndicesRef.current = Array.from(
         { length: 5 },
