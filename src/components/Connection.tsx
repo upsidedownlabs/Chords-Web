@@ -100,6 +100,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [isSelectAllDisabled, setIsSelectAllDisabled] = useState(false);
   const [isRecordButtonDisabled, setIsRecordButtonDisabled] = useState(false);
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
+  const [manuallySelected, setManuallySelected] = useState(false); // New state to track manual selection
 
   // Data States
   const [detectedBits, setDetectedBits] = useState<BitSelection | null>(null); // State to store the detected bits
@@ -110,6 +111,7 @@ const Connection: React.FC<ConnectionProps> = ({
   const [leftArrowClickCount, setLeftArrowClickCount] = useState(0); // Track how many times the left arrow is clicked
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [selectedBitsValue, setSelectedBitsValue] = useState<BitSelection>(10);
+  const existingRecordRef = useRef<any | undefined>(undefined);
 
   // UI Themes & Modes
   const { theme } = useTheme(); // Current theme of the app
@@ -206,51 +208,60 @@ const Connection: React.FC<ConnectionProps> = ({
   }, []); // Runs only on component mount
 
   useEffect(() => {
-    // Only update state if the selectedChannels actually changed
-    if (selectedChannels !== initialSelectedChannelsRef.current) {
-      setSelectedChannels(selectedChannels);
-    }
-  }, [selectedChannels]);
-
-  // UseEffect to track changes in selectedChannels and enabledChannels
-  useEffect(() => {
     const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
 
-    // Disable "Select All" button if the difference is exactly 1
-    setIsSelectAllDisabled(selectedChannels.length === enabledChannels.length - 1);
+    const allSelected = selectedChannels.length === enabledChannels.length;
+    const onlyOneLeft = selectedChannels.length === enabledChannels.length - 1;
+
+    // Disable "Select All" button if:
+    // - All channels are manually selected
+    // - Only one channel is left to select
+    setIsSelectAllDisabled((allSelected && manuallySelected) || onlyOneLeft);
 
     // Update the "Select All" button state
-    setIsAllEnabledChannelSelected(selectedChannels.length === enabledChannels.length);
-  }, [selectedChannels, maxCanvasElementCountRef.current]); // Trigger whenever selectedChannels or maxCanvasElementCountRef changes
+    setIsAllEnabledChannelSelected(allSelected);
+  }, [selectedChannels, maxCanvasElementCountRef.current, manuallySelected]);
 
+  // Handle the "Select All" button functionality
   const handleSelectAllToggle = () => {
     const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
-    const remainingChannels = enabledChannels.filter(channel => !selectedChannels.includes(channel));
 
     if (!isAllEnabledChannelSelected) {
-      if (remainingChannels.length === 1) {
-        // If only one remaining channel, select it
-        toggleChannel(remainingChannels[0]);
-      } else {
-        // Select all enabled channels
-        enabledChannels.forEach((channel) => {
-          if (!selectedChannels.includes(channel)) {
-            toggleChannel(channel);
-          }
-        });
-      }
+      // Programmatic selection of all channels
+      setManuallySelected(false); // Mark as not manual
+      setSelectedChannels(enabledChannels); // Select all channels
     } else {
-      // If "RESET" is clicked, reset to channel 1 or remove all selected channels
-      setSelectedChannels([1]);
+      // RESET functionality
+      const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+      const portInfo = portRef.current?.getInfo();
+      let initialSelectedChannelsRefs: number[] = [1]; // Default to channel 1 if no saved channels are found
+
+      if (portInfo) {
+        const { usbVendorId, usbProductId } = portInfo;
+        const deviceIndex = savedPorts.findIndex(
+          (saved: SavedDevice) =>
+            saved.usbVendorId === (usbVendorId ?? 0) &&
+            saved.usbProductId === (usbProductId ?? 0)
+        );
+
+        if (deviceIndex !== -1) {
+          const savedChannels = savedPorts[deviceIndex].selectedChannels;
+          initialSelectedChannelsRefs = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
+        }
+      }
+
+      // Set the channels back to saved values
+      setSelectedChannels(initialSelectedChannelsRefs); // Reset to saved channels
     }
 
-    // Toggle the state to indicate whether all channels are selected
-    setIsAllEnabledChannelSelected(prevState => !prevState); // Functional update for toggle
+    setIsAllEnabledChannelSelected((prevState) => !prevState); // Toggle button state
   };
+
 
 
   const toggleChannel = (channelIndex: number) => {
     setSelectedChannels((prevSelected) => {
+      setManuallySelected(true); // Mark as manual selection
       // Toggle the selection of the channel
       const updatedChannels = prevSelected.includes(channelIndex)
         ? prevSelected.filter((ch) => ch !== channelIndex) // Remove channel
@@ -284,13 +295,23 @@ const Connection: React.FC<ConnectionProps> = ({
     });
   };
 
-  // UseEffect to track when all channels are selected manually
   useEffect(() => {
     const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
 
-    // Check if all enabled channels are selected to update the "Select All" state
-    setIsAllEnabledChannelSelected(selectedChannels.length === enabledChannels.length);
-  }, [selectedChannels, maxCanvasElementCountRef.current]); // Trigger when selectedChannels or maxCanvasElementCountRef changes
+    const allSelected = selectedChannels.length === enabledChannels.length;
+    const onlyOneLeft = selectedChannels.length === enabledChannels.length - 1;
+
+    // Disable "Select All" button if:
+    // - All channels are manually selected
+    // - Only one channel is left to select
+    setIsSelectAllDisabled((allSelected && manuallySelected) || onlyOneLeft);
+
+    // Update the "Select All" button state
+    setIsAllEnabledChannelSelected(allSelected);
+  }, [selectedChannels, maxCanvasElementCountRef.current, manuallySelected]);
+
+
+
 
   // Handle right arrow click (reset count and disable button if needed)
   const handleNextSnapshot = () => {
@@ -686,13 +707,11 @@ const Connection: React.FC<ConnectionProps> = ({
               if (buffer.includes("\n")) break;
             }
           }
-
-          // Extract the last line as the response
+          // Extract device name from response
           const response = buffer.trim().split("\n").pop();
-
-          // Extract the device name using a regex that allows letters, numbers, dashes, spaces, and underscores
           const extractedName =
-            response?.match(/[A-Za-z0-9\-_\s]+$/)?.[0]?.trim() || "Unknown Device";
+            response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
+
 
 
           const currentPortInfo = port.getInfo();
@@ -1026,7 +1045,6 @@ const Connection: React.FC<ConnectionProps> = ({
     }
   };
 
-  const existingRecordRef = useRef<any | undefined>(undefined);
   // Function to handle the recording process
   const handleRecord = async () => {
     if (isRecordingRef.current) {
@@ -1057,7 +1075,7 @@ const Connection: React.FC<ConnectionProps> = ({
     setRecordingElapsedTime(0);
     setIsRecordButtonDisabled(false);
     setIsDisplay(true);
-    // setrecordingStartTimeRef(0);
+    
     recordingStartTimeRef.current = 0;
     existingRecordRef.current = undefined;
     // Re-fetch datasets from IndexedDB after recording stops
@@ -1327,7 +1345,6 @@ const Connection: React.FC<ConnectionProps> = ({
             </div>
           </TooltipProvider>
         )}
-
         {isDeviceConnected && (
           <Popover
             open={isFilterPopoverOpen}
@@ -1337,7 +1354,6 @@ const Connection: React.FC<ConnectionProps> = ({
               <Button
                 className="flex items-center justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
                 disabled={!isDisplay}
-
               >
                 Filter
               </Button>
@@ -1421,7 +1437,6 @@ const Connection: React.FC<ConnectionProps> = ({
                       >
                         <CircleOff size={17} />
                       </Button>
-
                       <Button
                         variant="outline"
                         size="sm"
@@ -1586,16 +1601,20 @@ const Connection: React.FC<ConnectionProps> = ({
                           <h3 className="text-xs font-semibold text-gray-500">
                             <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                           </h3>
-                          <button
-                            onClick={handleSelectAllToggle}
-                            className={`px-4 py-1 text-xs font-light rounded-lg transition ${isSelectAllDisabled
-                              ? "text-gray-400 bg-gray-200 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
-                              : "text-white bg-black hover:bg-gray-700 dark:bg-white dark:text-black dark:border dark:border-gray-500 dark:hover:bg-primary/70"
-                              }`}
-                            disabled={isSelectAllDisabled}
-                          >
-                            {isAllEnabledChannelSelected ? "RESET" : "Select All"}
-                          </button>
+                          {
+                            !(selectedChannels.length === maxCanvasElementCountRef.current && manuallySelected) && (
+                              <button
+                                onClick={handleSelectAllToggle}
+                                className={`px-4 py-1 text-xs font-light rounded-lg transition ${isSelectAllDisabled
+                                  ? "text-gray-400 bg-gray-200 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
+                                  : "text-white bg-black hover:bg-gray-700 dark:bg-white dark:text-black dark:border dark:border-gray-500 dark:hover:bg-primary/70"
+                                  }`}
+                                disabled={isSelectAllDisabled}
+                              >
+                                {isAllEnabledChannelSelected ? "RESET" : "Select All"}
+                              </button>
+                            )
+                          }
                         </div>
                         {/* Button Grid */}
                         <div id="button-container" className="relative space-y-2 rounded-lg">
@@ -1701,7 +1720,6 @@ const Connection: React.FC<ConnectionProps> = ({
                       >
                         1
                       </button>
-
                       <input
                         type="range"
                         min="1"
@@ -1713,7 +1731,6 @@ const Connection: React.FC<ConnectionProps> = ({
                         }}
                         className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
                       />
-
                       {/* Button for setting Time Base to 10 */}
                       <button
                         className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
