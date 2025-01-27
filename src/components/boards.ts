@@ -10,6 +10,16 @@ export const BoardsList = Object.freeze([
     baud_Rate: 230400
   },
   {
+    chords_id: "MEGA-2560-R3",
+    device_name: "Arduino MEGA 2560 R3",
+    field_pid: 66,
+    adc_resolution: 10,
+    channel_count: 16,
+    sampling_rate: 500,
+    serial_timeout: 2000,
+    baud_Rate: 230400
+  },
+  {
     chords_id: "NANO-CLONE",
     device_name: "Arduino Nano Clone",
     field_pid: 29987,
@@ -95,6 +105,26 @@ export const BoardsList = Object.freeze([
     field_pid: 614,
     adc_resolution: 16,
     channel_count: 6,
+    sampling_rate: 500,
+    serial_timeout: 100,
+    baud_Rate: 230400
+  },
+  {
+    chords_id: "STM32G4-CORE-BOARD",
+    device_name: "STM32G4 Core Board",
+    field_pid: 22336,
+    adc_resolution: 12,
+    channel_count: 16,
+    sampling_rate: 500,
+    serial_timeout: 100,
+    baud_Rate: 230400
+  },
+  {
+    chords_id: "STM32F4-BLACK-PILL",
+    device_name: "STM32F4 Black Pill",
+    field_pid: 22336,
+    adc_resolution: 12,
+    channel_count: 8,
     sampling_rate: 500,
     serial_timeout: 100,
     baud_Rate: 230400
