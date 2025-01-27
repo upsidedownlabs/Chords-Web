@@ -5,7 +5,7 @@ export const BoardsList = Object.freeze([
     field_pid: 67,
     adc_resolution: 10,
     channel_count: 6,
-    sampling_rate: 250,
+    sampling_rate: 500,
     serial_timeout: 2000,
     baud_Rate: 230400
   },
@@ -20,8 +20,28 @@ export const BoardsList = Object.freeze([
     baud_Rate: 230400
   },
   {
+    chords_id: "MEGA-2560-CLONE",
+    device_name: "MEGA 2560 CLONE",
+    field_pid: 29987,
+    adc_resolution: 10,
+    channel_count: 16,
+    sampling_rate: 250,
+    serial_timeout: 2000,
+    baud_Rate: 115200
+  },
+  {
+    chords_id: "MEGA-2560-CLONE",
+    device_name: "MEGA 2560 CLONE",
+    field_pid: 32832,
+    adc_resolution: 10,
+    channel_count: 16,
+    sampling_rate: 250,
+    serial_timeout: 2000,
+    baud_Rate: 115200
+  },
+  {
     chords_id: "NANO-CLONE",
-    device_name: "Arduino Nano Clone",
+    device_name: "Nano Clone",
     field_pid: 29987,
     adc_resolution: 10,
     channel_count: 8,
@@ -31,7 +51,7 @@ export const BoardsList = Object.freeze([
   },
   {
     chords_id: "NANO-CLONE",
-    device_name: "Arduino Nano Clone",
+    device_name: "Nano Clone",
     field_pid: 32832,
     adc_resolution: 10,
     channel_count: 8,
@@ -45,7 +65,7 @@ export const BoardsList = Object.freeze([
     field_pid: 579,
     adc_resolution: 10,
     channel_count: 6,
-    sampling_rate: 250,
+    sampling_rate: 500,
     serial_timeout: 2000,
     baud_Rate: 230400
   },
