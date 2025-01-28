@@ -5,9 +5,9 @@ export const BoardsList = Object.freeze([
     field_pid: 67,
     adc_resolution: 10,
     channel_count: 6,
-    sampling_rate: 500,
+    sampling_rate: 250,
     serial_timeout: 2000,
-    baud_Rate: 230400
+    baud_Rate: 115200
   },
   {
     chords_id: "MEGA-2560-R3",
@@ -15,9 +15,9 @@ export const BoardsList = Object.freeze([
     field_pid: 66,
     adc_resolution: 10,
     channel_count: 16,
-    sampling_rate: 500,
+    sampling_rate: 250,
     serial_timeout: 2000,
-    baud_Rate: 230400
+    baud_Rate: 115200
   },
   {
     chords_id: "MEGA-2560-CLONE",
@@ -35,6 +35,16 @@ export const BoardsList = Object.freeze([
     field_pid: 32832,
     adc_resolution: 10,
     channel_count: 16,
+    sampling_rate: 250,
+    serial_timeout: 2000,
+    baud_Rate: 115200
+  },
+  {
+    chords_id: "NANO-CLASSIC",
+    device_name: "Nano Classic",
+    field_pid: 24577,
+    adc_resolution: 10,
+    channel_count: 8,
     sampling_rate: 250,
     serial_timeout: 2000,
     baud_Rate: 115200
@@ -65,9 +75,9 @@ export const BoardsList = Object.freeze([
     field_pid: 579,
     adc_resolution: 10,
     channel_count: 6,
-    sampling_rate: 500,
+    sampling_rate: 250,
     serial_timeout: 2000,
-    baud_Rate: 230400
+    baud_Rate: 115200
   },
   {
     chords_id: "UNO-R4",
