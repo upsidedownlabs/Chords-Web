@@ -67,7 +67,7 @@ function validateInput(hex: string, amount: number): void {
 // Example usage
 export const lightThemeColors = Object.values(customColors).map((hex) => {
   // Darken the colors more significantly for the light theme
-  return darkenColor(hex, 0.3); // Stronger darkening for light theme (0.3 instead of 0.1)
+  return darkenColor(hex, 0.4); // Stronger darkening for light theme (0.3 instead of 0.1)
 });
 
 export const darkThemeColors = Object.values(customColors).map((hex) => {

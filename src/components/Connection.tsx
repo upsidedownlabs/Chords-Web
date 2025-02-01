@@ -112,6 +112,8 @@ const Connection: React.FC<ConnectionProps> = ({
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [selectedBitsValue, setSelectedBitsValue] = useState<BitSelection>(10);
   const existingRecordRef = useRef<any | undefined>(undefined);
+  const devicenameref = useRef<string>("");
+  const [deviceReady, setDeviceReady] = useState(false);
 
   // UI Themes & Modes
   const { theme } = useTheme(); // Current theme of the app
@@ -174,46 +176,43 @@ const Connection: React.FC<ConnectionProps> = ({
   };
 
   useEffect(() => {
+    if (!deviceReady || !devicenameref.current || maxCanvasElementCountRef.current === undefined) return;
+
     const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
 
     // Retrieve saved devices from localStorage
-    const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+    const savedPorts = JSON.parse(localStorage.getItem("savedDevices") || "[]");
+
+    let initialSelectedChannelsRefs: number[] = [1]; // Default to channel 1
+
+    // Ensure port info is available
     const portInfo = portRef.current?.getInfo();
-
-    let initialSelectedChannelsRefs = [1]; // Default to channel 1
-
     if (portInfo) {
       const { usbVendorId, usbProductId } = portInfo;
-
-      // Find the device based on usbVendorId and usbProductId
       const deviceIndex = savedPorts.findIndex(
         (saved: SavedDevice) =>
           saved.usbVendorId === usbVendorId && saved.usbProductId === usbProductId
       );
 
       if (deviceIndex !== -1) {
-        // Get the device name from savedDevices
-        const deviceName = savedPorts[deviceIndex].deviceName;
-        const savedChannels = savedPorts[deviceIndex].selectedChannels;
-
-        // Set the selected channels from localStorage or default to [1]
-        initialSelectedChannelsRefs = savedChannels.length > 0 ? savedChannels : [1];
-
-        // Use deviceName for any further operations if needed
+        // Load saved channels from localStorage
+        const savedChannels = savedPorts[deviceIndex]?.selectedChannels || [];
+        initialSelectedChannelsRefs = savedChannels.length > 0 ? savedChannels : enabledChannels;
       }
     }
 
-    // Set the selected channels in state
-    setSelectedChannels(initialSelectedChannelsRefs);
+    setSelectedChannels((prev) => {
+      const updated = initialSelectedChannelsRefs;
+      return updated;
+    });
 
-    // Determine if "Select All" is enabled
+
+    // Determine "Select All" state
     const allSelected = initialSelectedChannelsRefs.length === enabledChannels.length;
-    const selectAllDisabled = initialSelectedChannelsRefs.length === enabledChannels.length - 1;
-
-    // Set the state based on the selection
     setIsAllEnabledChannelSelected(allSelected);
-    setIsSelectAllDisabled(selectAllDisabled);
-  }, []); // Runs only on component mount
+    setIsSelectAllDisabled(initialSelectedChannelsRefs.length === enabledChannels.length - 1);
+
+  }, [deviceReady, maxCanvasElementCountRef.current, portRef.current]);
 
 
   useEffect(() => {
@@ -247,8 +246,7 @@ const Connection: React.FC<ConnectionProps> = ({
         // Find the device by usbVendorId and usbProductId in savedPorts
         const deviceIndex = savedPorts.findIndex(
           (saved: SavedDevice) =>
-            saved.usbVendorId === (usbVendorId ?? 0) &&
-            saved.usbProductId === (usbProductId ?? 0)
+            saved.deviceName === devicenameref.current
         );
 
         if (deviceIndex !== -1) {
@@ -265,7 +263,6 @@ const Connection: React.FC<ConnectionProps> = ({
     // Toggle the "Select All" button state
     setIsAllEnabledChannelSelected((prevState) => !prevState);
   };
-
 
   const toggleChannel = (channelIndex: number) => {
     setSelectedChannels((prevSelected) => {
@@ -286,17 +283,16 @@ const Connection: React.FC<ConnectionProps> = ({
 
       if (portInfo) {
         // Get the deviceName from portInfo (if saved previously)
-        const deviceName = savedPorts.find((saved: SavedDevice) => saved.usbVendorId === portInfo.usbVendorId && saved.usbProductId === portInfo.usbProductId)?.deviceName;
+        // const deviceName = savedPorts.find((saved: SavedDevice) => saved.usbVendorId === portInfo.usbVendorId && saved.usbProductId === portInfo.usbProductId )?.deviceName;
 
-        if (deviceName) {
-          const deviceIndex = savedPorts.findIndex(
-            (saved: SavedDevice) => saved.deviceName === deviceName
-          );
+        const deviceIndex = savedPorts.findIndex(
+          (saved: SavedDevice) => saved.deviceName === devicenameref.current
+        );
 
-          if (deviceIndex !== -1) {
-            savedPorts[deviceIndex].selectedChannels = sortedChannels;
-            localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-          }
+        if (deviceIndex !== -1) {
+          savedPorts[deviceIndex].selectedChannels = sortedChannels;
+          localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+
         }
       }
 
@@ -624,18 +620,6 @@ const Connection: React.FC<ConnectionProps> = ({
         const board = BoardsList.find((b) => b.field_pid === usbProductId);
         baudRate = board ? board.baud_Rate : 0;
         serialTimeout = board ? board.serial_timeout : 0;
-
-        savedPorts.push({
-          deviceName: '',
-          usbVendorId,
-          usbProductId,
-          baudRate,
-          serialTimeout,
-          selectedChannels: [1], // Default to channel 1
-        });
-
-        localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-        setSelectedChannels([1]);
         await port.open({ baudRate });
         setIsLoading(true);
       } else {
@@ -658,10 +642,8 @@ const Connection: React.FC<ConnectionProps> = ({
         serialTimeout = savedDevice?.serialTimeout || 2000;
 
         await port.open({ baudRate });
-
-        const lastSelectedChannels = savedDevice?.selectedChannels || [1];
-        setSelectedChannels(lastSelectedChannels);
       }
+
 
       if (port.readable) {
         const reader = port.readable.getReader();
@@ -681,17 +663,18 @@ const Connection: React.FC<ConnectionProps> = ({
             }
           }
           const response = buffer.trim().split("\n").pop();
-          const extractedName = response?.match(/[A-Za-z0-9\-]+$/)?.[0] ?? "Unknown Device";
-
+          const extractedName = response?.match(/[A-Za-z0-9\-_\s]+$/)?.[0]?.trim() || "Unknown Device";
+          devicenameref.current = extractedName;
           const currentPortInfo = port.getInfo();
           const usbProductId = currentPortInfo.usbProductId ?? 0;
 
           const existingDeviceIndex = savedPorts.findIndex(
-            (saved: SavedDevice) => saved.usbVendorId === currentPortInfo.usbVendorId && saved.usbProductId === usbProductId
+            (saved: SavedDevice) => saved.deviceName === extractedName
           );
 
           if (existingDeviceIndex !== -1) {
-            savedPorts[existingDeviceIndex].deviceName = extractedName;
+            const lastSelectedChannels = savedPorts?.selectedChannels || [1];
+            setSelectedChannels(lastSelectedChannels);
           } else {
             savedPorts.push({
               deviceName: extractedName,
@@ -701,7 +684,9 @@ const Connection: React.FC<ConnectionProps> = ({
               serialTimeout,
               selectedChannels: [1],
             });
+
           }
+
           localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
 
           const { formattedInfo, adcResolution, channelCount, baudRate: extractedBaudRate, serialTimeout: extractedSerialTimeout } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
