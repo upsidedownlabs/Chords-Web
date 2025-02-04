@@ -172,7 +172,7 @@ export const BoardsList: ReadonlyArray<BoardConfig> = Object.freeze([
         field_pid: 22336,
         adc_resolution: 12,
         channel_count: 16,
-        sampling_rate: 500,
+        sampling_rate: 250,
         serial_timeout: HIGH_SPEED_TIMEOUT,
     }),
     createBoardConfig({

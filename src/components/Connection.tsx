@@ -891,10 +891,10 @@ const Connection: React.FC<ConnectionProps> = ({
         const notchFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
         const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
         notchFilters.forEach((filter) => {
-            filter.setbits(detectedBitsRef.current.toString()); // Set the bits value for all instances
+            filter.setbits(currentSamplingRate); // Set the bits value for all instances
         });
         EXGFilters.forEach((filter) => {
-            filter.setbits(detectedBitsRef.current.toString()); // Set the bits value for all instances
+            filter.setbits(detectedBitsRef.current.toString(),currentSamplingRate); // Set the bits value for all instances
         });
         try {
             while (isDeviceConnectedRef.current) {
