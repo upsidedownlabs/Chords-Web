@@ -114,6 +114,8 @@ const Connection: React.FC<ConnectionProps> = ({
     const existingRecordRef = useRef<any | undefined>(undefined);
     const devicenameref = useRef<string>("");
     const [deviceReady, setDeviceReady] = useState(false);
+    const sampingrateref = useRef<number>(0);
+
 
     // UI Themes & Modes
     const { theme } = useTheme(); // Current theme of the app
@@ -540,6 +542,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
                 if (sampling_rate) {
                     setCurrentSamplingRate(sampling_rate);
+                    sampingrateref.current=sampling_rate;
                 }
 
                 return {
@@ -891,10 +894,10 @@ const Connection: React.FC<ConnectionProps> = ({
         const notchFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
         const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
         notchFilters.forEach((filter) => {
-            filter.setbits(currentSamplingRate); // Set the bits value for all instances
+            filter.setbits(sampingrateref.current); // Set the bits value for all instances
         });
         EXGFilters.forEach((filter) => {
-            filter.setbits(detectedBitsRef.current.toString(),currentSamplingRate); // Set the bits value for all instances
+            filter.setbits(detectedBitsRef.current.toString(),sampingrateref.current); // Set the bits value for all instances
         });
         try {
             while (isDeviceConnectedRef.current) {
