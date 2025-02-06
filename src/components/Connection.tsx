@@ -542,7 +542,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
                 if (sampling_rate) {
                     setCurrentSamplingRate(sampling_rate);
-                    sampingrateref.current=sampling_rate;
+                    sampingrateref.current = sampling_rate;
                 }
 
                 return {
@@ -628,7 +628,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
                 if (deviceIndex !== -1) {
                     const savedChannels = savedPorts[deviceIndex].selectedChannels;
-                     }
+                }
 
                 baudRate = savedDevice?.baudRate || 230400;
                 serialTimeout = savedDevice?.serialTimeout || 2000;
@@ -714,9 +714,8 @@ const Connection: React.FC<ConnectionProps> = ({
                 console.error("Readable stream not available");
             }
 
-
+            setSelectedChannels(initialSelectedChannelsRef.current);
             Connection(true);
-            setSelectedChannels(selectedChannels)
             setIsDeviceConnected(true);
             onPauseChange(true);
             setIsDisplay(true);
@@ -897,7 +896,7 @@ const Connection: React.FC<ConnectionProps> = ({
             filter.setbits(sampingrateref.current); // Set the bits value for all instances
         });
         EXGFilters.forEach((filter) => {
-            filter.setbits(detectedBitsRef.current.toString(),sampingrateref.current); // Set the bits value for all instances
+            filter.setbits(detectedBitsRef.current.toString(), sampingrateref.current); // Set the bits value for all instances
         });
         try {
             while (isDeviceConnectedRef.current) {
