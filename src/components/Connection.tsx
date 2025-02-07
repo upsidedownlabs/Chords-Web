@@ -1321,7 +1321,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-50 p-4 mx-4 mb-2">
-                            <div className="flex flex-col ">
+                            <div className="flex flex-col max-h-80 overflow-y-auto">
                                 <div className="flex items-center pb-2 ">
                                     {/* Filter Name */}
                                     <div className="text-sm font-semibold w-12"><ReplaceAll size={20} /></div>
