@@ -4,6 +4,8 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { EXGFilter, Notch } from './filters';
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation"; // Import useRouter
+
 import {
     Cable,
     Circle,
@@ -115,11 +117,12 @@ const Connection: React.FC<ConnectionProps> = ({
     const devicenameref = useRef<string>("");
     const [deviceReady, setDeviceReady] = useState(false);
     const sampingrateref = useRef<number>(0);
-
+    const [open, setOpen] = useState(false);
 
     // UI Themes & Modes
     const { theme } = useTheme(); // Current theme of the app
     const isDarkModeEnabled = theme === "dark"; // Boolean to check if dark mode is enabled
+    const router = useRouter(); // Use Next.js router for navigation
 
     // Time and End Time Tracking
     const recordingStartTimeRef = useRef<number>(0);
@@ -1142,34 +1145,72 @@ const Connection: React.FC<ConnectionProps> = ({
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button
-                                className="flex items-center justify-center gap-1 py-2 px-2 sm:py-3 sm:px-4 rounded-xl font-semibold"
-                                onClick={isDeviceConnected ? disconnectDevice : connectToDevice}
-                                disabled={isLoading} // Disable button during loading
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader size={17} className="animate-spin" /> {/* Spinning loader */}
-                                        Connecting...
-                                    </>
-                                ) : isDeviceConnected ? (
-                                    <>
-                                        Disconnect
-                                        <CircleX size={17} />
-                                    </>
-                                ) : (
-                                    <>
-                                        Connect
-                                        <Cable size={17} />
-                                    </>
+                            <Popover open={open} onOpenChange={setOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        className="flex items-center justify-center gap-1 py-2 px-2 sm:py-3 sm:px-4 rounded-xl font-semibold"
+                                        onClick={() => {
+                                            if (isDeviceConnected) {
+                                                disconnectDevice(); // Disconnect if already connected
+                                            } else {
+                                                setOpen(true); // Open popover for selection
+                                            }
+                                        }}
+                                        disabled={isLoading}
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <Loader size={17} className="animate-spin" />
+                                                Connecting...
+                                            </>
+                                        ) : isDeviceConnected ? (
+                                            <>
+                                                Disconnect
+                                                <CircleX size={17} />
+                                            </>
+                                        ) : (
+                                            <>
+                                                Connect
+                                                <Cable size={17} />
+                                            </>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+
+                                {!isDeviceConnected && (
+                                    <PopoverContent className="w-48 p-2">
+                                        {/* Open Serial Plotter Page and Auto-Connect */}
+                                        <Button
+                                            className="w-full mb-2"
+                                            onClick={() => {
+                                                localStorage.setItem("autoConnectSerial", "true"); // Set flag for auto connection
+                                                router.push("/serial-plotter"); // Navigate to Serial Plotter
+                                                setOpen(false);
+                                            }}
+                                        >
+                                            Serial Plotter
+                                        </Button>
+
+                                        {/* Board Connect: Show selection UI and connect */}
+                                        <Button
+                                            className="w-full"
+                                            onClick={() => {
+                                                setOpen(false);
+                                                connectToDevice(); // Call the function to select and connect board
+                                            }}
+                                        >
+                                            Board Connect
+                                        </Button>
+                                    </PopoverContent>
                                 )}
-                            </Button>
+                            </Popover>
                         </TooltipTrigger>
                         <TooltipContent>
                             <p>{isDeviceConnected ? "Disconnect Device" : "Connect Device"}</p>
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
+
 
                 {/* Display (Play/Pause) button with tooltip */}
                 {isDeviceConnected && (
