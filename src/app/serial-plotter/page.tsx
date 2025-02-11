@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { WebglPlot, WebglLine, ColorRGBA } from "webgl-plot";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -20,12 +20,16 @@ const SerialPlotter = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [rawData, setRawData] = useState<string>("");
     const [selectedChannels, setSelectedChannels] = useState<number[]>(Array.from({ length: maxChannels }, (_, i) => i));
-    const rawDataRef = useRef<HTMLDivElement | null>(null);
     const [showCombined, setShowCombined] = useState(true);
     const [showSeparate, setShowSeparate] = useState(true);
-    const rawDataBuffer = useRef("");
+    const rawDataRef = useRef<HTMLDivElement | null>(null);
     const maxPoints = 100;
-
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const wglpRef = useRef<WebglPlot | null>(null);
+    const linesRef = useRef<WebglLine[]>([]);
+    const separateCanvasRefs = useRef<(HTMLCanvasElement | null)[]>(Array(maxChannels).fill(null));
+    const separateWglpRefs = useRef<(WebglPlot | null)[]>(Array(maxChannels).fill(null));
+    const separateLinesRefs = useRef<(WebglLine | null)[]>(Array(maxChannels).fill(null));
 
     useEffect(() => {
         if (rawDataRef.current) {
@@ -33,9 +37,75 @@ const SerialPlotter = () => {
         }
     }, [rawData]);
 
+    const maxRawDataLines = 1000; // Limit for raw data lines
+
+    useEffect(() => {
+        if (!canvasRef.current) return;
+
+        const canvas = canvasRef.current;
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+
+        const wglp = new WebglPlot(canvas);
+        wglpRef.current = wglp;
+
+        // Clear old lines
+        linesRef.current = [];
+
+        selectedChannels.forEach((_, i) => {
+            const line = new WebglLine(getLineColor(i), maxPoints);
+            line.lineSpaceX(-1, 2 / maxPoints);
+            wglp.addLine(line);
+            linesRef.current.push(line);
+        });
+    }, [selectedChannels]);
+
+
+    useEffect(() => {
+        if (!canvasRef.current) return;
+
+        if (!showCombined) {
+            wglpRef.current = null; // Reset the WebGL plot reference when hiding
+            return;
+        }
+
+        const canvas = canvasRef.current;
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+
+        const wglp = new WebglPlot(canvas);
+        wglpRef.current = wglp;
+
+        // Clear and re-add lines
+        linesRef.current = [];
+
+        selectedChannels.forEach((_, i) => {
+            const line = new WebglLine(getLineColor(i), maxPoints);
+            line.lineSpaceX(-1, 2 / maxPoints);
+            wglp.addLine(line);
+            linesRef.current.push(line);
+        });
+
+        wglp.update();
+    }, [selectedChannels, showCombined]);
+
+    const getLineColor = (index: number): ColorRGBA => {
+        const hex = channelColors[index % channelColors.length];
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        return new ColorRGBA(r, g, b, 1);
+    };
+
     const connectToSerial = async () => {
         try {
-            const selectedPort = await (navigator as any).serial.requestPort();
+            const ports = await (navigator as any).serial.getPorts();
+            let selectedPort = ports.length > 0 ? ports[0] : null;
+
+            if (!selectedPort) {
+                selectedPort = await (navigator as any).serial.requestPort();
+            }
+
             await selectedPort.open({ baudRate: 115200 });
             setPort(selectedPort);
             setIsConnected(true);
@@ -63,7 +133,10 @@ const SerialPlotter = () => {
                     let newData: DataPoint[] = [];
 
                     lines.forEach((line) => {
-                        setRawData((prev) => prev + line.trim().replace(/\s+/g, " ") + "\n");
+                        setRawData((prev) => {
+                            const newRawData = prev.split("\n").concat(line.trim().replace(/\s+/g, " "));
+                            return newRawData.slice(-maxRawDataLines).join("\n");
+                        });
                         const values = line.trim().split(/\s+/).map(parseFloat).filter((v) => !isNaN(v));
                         if (values.length > 0) {
                             newData.push({ time: Date.now(), values });
@@ -75,6 +148,7 @@ const SerialPlotter = () => {
                             const updatedData = [...prev, ...newData];
                             return updatedData.length > maxPoints ? updatedData.slice(-maxPoints) : updatedData;
                         });
+                        updateWebGLPlot(newData);
                     }
                 }
             }
@@ -84,23 +158,95 @@ const SerialPlotter = () => {
         }
     };
 
+    useEffect(() => {
+        if (!showSeparate) {
+            separateWglpRefs.current = Array(maxChannels).fill(null); // Reset separate plots
+            return;
+        }
+
+        selectedChannels.forEach((index) => {
+            const canvas = separateCanvasRefs.current[index];
+            if (canvas) {
+                canvas.width = canvas.clientWidth;
+                canvas.height = 500;
+
+                const wglp = new WebglPlot(canvas);
+                separateWglpRefs.current[index] = wglp;
+
+                const line = new WebglLine(getLineColor(index), maxPoints);
+                line.lineSpaceX(-1, 2 / maxPoints);
+                wglp.addLine(line);
+
+                separateLinesRefs.current[index] = line;
+                wglp.update();
+            }
+        });
+    }, [selectedChannels, showSeparate]);
 
     useEffect(() => {
-        let animationFrameId: number;
+        let isMounted = true;
 
-        const updateRawData = () => {
-            if (rawDataBuffer.current) {
-                setRawData((prev) => prev + rawDataBuffer.current);
-                rawDataBuffer.current = "";
-            }
-            animationFrameId = requestAnimationFrame(updateRawData);
+        const animate = () => {
+            if (!isMounted) return;
+            wglpRef.current?.update();
+            separateWglpRefs.current.forEach((wglp) => wglp?.update());
+            requestAnimationFrame(animate);
         };
 
-        animationFrameId = requestAnimationFrame(updateRawData);
+        animate();
 
-        return () => cancelAnimationFrame(animationFrameId);
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
+    useEffect(() => {
+        const checkPortStatus = async () => {
+            if (port) {
+                try {
+                    await port.getInfo(); // This may throw an error if the device is disconnected
+                } catch {
+                    setIsConnected(false);
+                    setPort(null);
+                    console.warn("Serial device disconnected.");
+                }
+            }
+        };
+
+        const interval = setInterval(checkPortStatus, 3000);
+        return () => clearInterval(interval);
+    }, [port]);
+
+
+    const updateWebGLPlot = (newData: DataPoint[]) => {
+        if (!wglpRef.current || !linesRef.current.length) return;
+
+        const yMin = Math.min(...newData.flatMap(dp => dp.values));
+        const yMax = Math.max(...newData.flatMap(dp => dp.values));
+        const yRange = yMax - yMin || 1; // Avoid division by zero
+
+        newData.forEach((dataPoint) => {
+            selectedChannels.forEach((index) => {
+                const yValue = ((dataPoint.values[index] - yMin) / yRange) * 2 - 1;
+
+                // Update combined plot
+                const combinedLine = linesRef.current[index];
+                if (combinedLine) {
+                    combinedLine.shiftAdd(new Float32Array([yValue]));
+                }
+
+                // Update separate plots
+                const separatePlot = separateWglpRefs.current[index];
+                const separateLine = separateLinesRefs.current[index];
+                if (separatePlot && separateLine) {
+                    separateLine.shiftAdd(new Float32Array([yValue]));
+                    separatePlot.update();
+                }
+            });
+        });
+
+        wglpRef.current.update();
+    };
 
     const disconnectSerial = async () => {
         if (reader) {
@@ -111,100 +257,116 @@ const SerialPlotter = () => {
         if (port) {
             await port.close();
             setPort(null);
-            setIsConnected(false);
         }
-    };
-
-    const toggleChannel = (index: number) => {
-        setSelectedChannels((prev) =>
-            prev.includes(index) ? prev.filter((ch) => ch !== index) : [...prev, index]
-        );
+        setIsConnected(false);
     };
 
     return (
         <div className="w-full max-w-8xl mx-auto p-6 border rounded-2xl shadow-xl bg-[#030c21] text-white">
             <h1 className="text-3xl font-bold text-center mb-6">Chords Serial Plotter & Monitor</h1>
+
             <div className="flex justify-center flex-wrap gap-4 mb-6">
-                <Button onClick={connectToSerial} disabled={isConnected} className="px-6 py-3 text-lg font-semibold bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/50 active:shadow-none active:translate-y-1 transition-all duration-200">
+                <Button
+                    onClick={connectToSerial}
+                    disabled={isConnected}
+                    className="px-6 py-3 text-lg font-semibold bg-green-600 hover:bg-green-700"
+                >
                     {isConnected ? "Connected" : "Connect Serial"}
                 </Button>
-                <Button onClick={disconnectSerial} disabled={!isConnected} className="px-6 py-3 text-lg font-semibold bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/50 active:shadow-none active:translate-y-1 transition-all duration-200">
+                <Button
+                    onClick={disconnectSerial}
+                    disabled={!isConnected}
+                    className="px-6 py-3 text-lg font-semibold bg-red-600 hover:bg-red-700"
+                >
                     Disconnect
                 </Button>
-                <label className="flex items-center space-x-2 px-4 py-2 rounded-lg shadow-md bg-gray-800">
-                    <Checkbox checked={showCombined} onCheckedChange={() => setShowCombined(!showCombined)} />
-                    <span>Show Combined Plot</span>
+            </div>
+            {/* View Selection Controls */}
+            <div className="flex justify-center gap-4 mb-6">
+                <label className="flex items-center space-x-2">
+                    <Checkbox
+                        checked={showCombined}
+                        onCheckedChange={(checked) => setShowCombined(!!checked)}
+                    />
+                    <span>Show Combined Graph</span>
                 </label>
-                <label className="flex items-center space-x-2 px-4 py-2 rounded-lg shadow-md bg-gray-800">
-                    <Checkbox checked={showSeparate} onCheckedChange={() => setShowSeparate(!showSeparate)} />
-                    <span>Show Separate Plots</span>
+
+                <label className="flex items-center space-x-2">
+                    <Checkbox
+                        checked={showSeparate}
+                        onCheckedChange={(checked) => setShowSeparate(!!checked)}
+                    />
+                    <span>Show Separate Graphs</span>
                 </label>
+            </div>
+            {/* Zoom Control */}
+            <div className="w-full flex justify-center mb-6">
+                <input
+                    type="range"
+                    min="0.1"
+                    max="5"
+                    step="0.1"
+                    defaultValue="1"
+                    className="w-1/2"
+                    onChange={(e) => {
+                        const zoomFactor = parseFloat(e.target.value);
+
+                        linesRef.current.forEach((line) => {
+                            if (line) line.scaleY = zoomFactor;
+                        });
+
+                        separateLinesRefs.current.forEach((line) => {
+                            if (line) line.scaleY = zoomFactor;
+                        });
+
+                        wglpRef.current?.update();
+                        separateWglpRefs.current.forEach((wglp) => wglp?.update());
+                    }}
+                />
             </div>
 
 
-            {/* Channel Selection */}
-            <div className="flex justify-center space-x-4 mb-4">
-                {Array.from({ length: maxChannels }).map((_, index) => (
-                    <label
-                        key={index}
-                        className="flex items-center space-x-2 px-4 py-2 rounded-lg shadow-md bg-gray-800 transform active:translate-y-1 transition-all duration-200"
-                        style={{ color: channelColors[index], border: `2px solid ${channelColors[index]}` }}
-                    >
-                        <Checkbox
-                            checked={selectedChannels.includes(index)}
-                            onCheckedChange={() => toggleChannel(index)}
-                            style={{ accentColor: channelColors[index] }}
-                        />
-                        <span>Channel {index + 1}</span>
-                    </label>
-                ))}
-            </div>
 
-            {/* Combined Chart */}
+            {/* Combined Canvas */}
             {showCombined && (
-                <div className="w-full h-[300px] bg-[#1a1a2e] rounded-xl p-4 mb-6">
-                    <h2 className="text-xl font-semibold text-center mb-2">Combined Plot</h2>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={data}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                            <XAxis dataKey="time" tickFormatter={(time) => new Date(time).toLocaleTimeString()} stroke="#ccc" />
-                            <YAxis stroke="#ccc" />
-                            <Tooltip contentStyle={{ backgroundColor: "#222", borderColor: "#555" }} labelStyle={{ color: "#fff" }} />
-                            {selectedChannels.map((index) => (
-                                <Line key={index} type="monotone" dataKey={`values[${index}]`} stroke={channelColors[index]} strokeWidth={2} dot={false} name={`Channel ${index + 1}`} />
-                            ))}
-                        </LineChart>
-                    </ResponsiveContainer>
+                <div className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] p-4 mb-6">
+                    <h2 className="text-lg font-semibold text-center mb-2">Combined Plot</h2>
+                    <canvas ref={canvasRef} className="w-full h-[300px] rounded-xl" />
                 </div>
             )}
 
-            {/* Separate Charts for Each Channel */}
+            {/* Separate Canvases */}
             {showSeparate && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedChannels.map((index) => (
-                        <div key={index} className="w-full h-[175px] bg-[#1a1a2e] rounded-xl p-2">
-                            <h2 className="text-lg font-semibold text-center mb-2">Channel {index + 1}</h2>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={data}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                                    <XAxis dataKey="time" tickFormatter={(time) => new Date(time).toLocaleTimeString()} stroke="#ccc" />
-                                    <YAxis stroke="#ccc" />
-                                    <Tooltip contentStyle={{ backgroundColor: "#222", borderColor: "#555" }} labelStyle={{ color: "#fff" }} />
-                                    <Line type="monotone" dataKey={`values[${index}]`} stroke={channelColors[index]} strokeWidth={2} dot={false} name={`Channel ${index + 1}`} />
-                                </LineChart>
-                            </ResponsiveContainer>
+                        <div
+                            key={index}
+                            className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] p-4"
+                        >
+                            <h2 className="text-lg font-semibold text-center mb-2">
+                                Channel {index + 1}
+                            </h2>
+                            <canvas
+                                ref={(el) => {
+                                    separateCanvasRefs.current[index] = el;
+                                }}
+                                className="w-full h-[200px] rounded-xl"
+                            />
                         </div>
                     ))}
                 </div>
             )}
 
-
-            <div ref={rawDataRef} className="w-full mt-6 py-4 border rounded-xl bg-[#1a1a2e] text-white overflow-auto h-40">
+            {/* Raw Data Output */}
+            <div
+                ref={rawDataRef}
+                className="w-full mt-6 py-4 border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto h-40"
+            >
                 <h2 className="text-xl font-semibold text-center mb-2">Raw Data Output:</h2>
                 <pre className="text-sm whitespace-pre-wrap break-words">{rawData}</pre>
             </div>
-
         </div>
+
     );
 };
 
