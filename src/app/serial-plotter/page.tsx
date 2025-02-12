@@ -13,7 +13,7 @@ interface DataPoint {
 const channelColors = ["#F5A3B1", "#86D3ED", "#7CD6C8", "#C2B4E2", "#48d967", "#FFFF8C"];
 
 const SerialPlotter = () => {
-    const maxChannels = 6;
+    const maxChannels = 0;
     const [data, setData] = useState<DataPoint[]>([]);
     const [port, setPort] = useState<SerialPort | null>(null);
     const [reader, setReader] = useState<ReadableStreamDefaultReader | null>(null);
@@ -22,6 +22,7 @@ const SerialPlotter = () => {
     const [selectedChannels, setSelectedChannels] = useState<number[]>(Array.from({ length: maxChannels }, (_, i) => i));
     const [showCombined, setShowCombined] = useState(true);
     const [showSeparate, setShowSeparate] = useState(true);
+    const [zoomFactor, setZoomFactor] = useState(1);
     const rawDataRef = useRef<HTMLDivElement | null>(null);
     const maxPoints = 100;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -30,6 +31,9 @@ const SerialPlotter = () => {
     const separateCanvasRefs = useRef<(HTMLCanvasElement | null)[]>(Array(maxChannels).fill(null));
     const separateWglpRefs = useRef<(WebglPlot | null)[]>(Array(maxChannels).fill(null));
     const separateLinesRefs = useRef<(WebglLine | null)[]>(Array(maxChannels).fill(null));
+    const [awaitingCommand, setAwaitingCommand] = useState(false);
+    const [commandInput, setCommandInput] = useState("whoru");
+
 
     useEffect(() => {
         if (rawDataRef.current) {
@@ -128,18 +132,31 @@ const SerialPlotter = () => {
                 if (value) {
                     buffer += new TextDecoder().decode(value);
                     const lines = buffer.split("\n");
-                    buffer = lines.pop() || "";
+                    buffer = lines.pop() || ""; // Keep any incomplete line for next read
 
                     let newData: DataPoint[] = [];
 
                     lines.forEach((line) => {
+                        // Store raw data for display
                         setRawData((prev) => {
                             const newRawData = prev.split("\n").concat(line.trim().replace(/\s+/g, " "));
                             return newRawData.slice(-maxRawDataLines).join("\n");
                         });
+
+                        // Convert the line into an array of numbers
                         const values = line.trim().split(/\s+/).map(parseFloat).filter((v) => !isNaN(v));
+
                         if (values.length > 0) {
                             newData.push({ time: Date.now(), values });
+
+                            // Update the number of detected channels dynamically
+                            setSelectedChannels((prevChannels) => {
+                                const detectedChannels = values.length;
+                                if (prevChannels.length !== detectedChannels) {
+                                    return Array.from({ length: detectedChannels }, (_, i) => i);
+                                }
+                                return prevChannels;
+                            });
                         }
                     });
 
@@ -148,6 +165,7 @@ const SerialPlotter = () => {
                             const updatedData = [...prev, ...newData];
                             return updatedData.length > maxPoints ? updatedData.slice(-maxPoints) : updatedData;
                         });
+
                         updateWebGLPlot(newData);
                     }
                 }
@@ -157,6 +175,8 @@ const SerialPlotter = () => {
             console.error("Error reading serial data:", err);
         }
     };
+
+
 
     useEffect(() => {
         if (!showSeparate) {
@@ -182,6 +202,28 @@ const SerialPlotter = () => {
             }
         });
     }, [selectedChannels, showSeparate]);
+    useEffect(() => {
+        separateCanvasRefs.current = separateCanvasRefs.current.slice(0, selectedChannels.length);
+        separateWglpRefs.current = separateWglpRefs.current.slice(0, selectedChannels.length);
+        separateLinesRefs.current = separateLinesRefs.current.slice(0, selectedChannels.length);
+
+        selectedChannels.forEach((_, i) => {
+            if (!separateCanvasRefs.current[i]) {
+                separateCanvasRefs.current[i] = document.createElement("canvas");
+            }
+
+            if (!separateWglpRefs.current[i]) {
+                const wglp = new WebglPlot(separateCanvasRefs.current[i]!);
+                separateWglpRefs.current[i] = wglp;
+
+                const line = new WebglLine(getLineColor(i), maxPoints);
+                line.lineSpaceX(-1, 2 / maxPoints);
+                wglp.addLine(line);
+                separateLinesRefs.current[i] = line;
+            }
+        });
+    }, [selectedChannels]);
+
 
     useEffect(() => {
         let isMounted = true;
@@ -262,95 +304,77 @@ const SerialPlotter = () => {
     };
 
     return (
-        <div className="w-full max-w-8xl mx-auto p-6 border rounded-2xl shadow-xl bg-[#030c21] text-white">
+        <div className="w-full max-w-8xl mx-auto p-6 border rounded-2xl shadow-xl">
             <h1 className="text-3xl font-bold text-center mb-6">Chords Serial Plotter & Monitor</h1>
 
             <div className="flex justify-center flex-wrap gap-4 mb-6">
-                <Button
-                    onClick={connectToSerial}
-                    disabled={isConnected}
-                    className="px-6 py-3 text-lg font-semibold bg-green-600 hover:bg-green-700"
-                >
+                <Button onClick={connectToSerial} disabled={isConnected} className="px-6 py-3 text-lg font-semibold">
                     {isConnected ? "Connected" : "Connect Serial"}
                 </Button>
-                <Button
-                    onClick={disconnectSerial}
-                    disabled={!isConnected}
-                    className="px-6 py-3 text-lg font-semibold bg-red-600 hover:bg-red-700"
-                >
+                <Button onClick={disconnectSerial} disabled={!isConnected} className="px-6 py-3 text-lg font-semibold">
                     Disconnect
                 </Button>
-            </div>
-            {/* View Selection Controls */}
-            <div className="flex justify-center gap-4 mb-6">
-                <label className="flex items-center space-x-2">
-                    <Checkbox
-                        checked={showCombined}
-                        onCheckedChange={(checked) => setShowCombined(!!checked)}
-                    />
+                <label className="flex items-center space-x-2 bg-gray-300 p-2 rounded">
+                    <Checkbox checked={showCombined} onCheckedChange={(checked) => setShowCombined(!!checked)} />
                     <span>Show Combined Graph</span>
                 </label>
-
-                <label className="flex items-center space-x-2">
-                    <Checkbox
-                        checked={showSeparate}
-                        onCheckedChange={(checked) => setShowSeparate(!!checked)}
-                    />
+                <label className="flex items-center space-x-2 bg-gray-300 p-2 rounded">
+                    <Checkbox checked={showSeparate} onCheckedChange={(checked) => setShowSeparate(!!checked)} />
                     <span>Show Separate Graphs</span>
                 </label>
             </div>
+
             {/* Zoom Control */}
-            <div className="w-full flex justify-center mb-6">
+            <div className="w-full flex justify-center items-center mb-6 p-2">
+                <label className="mr-4">Zoom:</label>
                 <input
                     type="range"
                     min="0.1"
                     max="5"
                     step="0.1"
-                    defaultValue="1"
+                    value={zoomFactor}
                     className="w-1/2"
                     onChange={(e) => {
-                        const zoomFactor = parseFloat(e.target.value);
-
+                        const newZoom = parseFloat(e.target.value);
+                        setZoomFactor(newZoom);
                         linesRef.current.forEach((line) => {
-                            if (line) line.scaleY = zoomFactor;
+                            if (line) line.scaleY = newZoom;
                         });
-
                         separateLinesRefs.current.forEach((line) => {
-                            if (line) line.scaleY = zoomFactor;
+                            if (line) line.scaleY = newZoom;
                         });
-
                         wglpRef.current?.update();
                         separateWglpRefs.current.forEach((wglp) => wglp?.update());
                     }}
                 />
+                <span className="ml-4">{zoomFactor.toFixed(1)}x</span>
             </div>
-
-
 
             {/* Combined Canvas */}
             {showCombined && (
                 <div className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] p-4 mb-6">
-                    <h2 className="text-lg font-semibold text-center mb-2">Combined Plot</h2>
+                    <h2 className="text-lg font-semibold text-center mb-2 text-white">Combined Plot</h2>
                     <canvas ref={canvasRef} className="w-full h-[300px] rounded-xl" />
                 </div>
             )}
 
             {/* Separate Canvases */}
             {showSeparate && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedChannels.map((index) => (
+                <div className={`grid gap-4 ${selectedChannels.length % 2 === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+                    {selectedChannels.map((index, i) => (
                         <div
                             key={index}
-                            className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] p-4"
+                            className="border rounded-xl shadow-lg bg-[#1a1a2e] p-4 w-full"
+                            style={{ gridColumn: selectedChannels.length % 2 === 1 && i === selectedChannels.length - 1 ? "span 2 w-10px" : "span 1" }}
                         >
-                            <h2 className="text-lg font-semibold text-center mb-2">
+                            <h2 className="text-lg font-semibold text-center mb-2 text-white">
                                 Channel {index + 1}
                             </h2>
                             <canvas
                                 ref={(el) => {
                                     separateCanvasRefs.current[index] = el;
                                 }}
-                                className="w-full h-[200px] rounded-xl"
+                                className="w-full h-[300px] rounded-xl"
                             />
                         </div>
                     ))}
@@ -366,6 +390,8 @@ const SerialPlotter = () => {
                 <pre className="text-sm whitespace-pre-wrap break-words">{rawData}</pre>
             </div>
         </div>
+
+
 
     );
 };

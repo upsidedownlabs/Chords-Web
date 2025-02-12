@@ -30,7 +30,7 @@ const contributors = [
   {
     name: "Anuranan Kakati",
     github: "AnurananKakati",
-    avatar: "https://github.com/AnurananKakati",
+    avatar: "https://avatars.githubusercontent.com/u/117797448?v=4",
   },
   {
     name: "Deepak Khatri",
@@ -55,7 +55,7 @@ const contributors = [
   {
     name: "Rup Jyoti Bharadwaj",
     github: "RupJyotiUX",
-    avatar: "https://github.com/RupJyotiUX",
+    avatar: "https://avatars.githubusercontent.com/u/187837513?v=4",
   },
 ];
 
