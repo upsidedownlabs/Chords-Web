@@ -34,7 +34,7 @@ const SerialPlotter = () => {
     const [showCommandInput, setShowCommandInput] = useState(false);
     const [command, setCommand] = useState("");
     const [boardName, setBoardName] = useState<string | null>(null);
-    const [writer, setWriter] = useState<WritableStreamDefaultWriter | null>(null);
+    const [baudRate, setBaudRate] = useState(115200); // Default baud rate
 
     useEffect(() => {
         if (rawDataRef.current) {
@@ -44,8 +44,9 @@ const SerialPlotter = () => {
 
     const maxRawDataLines = 1000; // Limit for raw data lines
 
+    // ✅ RE-INITIALIZE WebGL when `selectedChannels` updates
     useEffect(() => {
-        if (!canvasRef.current) return;
+        if (!canvasRef.current || selectedChannels.length === 0) return;
 
         const canvas = canvasRef.current;
         canvas.width = canvas.clientWidth;
@@ -63,8 +64,9 @@ const SerialPlotter = () => {
             wglp.addLine(line);
             linesRef.current.push(line);
         });
-    }, [selectedChannels]);
 
+        wglp.update();
+    }, [selectedChannels]); // ✅ Runs when channels are detected
 
     useEffect(() => {
         if (!canvasRef.current) return;
@@ -111,9 +113,15 @@ const SerialPlotter = () => {
                 selectedPort = await (navigator as any).serial.requestPort();
             }
 
-            await selectedPort.open({ baudRate: 115200 });
+            await selectedPort.open({ baudRate }); // Use selected baud rate
             setPort(selectedPort);
             setIsConnected(true);
+
+            wglpRef.current = null;
+            linesRef.current = [];
+            setData([]);
+            setSelectedChannels([]);
+
             readSerialData(selectedPort);
         } catch (err) {
             console.error("Error connecting to serial:", err);
@@ -154,32 +162,30 @@ const SerialPlotter = () => {
                             return newRawData.slice(-maxRawDataLines).join("\n");
                         });
 
+                        // Detect Board Name
                         if (line.includes("BOARD:")) {
                             setBoardName(line.split(":")[1].trim());
-                            setShowCommandInput(true); // Ensure input is still shown even after getting the board name
+                            setShowCommandInput(true);
                         }
 
-                        // Convert data to numbers
+                        // Convert to numeric data
                         const values = line.trim().split(/\s+/).map(parseFloat).filter((v) => !isNaN(v));
                         if (values.length > 0) {
                             newData.push({ time: Date.now(), values });
 
+                            // ✅ Ensure `selectedChannels` updates before plotting
                             setSelectedChannels((prevChannels) => {
-                                const detectedChannels = values.length;
-                                return prevChannels.length !== detectedChannels
-                                    ? Array.from({ length: detectedChannels }, (_, i) => i)
-                                    : prevChannels;
+                                if (prevChannels.length !== values.length) {
+                                    return Array.from({ length: values.length }, (_, i) => i);
+                                }
+                                return prevChannels;
                             });
                         }
                     });
 
                     if (newData.length > 0) {
-                        setData((prev) => {
-                            const updatedData = [...prev, ...newData];
-                            return updatedData.length > maxPoints ? updatedData.slice(-maxPoints) : updatedData;
-                        });
-
                         updateWebGLPlot(newData);
+                        setData((prev) => [...prev, ...newData].slice(-maxPoints));
                     }
                 }
             }
@@ -188,53 +194,29 @@ const SerialPlotter = () => {
             console.error("Error reading serial data:", err);
         }
     };
-
+    // ✅ RE-INITIALIZE WebGL when `selectedChannels` updates
     useEffect(() => {
-        if (!showSeparate) {
-            separateWglpRefs.current = Array(maxChannels).fill(null); // Reset separate plots
-            return;
-        }
+        if (!canvasRef.current || selectedChannels.length === 0) return;
 
-        selectedChannels.forEach((index) => {
-            const canvas = separateCanvasRefs.current[index];
-            if (canvas) {
-                canvas.width = canvas.clientWidth;
-                canvas.height = 100;
+        const canvas = canvasRef.current;
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
 
-                const wglp = new WebglPlot(canvas);
-                separateWglpRefs.current[index] = wglp;
+        const wglp = new WebglPlot(canvas);
+        wglpRef.current = wglp;
 
-                const line = new WebglLine(getLineColor(index), maxPoints);
-                line.lineSpaceX(-1, 2 / maxPoints);
-                wglp.addLine(line);
-
-                separateLinesRefs.current[index] = line;
-                wglp.update();
-            }
-        });
-    }, [selectedChannels, showSeparate]);
-
-    useEffect(() => {
-        separateCanvasRefs.current = separateCanvasRefs.current.slice(0, selectedChannels.length);
-        separateWglpRefs.current = separateWglpRefs.current.slice(0, selectedChannels.length);
-        separateLinesRefs.current = separateLinesRefs.current.slice(0, selectedChannels.length);
+        // Clear old lines
+        linesRef.current = [];
 
         selectedChannels.forEach((_, i) => {
-            if (!separateCanvasRefs.current[i]) {
-                separateCanvasRefs.current[i] = document.createElement("canvas");
-            }
-
-            if (!separateWglpRefs.current[i]) {
-                const wglp = new WebglPlot(separateCanvasRefs.current[i]!);
-                separateWglpRefs.current[i] = wglp;
-
-                const line = new WebglLine(getLineColor(i), maxPoints);
-                line.lineSpaceX(-1, 2 / maxPoints);
-                wglp.addLine(line);
-                separateLinesRefs.current[i] = line;
-            }
+            const line = new WebglLine(getLineColor(i), maxPoints);
+            line.lineSpaceX(-1, 2 / maxPoints);
+            wglp.addLine(line);
+            linesRef.current.push(line);
         });
-    }, [selectedChannels]);
+
+        wglp.update();
+    }, [selectedChannels]); // ✅ Runs when channels are detected
 
 
     useEffect(() => {
@@ -242,17 +224,21 @@ const SerialPlotter = () => {
 
         const animate = () => {
             if (!isMounted) return;
-            wglpRef.current?.update();
-            separateWglpRefs.current.forEach((wglp) => wglp?.update());
             requestAnimationFrame(animate);
+            requestAnimationFrame(() => {
+                if (wglpRef.current) {
+                    wglpRef.current.update();
+                }
+            });
         };
 
-        animate();
+        requestAnimationFrame(animate); // Ensure continuous updates
 
         return () => {
             isMounted = false;
         };
     }, []);
+
 
     useEffect(() => {
         const checkPortStatus = async () => {
@@ -273,14 +259,18 @@ const SerialPlotter = () => {
 
 
     const updateWebGLPlot = (newData: DataPoint[]) => {
-        if (!wglpRef.current || !linesRef.current.length) return;
+        if (!wglpRef.current || linesRef.current.length === 0 || newData.length === 0) return;
 
+        // Calculate Y-axis min and max values
         const yMin = Math.min(...newData.flatMap(dp => dp.values));
         const yMax = Math.max(...newData.flatMap(dp => dp.values));
         const yRange = yMax - yMin || 1; // Avoid division by zero
 
+        // Iterate over new data points and update plots
         newData.forEach((dataPoint) => {
             selectedChannels.forEach((index) => {
+                if (index >= dataPoint.values.length) return; // Prevent out-of-bounds errors
+
                 const yValue = ((dataPoint.values[index] - yMin) / yRange) * 2 - 1;
 
                 // Update combined plot
@@ -299,8 +289,13 @@ const SerialPlotter = () => {
             });
         });
 
-        wglpRef.current.update();
+        // Efficiently trigger a render update
+        requestAnimationFrame(() => {
+            if (wglpRef.current) wglpRef.current.update();
+        });
     };
+
+
 
     const disconnectSerial = async () => {
         if (reader) {
@@ -312,8 +307,18 @@ const SerialPlotter = () => {
             await port.close();
             setPort(null);
         }
+
         setIsConnected(false);
+
+        // Clear WebGL Plot
+        if (wglpRef.current) {
+            wglpRef.current.clear();
+            wglpRef.current = null;
+        }
+        linesRef.current = [];
+        setData([]);
     };
+
 
     const sendCommand = async () => {
         if (!port?.writable || !command.trim()) return;
@@ -329,102 +334,111 @@ const SerialPlotter = () => {
     };
 
     return (
-        <div className="w-full mx-auto p-4 border rounded-2xl shadow-xl flex flex-col gap-4 "> 
-        <h1 className="text-2xl font-bold text-center">Chords Serial Plotter & Monitor</h1>
-    
-        <div className="flex justify-center flex-wrap gap-2">
-            <Button onClick={connectToSerial} disabled={isConnected} className="px-4 py-2 text-sm font-semibold">
-                {isConnected ? "Connected" : "Connect Serial"}
-            </Button>
-            <Button onClick={disconnectSerial} disabled={!isConnected} className="px-4 py-2 text-sm font-semibold">
-                Disconnect
-            </Button>
-            <label className="flex items-center space-x-1 bg-gray-300 p-1 rounded">
-                <Checkbox checked={showCombined} onCheckedChange={(checked) => {
-                    setShowCombined(!!checked);
-                    setShowSeparate(!checked);
-                }} />
-                <span className="text-xs">Show Combined</span>
-            </label>
-            <label className="flex items-center space-x-1 bg-gray-300 p-1 rounded">
-                <Checkbox checked={showSeparate} onCheckedChange={(checked) => {
-                    setShowSeparate(!!checked);
-                    setShowCombined(!checked);
-                }} />
-                <span className="text-xs">Show Separate</span>
-            </label>
-        </div>
-    
-        {/* Zoom Control */}
-        <div className="w-full flex justify-center items-center p-1">
-            <label className="mr-2 text-sm">Zoom:</label>
-            <input
-                type="range"
-                min="0.1"
-                max="5"
-                step="0.1"
-                value={zoomFactor}
-                className="w-1/3"
-                onChange={(e) => {
-                    const newZoom = parseFloat(e.target.value);
-                    setZoomFactor(newZoom);
-                    linesRef.current.forEach((line) => {
-                        if (line) line.scaleY = newZoom;
-                    });
-                    separateLinesRefs.current.forEach((line) => {
-                        if (line) line.scaleY = newZoom;
-                    });
-                    wglpRef.current?.update();
-                    separateWglpRefs.current.forEach((wglp) => wglp?.update());
-                }}
-            />
-            <span className="ml-2 text-sm">{zoomFactor.toFixed(1)}x</span>
-        </div>
-    
-        {/* Graph Container */}
-        <div className="w-full gap-2"
-            style={{ gridTemplateColumns: `repeat(${selectedChannels.length >= 2 ? 2 : 1}` }}>
-            {/* Combined Canvas */}
-            {showCombined && (
-                <div className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full">
-                    <h2 className="text-sm font-semibold text-center mb-1 text-white">Combined Plot</h2>
-                    <canvas ref={canvasRef} className="w-full h-[150px] rounded-xl" />
+        <div className="w-full mx-auto border rounded-2xl shadow-xl flex flex-col gap-4 h-screen">
+            <h1 className="text-2xl font-bold text-center">Chords Serial Plotter & Monitor</h1>
+
+            <div className="flex justify-center flex-wrap gap-2">
+                <Button onClick={connectToSerial} disabled={isConnected} className="px-4 py-2 text-sm font-semibold">
+                    {isConnected ? "Connected" : "Connect Serial"}
+                </Button>
+                <Button onClick={disconnectSerial} disabled={!isConnected} className="px-4 py-2 text-sm font-semibold">
+                    Disconnect
+                </Button>
+            </div>
+
+            {/* Zoom Control */}
+            <div className="w-full flex justify-center items-center ">
+                <label className="mr-2 text-sm">Zoom:</label>
+                <input
+                    type="range"
+                    min="0.1"
+                    max="5"
+                    step="0.1"
+                    value={zoomFactor}
+                    className="w-1/3"
+                    onChange={(e) => {
+                        const newZoom = parseFloat(e.target.value);
+                        setZoomFactor(newZoom);
+                        linesRef.current.forEach((line) => {
+                            if (line) line.scaleY = newZoom;
+                        });
+                        separateLinesRefs.current.forEach((line) => {
+                            if (line) line.scaleY = newZoom;
+                        });
+                        wglpRef.current?.update();
+                        separateWglpRefs.current.forEach((wglp) => wglp?.update());
+                    }}
+                />
+                <span className="ml-2 text-sm">{zoomFactor.toFixed(1)}x</span>
+            </div>
+
+            {/* Graph Container */}
+            <div className="w-full h-[500px] flex flex-col gap-2">
+                {/* Combined Canvas */}
+                {showCombined && (
+                    <div className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full h-full flex flex-col">
+                        <h2 className="text-sm font-semibold text-center mb-1 text-white">Combined Plot</h2>
+                        <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
+                    </div>
+                )}
+            </div>
+
+            {/* Raw Data Output / Command Input */}
+            {/* Raw Data Output / Command Input */}
+            <div ref={rawDataRef} className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto min-h-[160px] relative">
+
+                {/* Sticky Top-right Controls */}
+                <div className="sticky top-0 right-0 flex items-center justify-end space-x-2 bg-[#1a1a2e] p-2 z-10">
+                    {/* Baud Rate Selector */}
+                    <div className="flex items-center space-x-2">
+                        <label className="text-xs font-semibold">Baud Rate:</label>
+                        <select
+                            value={baudRate}
+                            onChange={(e) => setBaudRate(Number(e.target.value))}
+                            className="p-1 border rounded bg-gray-800 text-white text-xs"
+                        >
+                            {[9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600].map((rate) => (
+                                <option key={rate} value={rate}>
+                                    {rate}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Clear Data Button */}
+                    <button
+                        onClick={() => setRawData("")}
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
+                    >
+                        Clear
+                    </button>
                 </div>
-            )}
-    
-            {/* Separate Canvases */}
-            {showSeparate && selectedChannels.map((index) => (
-                <div key={index} className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full">
-                    <h2 className="text-sm font-semibold text-center mb-1 text-white">Channel {index + 1}</h2>
-                    <canvas ref={(el) => { separateCanvasRefs.current[index] = el; }}
-                        className="w-full h-[100px] rounded-xl" />
-                </div>
-            ))}
+
+                {/* Title */}
+                <h2 className="text-sm font-semibold text-center mb-4">
+                    {boardName ? `Connected to: ${boardName}` : "Raw Data Output"}
+                </h2>
+
+                {/* Command Input or Raw Data */}
+                {showCommandInput ? (
+                    <div className="flex items-center space-x-1 p-1">
+                        <input
+                            type="text"
+                            value={command}
+                            onChange={(e) => setCommand(e.target.value)}
+                            placeholder="Enter command (WHORU, START)"
+                            className="w-full p-1 rounded bg-gray-800 text-white border border-gray-600 text-xs"
+                        />
+                        <Button onClick={sendCommand} className="px-2 py-1 text-xs font-semibold">Send</Button>
+                    </div>
+                ) : (
+                    <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4">{rawData}</pre>
+                )}
+            </div>
+
+
         </div>
-    
-        {/* Raw Data Output / Command Input */}
-        <div ref={rawDataRef} className="w-full py-2 border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto h-40">
-            <h2 className="text-sm font-semibold text-center mb-1">
-                {boardName ? `Connected to: ${boardName}` : "Raw Data Output"}
-            </h2>
-    
-            {showCommandInput ? (
-                <div className="flex items-center space-x-1 p-1">
-                    <input
-                        type="text"
-                        value={command}
-                        onChange={(e) => setCommand(e.target.value)}
-                        placeholder="Enter command (WHORU, START)"
-                        className="w-full p-1 rounded bg-gray-800 text-white border border-gray-600 text-xs"
-                    />
-                    <Button onClick={sendCommand} className="px-2 py-1 text-xs font-semibold">Send</Button>
-                </div>
-            ) : (
-                <pre className="text-xs whitespace-pre-wrap break-words">{rawData}</pre>
-            )}
-        </div>
-    </div>
-      
+
     );
 };
 
