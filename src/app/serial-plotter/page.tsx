@@ -116,12 +116,12 @@ const SerialPlotter = () => {
             await selectedPort.open({ baudRate }); // Use selected baud rate
             setPort(selectedPort);
             setIsConnected(true);
-
+            setRawData("");
             wglpRef.current = null;
             linesRef.current = [];
             setData([]);
             setSelectedChannels([]);
-
+    
             readSerialData(selectedPort);
         } catch (err) {
             console.error("Error connecting to serial:", err);
@@ -194,6 +194,7 @@ const SerialPlotter = () => {
             console.error("Error reading serial data:", err);
         }
     };
+    
     // ✅ RE-INITIALIZE WebGL when `selectedChannels` updates
     useEffect(() => {
         if (!canvasRef.current || selectedChannels.length === 0) return;
@@ -295,8 +296,6 @@ const SerialPlotter = () => {
         });
     };
 
-
-
     const disconnectSerial = async () => {
         if (reader) {
             await reader.cancel();
@@ -334,110 +333,106 @@ const SerialPlotter = () => {
     };
 
     return (
-        <div className="w-full mx-auto border rounded-2xl shadow-xl flex flex-col gap-4 h-screen">
-            <h1 className="text-2xl font-bold text-center">Chords Serial Plotter & Monitor</h1>
+        <div className="w-full h-screen mx-auto border rounded-2xl shadow-xl flex flex-col gap-4 overflow-hidden p-4">
+    <h1 className="text-2xl font-bold text-center">Chords Serial Plotter & Monitor</h1>
 
-            <div className="flex justify-center flex-wrap gap-2">
-                <Button onClick={connectToSerial} disabled={isConnected} className="px-4 py-2 text-sm font-semibold">
-                    {isConnected ? "Connected" : "Connect Serial"}
-                </Button>
-                <Button onClick={disconnectSerial} disabled={!isConnected} className="px-4 py-2 text-sm font-semibold">
-                    Disconnect
-                </Button>
+    <div className="flex justify-center flex-wrap gap-2">
+        <Button onClick={connectToSerial} disabled={isConnected} className="px-4 py-2 text-sm font-semibold">
+            {isConnected ? "Connected" : "Connect Serial"}
+        </Button>
+        <Button onClick={disconnectSerial} disabled={!isConnected} className="px-4 py-2 text-sm font-semibold">
+            Disconnect
+        </Button>
+    </div>
+
+    {/* Zoom Control */}
+    <div className="w-full flex justify-center items-center">
+        <label className="mr-2 text-sm">Zoom:</label>
+        <input
+            type="range"
+            min="0.1"
+            max="5"
+            step="0.1"
+            value={zoomFactor}
+            className="w-1/3"
+            onChange={(e) => {
+                const newZoom = parseFloat(e.target.value);
+                setZoomFactor(newZoom);
+                linesRef.current.forEach((line) => {
+                    if (line) line.scaleY = newZoom;
+                });
+                separateLinesRefs.current.forEach((line) => {
+                    if (line) line.scaleY = newZoom;
+                });
+                wglpRef.current?.update();
+                separateWglpRefs.current.forEach((wglp) => wglp?.update());
+            }}
+        />
+        <span className="ml-2 text-sm">{zoomFactor.toFixed(1)}x</span>
+    </div>
+
+    {/* Graph Container - Dynamic Height */}
+    <div className="w-full flex-grow flex flex-col gap-2">
+        {showCombined && (
+            <div className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full h-full flex flex-col">
+                <h2 className="text-sm font-semibold text-center mb-1 text-white">Combined Plot</h2>
+                <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
+            </div>
+        )}
+    </div>
+
+    {/* Raw Data Output / Command Input - Responsive Height */}
+    <div ref={rawDataRef} className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto min-h-[160px] max-h-[40vh] flex flex-col relative">
+        {/* Sticky Top-right Controls */}
+        <div className="sticky top-0 right-0 flex items-center justify-end space-x-2 bg-[#1a1a2e] p-2 z-10">
+            {/* Baud Rate Selector */}
+            <div className="flex items-center space-x-2">
+                <label className="text-xs font-semibold">Baud Rate:</label>
+                <select
+                    value={baudRate}
+                    onChange={(e) => setBaudRate(Number(e.target.value))}
+                    className="p-1 border rounded bg-gray-800 text-white text-xs"
+                >
+                    {[9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600].map((rate) => (
+                        <option key={rate} value={rate}>
+                            {rate}
+                        </option>
+                    ))}
+                </select>
             </div>
 
-            {/* Zoom Control */}
-            <div className="w-full flex justify-center items-center ">
-                <label className="mr-2 text-sm">Zoom:</label>
-                <input
-                    type="range"
-                    min="0.1"
-                    max="5"
-                    step="0.1"
-                    value={zoomFactor}
-                    className="w-1/3"
-                    onChange={(e) => {
-                        const newZoom = parseFloat(e.target.value);
-                        setZoomFactor(newZoom);
-                        linesRef.current.forEach((line) => {
-                            if (line) line.scaleY = newZoom;
-                        });
-                        separateLinesRefs.current.forEach((line) => {
-                            if (line) line.scaleY = newZoom;
-                        });
-                        wglpRef.current?.update();
-                        separateWglpRefs.current.forEach((wglp) => wglp?.update());
-                    }}
-                />
-                <span className="ml-2 text-sm">{zoomFactor.toFixed(1)}x</span>
-            </div>
-
-            {/* Graph Container */}
-            <div className="w-full h-[500px] flex flex-col gap-2">
-                {/* Combined Canvas */}
-                {showCombined && (
-                    <div className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full h-full flex flex-col">
-                        <h2 className="text-sm font-semibold text-center mb-1 text-white">Combined Plot</h2>
-                        <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
-                    </div>
-                )}
-            </div>
-
-            {/* Raw Data Output / Command Input */}
-            {/* Raw Data Output / Command Input */}
-            <div ref={rawDataRef} className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto min-h-[160px] relative">
-
-                {/* Sticky Top-right Controls */}
-                <div className="sticky top-0 right-0 flex items-center justify-end space-x-2 bg-[#1a1a2e] p-2 z-10">
-                    {/* Baud Rate Selector */}
-                    <div className="flex items-center space-x-2">
-                        <label className="text-xs font-semibold">Baud Rate:</label>
-                        <select
-                            value={baudRate}
-                            onChange={(e) => setBaudRate(Number(e.target.value))}
-                            className="p-1 border rounded bg-gray-800 text-white text-xs"
-                        >
-                            {[9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600].map((rate) => (
-                                <option key={rate} value={rate}>
-                                    {rate}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Clear Data Button */}
-                    <button
-                        onClick={() => setRawData("")}
-                        className="px-2 py-1 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
-                    >
-                        Clear
-                    </button>
-                </div>
-
-                {/* Title */}
-                <h2 className="text-sm font-semibold text-center mb-4">
-                    {boardName ? `Connected to: ${boardName}` : "Raw Data Output"}
-                </h2>
-
-                {/* Command Input or Raw Data */}
-                {showCommandInput ? (
-                    <div className="flex items-center space-x-1 p-1">
-                        <input
-                            type="text"
-                            value={command}
-                            onChange={(e) => setCommand(e.target.value)}
-                            placeholder="Enter command (WHORU, START)"
-                            className="w-full p-1 rounded bg-gray-800 text-white border border-gray-600 text-xs"
-                        />
-                        <Button onClick={sendCommand} className="px-2 py-1 text-xs font-semibold">Send</Button>
-                    </div>
-                ) : (
-                    <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4">{rawData}</pre>
-                )}
-            </div>
-
-
+            {/* Clear Data Button */}
+            <button
+                onClick={() => setRawData("")}
+                className="px-2 py-1 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
+            >
+                Clear
+            </button>
         </div>
+
+        {/* Title */}
+        <h2 className="text-sm font-semibold text-center mb-4">
+            {boardName ? `Connected to: ${boardName}` : "Raw Data Output"}
+        </h2>
+
+        {/* Command Input or Raw Data */}
+        {showCommandInput ? (
+            <div className="flex items-center space-x-1 p-1">
+                <input
+                    type="text"
+                    value={command}
+                    onChange={(e) => setCommand(e.target.value)}
+                    placeholder="Enter command (WHORU, START)"
+                    className="w-full p-1 rounded bg-gray-800 text-white border border-gray-600 text-xs"
+                />
+                <Button onClick={sendCommand} className="px-2 py-1 text-xs font-semibold">Send</Button>
+            </div>
+        ) : (
+            <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow">{rawData}</pre>
+        )}
+    </div>
+</div>
+
 
     );
 };
