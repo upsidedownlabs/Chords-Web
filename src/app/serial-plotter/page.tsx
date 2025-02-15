@@ -24,7 +24,7 @@ const SerialPlotter = () => {
     const [showCombined, setShowCombined] = useState(true);
     const selectedChannelsRef = useRef<number[]>([]);
     const rawDataRef = useRef<HTMLDivElement | null>(null);
-    const maxPoints = 100;
+    const maxPoints = 1000;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const wglpRef = useRef<WebglPlot | null>(null);
     const linesRef = useRef<WebglLine[]>([]);
@@ -329,7 +329,9 @@ const SerialPlotter = () => {
                     <div ref={rawDataRef} className={`w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col flex-grow  ${viewMode === "both" ? "min-h-[55vh]" : "min-h-[50vh]"}`}>
                         {/* Sticky Top Controls */}
                         {/* Title */}
-                        <h2 className="text-sm font-semibold text-center mb-2">Raw Data Output</h2>
+                        <h2 className="text-sm font-semibold text-center mb-2">
+                            {boardName ? `Connected to: ${boardName}` : "Raw Data Output"}
+                        </h2>
                         <div className="sticky top-0 right-0 flex items-center justify-end space-x-2 bg-[#1a1a2e] p-2 z-10">
                             <div className="flex items-center space-x-1 p-1">
                                 <input
