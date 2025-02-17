@@ -1,66 +1,95 @@
 import JSZip from 'jszip';
 import { toast } from "sonner";
+
+// Global variables
 let canvasCount = 0;
-let selectedChannels: number[] = []; // Explicitly specify the type as an array of numbers
+let selectedChannels: number[] = [];
+
 self.onmessage = async (event) => {
   const { action, data, filename, selectedChannels: channels } = event.data;
 
   // Open IndexedDB
   const db = await openIndexedDB();
 
+  const handlePostMessage = (message: any) => {
+    self.postMessage(message);
+  };
+
+  const handleError = (error: string) => {
+    handlePostMessage({ error });
+  };
+
   switch (action) {
     case 'setCanvasCount':
-      canvasCount = event.data.canvasCount; // Update canvas count independently
-      self.postMessage({ success: true, message: 'Canvas count updated' });
+      canvasCount = event.data.canvasCount;
+      handlePostMessage({ success: true, message: 'Canvas count updated' });
       break;
+
     case 'setSelectedChannels':
       if (Array.isArray(channels) && channels.every((ch) => typeof ch === 'number')) {
-        selectedChannels = channels; // Update selectedChannels in the worker
-
-        self.postMessage({ success: true, message: 'Selected channels updated' });
+        selectedChannels = channels;
+        handlePostMessage({ success: true, message: 'Selected channels updated' });
       } else {
         console.error('Invalid selectedChannels received:', channels);
-        self.postMessage({ success: false, message: 'Invalid selectedChannels format' });
+        handlePostMessage({ success: false, message: 'Invalid selectedChannels format' });
       }
       break;
+
     case 'write':
-      const success = await writeToIndexedDB(db, data, filename, canvasCount, selectedChannels);
-      self.postMessage({ success });
-      break;
-    case 'getAllData':
       try {
-        const allData = await getAllDataFromIndexedDB(db);
-        self.postMessage({ allData });
+        const success = await writeToIndexedDB(db, data, filename);
+        handlePostMessage({ success });
       } catch (error) {
-        self.postMessage({ error: 'Failed to retrieve all data from IndexedDB' });
+        handleError('Failed to write data to IndexedDB');
       }
       break;
+
     case 'getFileCountFromIndexedDB':
       try {
-        const allData = await getFileCountFromIndexedDB(db);
-        self.postMessage({ allData });
+        const dataMethod = action === 'getAllData' ? getAllDataFromIndexedDB : getFileCountFromIndexedDB;
+        const allData = await dataMethod(db);
+        handlePostMessage({ allData });
       } catch (error) {
-        self.postMessage({ error: 'Failed to retrieve all data from IndexedDB' });
+        handleError('Failed to retrieve data from IndexedDB');
       }
       break;
+
     case 'saveAsZip':
       try {
         const zipBlob = await saveAllDataAsZip(canvasCount, selectedChannels);
-        self.postMessage({ zipBlob });
+        handlePostMessage({ zipBlob });
       } catch (error) {
-        self.postMessage({ error: 'Failed to create ZIP file' });
+        handleError('Failed to create ZIP file');
       }
       break;
+
     case 'saveDataByFilename':
       try {
         const blob = await saveDataByFilename(filename, canvasCount, selectedChannels);
-        self.postMessage({ blob });
+        handlePostMessage({ blob });
       } catch (error) {
-        self.postMessage({ error });
+        handleError(error instanceof Error ? error.message : 'Unknown error');
       }
+
       break;
+
+    case 'deleteFile':
+      if (!filename) {
+        throw new Error('Filename is required for deleteFile action.');
+      }
+      await deleteFilesByFilename(filename);
+      handlePostMessage({ success: true, action: 'deleteFile' });
+      break;
+
+    case 'deleteAll':
+      await deleteAllDataFromIndexedDB();
+      handlePostMessage({ success: true, action: 'deleteAll' });
+      break;
+
+
+
     default:
-      self.postMessage({ error: 'Invalid action' });
+      handlePostMessage({ error: 'Invalid action' });
   }
 };
 
@@ -71,9 +100,7 @@ const openIndexedDB = async (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      const store = db.createObjectStore("ChordsRecordings", {
-        keyPath: "filename",
-      });
+      const store = db.createObjectStore("ChordsRecordings", { keyPath: "filename" });
       store.createIndex("filename", "filename", { unique: true });
     };
 
@@ -82,53 +109,80 @@ const openIndexedDB = async (): Promise<IDBDatabase> => {
   });
 };
 
-// Function to write data to IndexedDB
-const writeToIndexedDB = async (db: IDBDatabase, data: number[][], filename: string, canvasCount: number, selectedChannels: number[]): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("ChordsRecordings", "readwrite");
-    const store = tx.objectStore("ChordsRecordings");
+// Helper function for IndexedDB transactions
+const performIndexDBTransaction = async <T>(
+  db: IDBDatabase,
+  storeName: string,
+  mode: IDBTransactionMode,
+  callback: (store: IDBObjectStore) => Promise<T>
+): Promise<T> => {
+  const tx = db.transaction(storeName, mode);
+  const store = tx.objectStore(storeName);
 
-    const getRequest = store.get(filename);
-
-    getRequest.onsuccess = () => {
-      const existingRecord = getRequest.result;
-
-      if (existingRecord) {
-        existingRecord.content.push(...data);
-        const putRequest = store.put(existingRecord);
-        putRequest.onsuccess = () => resolve(true);
-        putRequest.onerror = () => reject(false);
-      } else {
-        const newRecord = { filename, content: [...data] };
-        const putRequest = store.put(newRecord);
-        putRequest.onsuccess = () => resolve(true);
-        putRequest.onerror = () => reject(false);
-      }
-    };
-    getRequest.onerror = () => reject(false);
-  });
+  try {
+    return await callback(store); // Await the callback directly
+  } catch (error) {
+    throw new Error(`Transaction failed: ${error}`);
+  }
 };
 
-// Function to get all data
+// Function to write data to IndexedDB
+const writeToIndexedDB = async (
+  db: IDBDatabase,
+  data: number[][],
+  filename: string
+): Promise<boolean> => {
+  try {
+    const existingRecord = await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", (store) => {
+      return new Promise<any>((resolve, reject) => {
+        const getRequest = store.get(filename);
+        getRequest.onsuccess = () => resolve(getRequest.result);
+        getRequest.onerror = () => reject(new Error("Error retrieving record"));
+      });
+    });
+
+    if (existingRecord) {
+      existingRecord.content.push(...data);
+      await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", (store) => {
+        return new Promise<void>((resolve, reject) => {
+          const putRequest = store.put(existingRecord);
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(new Error("Error updating record"));
+        });
+      });
+    } else {
+      const newRecord = { filename, content: [...data] };
+      await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", (store) => {
+        return new Promise<void>((resolve, reject) => {
+          const putRequest = store.put(newRecord);
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(new Error("Error inserting record"));
+        });
+      });
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error writing to IndexedDB:", error);
+    return false;
+  }
+};
+
+
+// Function to get all data from IndexedDB
 const getAllDataFromIndexedDB = async (db: IDBDatabase): Promise<any[]> => {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(["ChordsRecordings"], "readonly");
-    const store = tx.objectStore("ChordsRecordings");
-    const request = store.getAll();
-
-    request.onsuccess = () => {
-      const data = request.result.map((item: any, index: number) => ({
-        id: index + 1,
-        ...item,
-      }));
-      resolve(data);
-    };
-
-    request.onerror = (error) => {
-      console.error("Error retrieving data from IndexedDB:", error);
-      reject(error);
-    };
-  });
+  try {
+    return await performIndexDBTransaction(db, "ChordsRecordings", "readonly", (store) => {
+      return new Promise<any[]>((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = (error) => reject(new Error(`Error retrieving data: ${error}`));
+      });
+    });
+  } catch (error) {
+    console.error("Error retrieving data from IndexedDB:", error);
+    throw error;
+  }
 };
 
 // Function to convert data to CSV
@@ -155,7 +209,7 @@ const convertToCSV = (data: any[], canvasCount: number, selectedChannels: number
         ...selectedChannels.map((channel, i) => {
           if (channel) {
 
-            return item[i + 1];//1,3,8
+            return item[i + 1];
           } else {
             console.warn(`Missing data for channel ${channel} in item ${index}:`, item);
             return ""; // Default empty value for missing data
@@ -174,18 +228,17 @@ const convertToCSV = (data: any[], canvasCount: number, selectedChannels: number
   return csvContent;
 };
 
-
 // Function to save all data as a ZIP file
 const saveAllDataAsZip = async (canvasCount: number, selectedChannels: number[]): Promise<Blob> => {
   try {
     const db = await openIndexedDB();
-    const tx = db.transaction("ChordsRecordings", "readonly");
-    const store = tx.objectStore("ChordsRecordings");
 
-    const allData: any[] = await new Promise((resolve, reject) => {
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+    const allData = await performIndexDBTransaction(db, "ChordsRecordings", "readonly", (store) => {
+      return new Promise<any[]>((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
     });
 
     if (!allData || allData.length === 0) {
@@ -196,7 +249,6 @@ const saveAllDataAsZip = async (canvasCount: number, selectedChannels: number[])
 
     allData.forEach((record) => {
       try {
-
         const csvData = convertToCSV(record.content, canvasCount, selectedChannels);
         zip.file(record.filename, csvData);
       } catch (error) {
@@ -204,107 +256,157 @@ const saveAllDataAsZip = async (canvasCount: number, selectedChannels: number[])
       }
     });
 
-
     toast.success("Data successfully downloaded as ZIP.");
 
     const content = await zip.generateAsync({ type: "blob" });
     return content;
   } catch (error) {
-    console.error("Error creating ZIP file in worker:", error);
+    console.error("Error creating ZIP file:", error);
     throw error;
   }
 };
 
-
+// Function to save data by filename
 const saveDataByFilename = async (
   filename: string,
   canvasCount: number,
   selectedChannels: number[]
 ): Promise<Blob> => {
   try {
-    const dbRequest = indexedDB.open("ChordsRecordings");
+    const db = await openIndexedDB();
 
-    return new Promise((resolve, reject) => {
-      dbRequest.onsuccess = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        const transaction = db.transaction("ChordsRecordings", "readonly");
-        const store = transaction.objectStore("ChordsRecordings");
-
-        if (!store.indexNames.contains("filename")) {
-          reject(new Error("Index 'filename' does not exist."));
-          return;
-        }
-
+    const record = await performIndexDBTransaction(db, "ChordsRecordings", "readonly", (store) => {
+      return new Promise<any>((resolve, reject) => {
         const index = store.index("filename");
         const getRequest = index.get(filename);
 
-        getRequest.onsuccess = () => {
-          const result = getRequest.result;
-
-          if (!result || !Array.isArray(result.content)) {
-            reject(new Error("No data found for the given filename or invalid data format."));
-            return;
-          }
-
-          // Validate the content structure
-          if (!result.content.every((item: any) => Array.isArray(item))) {
-            reject(new Error("Content data contains invalid or non-array elements."));
-            return;
-          }
-
-          try {
-            // Convert data to CSV with selected channels
-            const csvData = convertToCSV(result.content, canvasCount, selectedChannels);
-
-            // Create a Blob from the CSV data
-            const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
-            resolve(blob);
-          } catch (conversionError) {
-            console.error("Error converting data to CSV:", conversionError);
-            reject(new Error("Failed to convert data to CSV format."));
-          }
-        };
-
-        getRequest.onerror = () => {
-          reject(new Error("Error during file retrieval."));
-        };
-      };
-
-      dbRequest.onerror = () => {
-        reject(new Error("Failed to open IndexedDB database."));
-      };
+        getRequest.onsuccess = () => resolve(getRequest.result);
+        getRequest.onerror = () => reject(new Error("Error retrieving record"));
+      });
     });
+
+    if (!record || !Array.isArray(record.content)) {
+      throw new Error("No data found for the given filename or invalid data format.");
+    }
+
+    // Validate the content structure
+    if (!record.content.every((item: any) => Array.isArray(item))) {
+      throw new Error("Content data contains invalid or non-array elements.");
+    }
+
+    try {
+      const csvData = convertToCSV(record.content, canvasCount, selectedChannels);
+      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8" });
+      return blob;
+    } catch (conversionError) {
+      console.error("Error converting data to CSV:", conversionError);
+      throw new Error("Failed to convert data to CSV format.");
+    }
   } catch (error) {
-    console.error("Error occurred during file download:", error);
+    console.error("Error during file download:", error);
     throw new Error("Error occurred during file download.");
   }
 };
 
-
+// Function to get file count from IndexedDB
 const getFileCountFromIndexedDB = async (db: IDBDatabase): Promise<string[]> => {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(["ChordsRecordings"], "readonly");
-    const store = tx.objectStore("ChordsRecordings");
-    const filenames: string[] = [];
+  return performIndexDBTransaction(db, "ChordsRecordings", "readonly", (store) => {
+    return new Promise<string[]>((resolve, reject) => {
+      const filenames: string[] = [];
+      const cursorRequest = store.openCursor();
 
-    const cursorRequest = store.openCursor();
-    cursorRequest.onsuccess = (event) => {
-      const cursor = (event.target as IDBRequest).result as IDBCursorWithValue | null;
-      if (cursor) {
-        const record = cursor.value;
-        if (record.filename) {
-          filenames.push(record.filename); // Replace `filename` with your actual property name
+      cursorRequest.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result as IDBCursorWithValue | null;
+        if (cursor) {
+          filenames.push(cursor.value.filename);
+          cursor.continue();
+        } else {
+          resolve(filenames);
         }
-        cursor.continue();
-      } else {
-        resolve(filenames); // All filenames collected
+      };
+
+      cursorRequest.onerror = (event) => {
+        const error = (event.target as IDBRequest).error;
+        console.error("Error retrieving filenames from IndexedDB:", error);
+        reject(error);
+      };
+    });
+  });
+};
+
+const deleteFilesByFilename = async (filename: string) => {
+  const dbRequest = indexedDB.open("ChordsRecordings");
+
+  return new Promise<void>((resolve, reject) => {
+    dbRequest.onsuccess = async (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+
+      try {
+        await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", async (store) => {
+          if (!store.indexNames.contains("filename")) {
+            throw new Error("Index 'filename' does not exist.");
+          }
+
+          const index = store.index("filename");
+          const cursorRequest = index.openCursor(IDBKeyRange.only(filename));
+
+          return new Promise<void>((resolveCursor, rejectCursor) => {
+            cursorRequest.onsuccess = (cursorEvent) => {
+              const cursor = (cursorEvent.target as IDBRequest<IDBCursorWithValue>).result;
+              if (cursor) {
+                cursor.delete();
+                resolveCursor();
+              } else {
+                resolveCursor(); // No file found, still resolve
+              }
+            };
+
+            cursorRequest.onerror = () => rejectCursor(new Error("Error during cursor operation."));
+          });
+        });
+
+        resolve();
+      } catch (error) {
+        reject(error);
       }
     };
 
-    cursorRequest.onerror = (event) => {
-      const error = (event.target as IDBRequest).error;
-      console.error("Error retrieving filenames from IndexedDB:", error);
-      reject(error);
+    dbRequest.onerror = () => reject(new Error("Failed to open IndexedDB database."));
+  });
+};
+
+const deleteAllDataFromIndexedDB = async () => {
+  const dbRequest = indexedDB.open("ChordsRecordings", 2);
+
+  return new Promise<void>((resolve, reject) => {
+    dbRequest.onsuccess = async (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+
+      try {
+        await performIndexDBTransaction(db, "ChordsRecordings", "readwrite", async (store) => {
+          const clearRequest = store.clear();
+
+          return new Promise<void>((resolveClear, rejectClear) => {
+            clearRequest.onsuccess = () => resolveClear();
+            clearRequest.onerror = () => rejectClear(new Error("Failed to clear IndexedDB store."));
+          });
+        });
+
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    dbRequest.onerror = () => reject(new Error("Failed to open IndexedDB."));
+    dbRequest.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+
+      if (!db.objectStoreNames.contains("ChordsRecordings")) {
+        const store = db.createObjectStore("ChordsRecordings", { keyPath: "filename" });
+        store.createIndex("filename", "filename", { unique: false });
+      }
     };
   });
 };
+

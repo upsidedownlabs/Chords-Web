@@ -68,7 +68,11 @@ Chords is an application based on Web Serial connection, you can connect [Compat
     - [X] **Arduino Uno R4 WiFi Support**: Add support for Arduino Uno R4 WiFi.
     - [X] **Giga R1 Support**: Add support for the Arduino Giga R1 board with its 16-bit ADC, offering a range of 0 to 65,535.
     - [X] **Raspberry Pi Pico Support**: Release Raspberry Pi Pico support for Chords. It works seamlessly with the new Heart BioAmp Candy. Share your favorite board in the comments, and we'll aim to include it in future updates.
-    - [X] **Arduino Nano Support** Add support for Nano board which supports up to 8 channels.
+    - [X] **STM32G4 Core Board** This board has a 12-bit ADC and supports 16 channels at 500 sampling rate.
+    - [X] **STM32F4 Black Pill** it features a 12-bit ADC supporting 10 channels at 500 sampling rate.
+    - [X] **Arduino MEGA 2560 R3** Arduino Mega  features a 10-bit ADC and supports up to 16 channels at 250 sampling rate.
+    - [X] **Arduino Nano Classic** Add support for Nano board which supports up to 8 channels at 250.
+
 
 - **User Interface** : Improved user interface by following changes:
     - [X] **Channel Selection**: Display the available channels in a popover, showing a total of 16 channels. However, the number of enabled channels will be based on the connected board.
