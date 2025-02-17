@@ -32,7 +32,9 @@ const SerialPlotter = () => {
     const [boardName, setBoardName] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"monitor" | "plotter" | "both">("both");
     const baudRateref = useRef<number>(115200);
-
+    const bitsref = useRef<number>(10);
+    const channelsref = useRef<number>(1);
+    const sweepPositions = useRef<number[]>(new Array(channelsref.current).fill(0)); // Array for sweep positions
 
     useEffect(() => {
         if (rawDataRef.current) {
@@ -89,7 +91,6 @@ const SerialPlotter = () => {
 
             // Re-plot existing data
             updateWebGLPlot(data); // Ensure existing data is plotted
-
             wglp.update();
         } else {
             wglpRef.current = null; // Reset the WebGL plot reference when hiding
@@ -121,6 +122,14 @@ const SerialPlotter = () => {
             linesRef.current = [];
             selectedChannelsRef.current = [];
             readSerialData(selectedPort);
+
+
+            setTimeout(() => {
+                sweepPositions.current = new Array(6).fill(0);
+
+            }, 6000);
+
+
         } catch (err) {
             console.error("Error connecting to serial:", err);
         }
@@ -171,12 +180,13 @@ const SerialPlotter = () => {
                         const values = line.trim().split(/\s+/).map(parseFloat).filter((v) => !isNaN(v));
                         if (values.length > 0) {
                             newData.push({ time: Date.now(), values });
-
+                            channelsref.current = values.length;
                             // ✅ Ensure `selectedChannels` updates before plotting
                             setSelectedChannels((prevChannels) => {
                                 if (prevChannels.length !== values.length) {
                                     return Array.from({ length: values.length }, (_, i) => i);
                                 }
+
                                 return prevChannels;
                             });
                         }
@@ -233,7 +243,6 @@ const SerialPlotter = () => {
 
     const updateWebGLPlot = (newData: DataPoint[]) => {
         if (!wglpRef.current || linesRef.current.length === 0 || newData.length === 0) return;
-
         // Calculate Y-axis min and max values
         const yMin = Math.min(...newData.flatMap(dp => dp.values));
         const yMax = Math.max(...newData.flatMap(dp => dp.values));
@@ -241,17 +250,43 @@ const SerialPlotter = () => {
 
         // Iterate over new data points and update plots
         newData.forEach((dataPoint) => {
-            selectedChannels.forEach((index) => {
-                if (index >= dataPoint.values.length) return; // Prevent out-of-bounds errors
+            linesRef.current.forEach((line, i) => {
 
-                // Clamp Y-value to be within -1 and 1
-                const yValue = Math.max(-1, Math.min(1, ((dataPoint.values[index] - yMin) / yRange) * 2 - 1));
+                if (i >= dataPoint.values.length) return; // Prevent out-of-bounds errors
+
+                // Clamp Y-value to be within -1 and 1 
+                const yValue = Math.max(-1, Math.min(1, ((dataPoint.values[i] - yMin) / yRange) * 2 - 1));
 
                 // Update combined plot
-                const combinedLine = linesRef.current[index];
-                if (combinedLine) {
-                    combinedLine.shiftAdd(new Float32Array([yValue]));
+                // Ensure sweepPositions.current[i] is initialized
+                if (sweepPositions.current[i] === undefined) {
+                    sweepPositions.current[i] = 0;
                 }
+
+                const currentPos = sweepPositions.current[i] % line.numPoints;
+                if (Number.isNaN(currentPos)) {
+                    console.error(`Invalid currentPos at i ${i}. sweepPositions.current[i]:`, sweepPositions.current[i]);
+                    return;
+                }
+
+                if (line) {
+                    try {
+                        line.setY(currentPos, yValue);
+                    } catch (error) {
+                        console.error(`Error plotting data for line ${i} at position ${currentPos}:`, error);
+                    }
+
+                }
+                // Clear the next point for visual effect
+                const clearPosition = Math.ceil((currentPos + maxPoints / 100) % line.numPoints);
+                try {
+                    line.setY(clearPosition, NaN);
+                } catch (error) {
+                    console.error(`Error clearing data at position ${clearPosition} for line ${i}:`, error);
+                }
+
+                // Increment the sweep position
+                sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
             });
         });
 
