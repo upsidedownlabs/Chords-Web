@@ -32,7 +32,7 @@ const SerialPlotter = () => {
     const [boardName, setBoardName] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"monitor" | "plotter" | "both">("both");
     const baudRateref = useRef<number>(115200);
-    const bitsref = useRef<number>(10);
+
 
     useEffect(() => {
         if (rawDataRef.current) {
@@ -323,75 +323,74 @@ const SerialPlotter = () => {
                 )}
                 {/* Monitor - Adjusts Height Dynamically */}
                 {viewMode !== "plotter" && (
-    <div ref={rawDataRef} className={`w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col flex-grow ${viewMode === "both" ? "min-h-[55vh]" : "min-h-[50vh]"}`}>
-        {/* Title Bar with Input and Buttons */}
-        <div className="sticky top-0 flex items-center justify-between bg-[#1a1a2e] p-2 z-10">
-            {/* Input Box (Top Left) */}
-            <input
-                type="text"
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                placeholder="Enter command (WHORU, START)"
-                className="w-1/3 p-1 rounded bg-gray-800 text-white border border-gray-600 text-xs"
-            />
+                    <div
+                        ref={rawDataRef}
+                        className={`w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col flex-grow ${viewMode === "both" ? "min-h-[55vh]" : "min-h-[50vh]"}`}
+                    >
+                        {/* Title Bar with Input and Buttons */}
+                        <div className="sticky top-0 flex items-center justify-between bg-[#1a1a2e] p-2 z-10">
+                            {/* Input Box (Full Width) */}
+                            <input
+                                type="text"
+                                value={command}
+                                onChange={(e) => setCommand(e.target.value)}
+                                placeholder="Enter command (START)"
+                                className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600 text-xs"
+                            />
 
-            {/* Buttons (Top Right) */}
-            <div className="flex items-center space-x-2">
-                <Button onClick={sendCommand} className="px-2 py-1 text-xs font-semibold">Send</Button>
-                <button
-                    onClick={() => setRawData("")}
-                    className="px-2 py-1 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
-                >
-                    Clear
-                </button>
-            </div>
-        </div>
+                            {/* Buttons (Shifted Left) */}
+                            <div className="flex items-center space-x-2 mr-auto">
+                                <Button onClick={sendCommand} className="px-3 py-1 text-xs font-semibold">Send</Button>
+                                <button
+                                    onClick={() => setRawData("")}
+                                    className="px-3 py-1 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
 
-        {/* Data Display */}
-        <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow overflow-auto">
-            {rawData}
-        </pre>
-    </div>
-)}
+                        {/* Data Display */}
+                        <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow overflow-auto">
+                            {rawData}
+                        </pre>
+                    </div>
+                )}
 
             </div>
             {/* Footer Section */}
             <footer className="flex flex-col gap-2 sm:flex-row py-2 m-2 w-full shrink-0 items-center justify-center px-2 md:px-4 border-t">
+
+                {/* Connection Button */}
+                <div className="flex justify-center">
+                    <Button
+                        onClick={isConnected ? disconnectSerial : connectToSerial}
+                        className={`px-4 py-2 text-sm font-semibold transition rounded-xl ${isConnected ? " text-base" : "text-base"
+                            }`}
+                    >
+                        {isConnected ? "Disconnect" : "Connect Serial"}
+                    </Button>
+                </div>
+
                 {/* View Mode Selector */}
-                <div className="flex justify-center space-x-2">
-                    {(["monitor", "plotter", "both"] as const).map((mode) => (
+                <div className="flex items-center gap-0.5 mx-0 px-0">
+                    {(["monitor", "plotter", "both"] as const).map((mode, index, arr) => (
                         <Button
                             key={mode}
                             onClick={() => setViewMode(mode)}
-                            className={`px-3 py-1 text-sm rounded ${viewMode === mode ? "" : "bg-gray-700 text-gray-200"}`}
+                            className={`px-4 py-2 text-sm transition font-semibold
+                ${viewMode === mode
+                                    ? "bg-primary text-white dark:text-gray-800 shadow-md"  // Active state
+                                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"}  // Inactive state
+                ${index === 0 ? "rounded-xl rounded-r-none" : ""}
+                ${index === arr.length - 1 ? "rounded-xl rounded-l-none" : ""}
+                ${index !== 0 && index !== arr.length - 1 ? "rounded-none" : ""}`}
                         >
                             {mode.charAt(0).toUpperCase() + mode.slice(1)}
                         </Button>
                     ))}
                 </div>
 
-                {/* Connection Buttons */}
-                <div className="flex justify-center flex-wrap gap-2">
-                    <Button onClick={connectToSerial} disabled={isConnected} className="px-4 py-2 text-sm font-semibold">
-                        {isConnected ? "Connected" : "Connect Serial"}
-                    </Button>
-                    <Button onClick={disconnectSerial} disabled={!isConnected} className="px-4 py-2 text-sm font-semibold">
-                        Disconnect
-                    </Button>
-                </div>
-                {/* Bits Selector */}
-                <div className="flex items-center space-x-2">
-                    <label className="text-xs font-semibold">Bits</label>
-                    <select
-                        value={bitsref.current}
-                        onChange={(e) => (bitsref.current = Number(e.target.value))}
-                        className="p-1 border rounded bg-gray-800 text-white text-xs"
-                    >
-                        {[10, 12, 14, 16].map((Bits) => (
-                            <option key={Bits} value={Bits}>{Bits}</option>
-                        ))}
-                    </select>
-                </div>
                 {/* Baud Rate Selector */}
                 <div className="flex items-center space-x-2">
                     <label className="text-xs font-semibold">Baud Rate:</label>

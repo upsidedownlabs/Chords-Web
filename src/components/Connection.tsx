@@ -1147,38 +1147,40 @@ const Connection: React.FC<ConnectionProps> = ({
                         <TooltipTrigger asChild>
                             <Popover open={open} onOpenChange={setOpen}>
                                 <PopoverTrigger asChild>
-                                <Button
-                            className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                            onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevice())}
-                            disabled={isLoading}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Loader size={17} className="animate-spin" />
-                                    Connecting...
-                                </>
-                            ) : isDeviceConnected ? (
-                                <>
-                                    Disconnect
-                                    <CircleX size={17} />
-                                </>
-                            ) : (
-                                <>
-                                    Chords Visualizer
-                                    <Cable size={17} />
-                                </>
-                            )}
-                        </Button>
+                                    <Button
+                                        className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevice())}
+                                        disabled={isLoading}
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <Loader size={17} className="animate-spin" />
+                                                Connecting...
+                                            </>
+                                        ) : isDeviceConnected ? (
+                                            <>
+                                                Disconnect
+                                                <CircleX size={17} />
+                                            </>
+                                        ) : (
+                                            <>
+                                                Chords Visualizer
+                                                <Cable size={17} />
+                                            </>
+                                        )}
+                                    </Button>
                                 </PopoverTrigger>
-                                <Button
-                className="py-2 px-4 rounded-xl font-semibold"
-                onClick={() => {
-                    localStorage.setItem("autoConnectSerial", "true"); // Auto-connect flag
-                    router.push("/serial-plotter");
-                }}
-            >
-                Serial Wizard
-            </Button>
+                                {!isDeviceConnected && (
+                                    <Button
+                                        className="py-2 px-4 rounded-xl font-semibold"
+                                        onClick={() => {
+                                            localStorage.setItem("autoConnectSerial", "true"); // Auto-connect flag
+                                            router.push("/serial-plotter");
+                                        }}
+                                    >
+                                        Serial Wizard
+                                    </Button>
+                                )}
                             </Popover>
                         </TooltipTrigger>
                         <TooltipContent>
