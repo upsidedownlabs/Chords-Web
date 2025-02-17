@@ -3,20 +3,25 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { WebglPlot, WebglLine, ColorRGBA } from "webgl-plot";
 import { Button } from "@/components/ui/button";
+import Navbar from "@/components/Navbar";
 
 interface DataPoint {
+    time: number;
     values: number[];
 }
 
 const channelColors = ["#F5A3B1", "#86D3ED", "#7CD6C8", "#C2B4E2", "#48d967", "#FFFF8C"];
 
 const SerialPlotter = () => {
+    const maxChannels = 0;
+    const [data, setData] = useState<DataPoint[]>([]);
     const [port, setPort] = useState<SerialPort | null>(null);
     const [reader, setReader] = useState<ReadableStreamDefaultReader | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [rawData, setRawData] = useState<string>("");
-    const selectedChannelsRef = useRef<number[]>([]);
+    const [selectedChannels, setSelectedChannels] = useState<number[]>(Array.from({ length: maxChannels }, (_, i) => i));
     const [showCombined, setShowCombined] = useState(true);
+    const selectedChannelsRef = useRef<number[]>([]);
     const rawDataRef = useRef<HTMLDivElement | null>(null);
     const maxPoints = 1000;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -25,8 +30,11 @@ const SerialPlotter = () => {
     const [showCommandInput, setShowCommandInput] = useState(false);
     const [command, setCommand] = useState("");
     const [boardName, setBoardName] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<"monitor" | "plotter" | "both">("both");
     const baudRateref = useRef<number>(115200);
     const bitsref = useRef<number>(10);
+    const channelsref = useRef<number>(1);
+    const sweepPositions = useRef<number[]>(new Array(channelsref.current).fill(0)); // Array for sweep positions
 
     useEffect(() => {
         if (rawDataRef.current) {
@@ -35,6 +43,59 @@ const SerialPlotter = () => {
     }, [rawData]);
 
     const maxRawDataLines = 1000; // Limit for raw data lines
+
+    // ✅ RE-INITIALIZE WebGL when `selectedChannels` updates
+    useEffect(() => {
+        if (!canvasRef.current || selectedChannels.length === 0) return;
+
+        const canvas = canvasRef.current;
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+
+        const wglp = new WebglPlot(canvas);
+        wglpRef.current = wglp;
+
+        // Clear old lines
+        linesRef.current = [];
+
+        selectedChannels.forEach((_, i) => {
+            const line = new WebglLine(getLineColor(i), maxPoints);
+            line.lineSpaceX(-1, 2 / maxPoints);
+            wglp.addLine(line);
+            linesRef.current.push(line);
+        });
+
+        wglp.update();
+    }, [selectedChannels]); // ✅ Runs when channels are detected
+
+    useEffect(() => {
+        if (!canvasRef.current) return;
+
+        const canvas = canvasRef.current;
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+
+        if (viewMode === "both" || viewMode === "plotter") {
+            const wglp = new WebglPlot(canvas);
+            wglpRef.current = wglp;
+
+            // Clear and re-add lines
+            linesRef.current = [];
+
+            selectedChannels.forEach((_, i) => {
+                const line = new WebglLine(getLineColor(i), maxPoints);
+                line.lineSpaceX(-1, 2 / maxPoints);
+                wglp.addLine(line);
+                linesRef.current.push(line);
+            });
+
+            // Re-plot existing data
+            updateWebGLPlot(data); // Ensure existing data is plotted
+            wglp.update();
+        } else {
+            wglpRef.current = null; // Reset the WebGL plot reference when hiding
+        }
+    }, [selectedChannels, showCombined, data, viewMode]); // Include viewMode in dependencies
 
     const getLineColor = (index: number): ColorRGBA => {
         const hex = channelColors[index % channelColors.length];
@@ -61,10 +122,19 @@ const SerialPlotter = () => {
             linesRef.current = [];
             selectedChannelsRef.current = [];
             readSerialData(selectedPort);
+
+
+            setTimeout(() => {
+                sweepPositions.current = new Array(6).fill(0);
+
+            }, 6000);
+
+
         } catch (err) {
             console.error("Error connecting to serial:", err);
         }
-    }, [ baudRateref.current, setPort, setIsConnected, setRawData, wglpRef, linesRef]);
+    }, [baudRateref.current, setPort, setIsConnected, setRawData, wglpRef, linesRef]);
+
 
     const readSerialData = async (serialPort: SerialPort) => {
         try {
@@ -74,6 +144,14 @@ const SerialPlotter = () => {
 
             let buffer = "";
             let receivedData = false;
+
+            // Timeout: If no data in 3 sec, show command input
+            setTimeout(() => {
+                if (!receivedData) {
+                    setShowCommandInput(true);
+                }
+            }, 3000);
+
             while (true) {
                 const { value, done } = await serialReader.read();
                 if (done) break;
@@ -101,49 +179,29 @@ const SerialPlotter = () => {
                         // Convert to numeric data
                         const values = line.trim().split(/\s+/).map(parseFloat).filter((v) => !isNaN(v));
                         if (values.length > 0) {
-                            newData.push({ values });
-                            updateWebGLPlot(values);
+                            newData.push({ time: Date.now(), values });
+                            channelsref.current = values.length;
                             // ✅ Ensure `selectedChannels` updates before plotting
-                            if (selectedChannelsRef.current.length !== values.length) {
-                                selectedChannelsRef.current = Array.from({ length: values.length }, (_, i) => i);
-                                createCanvas();
-                            }
-                            updateWebGLPlot(values);
+                            setSelectedChannels((prevChannels) => {
+                                if (prevChannels.length !== values.length) {
+                                    return Array.from({ length: values.length }, (_, i) => i);
+                                }
 
+                                return prevChannels;
+                            });
                         }
-
                     });
 
+                    if (newData.length > 0) {
+                        updateWebGLPlot(newData);
+                        setData((prev) => [...prev, ...newData].slice(-maxPoints));
+                    }
                 }
             }
             serialReader.releaseLock();
         } catch (err) {
             console.error("Error reading serial data:", err);
         }
-    };
-
-
-    const createCanvas = () => {
-        if (!canvasRef.current) return;
-
-        const canvas = canvasRef.current;
-        canvas.width = canvas.clientWidth;
-        canvas.height = canvas.clientHeight;
-
-        const wglp = new WebglPlot(canvas);
-        wglpRef.current = wglp;
-
-        // Clear and re-add lines
-        linesRef.current = [];
-
-        selectedChannelsRef.current.forEach((_, i) => {
-            const line = new WebglLine(getLineColor(i), maxPoints);
-            line.lineSpaceX(-1, 2 / maxPoints);
-            wglp.addLine(line);
-            linesRef.current.push(line);
-        });
-
-        wglp.update();
     };
 
     useEffect(() => {
@@ -166,7 +224,6 @@ const SerialPlotter = () => {
         };
     }, []);
 
-
     useEffect(() => {
         const checkPortStatus = async () => {
             if (port) {
@@ -184,24 +241,60 @@ const SerialPlotter = () => {
         return () => clearInterval(interval);
     }, [port]);
 
+    const updateWebGLPlot = (newData: DataPoint[]) => {
+        if (!wglpRef.current || linesRef.current.length === 0 || newData.length === 0) return;
+        // Calculate Y-axis min and max values
+        const yMin = Math.min(...newData.flatMap(dp => dp.values));
+        const yMax = Math.max(...newData.flatMap(dp => dp.values));
+        const yRange = yMax - yMin || 1; // Avoid division by zero
 
-    const updateWebGLPlot = useCallback((newData: number[]) => {
-        if (!wglpRef.current || linesRef.current.length === 0) return;
+        // Iterate over new data points and update plots
+        newData.forEach((dataPoint) => {
+            linesRef.current.forEach((line, i) => {
 
-        const bitsPoints = Math.pow(2, bitsref.current);
-        const yScale = 2 / bitsPoints;
+                if (i >= dataPoint.values.length) return; // Prevent out-of-bounds errors
 
-        // Update each channel with one new data point
-        selectedChannelsRef.current.forEach((index) => {
-            if (newData[index] !== undefined) {
-                const yValue = ((newData[index] - bitsPoints / 2) * yScale);
-                linesRef.current[index]?.shiftAdd(new Float32Array([yValue]));
-            }
+                // Clamp Y-value to be within -1 and 1 
+                const yValue = Math.max(-1, Math.min(1, ((dataPoint.values[i] - yMin) / yRange) * 2 - 1));
+
+                // Update combined plot
+                // Ensure sweepPositions.current[i] is initialized
+                if (sweepPositions.current[i] === undefined) {
+                    sweepPositions.current[i] = 0;
+                }
+
+                const currentPos = sweepPositions.current[i] % line.numPoints;
+                if (Number.isNaN(currentPos)) {
+                    console.error(`Invalid currentPos at i ${i}. sweepPositions.current[i]:`, sweepPositions.current[i]);
+                    return;
+                }
+
+                if (line) {
+                    try {
+                        line.setY(currentPos, yValue);
+                    } catch (error) {
+                        console.error(`Error plotting data for line ${i} at position ${currentPos}:`, error);
+                    }
+
+                }
+                // Clear the next point for visual effect
+                const clearPosition = Math.ceil((currentPos + maxPoints / 100) % line.numPoints);
+                try {
+                    line.setY(clearPosition, NaN);
+                } catch (error) {
+                    console.error(`Error clearing data at position ${clearPosition} for line ${i}:`, error);
+                }
+
+                // Increment the sweep position
+                sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
+            });
         });
-    }, [bitsref.current, selectedChannelsRef.current]);
 
-
-
+        // Efficiently trigger a render update
+        requestAnimationFrame(() => {
+            if (wglpRef.current) wglpRef.current.update();
+        });
+    };
 
     const disconnectSerial = async () => {
         if (reader) {
@@ -222,20 +315,17 @@ const SerialPlotter = () => {
             wglpRef.current = null;
         }
         linesRef.current = [];
+        setData([]);
     };
-    
-
     const handleBaudRateChange = async (newBaudRate: number) => {
         if (isConnected && port) {
             await disconnectSerial(); // Disconnect current connection
         }
-        baudRateref.current =newBaudRate;
+        baudRateref.current = newBaudRate;
         setTimeout(() => {
             connectToSerial(); // Reconnect with the new baud rate
         }, 500);
     };
-    
-
     const sendCommand = async () => {
         if (!port?.writable || !command.trim()) return;
 
@@ -250,93 +340,108 @@ const SerialPlotter = () => {
     };
 
     return (
-        <div className="w-full h-screen mx-auto border rounded-2xl shadow-xl flex flex-col gap-4 overflow-hidden p-4">
-            <h1 className="text-2xl font-bold text-center">Chords Serial Plotter & Monitor</h1>
+        <div className="w-full h-screen mx-auto border rounded-2xl shadow-xl flex flex-col gap- overflow-hidden px-4">
+            <Navbar isDisplay={true} />
 
-            {/* Graph Container - Dynamic Height */}
-            <div className="w-full flex-grow flex flex-col gap-2">
-                {showCombined && (
-                    <div className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full h-full flex flex-col">
-                        <h2 className="text-sm font-semibold text-center mb-1 text-white">Combined Plot</h2>
-                        <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
+            <div className="w-full flex flex-col gap-2 flex-grow overflow-hidden">
+
+                {/* Plotter - Adjusts Height Dynamically */}
+                {viewMode !== "monitor" && (
+                    <div className="w-full flex flex-col flex-grow min-h-[40vh]">
+                        <div className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full h-full flex flex-col">
+                            {/* Canvas Container */}
+                            <div className="canvas-container w-full h-full flex items-center justify-center overflow-hidden">
+                                <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
+                            </div>
+                        </div>
                     </div>
                 )}
+                {/* Monitor - Adjusts Height Dynamically */}
+                {viewMode !== "plotter" && (
+                    <div ref={rawDataRef} className={`w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col flex-grow ${viewMode === "both" ? "min-h-[55vh]" : "min-h-[50vh]"}`}>
+                        {/* Title Bar with Input and Buttons */}
+                        <div className="sticky top-0 flex items-center justify-between bg-[#1a1a2e] p-2 z-10">
+                            {/* Input Box (Top Left) */}
+                            <input
+                                type="text"
+                                value={command}
+                                onChange={(e) => setCommand(e.target.value)}
+                                placeholder="Enter command (WHORU, START)"
+                                className="w-1/3 p-1 rounded bg-gray-800 text-white border border-gray-600 text-xs"
+                            />
+
+                            {/* Buttons (Top Right) */}
+                            <div className="flex items-center space-x-2">
+                                <Button onClick={sendCommand} className="px-2 py-1 text-xs font-semibold">Send</Button>
+                                <button
+                                    onClick={() => setRawData("")}
+                                    className="px-2 py-1 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Data Display */}
+                        <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow overflow-auto">
+                            {rawData}
+                        </pre>
+                    </div>
+                )}
+
             </div>
-
-            {/* Raw Data Output / Command Input - Responsive Height */}
-            <div ref={rawDataRef} className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto min-h-[160px] max-h-[40vh] flex flex-col relative">
-                {/* Sticky Top-right Controls */}
-                <div className="sticky top-0 right-0 flex items-center justify-end space-x-2 bg-[#1a1a2e] p-2 z-10">
-                    {/* Baud Rate Selector */}
-                    {/* Command Input or Raw Data */}
-                    <div className="flex items-center space-x-1 p-1">
-                        <input
-                            type="text"
-                            value={command}
-                            onChange={(e) => setCommand(e.target.value)}
-                            placeholder="Enter command (WHORU, START)"
-                            className="w-full p-1 rounded bg-gray-800 text-white border border-gray-600 text-xs"
-                        />
-                        <Button onClick={sendCommand} className="px-2 py-1 text-xs font-semibold">Send</Button>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <label className="text-xs font-semibold">Bits</label>
-                        <select
-                            value={bitsref.current}
-                            onChange={(e) => bitsref.current= Number(e.target.value)}
-                            className="p-1 border rounded bg-gray-800 text-white text-xs"
+            {/* Footer Section */}
+            <footer className="flex flex-col gap-2 sm:flex-row py-2 m-2 w-full shrink-0 items-center justify-center px-2 md:px-4 border-t">
+                {/* View Mode Selector */}
+                <div className="flex justify-center space-x-2">
+                    {(["monitor", "plotter", "both"] as const).map((mode) => (
+                        <Button
+                            key={mode}
+                            onClick={() => setViewMode(mode)}
+                            className={`px-3 py-1 text-sm rounded ${viewMode === mode ? "" : "bg-gray-700 text-gray-200"}`}
                         >
-                            {[10, 12, 14, 16].map((Bits) => (
-                                <option key={Bits} value={Bits}>
-                                    {Bits}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <label className="text-xs font-semibold">Baud Rate:</label>
-                        <select
-                            value={ baudRateref.current}
-                            onChange={(e) => handleBaudRateChange(Number(e.target.value))}
-                            className="p-1 border rounded bg-gray-800 text-white text-xs"
-                        >
-                            {[9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600].map((rate) => (
-                                <option key={rate} value={rate}>
-                                    {rate}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Clear Data Button */}
-                    <button
-                        onClick={() => setRawData("")}
-                        className="px-2 py-1 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
-                    >
-                        Clear
-                    </button>
+                            {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        </Button>
+                    ))}
                 </div>
 
-                {/* Title */}
-                <h2 className="text-sm font-semibold text-center mb-4">
-                    {boardName ? `Connected to: ${boardName}` : "Raw Data Output"}
-                </h2>
-
-
-                <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow">{rawData}</pre>
-
-            </div>
-            <div className="flex justify-center flex-wrap gap-2">
-                <Button onClick={connectToSerial} disabled={isConnected} className="px-4 py-2 text-sm font-semibold">
-                    {isConnected ? "Connected" : "Connect Serial"}
-                </Button>
-                <Button onClick={disconnectSerial} disabled={!isConnected} className="px-4 py-2 text-sm font-semibold">
-                    Disconnect
-                </Button>
-            </div>
+                {/* Connection Buttons */}
+                <div className="flex justify-center flex-wrap gap-2">
+                    <Button onClick={connectToSerial} disabled={isConnected} className="px-4 py-2 text-sm font-semibold">
+                        {isConnected ? "Connected" : "Connect Serial"}
+                    </Button>
+                    <Button onClick={disconnectSerial} disabled={!isConnected} className="px-4 py-2 text-sm font-semibold">
+                        Disconnect
+                    </Button>
+                </div>
+                {/* Bits Selector */}
+                <div className="flex items-center space-x-2">
+                    <label className="text-xs font-semibold">Bits</label>
+                    <select
+                        value={bitsref.current}
+                        onChange={(e) => (bitsref.current = Number(e.target.value))}
+                        className="p-1 border rounded bg-gray-800 text-white text-xs"
+                    >
+                        {[10, 12, 14, 16].map((Bits) => (
+                            <option key={Bits} value={Bits}>{Bits}</option>
+                        ))}
+                    </select>
+                </div>
+                {/* Baud Rate Selector */}
+                <div className="flex items-center space-x-2">
+                    <label className="text-xs font-semibold">Baud Rate:</label>
+                    <select
+                        value={baudRateref.current}
+                        onChange={(e) => handleBaudRateChange(Number(e.target.value))}
+                        className="p-1 border rounded bg-gray-800 text-white text-xs"
+                    >
+                        {[9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600].map((rate) => (
+                            <option key={rate} value={rate}>{rate}</option>
+                        ))}
+                    </select>
+                </div>
+            </footer>
         </div>
-
-
     );
 };
 
