@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { WebglPlot, WebglLine, ColorRGBA } from "webgl-plot";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import Navbar from "@/components/Navbar";
 
 interface DataPoint {
@@ -308,7 +307,6 @@ const SerialPlotter = () => {
     return (
         <div className="w-full h-screen mx-auto border rounded-2xl shadow-xl flex flex-col gap- overflow-hidden px-4">
             <Navbar isDisplay={true} />
-            <h1 className="text-2xl font-bold text-center">Chords Serial Plotter & Monitor</h1>
 
             <div className="w-full flex flex-col gap-2 flex-grow overflow-hidden">
 
@@ -316,7 +314,6 @@ const SerialPlotter = () => {
                 {viewMode !== "monitor" && (
                     <div className="w-full flex flex-col flex-grow min-h-[40vh]">
                         <div className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full h-full flex flex-col">
-                            <h2 className="text-sm font-semibold text-center mb-1 text-white">Plotter</h2>
                             {/* Canvas Container */}
                             <div className="canvas-container w-full h-full flex items-center justify-center overflow-hidden">
                                 <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
@@ -326,65 +323,37 @@ const SerialPlotter = () => {
                 )}
                 {/* Monitor - Adjusts Height Dynamically */}
                 {viewMode !== "plotter" && (
-                    <div ref={rawDataRef} className={`w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col flex-grow  ${viewMode === "both" ? "min-h-[55vh]" : "min-h-[50vh]"}`}>
-                        {/* Sticky Top Controls */}
-                        {/* Title */}
-                        <h2 className="text-sm font-semibold text-center mb-2">
-                            {boardName ? `Connected to: ${boardName}` : "Raw Data Output"}
-                        </h2>
-                        <div className="sticky top-0 right-0 flex items-center justify-end space-x-2 bg-[#1a1a2e] p-2 z-10">
-                            <div className="flex items-center space-x-1 p-1">
-                                <input
-                                    type="text"
-                                    value={command}
-                                    onChange={(e) => setCommand(e.target.value)}
-                                    placeholder="Enter command (WHORU, START)"
-                                    className="w-full p-1 rounded bg-gray-800 text-white border border-gray-600 text-xs"
-                                />
-                                <Button onClick={sendCommand} className="px-2 py-1 text-xs font-semibold">Send</Button>
-                            </div>
-                            {/* Bits Selector */}
-                            <div className="flex items-center space-x-2">
-                                <label className="text-xs font-semibold">Bits</label>
-                                <select
-                                    value={bitsref.current}
-                                    onChange={(e) => (bitsref.current = Number(e.target.value))}
-                                    className="p-1 border rounded bg-gray-800 text-white text-xs"
-                                >
-                                    {[10, 12, 14, 16].map((Bits) => (
-                                        <option key={Bits} value={Bits}>{Bits}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            {/* Baud Rate Selector */}
-                            <div className="flex items-center space-x-2">
-                                <label className="text-xs font-semibold">Baud Rate:</label>
-                                <select
-                                    value={baudRateref.current}
-                                    onChange={(e) => handleBaudRateChange(Number(e.target.value))}
-                                    className="p-1 border rounded bg-gray-800 text-white text-xs"
-                                >
-                                    {[9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600].map((rate) => (
-                                        <option key={rate} value={rate}>{rate}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            {/* Clear Data Button */}
-                            <button
-                                onClick={() => setRawData("")}
-                                className="px-2 py-1 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
-                            >
-                                Clear
-                            </button>
-                        </div>
+    <div ref={rawDataRef} className={`w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col flex-grow ${viewMode === "both" ? "min-h-[55vh]" : "min-h-[50vh]"}`}>
+        {/* Title Bar with Input and Buttons */}
+        <div className="sticky top-0 flex items-center justify-between bg-[#1a1a2e] p-2 z-10">
+            {/* Input Box (Top Left) */}
+            <input
+                type="text"
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                placeholder="Enter command (WHORU, START)"
+                className="w-1/3 p-1 rounded bg-gray-800 text-white border border-gray-600 text-xs"
+            />
 
+            {/* Buttons (Top Right) */}
+            <div className="flex items-center space-x-2">
+                <Button onClick={sendCommand} className="px-2 py-1 text-xs font-semibold">Send</Button>
+                <button
+                    onClick={() => setRawData("")}
+                    className="px-2 py-1 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
+                >
+                    Clear
+                </button>
+            </div>
+        </div>
 
-                        <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow overflow-auto">
-                            {rawData}
-                        </pre>
+        {/* Data Display */}
+        <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow overflow-auto">
+            {rawData}
+        </pre>
+    </div>
+)}
 
-                    </div>
-                )}
             </div>
             {/* Footer Section */}
             <footer className="flex flex-col gap-2 sm:flex-row py-2 m-2 w-full shrink-0 items-center justify-center px-2 md:px-4 border-t">
@@ -409,6 +378,32 @@ const SerialPlotter = () => {
                     <Button onClick={disconnectSerial} disabled={!isConnected} className="px-4 py-2 text-sm font-semibold">
                         Disconnect
                     </Button>
+                </div>
+                {/* Bits Selector */}
+                <div className="flex items-center space-x-2">
+                    <label className="text-xs font-semibold">Bits</label>
+                    <select
+                        value={bitsref.current}
+                        onChange={(e) => (bitsref.current = Number(e.target.value))}
+                        className="p-1 border rounded bg-gray-800 text-white text-xs"
+                    >
+                        {[10, 12, 14, 16].map((Bits) => (
+                            <option key={Bits} value={Bits}>{Bits}</option>
+                        ))}
+                    </select>
+                </div>
+                {/* Baud Rate Selector */}
+                <div className="flex items-center space-x-2">
+                    <label className="text-xs font-semibold">Baud Rate:</label>
+                    <select
+                        value={baudRateref.current}
+                        onChange={(e) => handleBaudRateChange(Number(e.target.value))}
+                        className="p-1 border rounded bg-gray-800 text-white text-xs"
+                    >
+                        {[9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600].map((rate) => (
+                            <option key={rate} value={rate}>{rate}</option>
+                        ))}
+                    </select>
                 </div>
             </footer>
         </div>
