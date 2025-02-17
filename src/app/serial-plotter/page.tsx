@@ -411,7 +411,7 @@ const SerialPlotter = () => {
                         onClick={isConnected ? disconnectSerial : connectToSerial}
                         className={`px-4 py-2 text-sm font-semibold transition rounded-xl ${isConnected ? "text-sm" : "text-sm"}`}
                     >
-                        {isConnected ? "Disconnect" : "Connect Serial"}
+                        {isConnected ? "Disconnect" : "Connect"}
                     </Button>
                 </div>
 
@@ -423,8 +423,8 @@ const SerialPlotter = () => {
                             onClick={() => setViewMode(mode)}
                             className={`px-4 py-2 text-sm transition font-semibold
                 ${viewMode === mode
-                                    ? "bg-primary text-white dark:text-gray-800 shadow-md"  // Active state
-                                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"}  // Inactive state
+                                    ? "bg-primary text-white dark:text-gray-900 shadow-md"  // Active state
+                                    : "bg-gray-500 text-gray-900 hover:bg-gray-300"}  // Inactive state (lighter shade)
                 ${index === 0 ? "rounded-xl rounded-r-none" : ""}
                 ${index === arr.length - 1 ? "rounded-xl rounded-l-none" : ""}
                 ${index !== 0 && index !== arr.length - 1 ? "rounded-none" : ""}`}
@@ -433,6 +433,7 @@ const SerialPlotter = () => {
                         </Button>
                     ))}
                 </div>
+
 
                 {/* Baud Rate Selector */}
                 <div className="flex items-center space-x-2">
