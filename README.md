@@ -79,6 +79,8 @@ Chords is an application based on Web Serial connection, you can connect [Compat
     - [X] **Zoom Slider**: Adjust zoom to focus on data points or view an overall plot.
     - [X] **Time-Base Slider**: Customize the time duration for displaying data per frame, with options ranging from 1 to 10 seconds.
 
+- [X] **Serial Wizard** : We are introducing the Serial Plotter and Monitor, a powerful tool that enables you to visualize data graphically, display raw data in text format, and even use both modes simultaneously for a more comprehensive analysis. In the past,we had no better option to run both plotter and monitor at the same time and high-speed plotting that hindered real-time data visualization. To address these challenges, we've created a user-friendly, smooth-performing Serial Plotter & Monitor with multi-mode support, providing a more responsive and efficient data analysis experience.
+
 ## Contributors
 
 Thank you for contributing to our project! Your support is invaluable in creating & enhancing Chords-Web and making it even better. 😊
