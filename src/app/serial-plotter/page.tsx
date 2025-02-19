@@ -360,10 +360,13 @@ const SerialPlotter = () => {
                 {viewMode !== "plotter" && (
                     <div
                         ref={rawDataRef}
-                        className={`w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col`}
-                        style={{ height: "35vh", maxHeight: "35vh", minHeight: "35vh" }} // Set fixed height
+                        className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col"
+                        style={{
+                            height: viewMode === "monitor" ? "calc(100vh - 100px)" : "35vh", // Adjust height when only monitor is shown
+                            maxHeight: viewMode === "monitor" ? "calc(100vh - 100px)" : "35vh",
+                            minHeight: "35vh",
+                        }}
                     >
-
                         {/* Title Bar with Input and Buttons */}
                         <div className="sticky top-0 flex items-center justify-between bg-[#1a1a2e] p-2 z-10">
                             {/* Input Box (Full Width) */}
