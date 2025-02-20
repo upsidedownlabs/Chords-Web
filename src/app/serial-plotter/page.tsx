@@ -34,7 +34,7 @@ const SerialPlotter = () => {
     const bitsref = useRef<number>(10);
     const channelsref = useRef<number>(1);
     const sweepPositions = useRef<number[]>(new Array(channelsref.current).fill(0)); // Array for sweep positions
-
+    const currentScaleRef = useRef({ yMin: -1, yMax: 1 });
     const dataRef = useRef<DataPoint[]>([]);
 
     useEffect(() => {
@@ -67,7 +67,7 @@ const SerialPlotter = () => {
         });
 
         wglp.update();
-    }, [selectedChannels]); // ✅ Runs when channels are detected
+    }, [selectedChannels]);
 
     useEffect(() => {
         if (!canvasRef.current) return;
@@ -88,31 +88,53 @@ const SerialPlotter = () => {
         });
         // You can call wglp.update() here once for the initial setup.
         wglp.update();
-    }, [selectedChannels, viewMode, isConnected]); // Remove data from dependencies if you handle data updates elsewhere
+    }, [selectedChannels, viewMode, isConnected]);
 
     useEffect(() => {
-        if (data.length === 0) return;
+        const smoothingFactor = 0.5; // Adjust this between 0 (no change) and 1 (immediate change)
+        // Update frequently for a continuous effect (e.g., every 50ms)
+        const interval = setInterval(() => {
+            if (!wglpRef.current || linesRef.current.length === 0 || dataRef.current.length === 0) return;
 
-        // Calculate autoscale on the entire data state
-        const allValues = data.flatMap(dp => dp.values);
-        const MIN_POINTS_FOR_SCALING = 10;
-        let yMin, yMax;
+            // Compute the new autoscale parameters from the full data window
+            const allValues = dataRef.current.flatMap(dp => dp.values);
+            const MIN_POINTS_FOR_SCALING = 10;
+            let newYMin = -1, newYMax = 1;
+            if (allValues.length >= MIN_POINTS_FOR_SCALING) {
+                newYMin = Math.min(...allValues);
+                newYMax = Math.max(...allValues);
+            }
 
-        if (allValues.length < MIN_POINTS_FOR_SCALING) {
-            yMin = -1;
-            yMax = 1;
-        } else {
-            yMin = Math.min(...allValues);
-            yMax = Math.max(...allValues);
-        }
-        const yRange = yMax - yMin || 1;
+            // Smoothly interpolate between the current scale and the new scale
+            currentScaleRef.current.yMin += smoothingFactor * (newYMin - currentScaleRef.current.yMin);
+            currentScaleRef.current.yMax += smoothingFactor * (newYMax - currentScaleRef.current.yMax);
 
-        // Optionally, update all current lines with the new scale
-        linesRef.current.forEach((line, i) => {
+            const currentYMin = currentScaleRef.current.yMin;
+            const currentYMax = currentScaleRef.current.yMax;
+            const yRange = currentYMax - currentYMin || 1;
 
-        });
-    }, [data]);
+            // Update every point in the buffer using the smoothed scale
+            linesRef.current.forEach((line, channelIndex) => {
+                const numPoints = dataRef.current.length;
+                for (let j = 0; j < numPoints; j++) {
+                    const value = dataRef.current[j].values[channelIndex];
+                    if (value === undefined) continue;
+                    const scaledY = ((value - currentYMin) / yRange) * 2 - 1;
+                    try {
+                        line.setY(j, scaledY);
+                    } catch (e) {
+                        console.error(`Error autoscaling channel ${channelIndex} at point ${j}:`, e);
+                    }
+                }
+            });
 
+            if (wglpRef.current) {
+                wglpRef.current.update();
+            }
+        }, 10); // Update every 50ms for a continuous, smooth effect
+
+        return () => clearInterval(interval);
+    }, []);
 
 
     const getLineColor = (index: number): ColorRGBA => {
@@ -141,18 +163,13 @@ const SerialPlotter = () => {
             selectedChannelsRef.current = [];
             readSerialData(selectedPort);
 
-
             setTimeout(() => {
                 sweepPositions.current = new Array(6).fill(0);
-
             }, 6000);
-
-
         } catch (err) {
             console.error("Error connecting to serial:", err);
         }
-    }, [baudRateref.current, setPort, setIsConnected, setRawData, wglpRef, linesRef]);
-
+    }, [baudRateref.current, setPort, setIsConnected, setRawData]);
 
     const readSerialData = async (serialPort: SerialPort) => {
         try {
@@ -204,7 +221,6 @@ const SerialPlotter = () => {
                                 if (prevChannels.length !== values.length) {
                                     return Array.from({ length: values.length }, (_, i) => i);
                                 }
-
                                 return prevChannels;
                             });
                         }
@@ -216,7 +232,6 @@ const SerialPlotter = () => {
                         updateWebGLPlot(newData, dataRef.current);
                         setData(dataRef.current);
                     }
-
                 }
             }
             serialReader.releaseLock();
@@ -265,37 +280,22 @@ const SerialPlotter = () => {
     const updateWebGLPlot = (newData: DataPoint[], windowData: DataPoint[]) => {
         if (!wglpRef.current || linesRef.current.length === 0 || newData.length === 0) return;
 
-        // Use the entire window for autoscaling
-        const allValues = windowData.flatMap(dp => dp.values);
-        const MIN_POINTS_FOR_SCALING = 10;
-        let yMin, yMax;
-
-        if (allValues.length < MIN_POINTS_FOR_SCALING) {
-            yMin = -1;
-            yMax = 1;
-        } else {
-            yMin = Math.min(...allValues);
-            yMax = Math.max(...allValues);
-        }
+        // Use the smoothed scale from currentScaleRef for the new data
+        const { yMin, yMax } = currentScaleRef.current;
         const yRange = yMax - yMin || 1;
 
         newData.forEach((dataPoint) => {
-            linesRef.current.forEach((line, i) => {
-                if (i >= dataPoint.values.length) return;
-                const yValue = ((dataPoint.values[i] - yMin) / yRange) * 2 - 1;
-                const currentPos = sweepPositions.current[i] % line.numPoints;
+            linesRef.current.forEach((line, channelIndex) => {
+                if (channelIndex >= dataPoint.values.length) return;
+                const yValue = ((dataPoint.values[channelIndex] - yMin) / yRange) * 2 - 1;
+                const currentPos = sweepPositions.current[channelIndex] % line.numPoints;
                 try {
                     line.setY(currentPos, yValue);
                 } catch (error) {
-                    console.error(`Error plotting data for line ${i} at position ${currentPos}:`, error);
+                    console.error(`Error plotting data for line ${channelIndex} at pos ${currentPos}:`, error);
                 }
-                const clearPosition = Math.ceil((currentPos + maxPoints / 100) % line.numPoints);
-                try {
-                    line.setY(clearPosition, NaN);
-                } catch (error) {
-                    console.error(`Error clearing data at position ${clearPosition} for line ${i}:`, error);
-                }
-                sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
+                // Advance the circular buffer pointer
+                sweepPositions.current[channelIndex] = (currentPos + 1) % line.numPoints;
             });
         });
 
@@ -303,6 +303,7 @@ const SerialPlotter = () => {
             if (wglpRef.current) wglpRef.current.update();
         });
     };
+
 
 
     const disconnectSerial = async () => {
@@ -342,7 +343,6 @@ const SerialPlotter = () => {
             const writer = port.writable.getWriter(); // Get writer
             await writer.write(new TextEncoder().encode(command + "\n"));
             writer.releaseLock(); // Release writer after writing
-
         } catch (err) {
             console.error("Error sending command:", err);
         }
@@ -371,7 +371,7 @@ const SerialPlotter = () => {
                         ref={rawDataRef}
                         className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col"
                         style={{
-                            height: viewMode === "monitor" ? "calc(100vh - 100px)" : "35vh", // Adjust height when only monitor is shown
+                            height: viewMode === "monitor" ? "calc(100vh - 100px)" : "35vh",
                             maxHeight: viewMode === "monitor" ? "calc(100vh - 100px)" : "35vh",
                             minHeight: "35vh",
                         }}
@@ -385,7 +385,7 @@ const SerialPlotter = () => {
                                 onChange={(e) => setCommand(e.target.value)}
                                 placeholder="Enter command"
                                 className="w-full p-2 text-xs font-semibold rounded bg-gray-800 text-white border border-gray-600"
-                                style={{ height: '36px' }} // Ensure the height is consistent with buttons
+                                style={{ height: '36px' }}
                             />
 
                             {/* Buttons (Shifted Left) */}
@@ -393,20 +393,19 @@ const SerialPlotter = () => {
                                 <Button
                                     onClick={sendCommand}
                                     className="px-4 py-2 text-xs font-semibold bg-gray-500 rounded shadow-md hover:bg-gray-500 transition ml-2"
-                                    style={{ height: '36px' }} // Set height equal to the input box
+                                    style={{ height: '36px' }}
                                 >
                                     Send
                                 </Button>
                                 <button
                                     onClick={() => setRawData("")}
                                     className="px-4 py-2 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
-                                    style={{ height: '36px' }} // Set height equal to the input box
+                                    style={{ height: '36px' }}
                                 >
                                     Clear
                                 </button>
                             </div>
                         </div>
-
 
                         {/* Data Display */}
                         <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow overflow-auto rounded-xl">
@@ -418,7 +417,6 @@ const SerialPlotter = () => {
 
             {/* Footer Section */}
             <footer className="flex flex-col gap-2 sm:flex-row py-2 m-2 w-full shrink-0 items-center justify-center px-2 md:px-4">
-
                 {/* Connection Button */}
                 <div className="flex justify-center">
                     <Button
@@ -437,8 +435,8 @@ const SerialPlotter = () => {
                             onClick={() => setViewMode(mode)}
                             className={`px-4 py-2 text-sm transition font-semibold
                 ${viewMode === mode
-                                    ? "bg-primary text-white dark:text-gray-900 shadow-md"  // Active state
-                                    : "bg-gray-500 text-gray-900 hover:bg-gray-300"}  // Inactive state (lighter shade)
+                                    ? "bg-primary text-white dark:text-gray-900 shadow-md"
+                                    : "bg-gray-500 text-gray-900 hover:bg-gray-300"}
                 ${index === 0 ? "rounded-xl rounded-r-none" : ""}
                 ${index === arr.length - 1 ? "rounded-xl rounded-l-none" : ""}
                 ${index !== 0 && index !== arr.length - 1 ? "rounded-none" : ""}`}
@@ -447,7 +445,6 @@ const SerialPlotter = () => {
                         </Button>
                     ))}
                 </div>
-
 
                 {/* Baud Rate Selector */}
                 <div className="flex items-center space-x-2">
@@ -463,7 +460,6 @@ const SerialPlotter = () => {
                     </select>
                 </div>
             </footer>
-
         </div>
     );
 };
