@@ -20,7 +20,6 @@ const SerialPlotter = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [rawData, setRawData] = useState<string>("");
     const [selectedChannels, setSelectedChannels] = useState<number[]>(Array.from({ length: maxChannels }, (_, i) => i));
-    const [showCombined, setShowCombined] = useState(true);
     const selectedChannelsRef = useRef<number[]>([]);
     const rawDataRef = useRef<HTMLDivElement | null>(null);
     const maxPoints = 1000;
@@ -35,6 +34,8 @@ const SerialPlotter = () => {
     const bitsref = useRef<number>(10);
     const channelsref = useRef<number>(1);
     const sweepPositions = useRef<number[]>(new Array(channelsref.current).fill(0)); // Array for sweep positions
+
+    const dataRef = useRef<DataPoint[]>([]);
 
     useEffect(() => {
         if (rawDataRef.current) {
@@ -70,32 +71,49 @@ const SerialPlotter = () => {
 
     useEffect(() => {
         if (!canvasRef.current) return;
-
         const canvas = canvasRef.current;
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
 
-        if (viewMode === "both" || viewMode === "plotter") {
-            const wglp = new WebglPlot(canvas);
-            wglpRef.current = wglp;
+        // Only (re)initialize if viewMode or selectedChannels change
+        const wglp = new WebglPlot(canvas);
+        wglpRef.current = wglp;
+        linesRef.current = [];
 
-            // Clear and re-add lines
-            linesRef.current = [];
+        selectedChannels.forEach((_, i) => {
+            const line = new WebglLine(getLineColor(i), maxPoints);
+            line.lineSpaceX(-1, 2 / maxPoints);
+            wglp.addLine(line);
+            linesRef.current.push(line);
+        });
+        // You can call wglp.update() here once for the initial setup.
+        wglp.update();
+    }, [selectedChannels, viewMode, isConnected]); // Remove data from dependencies if you handle data updates elsewhere
 
-            selectedChannels.forEach((_, i) => {
-                const line = new WebglLine(getLineColor(i), maxPoints);
-                line.lineSpaceX(-1, 2 / maxPoints);
-                wglp.addLine(line);
-                linesRef.current.push(line);
-            });
+    useEffect(() => {
+        if (data.length === 0) return;
 
-            // Re-plot existing data
-            updateWebGLPlot(data); // Ensure existing data is plotted
-            wglp.update();
+        // Calculate autoscale on the entire data state
+        const allValues = data.flatMap(dp => dp.values);
+        const MIN_POINTS_FOR_SCALING = 10;
+        let yMin, yMax;
+
+        if (allValues.length < MIN_POINTS_FOR_SCALING) {
+            yMin = -1;
+            yMax = 1;
         } else {
-            wglpRef.current = null; // Reset the WebGL plot reference when hiding
+            yMin = Math.min(...allValues);
+            yMax = Math.max(...allValues);
         }
-    }, [selectedChannels, showCombined, data, viewMode]); // Include viewMode in dependencies
+        const yRange = yMax - yMin || 1;
+
+        // Optionally, update all current lines with the new scale
+        linesRef.current.forEach((line, i) => {
+
+        });
+    }, [data]);
+
+
 
     const getLineColor = (index: number): ColorRGBA => {
         const hex = channelColors[index % channelColors.length];
@@ -193,9 +211,12 @@ const SerialPlotter = () => {
                     });
 
                     if (newData.length > 0) {
-                        updateWebGLPlot(newData);
-                        setData((prev) => [...prev, ...newData].slice(-maxPoints));
+                        // Update the ref synchronously
+                        dataRef.current = [...dataRef.current, ...newData].slice(-maxPoints);
+                        updateWebGLPlot(newData, dataRef.current);
+                        setData(dataRef.current);
                     }
+
                 }
             }
             serialReader.releaseLock();
@@ -241,60 +262,48 @@ const SerialPlotter = () => {
         return () => clearInterval(interval);
     }, [port]);
 
-    const updateWebGLPlot = (newData: DataPoint[]) => {
+    const updateWebGLPlot = (newData: DataPoint[], windowData: DataPoint[]) => {
         if (!wglpRef.current || linesRef.current.length === 0 || newData.length === 0) return;
-        // Calculate Y-axis min and max values
-        const yMin = Math.min(...newData.flatMap(dp => dp.values));
-        const yMax = Math.max(...newData.flatMap(dp => dp.values));
-        const yRange = yMax - yMin || 1; // Avoid division by zero
 
-        // Iterate over new data points and update plots
+        // Use the entire window for autoscaling
+        const allValues = windowData.flatMap(dp => dp.values);
+        const MIN_POINTS_FOR_SCALING = 10;
+        let yMin, yMax;
+
+        if (allValues.length < MIN_POINTS_FOR_SCALING) {
+            yMin = -1;
+            yMax = 1;
+        } else {
+            yMin = Math.min(...allValues);
+            yMax = Math.max(...allValues);
+        }
+        const yRange = yMax - yMin || 1;
+
         newData.forEach((dataPoint) => {
             linesRef.current.forEach((line, i) => {
-
-                if (i >= dataPoint.values.length) return; // Prevent out-of-bounds errors
-
-                // Clamp Y-value to be within -1 and 1 
-                const yValue = Math.max(-1, Math.min(1, ((dataPoint.values[i] - yMin) / yRange) * 2 - 1));
-
-                // Update combined plot
-                // Ensure sweepPositions.current[i] is initialized
-                if (sweepPositions.current[i] === undefined) {
-                    sweepPositions.current[i] = 0;
-                }
-
+                if (i >= dataPoint.values.length) return;
+                const yValue = ((dataPoint.values[i] - yMin) / yRange) * 2 - 1;
                 const currentPos = sweepPositions.current[i] % line.numPoints;
-                if (Number.isNaN(currentPos)) {
-                    console.error(`Invalid currentPos at i ${i}. sweepPositions.current[i]:`, sweepPositions.current[i]);
-                    return;
+                try {
+                    line.setY(currentPos, yValue);
+                } catch (error) {
+                    console.error(`Error plotting data for line ${i} at position ${currentPos}:`, error);
                 }
-
-                if (line) {
-                    try {
-                        line.setY(currentPos, yValue);
-                    } catch (error) {
-                        console.error(`Error plotting data for line ${i} at position ${currentPos}:`, error);
-                    }
-
-                }
-                // Clear the next point for visual effect
                 const clearPosition = Math.ceil((currentPos + maxPoints / 100) % line.numPoints);
                 try {
                     line.setY(clearPosition, NaN);
                 } catch (error) {
                     console.error(`Error clearing data at position ${clearPosition} for line ${i}:`, error);
                 }
-
-                // Increment the sweep position
                 sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
             });
         });
 
-        // Efficiently trigger a render update
         requestAnimationFrame(() => {
             if (wglpRef.current) wglpRef.current.update();
         });
     };
+
 
     const disconnectSerial = async () => {
         if (reader) {
