@@ -91,21 +91,23 @@ const SerialPlotter = () => {
     }, [selectedChannels, viewMode, isConnected]);
 
     useEffect(() => {
-        const smoothingFactor = 0.5; // Adjust this between 0 (no change) and 1 (immediate change)
-        // Update frequently for a continuous effect (e.g., every 50ms)
-        const interval = setInterval(() => {
+        const smoothingFactor = 0.5; // Between 0 (no smoothing) and 1 (instant change)
+        const MIN_POINTS_FOR_SCALING = 10;
+
+        // Realtime update for new points using sweep logic.
+        const realtimeInterval = setInterval(() => {
             if (!wglpRef.current || linesRef.current.length === 0 || dataRef.current.length === 0) return;
 
-            // Compute the new autoscale parameters from the full data window
-            const allValues = dataRef.current.flatMap(dp => dp.values);
-            const MIN_POINTS_FOR_SCALING = 10;
-            let newYMin = -1, newYMax = 1;
+            // Compute autoscale parameters using the full data buffer.
+            const allValues = dataRef.current.flatMap((dp) => dp.values);
+            let newYMin = -1,
+                newYMax = 1024;
             if (allValues.length >= MIN_POINTS_FOR_SCALING) {
                 newYMin = Math.min(...allValues);
                 newYMax = Math.max(...allValues);
             }
 
-            // Smoothly interpolate between the current scale and the new scale
+            // Smoothly interpolate the current scale.
             currentScaleRef.current.yMin += smoothingFactor * (newYMin - currentScaleRef.current.yMin);
             currentScaleRef.current.yMax += smoothingFactor * (newYMax - currentScaleRef.current.yMax);
 
@@ -113,7 +115,52 @@ const SerialPlotter = () => {
             const currentYMax = currentScaleRef.current.yMax;
             const yRange = currentYMax - currentYMin || 1;
 
-            // Update every point in the buffer using the smoothed scale
+            // Update only the latest data point with sweep logic.
+            const latestDataPoint = dataRef.current[dataRef.current.length - 1];
+            if (latestDataPoint) {
+                linesRef.current.forEach((line, channelIndex) => {
+                    if (channelIndex >= latestDataPoint.values.length) return;
+                    const yValue = ((latestDataPoint.values[channelIndex] - currentYMin) / yRange) * 2 - 1;
+                    const currentPos = sweepPositions.current[channelIndex] % line.numPoints;
+                    try {
+                        line.setY(currentPos, yValue);
+                    } catch (error) {
+                        console.error(
+                            `Error plotting data for channel ${channelIndex} at pos ${currentPos}:`,
+                            error
+                        );
+                    }
+                    // Advance the circular buffer pointer.
+                    sweepPositions.current[channelIndex] = (currentPos + 1) % line.numPoints;
+                });
+            }
+
+            if (wglpRef.current) {
+                wglpRef.current.update();
+            }
+        }, 10);
+
+        // Periodically update the entire buffer so that all points reflect the current autoscale.
+        const bufferInterval = setInterval(() => {
+            if (!wglpRef.current || linesRef.current.length === 0 || dataRef.current.length === 0) return;
+
+            // Compute autoscale parameters using the full data window.
+            const allValues = dataRef.current.flatMap((dp) => dp.values);
+            let newYMin = -1,
+                newYMax = 1024;
+            if (allValues.length >= MIN_POINTS_FOR_SCALING) {
+                newYMin = Math.min(...allValues);
+                newYMax = Math.max(...allValues);
+            }
+
+            currentScaleRef.current.yMin += smoothingFactor * (newYMin - currentScaleRef.current.yMin);
+            currentScaleRef.current.yMax += smoothingFactor * (newYMax - currentScaleRef.current.yMax);
+
+            const currentYMin = currentScaleRef.current.yMin;
+            const currentYMax = currentScaleRef.current.yMax;
+            const yRange = currentYMax - currentYMin || 1;
+
+            // Replot the entire buffer with the updated scale.
             linesRef.current.forEach((line, channelIndex) => {
                 const numPoints = dataRef.current.length;
                 for (let j = 0; j < numPoints; j++) {
@@ -131,10 +178,14 @@ const SerialPlotter = () => {
             if (wglpRef.current) {
                 wglpRef.current.update();
             }
-        }, 10); // Update every 50ms for a continuous, smooth effect
+        }, 5000);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(realtimeInterval);
+            clearInterval(bufferInterval);
+        };
     }, []);
+
 
 
     const getLineColor = (index: number): ColorRGBA => {
