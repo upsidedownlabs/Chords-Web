@@ -5,7 +5,7 @@ import { Input } from "./ui/input";
 import { EXGFilter, Notch } from './filters';
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation"; // Import useRouter
-import { getCustomColor } from './Colors';
+import { getCustomColor, lightThemeColors } from './Colors';
 
 import {
     Cable,
