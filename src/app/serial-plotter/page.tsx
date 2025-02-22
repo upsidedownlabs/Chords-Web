@@ -20,6 +20,8 @@ const SerialPlotter = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [rawData, setRawData] = useState<string>("");
     const [selectedChannels, setSelectedChannels] = useState<number[]>(Array.from({ length: maxChannels }, (_, i) => i));
+    const [showCombined, setShowCombined] = useState(true);
+    const [showPlotterData, setShowPlotterData] = useState(false); // New state to control plotted data visibility
     const selectedChannelsRef = useRef<number[]>([]);
     const rawDataRef = useRef<HTMLDivElement | null>(null);
     const maxPoints = 1000;
@@ -34,8 +36,7 @@ const SerialPlotter = () => {
     const bitsref = useRef<number>(10);
     const channelsref = useRef<number>(1);
     const sweepPositions = useRef<number[]>(new Array(channelsref.current).fill(0)); // Array for sweep positions
-    const currentScaleRef = useRef({ yMin: -1, yMax: 1 });
-    const dataRef = useRef<DataPoint[]>([]);
+    const [isConnecting, setIsConnecting] = useState(false);
 
     useEffect(() => {
         if (rawDataRef.current) {
@@ -45,7 +46,7 @@ const SerialPlotter = () => {
 
     const maxRawDataLines = 1000; // Limit for raw data lines
 
-    // ✅ RE-INITIALIZE WebGL when `selectedChannels` updates
+    // ✅ RE-INITIALIZE WebGL when selectedChannels updates
     useEffect(() => {
         if (!canvasRef.current || selectedChannels.length === 0) return;
 
@@ -67,126 +68,36 @@ const SerialPlotter = () => {
         });
 
         wglp.update();
-    }, [selectedChannels]);
+    }, [selectedChannels]); // ✅ Runs when channels are detected
 
     useEffect(() => {
         if (!canvasRef.current) return;
+
         const canvas = canvasRef.current;
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
 
-        // Only (re)initialize if viewMode or selectedChannels change
-        const wglp = new WebglPlot(canvas);
-        wglpRef.current = wglp;
-        linesRef.current = [];
+        if ((viewMode === "both" || viewMode === "plotter") && showPlotterData) {
+            const wglp = new WebglPlot(canvas);
+            wglpRef.current = wglp;
 
-        selectedChannels.forEach((_, i) => {
-            const line = new WebglLine(getLineColor(i), maxPoints);
-            line.lineSpaceX(-1, 2 / maxPoints);
-            wglp.addLine(line);
-            linesRef.current.push(line);
-        });
-        // You can call wglp.update() here once for the initial setup.
-        wglp.update();
-    }, [selectedChannels, viewMode, isConnected]);
+            // Clear and re-add lines
+            linesRef.current = [];
 
-    useEffect(() => {
-        const smoothingFactor = 0.5; // Between 0 (no smoothing) and 1 (instant change)
-        const MIN_POINTS_FOR_SCALING = 10;
-
-        // Realtime update for new points using sweep logic.
-        const realtimeInterval = setInterval(() => {
-            if (!wglpRef.current || linesRef.current.length === 0 || dataRef.current.length === 0) return;
-
-            // Compute autoscale parameters using the full data buffer.
-            const allValues = dataRef.current.flatMap((dp) => dp.values);
-            let newYMin = -1,
-                newYMax = 1024;
-            if (allValues.length >= MIN_POINTS_FOR_SCALING) {
-                newYMin = Math.min(...allValues);
-                newYMax = Math.max(...allValues);
-            }
-
-            // Smoothly interpolate the current scale.
-            currentScaleRef.current.yMin += smoothingFactor * (newYMin - currentScaleRef.current.yMin);
-            currentScaleRef.current.yMax += smoothingFactor * (newYMax - currentScaleRef.current.yMax);
-
-            const currentYMin = currentScaleRef.current.yMin;
-            const currentYMax = currentScaleRef.current.yMax;
-            const yRange = currentYMax - currentYMin || 1;
-
-            // Update only the latest data point with sweep logic.
-            const latestDataPoint = dataRef.current[dataRef.current.length - 1];
-            if (latestDataPoint) {
-                linesRef.current.forEach((line, channelIndex) => {
-                    if (channelIndex >= latestDataPoint.values.length) return;
-                    const yValue = ((latestDataPoint.values[channelIndex] - currentYMin) / yRange) * 2 - 1;
-                    const currentPos = sweepPositions.current[channelIndex] % line.numPoints;
-                    try {
-                        line.setY(currentPos, yValue);
-                    } catch (error) {
-                        console.error(
-                            `Error plotting data for channel ${channelIndex} at pos ${currentPos}:`,
-                            error
-                        );
-                    }
-                    // Advance the circular buffer pointer.
-                    sweepPositions.current[channelIndex] = (currentPos + 1) % line.numPoints;
-                });
-            }
-
-            if (wglpRef.current) {
-                wglpRef.current.update();
-            }
-        }, 10);
-
-        // Periodically update the entire buffer so that all points reflect the current autoscale.
-        const bufferInterval = setInterval(() => {
-            if (!wglpRef.current || linesRef.current.length === 0 || dataRef.current.length === 0) return;
-
-            // Compute autoscale parameters using the full data window.
-            const allValues = dataRef.current.flatMap((dp) => dp.values);
-            let newYMin = -1,
-                newYMax = 1024;
-            if (allValues.length >= MIN_POINTS_FOR_SCALING) {
-                newYMin = Math.min(...allValues);
-                newYMax = Math.max(...allValues);
-            }
-
-            currentScaleRef.current.yMin += smoothingFactor * (newYMin - currentScaleRef.current.yMin);
-            currentScaleRef.current.yMax += smoothingFactor * (newYMax - currentScaleRef.current.yMax);
-
-            const currentYMin = currentScaleRef.current.yMin;
-            const currentYMax = currentScaleRef.current.yMax;
-            const yRange = currentYMax - currentYMin || 1;
-
-            // Replot the entire buffer with the updated scale.
-            linesRef.current.forEach((line, channelIndex) => {
-                const numPoints = dataRef.current.length;
-                for (let j = 0; j < numPoints; j++) {
-                    const value = dataRef.current[j].values[channelIndex];
-                    if (value === undefined) continue;
-                    const scaledY = ((value - currentYMin) / yRange) * 2 - 1;
-                    try {
-                        line.setY(j, scaledY);
-                    } catch (e) {
-                        console.error(`Error autoscaling channel ${channelIndex} at point ${j}:`, e);
-                    }
-                }
+            selectedChannels.forEach((_, i) => {
+                const line = new WebglLine(getLineColor(i), maxPoints);
+                line.lineSpaceX(-1, 2 / maxPoints);
+                wglp.addLine(line);
+                linesRef.current.push(line);
             });
 
-            if (wglpRef.current) {
-                wglpRef.current.update();
-            }
-        }, 5000);
-
-        return () => {
-            clearInterval(realtimeInterval);
-            clearInterval(bufferInterval);
-        };
-    }, []);
-
-
+            // Re-plot existing data
+            updateWebGLPlot(data); // Ensure existing data is plotted
+            wglp.update();
+        } else {
+            wglpRef.current = null; // Reset the WebGL plot reference when hiding
+        }
+    }, [selectedChannels, showCombined, data, viewMode, showPlotterData]); // Include showPlotterData in dependencies
 
     const getLineColor = (index: number): ColorRGBA => {
         const hex = channelColors[index % channelColors.length];
@@ -197,6 +108,7 @@ const SerialPlotter = () => {
     };
 
     const connectToSerial = useCallback(async () => {
+        setIsConnecting(true); // Start showing "Connecting..."
         try {
             const ports = await (navigator as any).serial.getPorts();
             let selectedPort = ports.length > 0 ? ports[0] : null;
@@ -216,11 +128,14 @@ const SerialPlotter = () => {
 
             setTimeout(() => {
                 sweepPositions.current = new Array(6).fill(0);
-            }, 6000);
+                setShowPlotterData(true); // Show plotted data after 4 seconds
+                setIsConnecting(false);   // Done "connecting"
+            }, 4000);
         } catch (err) {
             console.error("Error connecting to serial:", err);
+            setIsConnecting(false);
         }
-    }, [baudRateref.current, setPort, setIsConnected, setRawData]);
+    }, [baudRateref.current, setPort, setIsConnected, setRawData, wglpRef, linesRef]);
 
     const readSerialData = async (serialPort: SerialPort) => {
         try {
@@ -267,21 +182,20 @@ const SerialPlotter = () => {
                         if (values.length > 0) {
                             newData.push({ time: Date.now(), values });
                             channelsref.current = values.length;
-                            // ✅ Ensure `selectedChannels` updates before plotting
+                            // ✅ Ensure selectedChannels updates before plotting
                             setSelectedChannels((prevChannels) => {
                                 if (prevChannels.length !== values.length) {
                                     return Array.from({ length: values.length }, (_, i) => i);
                                 }
+
                                 return prevChannels;
                             });
                         }
                     });
 
                     if (newData.length > 0) {
-                        // Update the ref synchronously
-                        dataRef.current = [...dataRef.current, ...newData].slice(-maxPoints);
-                        updateWebGLPlot(newData, dataRef.current);
-                        setData(dataRef.current);
+                      
+                        setData((prev) => [...prev, ...newData].slice(-maxPoints));
                     }
                 }
             }
@@ -328,34 +242,59 @@ const SerialPlotter = () => {
         return () => clearInterval(interval);
     }, [port]);
 
-    const updateWebGLPlot = (newData: DataPoint[], windowData: DataPoint[]) => {
+    const updateWebGLPlot = (newData: DataPoint[]) => {
         if (!wglpRef.current || linesRef.current.length === 0 || newData.length === 0) return;
+        // Calculate Y-axis min and max values
+        const yMin = Math.min(...newData.flatMap(dp => dp.values));
+        const yMax = Math.max(...newData.flatMap(dp => dp.values));
+        const yRange = yMax - yMin || 1; // Avoid division by zero
 
-        // Use the smoothed scale from currentScaleRef for the new data
-        const { yMin, yMax } = currentScaleRef.current;
-        const yRange = yMax - yMin || 1;
-
+        // Iterate over new data points and update plots
         newData.forEach((dataPoint) => {
-            linesRef.current.forEach((line, channelIndex) => {
-                if (channelIndex >= dataPoint.values.length) return;
-                const yValue = ((dataPoint.values[channelIndex] - yMin) / yRange) * 2 - 1;
-                const currentPos = sweepPositions.current[channelIndex] % line.numPoints;
-                try {
-                    line.setY(currentPos, yValue);
-                } catch (error) {
-                    console.error(`Error plotting data for line ${channelIndex} at pos ${currentPos}:`, error);
+            linesRef.current.forEach((line, i) => {
+
+                if (i >= dataPoint.values.length) return; // Prevent out-of-bounds errors
+
+                // Clamp Y-value to be within -1 and 1 
+                const yValue = Math.max(-1, Math.min(1, ((dataPoint.values[i] - yMin) / yRange) * 2 - 1));
+
+                // Ensure sweepPositions.current[i] is initialized
+                if (sweepPositions.current[i] === undefined) {
+                    sweepPositions.current[i] = 0;
                 }
-                // Advance the circular buffer pointer
-                sweepPositions.current[channelIndex] = (currentPos + 1) % line.numPoints;
+
+                const currentPos = sweepPositions.current[i] % line.numPoints;
+                if (Number.isNaN(currentPos)) {
+                    console.error(`Invalid currentPos at i ${i}. sweepPositions.current[i]:`, sweepPositions.current[i]);
+                    return;
+                }
+
+                if (line) {
+                    try {
+                        line.setY(currentPos, yValue);
+                    } catch (error) {
+                        console.error(`Error plotting data for line ${i} at position ${currentPos}:`, error);
+                    }
+
+                }
+                // Clear the next point for visual effect
+                const clearPosition = Math.ceil((currentPos + maxPoints / 100) % line.numPoints);
+                try {
+                    line.setY(clearPosition, NaN);
+                } catch (error) {
+                    console.error(`Error clearing data at position ${clearPosition} for line ${i}:`, error);
+                }
+
+                // Increment the sweep position
+                sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
             });
         });
 
+        // Efficiently trigger a render update
         requestAnimationFrame(() => {
             if (wglpRef.current) wglpRef.current.update();
         });
     };
-
-
 
     const disconnectSerial = async () => {
         if (reader) {
@@ -369,6 +308,7 @@ const SerialPlotter = () => {
         }
 
         setIsConnected(false);
+        setShowPlotterData(false); // Hide plotted data on disconnect
 
         // Clear WebGL Plot
         if (wglpRef.current) {
@@ -394,6 +334,7 @@ const SerialPlotter = () => {
             const writer = port.writable.getWriter(); // Get writer
             await writer.write(new TextEncoder().encode(command + "\n"));
             writer.releaseLock(); // Release writer after writing
+
         } catch (err) {
             console.error("Error sending command:", err);
         }
@@ -411,8 +352,15 @@ const SerialPlotter = () => {
                         <div className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full h-full flex flex-col">
                             {/* Canvas Container */}
                             <div className="canvas-container w-full h-full flex items-center justify-center overflow-hidden">
-                                <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
+                                {(isConnecting) ? (
+                                    <div className="w-full h-full rounded-xl bg-gray-800 flex items-center justify-center text-white">
+                                        Connecting...
+                                    </div>
+                                ) : (
+                                    <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
+                                )}
                             </div>
+
                         </div>
                     </div>
                 )}
@@ -422,7 +370,7 @@ const SerialPlotter = () => {
                         ref={rawDataRef}
                         className="w-full border rounded-xl shadow-lg bg-[#1a1a2e] text-white overflow-auto flex flex-col"
                         style={{
-                            height: viewMode === "monitor" ? "calc(100vh - 100px)" : "35vh",
+                            height: viewMode === "monitor" ? "calc(100vh - 100px)" : "35vh", // Adjust height when only monitor is shown
                             maxHeight: viewMode === "monitor" ? "calc(100vh - 100px)" : "35vh",
                             minHeight: "35vh",
                         }}
@@ -436,7 +384,7 @@ const SerialPlotter = () => {
                                 onChange={(e) => setCommand(e.target.value)}
                                 placeholder="Enter command"
                                 className="w-full p-2 text-xs font-semibold rounded bg-gray-800 text-white border border-gray-600"
-                                style={{ height: '36px' }}
+                                style={{ height: '36px' }} // Ensure the height is consistent with buttons
                             />
 
                             {/* Buttons (Shifted Left) */}
@@ -444,19 +392,20 @@ const SerialPlotter = () => {
                                 <Button
                                     onClick={sendCommand}
                                     className="px-4 py-2 text-xs font-semibold bg-gray-500 rounded shadow-md hover:bg-gray-500 transition ml-2"
-                                    style={{ height: '36px' }}
+                                    style={{ height: '36px' }} // Set height equal to the input box
                                 >
                                     Send
                                 </Button>
                                 <button
                                     onClick={() => setRawData("")}
                                     className="px-4 py-2 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
-                                    style={{ height: '36px' }}
+                                    style={{ height: '36px' }} // Set height equal to the input box
                                 >
                                     Clear
                                 </button>
                             </div>
                         </div>
+
 
                         {/* Data Display */}
                         <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow overflow-auto rounded-xl">
@@ -468,6 +417,7 @@ const SerialPlotter = () => {
 
             {/* Footer Section */}
             <footer className="flex flex-col gap-2 sm:flex-row py-2 m-2 w-full shrink-0 items-center justify-center px-2 md:px-4">
+
                 {/* Connection Button */}
                 <div className="flex justify-center">
                     <Button
@@ -486,8 +436,8 @@ const SerialPlotter = () => {
                             onClick={() => setViewMode(mode)}
                             className={`px-4 py-2 text-sm transition font-semibold
                 ${viewMode === mode
-                                    ? "bg-primary text-white dark:text-gray-900 shadow-md"
-                                    : "bg-gray-500 text-gray-900 hover:bg-gray-300"}
+                                    ? "bg-primary text-white dark:text-gray-900 shadow-md"  // Active state
+                                    : "bg-gray-500 text-gray-900 hover:bg-gray-300"}  // Inactive state (lighter shade)
                 ${index === 0 ? "rounded-xl rounded-r-none" : ""}
                 ${index === arr.length - 1 ? "rounded-xl rounded-l-none" : ""}
                 ${index !== 0 && index !== arr.length - 1 ? "rounded-none" : ""}`}
@@ -496,6 +446,7 @@ const SerialPlotter = () => {
                         </Button>
                     ))}
                 </div>
+
 
                 {/* Baud Rate Selector */}
                 <div className="flex items-center space-x-2">
@@ -511,6 +462,7 @@ const SerialPlotter = () => {
                     </select>
                 </div>
             </footer>
+
         </div>
     );
 };

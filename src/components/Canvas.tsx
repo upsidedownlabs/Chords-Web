@@ -262,22 +262,20 @@ const Canvas = forwardRef(
             setLines(newLines);
         };
 
-        const getLineColor = (i: number, theme: string | undefined): ColorRGBA => {
-            // Get the appropriate colors based on the theme
+        const getLineColor = (channelNumber: number, theme: string | undefined): ColorRGBA => {
+            // Convert 1-indexed channel number to a 0-indexed index
+            const index = channelNumber - 1;
             const colors = theme === "dark" ? darkThemeColors : lightThemeColors;
-
-            const hex = colors[i % colors.length];
+            const hex = colors[index % colors.length];
 
             const r = parseInt(hex.slice(1, 3), 16) / 255;
             const g = parseInt(hex.slice(3, 5), 16) / 255;
             const b = parseInt(hex.slice(5, 7), 16) / 255;
-
-            // Adjust the alpha value based on the theme
             const alpha = theme === "dark" ? 1 : 0.8;  // Slight transparency for light theme
 
-            // Return a ColorRGBA object with adjusted alpha
             return new ColorRGBA(r, g, b, alpha);
         };
+
 
         const updatePlots = useCallback(
             (data: number[], Zoom: number) => {

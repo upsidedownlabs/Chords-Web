@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { EXGFilter, Notch } from './filters';
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation"; // Import useRouter
+import { getCustomColor } from './Colors';
 
 import {
     Cable,
@@ -123,7 +124,8 @@ const Connection: React.FC<ConnectionProps> = ({
     const { theme } = useTheme(); // Current theme of the app
     const isDarkModeEnabled = theme === "dark"; // Boolean to check if dark mode is enabled
     const router = useRouter(); // Use Next.js router for navigation
-
+    // Determine the current theme without redeclaring 'theme'
+    const activeTheme: 'light' | 'dark' = isDarkModeEnabled ? 'dark' : 'light';
     // Time and End Time Tracking
     const recordingStartTimeRef = useRef<number>(0);
     const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
@@ -1604,40 +1606,37 @@ const Connection: React.FC<ConnectionProps> = ({
                                                             {Array.from({ length: 8 }).map((_, col) => {
                                                                 const index = container * 8 + col;
                                                                 const isChannelDisabled = index >= maxCanvasElementCountRef.current;
+                                                                const isSelected = selectedChannels.includes(index + 1);
 
-                                                                const buttonColors = [
-                                                                    "bg-custom-1", "bg-custom-2", "bg-custom-3", "bg-custom-4",
-                                                                    "bg-custom-5", "bg-custom-6", "bg-custom-7", "bg-custom-8",
-                                                                    "bg-custom-9", "bg-custom-10", "bg-custom-11", "bg-custom-12",
-                                                                    "bg-custom-13", "bg-custom-14", "bg-custom-15", "bg-custom-16",
-                                                                ];
-
-                                                                const backgroundColorClass = buttonColors[index % buttonColors.length];
-                                                                const buttonClass = isChannelDisabled
+                                                                // For selected channels, use the shared custom color.
+                                                                // Otherwise, use default styles.
+                                                                const buttonStyle = isChannelDisabled
                                                                     ? isDarkModeEnabled
-                                                                        ? "bg-[#030c21] text-gray-700 cursor-not-allowed"
-                                                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                                                    : selectedChannels.includes(index + 1)
-                                                                        ? `${backgroundColorClass} text-white`
-                                                                        : "bg-white text-black hover:bg-gray-100";
+                                                                        ? { backgroundColor: "#030c21", color: "gray" }
+                                                                        : { backgroundColor: "#e2e8f0", color: "gray" }
+                                                                    : isSelected
+                                                                        ? { backgroundColor: getCustomColor(index, activeTheme), color: "white" }
+                                                                        : { backgroundColor: "white", color: "black" };
 
+                                                                // Optional: calculate rounded corners based on button position.
                                                                 const isFirstInRow = col === 0;
                                                                 const isLastInRow = col === 7;
                                                                 const isFirstContainer = container === 0;
                                                                 const isLastContainer = container === 1;
-
-                                                                // Apply rounded corners based on position
-                                                                const roundedClass = `${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
-                                                       ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
-                                                       ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
-                                                       ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}`;
+                                                                const roundedClass = `
+              ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
+              ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
+              ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
+              ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
+            `;
 
                                                                 return (
                                                                     <button
                                                                         key={index}
                                                                         onClick={() => !isChannelDisabled && toggleChannel(index + 1)}
-                                                                        disabled={isChannelDisabled || isRecordButtonDisabled}
-                                                                        className={`w-full h-8 text-xs font-medium py-1 border-[0.05px] border-gray-300 dark:border-gray-600 transition-colors duration-200 ${buttonClass} ${roundedClass}`}
+                                                                        disabled={isChannelDisabled}
+                                                                        style={buttonStyle}
+                                                                        className={`w-full h-8 text-xs font-medium py-1 border border-gray-300 dark:border-gray-600 transition-colors duration-200 ${roundedClass}`}
                                                                     >
                                                                         {`CH${index + 1}`}
                                                                     </button>
