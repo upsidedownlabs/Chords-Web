@@ -68,9 +68,14 @@ export const darkThemeColors = customColorsArray.map(hex => lightenColor(hex, 0.
 
 // Helper function to retrieve a color based on channel index and theme
 export function getCustomColor(index: number, theme: 'light' | 'dark'): string {
+  if (!Number.isInteger(index) || index < 0) {
+    throw new Error('Index must be a non-negative integer');
+  }
+
   const colors = theme === 'dark' ? darkThemeColors : lightThemeColors;
   return colors[index % colors.length];
 }
+
 
 // ColorRGBA class definition for plotting
 export class ColorRGBA {
@@ -82,14 +87,36 @@ export class ColorRGBA {
   ) { }
 }
 
-// Plot line color function (ensure proper indexing)
+const LIGHT_THEME_ALPHA = 0.8;
+const DARK_THEME_ALPHA = 1.0;
+const DARKEN_FACTOR = 0.5; // Adjust to control darkness for light theme
+
+function hexToRGB(hex: string): { r: number; g: number; b: number } {
+  return {
+    r: parseInt(hex.slice(1, 3), 16) / 255,
+    g: parseInt(hex.slice(3, 5), 16) / 255,
+    b: parseInt(hex.slice(5, 7), 16) / 255,
+  };
+}
+
 export const getLineColor = (channelNumber: number, theme: 'light' | 'dark'): ColorRGBA => {
+  if (!Number.isInteger(channelNumber) || channelNumber < 1) {
+    throw new Error('Channel number must be a positive integer');
+  }
+
   // Convert 1-indexed channel number to 0-indexed index
   const index = channelNumber - 1;
   const hex = getCustomColor(index, theme);
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  const alpha = theme === 'dark' ? 1 : 0.8;
+  let { r, g, b } = hexToRGB(hex);
+  const alpha = theme === 'dark' ? DARK_THEME_ALPHA : LIGHT_THEME_ALPHA;
+
+  // Apply darkening factor for light theme
+  if (theme === 'light') {
+    r *= DARKEN_FACTOR;
+    g *= DARKEN_FACTOR;
+    b *= DARKEN_FACTOR;
+  }
+
   return new ColorRGBA(r, g, b, alpha);
 };
+

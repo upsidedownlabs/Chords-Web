@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { WebglPlot, WebglLine, ColorRGBA } from "webgl-plot";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
+import { toast } from "sonner";
 
 interface DataPoint {
     time: number;
@@ -36,23 +37,42 @@ const SerialPlotter = () => {
     const bitsref = useRef<number>(10);
     const channelsref = useRef<number>(1);
     const sweepPositions = useRef<number[]>(new Array(channelsref.current).fill(0)); // Array for sweep positions
-    const [isConnecting, setIsConnecting] = useState(false);
 
     useEffect(() => {
         if (rawDataRef.current) {
             rawDataRef.current.scrollTop = rawDataRef.current.scrollHeight;
         }
-    }, [rawData]);
+    }, [rawData]); // Runs when rawData updates
 
     const maxRawDataLines = 1000; // Limit for raw data lines
 
-    // ✅ RE-INITIALIZE WebGL when selectedChannels updates
+    function testWebGLShaderSupport(gl: WebGLRenderingContext) {
+        const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+        if (!vertexShader) {
+            console.error("Failed to create vertex shader");
+            return false;
+        }
+        gl.shaderSource(vertexShader, "attribute vec4 position; void main() { gl_Position = position; }");
+        gl.compileShader(vertexShader);
+        if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+            console.error("WebGL shader compilation failed:", gl.getShaderInfoLog(vertexShader));
+            return false;
+        }
+        return true;
+    }
+
     useEffect(() => {
         if (!canvasRef.current || selectedChannels.length === 0) return;
 
         const canvas = canvasRef.current;
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
+
+        const gl = canvas.getContext("webgl");
+        if (!gl || !testWebGLShaderSupport(gl)) {
+            console.error("WebGL shader support check failed.");
+            return;
+        }
 
         const wglp = new WebglPlot(canvas);
         wglpRef.current = wglp;
@@ -68,7 +88,8 @@ const SerialPlotter = () => {
         });
 
         wglp.update();
-    }, [selectedChannels]); // ✅ Runs when channels are detected
+    }, [selectedChannels]);
+
 
     useEffect(() => {
         if (!canvasRef.current) return;
@@ -108,7 +129,6 @@ const SerialPlotter = () => {
     };
 
     const connectToSerial = useCallback(async () => {
-        setIsConnecting(true); // Start showing "Connecting..."
         try {
             const ports = await (navigator as any).serial.getPorts();
             let selectedPort = ports.length > 0 ? ports[0] : null;
@@ -118,9 +138,10 @@ const SerialPlotter = () => {
             }
 
             await selectedPort.open({ baudRate: baudRateref.current });
+            setRawData("");
+            setData([]);
             setPort(selectedPort);
             setIsConnected(true);
-            setRawData("");
             wglpRef.current = null;
             linesRef.current = [];
             selectedChannelsRef.current = [];
@@ -129,15 +150,16 @@ const SerialPlotter = () => {
             setTimeout(() => {
                 sweepPositions.current = new Array(6).fill(0);
                 setShowPlotterData(true); // Show plotted data after 4 seconds
-                setIsConnecting(false);   // Done "connecting"
             }, 4000);
         } catch (err) {
             console.error("Error connecting to serial:", err);
-            setIsConnecting(false);
         }
     }, [baudRateref.current, setPort, setIsConnected, setRawData, wglpRef, linesRef]);
 
     const readSerialData = async (serialPort: SerialPort) => {
+        const READ_TIMEOUT = 5000;
+        const BATCH_SIZE = 10;
+
         try {
             const serialReader = serialPort.readable?.getReader();
             if (!serialReader) return;
@@ -146,84 +168,109 @@ const SerialPlotter = () => {
             let buffer = "";
             let receivedData = false;
 
-            // Timeout: If no data in 3 sec, show command input
-            setTimeout(() => {
+            const timeoutId = setTimeout(() => {
                 if (!receivedData) {
                     setShowCommandInput(true);
+                    console.warn("No data received within timeout period");
                 }
-            }, 3000);
+            }, READ_TIMEOUT);
 
             while (true) {
-                const { value, done } = await serialReader.read();
-                if (done) break;
-                if (value) {
-                    receivedData = true;
-                    setShowCommandInput(false);
+                try {
+                    const readPromise = serialReader.read();
+                    const timeoutPromise = new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error("Read timeout")), READ_TIMEOUT)
+                    );
 
-                    buffer += new TextDecoder().decode(value);
-                    const lines = buffer.split("\n");
-                    buffer = lines.pop() || ""; // Store incomplete line for next read
+                    const { value, done } = await Promise.race([readPromise, timeoutPromise]);
+                    if (done) break;
+                    if (value) {
+                        receivedData = true;
+                        setShowCommandInput(false);
 
-                    let newData: DataPoint[] = [];
-                    lines.forEach((line) => {
-                        setRawData((prev) => {
-                            const newRawData = prev.split("\n").concat(line.trim().replace(/\s+/g, " "));
-                            return newRawData.slice(-maxRawDataLines).join("\n");
-                        });
+                        // Process data efficiently
+                        const decoder = new TextDecoder();
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split("\n");
+                        buffer = lines.pop() || ""; // Store incomplete line for next read
 
-                        // Detect Board Name
-                        if (line.includes("BOARD:")) {
-                            setBoardName(line.split(":")[1].trim());
-                            setShowCommandInput(true);
-                        }
+                        let newData: DataPoint[] = [];
+                        for (let i = 0; i < lines.length; i += BATCH_SIZE) {
+                            const batch = lines.slice(i, i + BATCH_SIZE);
+                            batch.forEach((line) => {
+                                setRawData((prev) => {
+                                    const newRawData = prev.split("\n").concat(line.trim().replace(/\s+/g, " "));
+                                    return newRawData.slice(-maxRawDataLines).join("\n");
+                                });
 
-                        // Convert to numeric data
-                        const values = line.trim().split(/\s+/).map(parseFloat).filter((v) => !isNaN(v));
-                        if (values.length > 0) {
-                            newData.push({ time: Date.now(), values });
-                            channelsref.current = values.length;
-                            // ✅ Ensure selectedChannels updates before plotting
-                            setSelectedChannels((prevChannels) => {
-                                if (prevChannels.length !== values.length) {
-                                    return Array.from({ length: values.length }, (_, i) => i);
+                                // Detect Board Name
+                                if (line.includes("BOARD:")) {
+                                    setBoardName(line.split(":")[1].trim());
+                                    setShowCommandInput(true);
                                 }
 
-                                return prevChannels;
+                                // Convert to numeric data
+                                const values = line.trim().split(/\s+/).map(parseFloat).filter((v) => !isNaN(v));
+                                if (values.length > 0) {
+                                    newData.push({ time: Date.now(), values });
+                                    channelsref.current = values.length;
+
+                                    setSelectedChannels((prevChannels) => {
+                                        return prevChannels.length !== values.length
+                                            ? Array.from({ length: values.length }, (_, i) => i)
+                                            : prevChannels;
+                                    });
+                                }
                             });
                         }
-                    });
 
-                    if (newData.length > 0) {
-                      
-                        setData((prev) => [...prev, ...newData].slice(-maxPoints));
+                        if (newData.length > 0) {
+                            setData((prev) => [...prev, ...newData].slice(-maxPoints));
+                        }
                     }
+                } catch (error) {
+                    console.error("Error reading serial data chunk:", error);
+                    await new Promise((resolve) => setTimeout(resolve, 1000)); // Short delay before retry
+                    continue;
                 }
             }
+
+            clearTimeout(timeoutId);
             serialReader.releaseLock();
         } catch (err) {
             console.error("Error reading serial data:", err);
+
+            // Attempt to reconnect if still connected
+            setTimeout(() => {
+                if (isConnected) {
+                    toast("Attempting to reconnect...");
+                    connectToSerial();
+                }
+            }, 5000);
         }
     };
 
+
     useEffect(() => {
         let isMounted = true;
+        let animationFrameId: number;
 
         const animate = () => {
             if (!isMounted) return;
-            requestAnimationFrame(animate);
-            requestAnimationFrame(() => {
-                if (wglpRef.current) {
-                    wglpRef.current.update();
-                }
-            });
+            if (wglpRef.current) {
+                wglpRef.current.update();
+            }
+            animationFrameId = requestAnimationFrame(animate);
         };
 
-        requestAnimationFrame(animate); // Ensure continuous updates
+        animationFrameId = requestAnimationFrame(animate);
 
         return () => {
             isMounted = false;
+            cancelAnimationFrame(animationFrameId);
         };
     }, []);
+
 
     useEffect(() => {
         const checkPortStatus = async () => {
@@ -306,7 +353,7 @@ const SerialPlotter = () => {
             await port.close();
             setPort(null);
         }
-
+        setData([]);
         setIsConnected(false);
         setShowPlotterData(false); // Hide plotted data on disconnect
 
@@ -327,6 +374,7 @@ const SerialPlotter = () => {
             connectToSerial(); // Reconnect with the new baud rate
         }, 500);
     };
+
     const sendCommand = async () => {
         if (!port?.writable || !command.trim()) return;
 
@@ -352,13 +400,7 @@ const SerialPlotter = () => {
                         <div className="border rounded-xl shadow-lg bg-[#1a1a2e] p-2 w-full h-full flex flex-col">
                             {/* Canvas Container */}
                             <div className="canvas-container w-full h-full flex items-center justify-center overflow-hidden">
-                                {(isConnecting) ? (
-                                    <div className="w-full h-full rounded-xl bg-gray-800 flex items-center justify-center text-white">
-                                        Connecting...
-                                    </div>
-                                ) : (
-                                    <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
-                                )}
+                                <canvas ref={canvasRef} className="w-full h-full rounded-xl" />
                             </div>
 
                         </div>
@@ -382,9 +424,15 @@ const SerialPlotter = () => {
                                 type="text"
                                 value={command}
                                 onChange={(e) => setCommand(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault(); // Prevent default behavior (e.g., form submission)
+                                        sendCommand(); // Call the send function
+                                    }
+                                }}
                                 placeholder="Enter command"
                                 className="w-full p-2 text-xs font-semibold rounded bg-gray-800 text-white border border-gray-600"
-                                style={{ height: '36px' }} // Ensure the height is consistent with buttons
+                                style={{ height: "36px" }} // Ensure the height is consistent with buttons
                             />
 
                             {/* Buttons (Shifted Left) */}
@@ -392,19 +440,20 @@ const SerialPlotter = () => {
                                 <Button
                                     onClick={sendCommand}
                                     className="px-4 py-2 text-xs font-semibold bg-gray-500 rounded shadow-md hover:bg-gray-500 transition ml-2"
-                                    style={{ height: '36px' }} // Set height equal to the input box
+                                    style={{ height: "36px" }} // Set height equal to the input box
                                 >
                                     Send
                                 </Button>
                                 <button
                                     onClick={() => setRawData("")}
                                     className="px-4 py-2 text-xs bg-red-600 text-white rounded shadow-md hover:bg-red-700 transition"
-                                    style={{ height: '36px' }} // Set height equal to the input box
+                                    style={{ height: "36px" }} // Set height equal to the input box
                                 >
                                     Clear
                                 </button>
                             </div>
                         </div>
+
 
 
                         {/* Data Display */}
