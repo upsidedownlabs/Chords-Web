@@ -28,6 +28,11 @@ const contributors = [
     avatar: "https://avatars.githubusercontent.com/Amanmahe",
   },
   {
+    name: "Anuranan Kakati",
+    github: "AnurananKakati",
+    avatar: "https://avatars.githubusercontent.com/u/117797448?v=4",
+  },
+  {
     name: "Deepak Khatri",
     github: "lorforlinux",
     avatar: "https://avatars.githubusercontent.com/u/20015794?v=4",
@@ -46,6 +51,11 @@ const contributors = [
     name: "Ritika Mishra",
     github: "Ritika8081",
     avatar: "https://avatars.githubusercontent.com/u/103934960?v=4",
+  },
+  {
+    name: "Rup Jyoti Bharadwaj",
+    github: "RupJyotiUX",
+    avatar: "https://avatars.githubusercontent.com/u/187837513?v=4",
   },
 ];
 

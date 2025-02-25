@@ -1,4 +1,6 @@
 // colors.ts
+
+// Base custom colors as an object for configuration
 export const customColors = {
   'custom-1': '#EC6FAA',
   'custom-2': '#CE6FAC',
@@ -18,43 +20,39 @@ export const customColors = {
   'custom-16': '#F2728B',
 };
 
-// Function to darken a color
+// Derive an array from the object to preserve order for indexing
+export const customColorsArray: string[] = Object.values(customColors);
+
+// --- Color adjustment functions ---
 function darkenColor(hex: string, amount: number): string {
   validateInput(hex, amount);
-  return adjustColor(hex, -amount); // Negative amount for darkening
+  return adjustColor(hex, -amount); // Negative for darkening
 }
 
-// Function to lighten a color
 function lightenColor(hex: string, amount: number): string {
   validateInput(hex, amount);
-  return adjustColor(hex, amount); // Positive amount for lightening
+  return adjustColor(hex, amount); // Positive for lightening
 }
 
-// General color adjustment function (darkens or lightens based on amount)
 function adjustColor(hex: string, amount: number): string {
-  // Validate hex format
   if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) {
     throw new Error('Invalid hex color');
   }
 
-  // Convert hex to RGB
   const num = parseInt(hex.slice(1), 16);
   let r = (num >> 16) & 0xff;
   let g = (num >> 8) & 0xff;
   let b = num & 0xff;
 
-  // Adjust the color by increasing or decreasing each component
   r = Math.min(255, Math.max(0, r + Math.floor(255 * amount)));
   g = Math.min(255, Math.max(0, g + Math.floor(255 * amount)));
   b = Math.min(255, Math.max(0, b + Math.floor(255 * amount)));
 
-  // Convert RGB back to hex with leading zeros
   return `#${[r, g, b]
     .map(x => x.toString(16).padStart(2, '0'))
     .join('')}`;
 }
 
-// Validate input for hex color and amount
 function validateInput(hex: string, amount: number): void {
   if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) {
     throw new Error('Invalid hex color format');
@@ -64,13 +62,61 @@ function validateInput(hex: string, amount: number): void {
   }
 }
 
-// Example usage
-export const lightThemeColors = Object.values(customColors).map((hex) => {
-  // Darken the colors more significantly for the light theme
-  return darkenColor(hex, 0.4); // Stronger darkening for light theme (0.3 instead of 0.1)
-});
+// Create theme-specific color arrays using the array ordering
+export const lightThemeColors = customColorsArray.map(hex => darkenColor(hex, 0.2));
+export const darkThemeColors = customColorsArray.map(hex => lightenColor(hex, 0.1));
 
-export const darkThemeColors = Object.values(customColors).map((hex) => {
-  // Lighten the colors slightly for the dark theme
-  return lightenColor(hex, 0.1); // Lightening for dark theme
-});
+// Helper function to retrieve a color based on channel index and theme
+export function getCustomColor(index: number, theme: 'light' | 'dark'): string {
+  if (!Number.isInteger(index) || index < 0) {
+    throw new Error('Index must be a non-negative integer');
+  }
+
+  const colors = theme === 'dark' ? darkThemeColors : lightThemeColors;
+  return colors[index % colors.length];
+}
+
+
+// ColorRGBA class definition for plotting
+export class ColorRGBA {
+  constructor(
+    public r: number,
+    public g: number,
+    public b: number,
+    public a: number
+  ) { }
+}
+
+const LIGHT_THEME_ALPHA = 0.8;
+const DARK_THEME_ALPHA = 1.0;
+const DARKEN_FACTOR = 0.5; // Adjust to control darkness for light theme
+
+function hexToRGB(hex: string): { r: number; g: number; b: number } {
+  return {
+    r: parseInt(hex.slice(1, 3), 16) / 255,
+    g: parseInt(hex.slice(3, 5), 16) / 255,
+    b: parseInt(hex.slice(5, 7), 16) / 255,
+  };
+}
+
+export const getLineColor = (channelNumber: number, theme: 'light' | 'dark'): ColorRGBA => {
+  if (!Number.isInteger(channelNumber) || channelNumber < 1) {
+    throw new Error('Channel number must be a positive integer');
+  }
+
+  // Convert 1-indexed channel number to 0-indexed index
+  const index = channelNumber - 1;
+  const hex = getCustomColor(index, theme);
+  let { r, g, b } = hexToRGB(hex);
+  const alpha = theme === 'dark' ? DARK_THEME_ALPHA : LIGHT_THEME_ALPHA;
+
+  // Apply darkening factor for light theme
+  if (theme === 'light') {
+    r *= DARKEN_FACTOR;
+    g *= DARKEN_FACTOR;
+    b *= DARKEN_FACTOR;
+  }
+
+  return new ColorRGBA(r, g, b, alpha);
+};
+
