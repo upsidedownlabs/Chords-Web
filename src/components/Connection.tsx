@@ -1145,51 +1145,62 @@ const Connection: React.FC<ConnectionProps> = ({
             <div className="flex gap-3 items-center justify-center">
                 {/* Connection button with tooltip */}
                 <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Popover open={open} onOpenChange={setOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevice())}
-                                        disabled={isLoading}
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <Loader size={17} className="animate-spin" />
-                                                Connecting...
-                                            </>
-                                        ) : isDeviceConnected ? (
-                                            <>
-                                                Disconnect
-                                                <CircleX size={17} />
-                                            </>
-                                        ) : (
-                                            <>
-                                                Chords Visualizer
-                                                <Cable size={17} />
-                                            </>
-                                        )}
-                                    </Button>
-                                </PopoverTrigger>
-                                {!isDeviceConnected && (
-                                    <Button
-                                        className="py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => {
-                                            localStorage.setItem("autoConnectSerial", "true"); // Auto-connect flag
-                                            router.push("/serial-plotter");
-                                        }}
-                                    >
-                                        Serial Wizard
-                                    </Button>
-                                )}
-                            </Popover>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>{isDeviceConnected ? "Disconnect Device" : "Connect Device"}</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
+    <Tooltip>
+        <TooltipTrigger asChild>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevice())}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader size={17} className="animate-spin" />
+                                Connecting...
+                            </>
+                        ) : isDeviceConnected ? (
+                            <>
+                                Disconnect
+                                <CircleX size={17} />
+                            </>
+                        ) : (
+                            <>
+                                Chords Visualizer
+                                <Cable size={17} />
+                            </>
+                        )}
+                    </Button>
+                </PopoverTrigger>
+
+                {!isDeviceConnected && (
+                    <div className="flex flex-col gap-2 p-4">
+                        <Button
+                            className="py-2 px-4 rounded-xl font-semibold"
+                            onClick={() => {
+                                localStorage.setItem("autoConnectSerial", "true"); // Auto-connect flag
+                                router.push("/serial-plotter");
+                            }}
+                        >
+                            Serial Wizard
+                        </Button>
+                        <Button
+                            className="py-2 px-4 rounded-xl font-semibold text-white"
+                            onClick={() => router.push("/game_components/chords-game")
+                            }
+                        >
+                            Game
+                        </Button>
+                    </div>
+                )}
+            </Popover>
+        </TooltipTrigger>
+        <TooltipContent>
+            <p>{isDeviceConnected ? "Disconnect Device" : "Connect Device"}</p>
+        </TooltipContent>
+    </Tooltip>
+</TooltipProvider>
+
 
 
                 {/* Display (Play/Pause) button with tooltip */}
@@ -1624,11 +1635,11 @@ const Connection: React.FC<ConnectionProps> = ({
                                                                 const isFirstContainer = container === 0;
                                                                 const isLastContainer = container === 1;
                                                                 const roundedClass = `
-              ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
-              ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
-              ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
-              ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
-            `;
+                                                               ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
+                                                               ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
+                                                               ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
+                                                               ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
+                                                                      `;
 
                                                                 return (
                                                                     <button
