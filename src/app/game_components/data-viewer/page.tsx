@@ -120,7 +120,7 @@ export default function DataViewerPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white">
-      <h1 className="text-3xl font-bold mb-4">Data Viewer</h1>
+      <h1 className="text-3xl font-bold mb-4">Data </h1>
       <p>Open the browser console to see incoming data.</p>
     </div>
   );
