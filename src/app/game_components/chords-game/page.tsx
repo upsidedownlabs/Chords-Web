@@ -5,9 +5,9 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { motion } from "framer-motion";
 import InstructionsModal from "../instructions/page"; // Adjust the path as needed
 import { useRouter } from "next/navigation";
-
 const leftThreshold = 1800;
 const rightThreshold = 2000;
+
 
 export default function Home() {
     const mountRef = useRef<HTMLDivElement>(null);
@@ -20,7 +20,6 @@ export default function Home() {
     const [isGameRunning, setIsGameRunning] = useState(false);
     const [level, setLevel] = useState(1);
     const [powerUp, setPowerUp] = useState<THREE.Mesh | null>(null);
-    const [hasPowerUp, setHasPowerUp] = useState(false);
     const [powerUpTimer, setPowerUpTimer] = useState(0);
     const [gameSpeed, setGameSpeed] = useState(0.05);
     const [showCountdown, setShowCountdown] = useState(false);
@@ -29,6 +28,7 @@ export default function Home() {
     const [explosionTriggered, setExplosionTriggered] = useState(false);
     const [showCongrats, setShowCongrats] = useState(false);
     const [levelUpPaused, setLevelUpPaused] = useState(false);
+    const [deviceConnected, setDeviceConnected] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -93,7 +93,6 @@ export default function Home() {
 
         // Create playing field with grid and better materials
         const planeGeometry = new THREE.PlaneGeometry(20, 40);
-        const gridTexture = new THREE.TextureLoader().load('/grid.png');
         // Fallback to a nicer material if texture isn't available
         const planeMaterial = new THREE.MeshStandardMaterial({
             color: "#131E3A",
@@ -168,18 +167,11 @@ export default function Home() {
 
             // Animate player cube slightly
             if (newCube && !gameOver && isGameRunning) {
-                if (hasPowerUp) {
-                    newCube.rotation.y += 0.03;
-                    newCube.rotation.x += 0.015;
 
-                    // Add pulsing effect for power-up
-                    const scale = 1 + 0.1 * Math.sin(Date.now() * 0.01);
-                    newCube.scale.set(scale, scale, scale);
-                } else {
-                    newCube.rotation.y += 0.01;
-                    newCube.rotation.x += 0.005;
-                    newCube.scale.set(1, 1, 1);
-                }
+                newCube.rotation.y += 0.01;
+                newCube.rotation.x += 0.005;
+                newCube.scale.set(1, 1, 1);
+
             }
 
             // Animate power-up if it exists
@@ -212,7 +204,140 @@ export default function Home() {
             window.removeEventListener('resize', handleResize);
             mountRef.current?.removeChild(renderer.domElement);
         };
-    }, [hasPowerUp, isGameRunning, gameOver]);
+    }, [isGameRunning, gameOver]);
+
+    useEffect(() => {
+        if (!cube || gameOver || !isGameRunning) return;
+
+        let port: SerialPort | undefined;
+        let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+        let readLoopActive = true;
+
+        const blockSize = 9; // Adjust based on your device's actual packet size
+        const SYNC_BYTE_1 = 0xC7;
+        const SYNC_BYTE_2 = 0x7C;
+        let previousSampleNumber = -1;
+        const moveSpeed = 0.5;
+        let accumulatedBuffer = new Uint8Array(0);
+
+        async function connectSerial() {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 230400 });
+                console.log("Serial port opened.");
+
+                const writer = port.writable?.getWriter();
+                if (writer) {
+                    await writer.write(new TextEncoder().encode("START\n"));
+                    writer.releaseLock();
+                    console.log("Sent START command to device.");
+                }
+
+                if (!port.readable) {
+                    console.error("Port is not readable");
+                    return;
+                }
+                reader = port.readable.getReader();
+
+                while (readLoopActive && reader) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        console.warn("Serial stream closed");
+                        break;
+                    }
+                    if (value) {
+                        accumulatedBuffer = new Uint8Array([...accumulatedBuffer, ...value]);
+
+                        // Ensure we have at least one full packet in the buffer
+                        while (accumulatedBuffer.length >= blockSize) {
+                            let syncIndex = -1;
+
+                            // Look for a valid sync sequence (C7 7C)
+                            for (let i = 0; i < accumulatedBuffer.length - 1; i++) {
+                                if (accumulatedBuffer[i] === SYNC_BYTE_1 && accumulatedBuffer[i + 1] === SYNC_BYTE_2) {
+                                    syncIndex = i;
+                                    break;
+                                }
+                            }
+
+                            // If no sync found, clear the buffer (misaligned data)
+                            if (syncIndex === -1) {
+                                console.warn("No sync found, flushing buffer...");
+                                accumulatedBuffer = new Uint8Array(0);
+                                break;
+                            }
+
+                            // Remove garbage data before sync
+                            if (syncIndex > 0) {
+                                console.warn("Misaligned data detected, realigning...");
+                                accumulatedBuffer = accumulatedBuffer.slice(syncIndex);
+                            }
+
+                            // Ensure we have a full packet to process
+                            if (accumulatedBuffer.length < blockSize) break;
+
+                            // Extract the packet
+                            const block = accumulatedBuffer.slice(0, blockSize);
+                            accumulatedBuffer = accumulatedBuffer.slice(blockSize);
+
+                            // Parse packet
+                            const sampleNumber = block[2]; // Sample counter
+                            const dataView = new DataView(block.buffer, block.byteOffset, block.byteLength);
+                            const channelData: number[] = [];
+
+                            for (let channel = 0; channel < 3; channel++) {
+                                const channelOffset = 3 + channel * 2;
+                                const sample = dataView.getInt16(channelOffset, false);
+                                channelData.push(sample);
+                            }
+
+                            // Detect missing or duplicate samples
+                            if (previousSampleNumber !== -1) {
+                                if (sampleNumber - previousSampleNumber > 1) {
+                                    console.error("Sample Lost. Expected:", previousSampleNumber + 1, "Got:", sampleNumber);
+                                } else if (sampleNumber === previousSampleNumber) {
+                                    console.warn("Duplicate sample detected:", sampleNumber);
+                                }
+                            }
+                            previousSampleNumber = sampleNumber;
+
+                            // Log data
+                            console.log("Data:", sampleNumber, ...channelData);
+
+                            // Move cube based on EMG data
+                            if (channelData[0] > leftThreshold && cube) {
+                                console.log("Move Left:", channelData[0]);
+                                cube.position.x = Math.max(cube.position.x - moveSpeed, -3);
+                            }
+                            if (channelData[1] > rightThreshold && cube) {
+                                console.log("Move Right:", channelData[1]);
+                                cube.position.x = Math.min(cube.position.x + moveSpeed, 3);
+                            }
+                        }
+                    }
+
+                    await new Promise((resolve) => setTimeout(resolve, 1));
+                }
+            } catch (err) {
+                console.error("Serial connection error:", err);
+            }
+        }
+
+        connectSerial();
+
+        return () => {
+            readLoopActive = false;
+            reader
+                ?.cancel()
+                .catch((err) => console.error("Error cancelling reader:", err))
+                .finally(() => {
+                    reader?.releaseLock();
+                    port?.close().catch((err) => console.error("Error closing port:", err));
+                });
+        };
+    }, [cube, gameOver, isGameRunning]);
+
+
 
     function getLevelMessage(level: number): string {
         const messages: string[] = [
@@ -340,254 +465,72 @@ export default function Home() {
     };
 
 
-    // Function to create obstacles (only runs when game is running)
     useEffect(() => {
         if (!sceneRef.current || !isGameRunning || gameOver || levelUpPaused) return;
+
+        // Cache coin geometry and material once
+        const coinGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32);
+        const coinMaterial = new THREE.MeshPhysicalMaterial({
+            color: "#ffd700", // Gold color
+            emissive: "#ffd700",
+            metalness: 0.8,
+            roughness: 0.2,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.1,
+        });
+        const cachedCoinMesh = new THREE.Mesh(coinGeometry, coinMaterial);
 
         const interval = setInterval(() => {
             if (!sceneRef.current || !isGameRunning) return;
 
-            // Example obstacle types array update:
             const obstacleTypes = [
                 new THREE.SphereGeometry(0.5),
                 new THREE.TetrahedronGeometry(0.6),
                 new THREE.OctahedronGeometry(0.6),
                 new THREE.DodecahedronGeometry(0.5),
                 new THREE.TorusGeometry(0.4, 0.2, 16, 32),
-                // Coin: flat cylinder with gold material
-                (() => {
-                    const geometry = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32);
-                    const material = new THREE.MeshPhysicalMaterial({
-                        color: "#ffd700", // Gold color
-                        emissive: "#ffd700",
-                        metalness: 0.8,
-                        roughness: 0.2,
-                        clearcoat: 1.0,
-                        clearcoatRoughness: 0.1,
-                    });
-                    const coin = new THREE.Mesh(geometry, material);
-                    return coin.geometry;
-                })(),
+                // Use the cached coin geometry/material for coin obstacles
+                cachedCoinMesh.geometry,
             ];
 
             const baseColors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"];
-            let selectedColor = baseColors[Math.floor(Math.random() * baseColors.length)];
+            const selectedColor = baseColors[Math.floor(Math.random() * baseColors.length)];
 
-            // Use the level to increase difficulty
+            // Use the level to increase difficulty (and adjust material properties)
             const obstacleMaterial = new THREE.MeshPhysicalMaterial({
                 color: selectedColor,
                 metalness: Math.random(),
                 roughness: Math.random() * 0.5,
                 emissive: selectedColor,
-                emissiveIntensity: 0.2 + (level * 0.05),
+                emissiveIntensity: 0.2 + level * 0.05,
             });
 
-            const obstacle = new THREE.Mesh(
-                obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)],
-                obstacleMaterial
-            );
+            // Randomly select a geometry
+            const geometryIndex = Math.floor(Math.random() * obstacleTypes.length);
+            const selectedGeometry = obstacleTypes[geometryIndex];
 
-            const xRange = 3 + (level * 0.2);
-            obstacle.position.set(
-                (Math.random() - 0.5) * xRange,
-                5,
-                0
-            );
+            const obstacle = new THREE.Mesh(selectedGeometry, obstacleMaterial);
 
+            // Increase x-range with level for more variability
+            const xRange = 3 + level * 0.2;
+            obstacle.position.set((Math.random() - 0.5) * xRange, 5, 0);
             obstacle.rotation.set(
                 Math.random() * Math.PI,
                 Math.random() * Math.PI,
                 Math.random() * Math.PI
             );
-
             obstacle.castShadow = true;
             obstacle.receiveShadow = true;
+
             sceneRef.current.add(obstacle);
             setObstacles((prev) => [...prev, obstacle]);
 
-        }, Math.max(1500 - (level * 100), 500)); // Spawn frequency
+        }, Math.max(1500 - level * 100, 500)); // Spawn frequency increases with level
 
         return () => clearInterval(interval);
     }, [isGameRunning, level, gameOver, levelUpPaused]);
 
 
-    // Spawn power-ups occasionally
-    useEffect(() => {
-        if (!sceneRef.current || !isGameRunning || gameOver || hasPowerUp) return;
-
-        const powerUpInterval = setInterval(() => {
-            if (!sceneRef.current || !isGameRunning || hasPowerUp) return;
-
-            // Only spawn power-up with 20% chance
-            if (Math.random() > 0.2) return;
-
-            // Clear any existing power-up
-            if (powerUp) {
-                sceneRef.current.remove(powerUp);
-                setPowerUp(null);
-            }
-
-            // Create power-up
-            const powerUpGeometry = new THREE.IcosahedronGeometry(0.4);
-            const powerUpMaterial = new THREE.MeshPhysicalMaterial({
-                color: "#00ffff",
-                metalness: 1.0,
-                roughness: 0.0,
-                emissive: "#00ffff",
-                emissiveIntensity: 1.0,
-                clearcoat: 1.0,
-                clearcoatRoughness: 0.0
-            });
-
-            const newPowerUp = new THREE.Mesh(powerUpGeometry, powerUpMaterial);
-            newPowerUp.position.set((Math.random() - 0.5) * 5, 0.5, 0);
-            newPowerUp.castShadow = true;
-
-            sceneRef.current.add(newPowerUp);
-            setPowerUp(newPowerUp);
-
-        }, 10000); // Try to spawn a power-up every 10 seconds
-
-        return () => clearInterval(powerUpInterval);
-    }, [isGameRunning, gameOver, hasPowerUp, powerUp]);
-
-    useEffect(() => {
-        if (!cube || gameOver || !isGameRunning) return;
-      
-        // Open a WebSocket connection to your NPG device
-        const ws = new WebSocket("ws://multi-emg.local:81");
-        ws.binaryType = "arraybuffer";
-      
-        const blockSize = 13;
-        let previousSampleNumber = -1;
-        // Determine move speed based on whether a power-up is active
-        const moveSpeed = hasPowerUp ? 0.7 : 0.5;
-      
-        ws.onopen = () => {
-          console.log("WebSocket connected!");
-        };
-      
-        ws.onmessage = (event) => {
-          // Ensure we received binary data
-          if (!(event.data instanceof ArrayBuffer)) {
-            console.error("Received data is not an ArrayBuffer");
-            return;
-          }
-          const byteData = new Uint8Array(event.data);
-      
-          // Process data in blocks of blockSize bytes
-          for (let offset = 0; offset < byteData.length; offset += blockSize) {
-            const block = byteData.subarray(offset, offset + blockSize);
-            const sampleNumber = block[0];
-      
-            // Use DataView to read 16-bit signed integers (big-endian) from each channel
-            const dataView = new DataView(block.buffer, block.byteOffset, block.byteLength);
-            const channelData: number[] = [];
-            for (let channel = 0; channel < 3; channel++) {
-              const channelOffset = 1 + channel * 2;
-              const sample = dataView.getInt16(channelOffset, false);
-              channelData.push(sample);
-            }
-      
-            // Check for duplicate or missing samples (optional)
-            if (previousSampleNumber !== -1) {
-              if (sampleNumber - previousSampleNumber > 1) {
-                console.error("Error: Sample Lost");
-                ws.close();
-                return;
-              } else if (sampleNumber === previousSampleNumber) {
-                console.error("Error: Duplicate sample");
-                ws.close();
-                return;
-              }
-            }
-            previousSampleNumber = sampleNumber;
-      
-            // Log the EMG data for debugging
-            console.log("EMG Data:", sampleNumber, channelData[0], channelData[1], channelData[2]);
-      
-            // Use EEG channel values to control cube movement:
-            // If channel 0 > leftThreshold, move left.
-            if (channelData[0] > leftThreshold) {
-              cube.position.x = Math.max(cube.position.x - moveSpeed, -3);
-            }
-            // If channel 1 > rightThreshold, move right.
-            if (channelData[1] > rightThreshold) {
-              cube.position.x = Math.min(cube.position.x + moveSpeed, 3);
-            }
-          }
-        };
-      
-        ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
-        };
-      
-        ws.onclose = () => {
-          console.log("WebSocket connection closed.");
-        };
-      
-        // Cleanup WebSocket on component unmount
-        return () => {
-          ws.close();
-        };
-      }, [cube, gameOver, isGameRunning, hasPowerUp]);
-      
-
-    // Power-up timer countdown
-    useEffect(() => {
-        if (!hasPowerUp) return;
-
-        const timer = setInterval(() => {
-            setPowerUpTimer(prev => {
-                if (prev <= 1) {
-                    setHasPowerUp(false);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [hasPowerUp]);
-
-
-    // Function to clear obstacles in radius (shield power-up ability)
-    const clearObstaclesInRadius = () => {
-        if (!cube || !sceneRef.current) return;
-
-        // Create an effect
-        const shieldGeometry = new THREE.SphereGeometry(3, 32, 32);
-        const shieldMaterial = new THREE.MeshBasicMaterial({
-            color: "#00ffff",
-            transparent: true,
-            opacity: 0.3
-        });
-
-        const shield = new THREE.Mesh(shieldGeometry, shieldMaterial);
-        shield.position.copy(cube.position);
-        sceneRef.current.add(shield);
-
-        // Remove obstacles in radius
-        obstacles.forEach(obstacle => {
-            // Remove obstacles that fall below the plane (no score awarded)
-            if (obstacle.position.y < -1) {
-                setObstacles((prev) => prev.filter((o) => o !== obstacle));
-                sceneRef.current?.remove(obstacle);
-            }
-
-        });
-
-        // Animate and remove shield
-        setTimeout(() => {
-            sceneRef.current?.remove(shield);
-        }, 500);
-
-        // Decrease power-up time
-        setPowerUpTimer(prev => Math.max(prev - 3, 0));
-        if (powerUpTimer <= 3) {
-            setHasPowerUp(false);
-        }
-    };
 
     useEffect(() => {
         if (!cube || gameOver || !isGameRunning || levelUpPaused) return;
@@ -596,7 +539,6 @@ export default function Home() {
             // Check collision with power‑up first
             if (powerUp) {
                 if (cube.position.distanceTo(powerUp.position) < 0.7) {
-                    setHasPowerUp(true);
                     setPowerUpTimer(10);
                     sceneRef.current?.remove(powerUp);
                     setPowerUp(null);
@@ -623,12 +565,9 @@ export default function Home() {
                         setShowCongrats(true);
                         setTimeout(() => setShowCongrats(false), 2000);
                     } else {
-                        if (!hasPowerUp && !explosionTriggered) {
+                        if (!explosionTriggered) {
                             setGameSpeed(0); // Freeze obstacles
                             triggerExplosion();
-                        } else if (hasPowerUp) {
-                            sceneRef.current?.remove(obstacle);
-                            setObstacles((prev) => prev.filter((o) => o !== obstacle));
                         }
                     }
                 }
@@ -640,7 +579,7 @@ export default function Home() {
         }, 16);
 
         return () => clearInterval(gameLoop);
-    }, [cube, obstacles, gameOver, isGameRunning, powerUp, hasPowerUp, explosionTriggered, gameSpeed, levelUpPaused]);
+    }, [cube, obstacles, gameOver, isGameRunning, powerUp, explosionTriggered, gameSpeed, levelUpPaused]);
 
     // 4. Reset the explosion trigger when starting/restarting the game:
     const startGame = () => {
@@ -649,7 +588,6 @@ export default function Home() {
         setGameOver(false);
         setLevel(1);
         setGameSpeed(0.05);
-        setHasPowerUp(false);
         setPowerUpTimer(0);
         setExplosionTriggered(false); // Reset explosion state
 
@@ -709,7 +647,7 @@ export default function Home() {
             }
         }
         setObstacles([]);
-        setHasPowerUp(false);
+
     };
 
     // Restart game after game over
@@ -824,7 +762,7 @@ export default function Home() {
             {/* Game controls info */}
             <div className="absolute bottom-5 left-5 z-20 text-white text-sm bg-black bg-opacity-50 px-4 py-2 rounded-lg">
                 Use ← → Arrow Keys to Move
-                {hasPowerUp && <div className="text-cyan-300 mt-1">Press SPACE to activate shield</div>}
+
             </div>
 
             {/* Score display */}
@@ -911,30 +849,6 @@ export default function Home() {
                         </motion.button>
                     </motion.div>
                 </div>
-            )}
-
-            {/* Power-up indicator */}
-            {hasPowerUp && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                    className="absolute bottom-24 left-5 z-20"
-                >
-                    <div className="bg-black bg-opacity-60 backdrop-blur-sm text-white px-6 py-4 rounded-xl border border-cyan-500/70 shadow-lg shadow-cyan-500/30 overflow-hidden">
-                        <div className="absolute inset-0 bg-cyan-500 opacity-10 animate-pulse-slow"></div>
-                        <div className="text-md font-bold text-cyan-300 flex items-center mb-1">
-                            <span className="mr-2 text-xl">🛡️</span> SHIELD ACTIVE
-                        </div>
-                        <div className="relative h-2 bg-gray-700 rounded-full mt-2 w-full overflow-hidden">
-                            <div
-                                className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full"
-                                style={{ width: `${(powerUpTimer / 15) * 100}%` }}
-                            ></div>
-                        </div>
-                        <div className="text-right text-sm mt-1 text-cyan-200">{powerUpTimer}s</div>
-                    </div>
-                </motion.div>
             )}
 
             {/* Game over modal with enhanced effects */}

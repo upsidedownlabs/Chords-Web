@@ -1,127 +1,153 @@
-// src/app/data-viewer/page.tsx
 "use client";
 
 import React, { useEffect } from "react";
 
 export default function DataViewerPage() {
-  useEffect(() => {
-    // Define variables similar to the Python code
-    const ws = new WebSocket("ws://multi-emg.local:81");
-    ws.binaryType = "arraybuffer"; // Ensure we receive binary data
+    useEffect(() => {
+        let packetCount = 0;
+        let sampleCount = 0;
+        let totalBytes = 0;
+        let previousSampleNumber = -1;
+        let previousData = [];
+        let startTime = Date.now();
 
-    const blockSize = 13;
-    let packetCount = 0;
-    let sampleCount = 0;
-    let totalBytes = 0;
-    let previousSampleNumber = -1;
-    let previousData: number[] = [];
-    let startTime = Date.now();
+        const PACKET_SIZE = 10; // Matches the Arduino packet length
 
-    // Helper function to calculate rates
-    function calculateRate(count: number, elapsedTime: number): number {
-      return count / elapsedTime;
-    }
+        // Helper function to calculate rates per second
+        const calculateRate = (count: number, elapsedTime: number) => count / elapsedTime;
 
-    // Placeholder for LSL outlet; in your implementation, replace this with your LSL integration
-    function pushSample(channelData: number[]) {
-      // Example: outlet.push_sample(channelData)
-      // For now, we simply log the pushed sample.
-      // console.log("Pushed sample:", channelData);
-    }
+        const connectSerial = async () => {
+            try {
+                // Request and open a serial port
+                const serialPort = await navigator.serial.requestPort();
+                await serialPort.open({ baudRate: 230400 });
+                console.log("Serial Port Connected!");
 
-    ws.onopen = function () {
-      console.log("WebSocket connected!");
-    };
+                // Send the START command to the Arduino
+                const writer = serialPort.writable?.getWriter();
+                if (writer) {
+                    await writer.write(new TextEncoder().encode("START\n"));
+                    writer.releaseLock();
+                    console.log("Sent START command to device");
+                }
 
-    ws.onmessage = function (event) {
-      const currentTime = Date.now();
-      const elapsedTime = (currentTime - startTime) / 1000; // seconds
+                // Get the readable stream and set up a reader
+                const reader = serialPort.readable?.getReader();
+                if (!reader) {
+                    console.error("Failed to get serial reader");
+                    return;
+                }
 
-      // Ensure the received data is an ArrayBuffer
-      if (!(event.data instanceof ArrayBuffer)) {
-        console.error("Received data is not an ArrayBuffer");
-        return;
-      }
+                let buffer = [];
 
-      // Convert ArrayBuffer to a typed array
-      const byteData = new Uint8Array(event.data);
-      totalBytes += byteData.length;
-      packetCount++;
+                while (true) {
+                    try {
+                        const { value, done } = await reader.read();
+                        if (done) {
+                            console.warn("Serial stream closed by device");
+                            break;
+                        }
+                        if (value) {
+                            // Append new bytes to the buffer
+                            buffer.push(...value);
+                            totalBytes += value.length;
+                            packetCount++;
 
-      // Process data in blocks of blockSize bytes
-      for (let offset = 0; offset < byteData.length; offset += blockSize) {
-        sampleCount++;
-        // Get a slice of the block
-        const block = byteData.subarray(offset, offset + blockSize);
-        // First byte is the sample number
-        const sampleNumber = block[0];
+                            // Process as many full packets as possible
+                            while (buffer.length >= PACKET_SIZE) {
+                                const packet = buffer.splice(0, PACKET_SIZE);
+                                processPacket(packet);
+                            }
+                        }
+                    } catch (readError) {
+                        console.error("Read error:", readError);
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.error("Serial connection error:", error);
+            }
+        };
 
-        // Use DataView to read 16-bit signed integers (big-endian)
-        const dataView = new DataView(block.buffer, block.byteOffset, block.byteLength);
-        const channelData: number[] = [];
-        for (let channel = 0; channel < 3; channel++) {
-          const channelOffset = 1 + channel * 2;
-          const sample = dataView.getInt16(channelOffset, false);
-          channelData.push(sample);
-        }
+        const processPacket = (packet: number[]) => {
+            // Validate packet length
+            if (packet.length !== PACKET_SIZE) {
+                console.error("Invalid packet length:", packet);
+                return;
+            }
 
-        // Check for missing or duplicate samples
-        if (previousSampleNumber === -1) {
-          previousSampleNumber = sampleNumber;
-          previousData = channelData;
-        } else {
-          if (sampleNumber - previousSampleNumber > 1) {
-            console.error("Error: Sample Lost");
-            ws.close();
-            return;
-          } else if (sampleNumber === previousSampleNumber) {
-            console.error("Error: Duplicate sample");
-            ws.close();
-            return;
-          } else {
+            // Validate header and end bytes
+            if (packet[0] !== 0xC7 || packet[1] !== 0x7C) {
+                console.error("Invalid header:", packet);
+                return;
+            }
+            if (packet[9] !== 0x01) {
+                console.error("Invalid end byte:", packet);
+                return;
+            }
+
+            // Extract sample counter and channel data
+            const sampleNumber = packet[2];
+            const dataView = new DataView(new Uint8Array(packet).buffer);
+            const channelData = [
+                dataView.getInt16(3, false), // Channel 1 (big-endian)
+                dataView.getInt16(5, false), // Channel 2
+                dataView.getInt16(7, false), // Channel 3
+            ];
+
+            // Check for missing or duplicate samples
+            if (previousSampleNumber !== -1) {
+                if (sampleNumber - previousSampleNumber > 1) {
+                    console.error("Sample Lost! Expected:", previousSampleNumber + 1, "Got:", sampleNumber);
+                    return;
+                } else if (sampleNumber === previousSampleNumber) {
+                    console.error("Duplicate sample:", sampleNumber);
+                    return;
+                }
+            }
             previousSampleNumber = sampleNumber;
             previousData = channelData;
-          }
-        }
+            sampleCount++;
 
-        // Log EEG data and push the sample
-        console.log("Data:", sampleNumber, channelData[0], channelData[1], channelData[2]);
-        pushSample(channelData);
-      }
+            // Format and log the data as [counter, ch1, ch2, ch3]
+            const formattedData = [sampleNumber, ...channelData];
+            pushSample(formattedData);
 
-      // Every second, log rates and reset counters
-      if (elapsedTime >= 1.0) {
-        const samplesPerSecond = Math.floor(calculateRate(sampleCount, elapsedTime));
-        const fps = Math.floor(calculateRate(packetCount, elapsedTime));
-        const bytesPerSecond = Math.floor(calculateRate(totalBytes, elapsedTime));
-        console.log(`${fps} FPS : ${samplesPerSecond} SPS : ${bytesPerSecond} BPS`);
+            // Calculate and log the rates every second
+            const currentTime = Date.now();
+            const elapsedTime = (currentTime - startTime) / 1000;
+            if (elapsedTime >= 1.0) {
+                console.log(
+                    `⚡ ${Math.floor(calculateRate(packetCount, elapsedTime))} FPS | ` +
+                    `${Math.floor(calculateRate(sampleCount, elapsedTime))} SPS | ` +
+                    `${Math.floor(calculateRate(totalBytes, elapsedTime))} BPS`
+                );
+                packetCount = 0;
+                sampleCount = 0;
+                totalBytes = 0;
+                startTime = currentTime;
+            }
+        };
 
-        // Reset counters
-        packetCount = 0;
-        sampleCount = 0;
-        totalBytes = 0;
-        startTime = currentTime;
-      }
-    };
+        // This function is a placeholder for handling processed samples
+        const pushSample = (data: number[]) => {
+            console.log("Processed Sample:", data);
+            // Update state or forward data as needed.
+        };
 
-    ws.onerror = function (error) {
-      console.error("WebSocket error:", error);
-    };
+        // Connect to the serial port when the component mounts
+        connectSerial();
 
-    ws.onclose = function () {
-      console.log("WebSocket connection closed.");
-    };
+        return () => {
+            console.log("🔌 Closing serial connection...");
+            // You might want to close the serial port here if necessary.
+        };
+    }, []);
 
-    // Cleanup WebSocket on unmount
-    return () => {
-      ws.close();
-    };
-  }, []);
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white">
-      <h1 className="text-3xl font-bold mb-4">Data </h1>
-      <p>Open the browser console to see incoming data.</p>
-    </div>
-  );
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white">
+            <h1 className="text-3xl font-bold mb-4">Serial Data Viewer</h1>
+            <p>Open the console to see formatted values.</p>
+        </div>
+    );
 }
