@@ -5,8 +5,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { motion } from "framer-motion";
 import InstructionsModal from "../instructions/page"; // Adjust the path as needed
 import { useRouter } from "next/navigation";
-const leftThreshold = 1800;
-const rightThreshold = 2000;
+const leftThreshold = 200;
+const rightThreshold = 1300;
 
 
 export default function Home() {
@@ -30,6 +30,18 @@ export default function Home() {
     const [levelUpPaused, setLevelUpPaused] = useState(false);
     const [deviceConnected, setDeviceConnected] = useState(false);
     const router = useRouter();
+
+    // A ref to hold the latest isGameRunning value for the serial loop.
+    const isGameRunningRef = useRef(isGameRunning);
+    useEffect(() => {
+        isGameRunningRef.current = isGameRunning;
+    }, [isGameRunning]);
+
+    // Refs for serial port/reader and to control the read loop.
+    const portRef = useRef<SerialPort | null>(null);
+    const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+    const readLoopActiveRef = useRef<boolean>(false);
+
 
     useEffect(() => {
         // Create skybox texture
@@ -206,137 +218,20 @@ export default function Home() {
         };
     }, [isGameRunning, gameOver]);
 
-    useEffect(() => {
-        if (!cube || gameOver || !isGameRunning) return;
-
-        let port: SerialPort | undefined;
-        let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-        let readLoopActive = true;
-
-        const blockSize = 9; // Adjust based on your device's actual packet size
-        const SYNC_BYTE_1 = 0xC7;
-        const SYNC_BYTE_2 = 0x7C;
-        let previousSampleNumber = -1;
-        const moveSpeed = 0.5;
-        let accumulatedBuffer = new Uint8Array(0);
-
-        async function connectSerial() {
-            try {
-                port = await navigator.serial.requestPort();
-                await port.open({ baudRate: 230400 });
-                console.log("Serial port opened.");
-
-                const writer = port.writable?.getWriter();
-                if (writer) {
-                    await writer.write(new TextEncoder().encode("START\n"));
-                    writer.releaseLock();
-                    console.log("Sent START command to device.");
-                }
-
-                if (!port.readable) {
-                    console.error("Port is not readable");
-                    return;
-                }
-                reader = port.readable.getReader();
-
-                while (readLoopActive && reader) {
-                    const { value, done } = await reader.read();
-                    if (done) {
-                        console.warn("Serial stream closed");
-                        break;
-                    }
-                    if (value) {
-                        accumulatedBuffer = new Uint8Array([...accumulatedBuffer, ...value]);
-
-                        // Ensure we have at least one full packet in the buffer
-                        while (accumulatedBuffer.length >= blockSize) {
-                            let syncIndex = -1;
-
-                            // Look for a valid sync sequence (C7 7C)
-                            for (let i = 0; i < accumulatedBuffer.length - 1; i++) {
-                                if (accumulatedBuffer[i] === SYNC_BYTE_1 && accumulatedBuffer[i + 1] === SYNC_BYTE_2) {
-                                    syncIndex = i;
-                                    break;
-                                }
-                            }
-
-                            // If no sync found, clear the buffer (misaligned data)
-                            if (syncIndex === -1) {
-                                console.warn("No sync found, flushing buffer...");
-                                accumulatedBuffer = new Uint8Array(0);
-                                break;
-                            }
-
-                            // Remove garbage data before sync
-                            if (syncIndex > 0) {
-                                console.warn("Misaligned data detected, realigning...");
-                                accumulatedBuffer = accumulatedBuffer.slice(syncIndex);
-                            }
-
-                            // Ensure we have a full packet to process
-                            if (accumulatedBuffer.length < blockSize) break;
-
-                            // Extract the packet
-                            const block = accumulatedBuffer.slice(0, blockSize);
-                            accumulatedBuffer = accumulatedBuffer.slice(blockSize);
-
-                            // Parse packet
-                            const sampleNumber = block[2]; // Sample counter
-                            const dataView = new DataView(block.buffer, block.byteOffset, block.byteLength);
-                            const channelData: number[] = [];
-
-                            for (let channel = 0; channel < 3; channel++) {
-                                const channelOffset = 3 + channel * 2;
-                                const sample = dataView.getInt16(channelOffset, false);
-                                channelData.push(sample);
-                            }
-
-                            // Detect missing or duplicate samples
-                            if (previousSampleNumber !== -1) {
-                                if (sampleNumber - previousSampleNumber > 1) {
-                                    console.error("Sample Lost. Expected:", previousSampleNumber + 1, "Got:", sampleNumber);
-                                } else if (sampleNumber === previousSampleNumber) {
-                                    console.warn("Duplicate sample detected:", sampleNumber);
-                                }
-                            }
-                            previousSampleNumber = sampleNumber;
-
-                            // Log data
-                            console.log("Data:", sampleNumber, ...channelData);
-
-                            // Move cube based on EMG data
-                            if (channelData[0] > leftThreshold && cube) {
-                                console.log("Move Left:", channelData[0]);
-                                cube.position.x = Math.max(cube.position.x - moveSpeed, -3);
-                            }
-                            if (channelData[1] > rightThreshold && cube) {
-                                console.log("Move Right:", channelData[1]);
-                                cube.position.x = Math.min(cube.position.x + moveSpeed, 3);
-                            }
-                        }
-                    }
-
-                    await new Promise((resolve) => setTimeout(resolve, 1));
-                }
-            } catch (err) {
-                console.error("Serial connection error:", err);
-            }
+    // ----- Serial Connection: Connect Phase (Triggered by Connect Button) -----
+    const connectToBoard = async () => {
+        try {
+            const port = await navigator.serial.requestPort();
+            // Use the baud rate your device requires. Here we use 230400 as an example.
+            await port.open({ baudRate: 230400 });
+            console.log("Serial port opened.");
+            setDeviceConnected(true);
+            portRef.current = port;
+            // Note: We do NOT start reading data until the game is launched.
+        } catch (err) {
+            console.error("Serial connection error:", err);
         }
-
-        connectSerial();
-
-        return () => {
-            readLoopActive = false;
-            reader
-                ?.cancel()
-                .catch((err) => console.error("Error cancelling reader:", err))
-                .finally(() => {
-                    reader?.releaseLock();
-                    port?.close().catch((err) => console.error("Error closing port:", err));
-                });
-        };
-    }, [cube, gameOver, isGameRunning]);
-
+    };
 
 
     function getLevelMessage(level: number): string {
@@ -581,47 +476,169 @@ export default function Home() {
         return () => clearInterval(gameLoop);
     }, [cube, obstacles, gameOver, isGameRunning, powerUp, explosionTriggered, gameSpeed, levelUpPaused]);
 
-    // 4. Reset the explosion trigger when starting/restarting the game:
-    const startGame = () => {
-        // Reset game state
-        setScore(0);
-        setGameOver(false);
-        setLevel(1);
-        setGameSpeed(0.05);
-        setPowerUpTimer(0);
-        setExplosionTriggered(false); // Reset explosion state
-
-        // Remove all existing obstacles and power-ups
-        if (sceneRef.current) {
-            obstacles.forEach((obstacle) => sceneRef.current?.remove(obstacle));
-            if (powerUp) {
-                sceneRef.current.remove(powerUp);
-                setPowerUp(null);
-            }
+    // ----- Start Game: Send START command, countdown, and begin reading serial data -----
+    const startGame = async () => {
+        if (!deviceConnected) {
+            alert("Please select a device before starting the game.");
+            return;
         }
-        setObstacles([]);
+        // Optionally, reset game state (score, obstacles, etc.) here.
 
-        // Reset player position
-        if (cube) {
-            cube.position.set(0, 0, 0);
+        // Send START command to the device.
+        if (portRef.current && portRef.current.writable) {
+            const writer = portRef.current.writable.getWriter();
+            await writer.write(new TextEncoder().encode("START\n"));
+            writer.releaseLock();
+            console.log("Sent START command to device.");
         }
 
-        // Start countdown, etc.
+        // Start countdown before game starts.
         setShowCountdown(true);
         setCountdown(3);
-
         const countdownTimer = setInterval(() => {
             setCountdown((prev) => {
                 if (prev <= 1) {
                     clearInterval(countdownTimer);
                     setShowCountdown(false);
                     setIsGameRunning(true);
+                    startSerialReadLoop(); // begin reading serial data
                     return 0;
                 }
                 return prev - 1;
             });
         }, 1000);
     };
+
+    // ----- Serial Read Loop: Begin reading data from device after game launch -----
+    const startSerialReadLoop = async () => {
+        try {
+            if (!portRef.current) return;
+            if (!portRef.current.readable) {
+                console.error("Port is not readable");
+                return;
+            }
+
+            const reader = portRef.current.readable.getReader();
+            readerRef.current = reader;
+            readLoopActiveRef.current = true;
+
+            const blockSize = 9; // Declare blockSize here.
+            let previousSampleNumber = -1;
+            const moveSpeed = 0.5;
+            let accumulatedBuffer = new Uint8Array(0);
+
+            const SYNC_BYTE_1 = 0xC7;
+            const SYNC_BYTE_2 = 0x7C;
+
+
+            while (readLoopActiveRef.current && reader) {
+                const { value, done } = await reader.read();
+                if (done) {
+                    console.warn("Serial stream closed");
+                    break;
+                }
+                if (value) {
+                    const newBuffer = new Uint8Array(accumulatedBuffer.length + value.length);
+                    newBuffer.set(accumulatedBuffer);
+                    newBuffer.set(value, accumulatedBuffer.length);
+                    accumulatedBuffer = newBuffer;
+
+                    // Inside your serial read loop (in startSerialReadLoop):
+                    while (accumulatedBuffer.length >= blockSize) {
+                        // // Log raw buffer as hex for debugging:
+                        // console.log("Raw buffer:", Array.from(accumulatedBuffer).map(b => b.toString(16).padStart(2, "0")).join(" "));
+
+                        let syncIndex = -1;
+                        // Look for sync sequence
+                        for (let i = 0; i < accumulatedBuffer.length - 1; i++) {
+                            if (
+                                accumulatedBuffer[i] === SYNC_BYTE_1 &&
+                                accumulatedBuffer[i + 1] === SYNC_BYTE_2
+                            ) {
+                                syncIndex = i;
+                                break;
+                            }
+                        }
+
+                        // If no sync found, flush the buffer.
+                        if (syncIndex === -1) {
+                            console.warn("No sync found, flushing buffer...");
+                            accumulatedBuffer = new Uint8Array(0);
+                            break;
+                        }
+
+                        // Remove garbage data before sync
+                        if (syncIndex > 0) {
+                            console.warn("Misaligned data detected, realigning...");
+                            accumulatedBuffer = accumulatedBuffer.slice(syncIndex);
+                        }
+
+                        if (accumulatedBuffer.length < blockSize) break;
+
+                        const block = accumulatedBuffer.slice(0, blockSize);
+                        accumulatedBuffer = accumulatedBuffer.slice(blockSize);
+
+                        // Parse packet (assuming sample number is at index 2)
+                        const sampleNumber = block[2];
+                        const dataView = new DataView(block.buffer, block.byteOffset, block.byteLength);
+                        const channelData: number[] = [];
+                        for (let channel = 0; channel < 3; channel++) {
+                            const channelOffset = 3 + channel * 2;
+                            const sample = dataView.getInt16(channelOffset, false);
+                            channelData.push(sample);
+                        }
+
+                        // Sample checking...
+                        if (previousSampleNumber !== -1) {
+                            if (sampleNumber - previousSampleNumber > 1) {
+                                console.error("Error: Sample Lost. Expected:", previousSampleNumber + 1, "Got:", sampleNumber);
+                            } else if (sampleNumber === previousSampleNumber) {
+                                console.error("Error: Duplicate sample", sampleNumber);
+                            }
+                        }
+                        previousSampleNumber = sampleNumber;
+
+                        console.log("EEG Data:", sampleNumber, ...channelData);
+
+                        if (isGameRunningRef.current && cube) {
+                            if (channelData[0] > leftThreshold) {
+                                console.log("Moving left:", channelData[0]);
+                                cube.position.x = Math.max(cube.position.x - moveSpeed, -3);
+                                console.log("New Cube X:", cube.position.x);
+                            }
+                            if (channelData[1] > rightThreshold) {
+                                console.log("Moving right:", channelData[1]);
+                                cube.position.x = Math.min(cube.position.x + moveSpeed, 3);
+                                console.log("New Cube X:", cube.position.x);
+                            }
+                        }
+                    }
+
+                }
+                await new Promise((resolve) => setTimeout(resolve, 1));
+            }
+        } catch (err) {
+            console.error("Error in serial read loop:", err);
+        }
+    };
+
+
+    // Cleanup for serial connection.
+    useEffect(() => {
+        return () => {
+            readLoopActiveRef.current = false;
+            readerRef.current
+                ?.cancel()
+                .catch((err) => console.error("Error cancelling reader:", err))
+                .finally(() => {
+                    readerRef.current?.releaseLock();
+                    portRef.current?.close().catch((err) =>
+                        console.error("Error closing port:", err)
+                    );
+                });
+        };
+    }, []);
+
 
     useEffect(() => {
         // Calculate the new level: Level = floor(score / 500) + 1
@@ -682,9 +699,18 @@ export default function Home() {
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    onClick={connectToBoard}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 flex items-center"
+                    disabled={deviceConnected}
+                >
+                    <span className="mr-2">🔌</span> Connect
+                </motion.button>
+                <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={startGame}
-                    className="bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg shadow-green-500/30 transition-all duration-200 flex items-center disabled:opacity-50"
-                    disabled={isGameRunning}
+                    className="bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 flex items-center disabled:opacity-50"
+                    disabled={!deviceConnected || isGameRunning}
                 >
                     <span className="mr-2">🚀</span> Launch
                 </motion.button>
