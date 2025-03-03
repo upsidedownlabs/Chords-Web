@@ -5,8 +5,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { motion } from "framer-motion";
 import InstructionsModal from "../instructions/page"; // Adjust the path as needed
 import { useRouter } from "next/navigation";
-const leftThreshold = 200;
-const rightThreshold = 1300;
+const leftThreshold = 1800;
+const rightThreshold = 2000;
 
 
 export default function Home() {
@@ -216,7 +216,7 @@ export default function Home() {
             window.removeEventListener('resize', handleResize);
             mountRef.current?.removeChild(renderer.domElement);
         };
-    }, [isGameRunning, gameOver]);
+    }, []);
 
     // ----- Serial Connection: Connect Phase (Triggered by Connect Button) -----
     const connectToBoard = async () => {
@@ -601,12 +601,12 @@ export default function Home() {
                         console.log("EEG Data:", sampleNumber, ...channelData);
 
                         if (isGameRunningRef.current && cube) {
-                            if (channelData[0] > leftThreshold) {
+                            if (Math.abs(channelData[0] - 1800) > Math.abs(channelData[1] - 1800)) {
                                 console.log("Moving left:", channelData[0]);
                                 cube.position.x = Math.max(cube.position.x - moveSpeed, -3);
                                 console.log("New Cube X:", cube.position.x);
                             }
-                            if (channelData[1] > rightThreshold) {
+                            else if (Math.abs(channelData[1] - 1800) > Math.abs(channelData[0] - 1800)) {
                                 console.log("Moving right:", channelData[1]);
                                 cube.position.x = Math.min(cube.position.x + moveSpeed, 3);
                                 console.log("New Cube X:", cube.position.x);
