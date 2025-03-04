@@ -66,13 +66,8 @@ const DataPass = () => {
         />
       ) : FFTConnected ? (
         <FFT
-        pauseRef={pauseRef}
         Zoom={Zoom}
-        snapShotRef={snapShotRef}
-        currentSnapshot={currentSnapshot}
         ref={canvasRef} // Pass the ref to the Canvas component
-        selectedBits={selectedBits}
-        isDisplay={isDisplay}
         canvasCount={canvasCount} // Pass canvas count
         selectedChannels={selectedChannels}
         timeBase={timeBase}
