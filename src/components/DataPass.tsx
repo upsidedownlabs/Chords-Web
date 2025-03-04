@@ -5,12 +5,14 @@ import Steps from "./Steps";
 import React, { useState, useCallback, useRef } from "react";
 import Canvas from "./Canvas";
 import Navbar from "./Navbar"; // Import the Navbar
+import FFT from "./FFT"; // Import the Navbar
 
 export type BitSelection = 10 | 12 | 14 | 16;
 
 const DataPass = () => {
   const [selectedBits, setSelectedBits] = useState<BitSelection>(10); // Default to 10
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
+  const [FFTConnected, setFFTConnected] = useState<boolean>(false); // Connection status
   const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
   const [canvasCount, setCanvasCount] = useState<number>(1); // Number of canvases
   const [timeBase, setTimeBase] = useState<number>(4); // To track the current index to show
@@ -62,7 +64,21 @@ const DataPass = () => {
           timeBase={timeBase}
           currentSamplingRate={currentSamplingRate}
         />
-      ) : (
+      ) : FFTConnected ? (
+        <FFT
+        pauseRef={pauseRef}
+        Zoom={Zoom}
+        snapShotRef={snapShotRef}
+        currentSnapshot={currentSnapshot}
+        ref={canvasRef} // Pass the ref to the Canvas component
+        selectedBits={selectedBits}
+        isDisplay={isDisplay}
+        canvasCount={canvasCount} // Pass canvas count
+        selectedChannels={selectedChannels}
+        timeBase={timeBase}
+        currentSamplingRate={currentSamplingRate} 
+        />
+      ): (
         <Steps />
       )}
       <Connection
@@ -70,6 +86,7 @@ const DataPass = () => {
         snapShotRef={snapShotRef}
         datastream={datastream}
         Connection={setIsConnected}
+        FFT={setFFTConnected}
         selectedBits={selectedBits}
         setSelectedBits={setSelectedBits}
         isDisplay={isDisplay}

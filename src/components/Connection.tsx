@@ -50,6 +50,7 @@ interface ConnectionProps {
     onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
     datastream: (data: number[]) => void;
     Connection: (isDeviceConnected: boolean) => void;
+    FFT: (isDeviceConnected: boolean) => void;
     selectedBits?: BitSelection; // Add `?` if it's optional
     setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
     isDisplay: boolean;
@@ -74,6 +75,7 @@ const Connection: React.FC<ConnectionProps> = ({
     onPauseChange,
     datastream,
     Connection,
+    FFT,
     setSelectedBits,
     isDisplay,
     setIsDisplay,
@@ -742,6 +744,160 @@ const Connection: React.FC<ConnectionProps> = ({
         setIsLoading(false);
     };
 
+    const connectToDevicefft = async () => {
+        try {
+            if (portRef.current && portRef.current.readable) {
+                await disconnectDevice();
+            }
+
+            const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+            let port = null;
+            const ports = await navigator.serial.getPorts();
+
+            if (savedPorts.length > 0) {
+                port = ports.find((p) => {
+                    const info = p.getInfo();
+                    return savedPorts.some(
+                        (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                    );
+                }) || null;
+            }
+
+            let baudRate;
+            let serialTimeout;
+
+            if (!port) {
+                port = await navigator.serial.requestPort();
+                const newPortInfo = await port.getInfo();
+                const usbProductId = newPortInfo.usbProductId ?? 0;
+
+                const board = BoardsList.find((b) => b.field_pid === usbProductId);
+                baudRate = board ? board.baud_Rate : 0;
+                serialTimeout = board ? board.serial_timeout : 0;
+                await port.open({ baudRate });
+                setIsLoading(true);
+            } else {
+                setIsLoading(true);
+                const info = port.getInfo();
+                const savedDevice = savedPorts.find(
+                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                );
+
+                const deviceIndex = savedPorts.findIndex(
+                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                );
+
+                if (deviceIndex !== -1) {
+                    const savedChannels = savedPorts[deviceIndex].selectedChannels;
+                }
+
+                baudRate = savedDevice?.baudRate || 230400;
+                serialTimeout = savedDevice?.serialTimeout || 2000;
+
+                await port.open({ baudRate });
+            }
+
+            if (port.readable) {
+                const reader = port.readable.getReader();
+                readerRef.current = reader;
+                const writer = port.writable?.getWriter();
+                if (writer) {
+                    writerRef.current = writer;
+                    const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
+                    setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
+                    let buffer = "";
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        if (value) {
+                            buffer += new TextDecoder().decode(value);
+                            if (buffer.includes("\n")) break;
+                        }
+                    }
+                    const response = buffer.trim().split("\n").pop();
+                    const extractedName = response?.match(/[A-Za-z0-9\-_\s]+$/)?.[0]?.trim() || "Unknown Device";
+                    devicenameref.current = extractedName;
+                    const currentPortInfo = port.getInfo();
+                    const usbProductId = currentPortInfo.usbProductId ?? 0;
+
+                    const existingDeviceIndex = savedPorts.findIndex(
+                        (saved: SavedDevice) => saved.deviceName === extractedName
+                    );
+
+                    if (existingDeviceIndex !== -1) {
+                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
+                        setSelectedChannels(lastSelectedChannels);
+                    } else {
+                        savedPorts.push({
+                            deviceName: extractedName,
+                            usbProductId: currentPortInfo.usbProductId ?? 0,
+                            baudRate,
+                            serialTimeout,
+                            selectedChannels,
+                        });
+                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
+                        setSelectedChannels(lastSelectedChannels);
+                    }
+
+                    localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+
+                    const { formattedInfo, adcResolution, channelCount, baudRate: extractedBaudRate, serialTimeout: extractedSerialTimeout } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
+
+                    // Update maxCanvasElementCountRef when connecting a new device
+                    if (channelCount) {
+                        maxCanvasElementCountRef.current = channelCount; // Ensure the new device’s channel count is applied
+                    }
+
+                    const allSelected = initialSelectedChannelsRef.current.length == channelCount;
+                    setIsAllEnabledChannelSelected(!allSelected);
+
+                    baudRate = extractedBaudRate ?? baudRate;
+                    serialTimeout = extractedSerialTimeout ?? serialTimeout;
+
+                    toast.success("Connection Successful", {
+                        description: (
+                            <div className="mt-2 flex flex-col space-y-1">
+                                <p>Device: {formattedInfo}</p>
+                                <p>Product ID: {usbProductId}</p>
+                                <p>Baud Rate: {baudRate}</p>
+                                {adcResolution && <p>Resolution: {adcResolution} bits</p>}
+                                {channelCount && <p>Channel: {channelCount}</p>}
+                            </div>
+                        ),
+                    });
+
+                    const startMessage = new TextEncoder().encode("START\n");
+                    setTimeout(() => writer.write(startMessage), 2000);
+                } else {
+                    console.error("Writable stream not available");
+                }
+            } else {
+                console.error("Readable stream not available");
+            }
+
+            setSelectedChannels(initialSelectedChannelsRef.current);
+            FFT(true);
+            setIsDeviceConnected(true);
+            onPauseChange(true);
+            setIsDisplay(true);
+            setCanvasCount(1);
+            isDeviceConnectedRef.current = true;
+            portRef.current = port;
+
+            const data = await getFileCountFromIndexedDB();
+            setDatasets(data);
+            readData();
+
+            await navigator.wakeLock.request("screen");
+
+        } catch (error) {
+            await disconnectDevice();
+            console.error("Error connecting to device:", error);
+            toast.error("Failed to connect to device.");
+        }
+        setIsLoading(false);
+    };
+
 
     const getFileCountFromIndexedDB = async (): Promise<any[]> => {
         if (!workerRef.current) {
@@ -804,6 +960,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 }
                 portRef.current = null;
                 setIsDeviceConnected(false); // Update connection state
+                FFT(false);
                 toast("Disconnected from device", {
                     action: {
                         label: "Reconnect",
@@ -1181,6 +1338,15 @@ const Connection: React.FC<ConnectionProps> = ({
                                         }}
                                     >
                                         Serial Wizard
+                                    </Button>
+                                )}
+                                  {!isDeviceConnected && (
+                                    <Button
+                                        className="py-2 px-4 rounded-xl font-semibold"
+                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevicefft())}
+
+                                    >
+                                        FFT Visualizer
                                     </Button>
                                 )}
                             </Popover>
