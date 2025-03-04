@@ -45,7 +45,6 @@ const FFT = forwardRef(
     const dataPointCountRef = useRef<number>(1000); // To track the calculated value
     const [canvasElements, setCanvasElements] = useState<HTMLCanvasElement[]>([]);
     const wglPlotsref = useRef<WebglPlot[]>([]);
-    const [lines, setLines] = useState<WebglPlot[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
 
