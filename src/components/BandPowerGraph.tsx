@@ -48,88 +48,7 @@ const Graph
     ],
     []
   );
-////
 
-const calculateBrainwavePower = (fftData: number[], freqs: number[]) => {
-  const sumPower = (minFreq: number, maxFreq: number, divisor: number) => {
-    const filtered = fftData.filter((_, index) => freqs[index] >= minFreq && freqs[index] <= maxFreq);
-    return Math.sqrt(math.sum(filtered.map(x => x ** 2)) / divisor);
-  };
-
-  const deltaPower = sumPower(0.5, 4, 4);
-  const thetaPower = sumPower(4, 8, 5);
-  const alphaPower = sumPower(8, 13, 6);
-  const betaPower = sumPower(13, 30, 18);
-  const gammaPower = sumPower(30, 45, 16);
-
-  return { deltaPower, thetaPower, alphaPower, betaPower, gammaPower };
-};
-
-
-  // const calculateBandPower = useCallback(
-  //     (fftChannelData: number[]) => {
-  //       const freqResolution = samplingRate / (fftChannelData.length * 2);
-    
-  //       // Compute raw power for each band
-  //       const bandPowers = bandRanges.map(([low, high]) => {
-  //         const startIndex = Math.max(1, Math.floor(low / freqResolution));
-  //         const endIndex = Math.min(
-  //           Math.ceil(high / freqResolution),
-  //           fftChannelData.length - 1
-  //         );
-    
-  //         let bandPower = 0;
-  //         for (let i = startIndex; i <= endIndex; i++) {
-  //           if (!isNaN(fftChannelData[i]) && i < fftChannelData.length) {
-  //             bandPower += Math.pow(fftChannelData[i], 2); // Use square of magnitude
-  //           }
-  //         }
-    
-  //         // Normalize by number of bins
-  //         return bandPower / (endIndex - startIndex + 1);
-  //       });
-    
-  //       // Total power across all bands
-  //       const totalPower = bandPowers.reduce((sum, power) => sum + power, 0);
-    
-  //       // Compute normalized power in dB
-  //       return bandPowers.map((bandPower, index) => {
-  //         if (index === 0) {
-  //           return 10; // Fixed value for the first band
-  //         } else if (index === 1) {
-  //           const alpha = bandPowers[2] || 0;
-  //           const beta = bandPowers[3] || 0;
-  //           const alphaBetaPower = alpha + beta;
-  //           const normalizedPower = totalPower > 0 ? alphaBetaPower / totalPower : 0;
-  //           console.log(normalizedPower);
-  //           return 10 * Math.log10(normalizedPower);
-  //         } else {
-  //           return -30; // Rest of the values set to 0
-  //         }
-  //       });
-        
-  //     },
-  //     [bandRanges, samplingRate]
-  //   );
-    
-
-  // useEffect(() => {
-  //   if (fftData.length > 0 && fftData[0].length > 0) {
-  //     const channelData = fftData[0];
-  //     const newBandPowerData = calculateBrainwavePower(channelData);
-  //     console.log(newBandPowerData);
-  //     if (
-  //       newBandPowerData.some((value) => !isNaN(value) && value > -Infinity)
-  //     ) {
-  //       setHasValidData(true);
-  //       setBandPowerData(newBandPowerData);
-  //     } else if (!hasValidData) {
-  //       setBandPowerData(Array(5).fill(-100));
-  //     }
-  //   }
-  // }, [fftData, calculateBandPower, hasValidData]);
-
-  ///
   const calculateBandPower = useCallback(
     (fftChannelData: number[]) => {
       const freqResolution = samplingRate / (fftChannelData.length * 2);
@@ -248,7 +167,7 @@ const calculateBrainwavePower = (fftData: number[], freqs: number[]) => {
       });
 
       ctx.font = "14px Arial";
-      ctx.fillText("EEG Power Bands", width / 2, height - 15);
+      ctx.fillText("EEG Band Power ", width / 2, height - 15);
 
       // Rotate and position the y-axis label
       ctx.save();
