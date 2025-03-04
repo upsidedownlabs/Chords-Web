@@ -220,5 +220,6 @@ import React, {
     }
   );
   
-  export default FFT;
+FFT.displayName = "FFT";
+ export default FFT;
   

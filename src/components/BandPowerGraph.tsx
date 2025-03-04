@@ -8,12 +8,15 @@ import React, {
 import { useTheme } from "next-themes";
 import * as math from "mathjs";
 
-interface graphProps {
+interface GraphProps
+ {
   fftData: number[][];
   samplingRate: number;
 }
 
-const graph: React.FC<graphProps> = ({
+const Graph
+: React.FC<GraphProps
+> = ({
   fftData,
   samplingRate,
 }) => {
@@ -301,4 +304,4 @@ const calculateBrainwavePower = (fftData: number[], freqs: number[]) => {
   );
 };
 
-export default graph;
+export default Graph;
