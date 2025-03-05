@@ -11,7 +11,6 @@
     --highlight: 0 0% 100%; /* Light mode: white color */
     --gray-light: 0 0% 95%; /* Light mode: gray-100 */
 
-
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
@@ -44,7 +43,7 @@
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
   
-    --highlight:  222.2 84% 4.9%;  /* Dark mode: light gray */
+    --highlight: 222.2 84% 4.9%;  /* Dark mode: light gray */
     --gray-light: 222.2 84% 7%; /* Dark mode: dark gray */
 
     --card: 222.2 84% 4.9%;
@@ -72,14 +71,73 @@
     --input: 217.2 32.6% 25%; /* Darkened from 17.5% to 25% */
     --ring: 212.7 26.8% 83.9%;
   }
-}
 
-@layer base {
+  /* Apply global border style and background colors */
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  /* Custom Keyframes & Animations */
+  @keyframes twinkle {
+    0% { opacity: 0.2; }
+    50% { opacity: 1; }
+    100% { opacity: 0.2; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+  }
+  @keyframes float-slow-reverse {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(5px); }
+  }
+  @keyframes float-medium {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+  @keyframes ping-slow {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.3; }
+  }
+  @keyframes shootingStar {
+    0% { transform: translate(-100px, -100px) rotate(45deg); opacity: 0; }
+    10% { opacity: 1; }
+    20% { transform: translate(120vw, 120vh) rotate(45deg); opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  /* Custom Animation Classes */
+  .animate-float-slow {
+    animation: float-slow 4s infinite ease-in-out;
+  }
+  .animate-float-slow-reverse {
+    animation: float-slow-reverse 4s infinite ease-in-out;
+  }
+  .animate-float-medium {
+    animation: float-medium 5s infinite ease-in-out;
+  }
+  .animate-ping-slow {
+    animation: ping-slow 2s infinite;
+  }
+  .animate-pulse-slow {
+    animation: pulse-slow 2s infinite;
+  }
+  .delay-300 {
+    animation-delay: 0.3s;
   }
 }
 
