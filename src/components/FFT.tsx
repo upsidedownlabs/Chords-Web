@@ -109,7 +109,8 @@ const FFT = forwardRef(
       const newWglPlots: WebglPlot[] = [];
 
       linesRef.current = [];
-
+      const canvasWrapper = document.createElement("div");
+      canvasWrapper.className = "canvas-container relative flex-[1_1_0%]";
       // Create a single canvas element
       const canvas = document.createElement("canvas");
       canvas.id = `canvas${1}`;
@@ -119,9 +120,10 @@ const FFT = forwardRef(
 
       const badge = document.createElement("div");
       badge.className = "absolute text-gray-500 text-sm rounded-full p-2 m-2";
+      canvasWrapper.appendChild(canvas);
 
-      container.appendChild(badge);
-      container.appendChild(canvas);
+      canvasWrapper.appendChild(badge);
+      container.appendChild(canvasWrapper);
 
       try {
         const wglp = new WebglPlot(canvas);
@@ -326,7 +328,8 @@ console.log(newWglPlots)
         <main
           className="flex flex-col flex-[1_1_0%] min-h-80 bg-highlight rounded-2xl m-4 relative"
           ref={canvasContainerRef}
-        ></main>
+        >
+        </main>
 
         {/* Flex container for side-by-side layout */}
         <div className="w-full flex flex-row justify-between items-center max-w-full h-[300px] gap-20">
