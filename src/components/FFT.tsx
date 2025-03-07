@@ -322,26 +322,28 @@ const FFT = forwardRef(
     }, [plotData]);
 
     return (
-      <div className="flex flex-col  gap-2 w-full h-full">
-        <main
-          className="flex flex-col flex-[1_1_0%] min-h-70 bg-highlight rounded-2xl m-4 relative"
-          ref={canvasContainerRef}
-        ></main>
-
-        {/* Flex container for side-by-side layout */}
-        <div className="w-full flex flex-row justify-between items-center max-w-full gap-20">
-          {/* Canvas container (left side) */}
-          <div ref={containerRef} className="flex-1">
-            <canvas ref={canvasRef} className="w-full" />
-          </div>
-
-          {/* BandPowerGraph (right side) */}
-          <div className="flex-1">
-            <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />
-          </div>
+      <div className="flex flex-col w-full h-screen overflow-hidden">
+      {/* Plotting Data / Main content area */}
+      <main
+        ref={canvasContainerRef}
+        className="flex-1 bg-highlight rounded-2xl m-2 overflow-hidden min-h-0"
+      >
+        {/* Main content goes here */}
+      </main>
+          
+      {/* Responsive container for FFT (canvas) and BandPowerGraph */}
+      <div className="flex-1 m-2 flex flex-col md:flex-row overflow-hidden min-h-0 gap-2">
+        {/* FFT Canvas container */}
+        <div ref={containerRef} className="flex-1 overflow-hidden min-h-0 min-w-0">
+          <canvas ref={canvasRef} className="w-full h-full" />
+        </div>
+              
+        {/* BandPowerGraph container */}
+        <div className="flex-1 overflow-hidden min-h-0 min-w-0">
+          <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />
         </div>
       </div>
-
+    </div>
     );
   }
 );
