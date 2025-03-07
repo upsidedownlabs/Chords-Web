@@ -129,15 +129,16 @@ const FFT = forwardRef(
         const wglp = new WebglPlot(canvas);
         console.log("WebglPlot created:", wglp);
         wglp.gScaleY = Zoom;
+        const lineColor = theme === "dark" ? new ColorRGBA(1, 2, 2, 1) : new ColorRGBA(0, 0, 0, 1); // Adjust colors as needed
 
-        const line = new WebglLine(new ColorRGBA(1, 2, 2, 1), dataPointCountRef.current);
+        const line = new WebglLine(lineColor, dataPointCountRef.current);
         line.offsetY = 0;
         line.lineSpaceX(-1, 2 / dataPointCountRef.current);
         wglp.addLine(line);
         newWglPlots.push(wglp);
-console.log(newWglPlots)
+        console.log(newWglPlots)
         linesRef.current = [line];
-        wglPlotsref.current=[wglp];
+        wglPlotsref.current = [wglp];
         setCanvasElements([canvas]);
       } catch (error) {
         console.error("Error creating WebglPlot:", error);
