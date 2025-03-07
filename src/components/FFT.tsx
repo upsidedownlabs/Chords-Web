@@ -133,9 +133,9 @@ const FFT = forwardRef(
         line.lineSpaceX(-1, 2 / dataPointCountRef.current);
         wglp.addLine(line);
         newWglPlots.push(wglp);
-console.log(newWglPlots)
+        console.log(newWglPlots)
         linesRef.current = [line];
-        wglPlotsref.current=[wglp];
+        wglPlotsref.current = [wglp];
         setCanvasElements([canvas]);
       } catch (error) {
         console.error("Error creating WebglPlot:", error);
@@ -324,19 +324,19 @@ console.log(newWglPlots)
     return (
       <div className="flex flex-col  gap-2 w-full h-full">
         <main
-          className="flex flex-col flex-[1_1_0%] min-h-80 bg-highlight rounded-2xl m-4 relative"
+          className="flex flex-col flex-[1_1_0%] min-h-70 bg-highlight rounded-2xl m-4 relative"
           ref={canvasContainerRef}
         ></main>
 
         {/* Flex container for side-by-side layout */}
-        <div className="w-full flex flex-row justify-between items-center max-w-full h-[300px] gap-20">
+        <div className="w-full flex flex-row justify-between items-center max-w-full gap-20">
           {/* Canvas container (left side) */}
-          <div ref={containerRef} className="flex-1 h-full">
-            <canvas ref={canvasRef} className="w-full h-full" />
+          <div ref={containerRef} className="flex-1">
+            <canvas ref={canvasRef} className="w-full" />
           </div>
 
           {/* BandPowerGraph (right side) */}
-          <div className="flex-1 h-full">
+          <div className="flex-1">
             <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />
           </div>
         </div>

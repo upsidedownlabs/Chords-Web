@@ -454,8 +454,6 @@ const SerialPlotter = () => {
                             </div>
                         </div>
 
-
-
                         {/* Data Display */}
                         <pre className="text-xs whitespace-pre-wrap break-words px-4 pb-4 flex-grow overflow-auto rounded-xl">
                             {rawData}
