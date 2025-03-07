@@ -325,16 +325,16 @@ const FFT = forwardRef(
     }, [plotData]);
 
     return (
-      <div className="flex flex-col  gap-2 w-full h-full">
-        <main
-          className="flex flex-col flex-[1_1_0%] min-h-80 bg-highlight rounded-2xl m-4 relative"
-          ref={canvasContainerRef}
+<div className="flex flex-col gap-2 w-full h-full">
+<main
+    className="flex flex-col flex-[1_1_50%] h-1/2 bg-highlight rounded-2xl m-4 relative"
+    ref={canvasContainerRef}
         >
         </main>
 
         {/* Flex container for side-by-side layout */}
-        <div className="w-full flex flex-row justify-between items-center max-w-full h-[300px] gap-20">
-          {/* Canvas container (left side) */}
+        <div className="w-full flex flex-row justify-between items-center max-w-full h-1/2 gap-20">
+        {/* Canvas container (left side) */}
           <div ref={containerRef} className="flex-1 h-full">
             <canvas ref={canvasRef} className="w-full h-full" />
           </div>

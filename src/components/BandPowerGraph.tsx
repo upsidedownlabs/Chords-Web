@@ -217,7 +217,7 @@ const Graph
   }, [animateGraph]);
 
   return (
-    <div ref={containerRef} className="w-full h-[300px] max-w-[700px]">
+    <div ref={containerRef} className="w-full h-full max-w-[700px]">
       <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
     </div>
   );
