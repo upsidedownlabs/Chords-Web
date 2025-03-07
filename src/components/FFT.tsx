@@ -335,14 +335,14 @@ const FFT = forwardRef(
       </main>
           
       {/* Responsive container for FFT (canvas) and BandPowerGraph */}
-      <div className="flex-1 m-2 flex flex-col md:flex-row overflow-hidden min-h-0 gap-2">
-        {/* FFT Canvas container */}
-        <div ref={containerRef} className="flex-1 overflow-hidden min-h-0 min-w-0">
+      <div className="flex-1 m-2 flex flex-col md:flex-row justify-center  overflow-hidden min-h-0 gap-12">
+
+      {/* FFT Canvas container */}
+        <div ref={containerRef} className="flex-1 overflow-hidden min-h-0 min-w-0 ml-12 ">
           <canvas ref={canvasRef} className="w-full h-full" />
         </div>
-              
         {/* BandPowerGraph container */}
-        <div className="flex-1 overflow-hidden min-h-0 min-w-0">
+        <div className="flex-1 overflow-hidden min-h-0 min-w-0 ml-4">
           <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />
         </div>
       </div>

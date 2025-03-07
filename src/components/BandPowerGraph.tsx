@@ -217,7 +217,7 @@ const Graph
   }, [animateGraph]);
 
   return (
-    <div ref={containerRef} className="w-full h-full max-w-[500px] min-h-0 min-w-0">
+    <div ref={containerRef} className="w-full h-full max-w-[700px] min-h-0 min-w-0">
   <canvas ref={canvasRef} className="w-full h-full" />
 </div>
   );
