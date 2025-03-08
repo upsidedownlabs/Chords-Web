@@ -1,6 +1,6 @@
 {
   "name": "chords",
-  "version": "2.4.5a",
+  "version": "2.5.0a",
   "private": true,
   "scripts": {
     "dev": "next dev",
