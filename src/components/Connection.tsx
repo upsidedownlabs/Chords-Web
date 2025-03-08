@@ -50,6 +50,7 @@ interface ConnectionProps {
     onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
     datastream: (data: number[]) => void;
     Connection: (isDeviceConnected: boolean) => void;
+    FFT: (isDeviceConnected: boolean) => void;
     selectedBits?: BitSelection; // Add `?` if it's optional
     setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
     isDisplay: boolean;
@@ -74,6 +75,7 @@ const Connection: React.FC<ConnectionProps> = ({
     onPauseChange,
     datastream,
     Connection,
+    FFT,
     setSelectedBits,
     isDisplay,
     setIsDisplay,
@@ -94,6 +96,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // States and Refs for Connection & Recording
     const [isDeviceConnected, setIsDeviceConnected] = useState<boolean>(false); // Track if the device is connected
+    const [FFTDeviceConnected, setFFTDeviceConnected] = useState<boolean>(false); // Track if the device is connected
     const isDeviceConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
     const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
 
@@ -742,6 +745,157 @@ const Connection: React.FC<ConnectionProps> = ({
         setIsLoading(false);
     };
 
+    const connectToDevicefft = async () => {
+        try {
+            if (portRef.current && portRef.current.readable) {
+                await disconnectDevice();
+            }
+
+            const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+            let port = null;
+            const ports = await navigator.serial.getPorts();
+
+            if (savedPorts.length > 0) {
+                port = ports.find((p) => {
+                    const info = p.getInfo();
+                    return savedPorts.some(
+                        (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                    );
+                }) || null;
+            }
+
+            let baudRate;
+            let serialTimeout;
+
+            if (!port) {
+                port = await navigator.serial.requestPort();
+                const newPortInfo = await port.getInfo();
+                const usbProductId = newPortInfo.usbProductId ?? 0;
+
+                const board = BoardsList.find((b) => b.field_pid === usbProductId);
+                baudRate = board ? board.baud_Rate : 0;
+                serialTimeout = board ? board.serial_timeout : 0;
+                await port.open({ baudRate });
+            } else {
+                const info = port.getInfo();
+                const savedDevice = savedPorts.find(
+                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                );
+
+                const deviceIndex = savedPorts.findIndex(
+                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                );
+
+                if (deviceIndex !== -1) {
+                    const savedChannels = savedPorts[deviceIndex].selectedChannels;
+                }
+
+                baudRate = savedDevice?.baudRate || 230400;
+                serialTimeout = savedDevice?.serialTimeout || 2000;
+
+                await port.open({ baudRate });
+            }
+
+            if (port.readable) {
+                const reader = port.readable.getReader();
+                readerRef.current = reader;
+                const writer = port.writable?.getWriter();
+                if (writer) {
+                    writerRef.current = writer;
+                    const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
+                    setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
+                    let buffer = "";
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        if (value) {
+                            buffer += new TextDecoder().decode(value);
+                            if (buffer.includes("\n")) break;
+                        }
+                    }
+                    const response = buffer.trim().split("\n").pop();
+                    const extractedName = response?.match(/[A-Za-z0-9\-_\s]+$/)?.[0]?.trim() || "Unknown Device";
+                    devicenameref.current = extractedName;
+                    const currentPortInfo = port.getInfo();
+                    const usbProductId = currentPortInfo.usbProductId ?? 0;
+
+                    const existingDeviceIndex = savedPorts.findIndex(
+                        (saved: SavedDevice) => saved.deviceName === extractedName
+                    );
+
+                    if (existingDeviceIndex !== -1) {
+                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
+                        setSelectedChannels(lastSelectedChannels);
+                    } else {
+                        savedPorts.push({
+                            deviceName: extractedName,
+                            usbProductId: currentPortInfo.usbProductId ?? 0,
+                            baudRate,
+                            serialTimeout,
+                            selectedChannels,
+                        });
+                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
+                        setSelectedChannels(lastSelectedChannels);
+                    }
+
+                    localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+
+                    const { formattedInfo, adcResolution, channelCount, baudRate: extractedBaudRate, serialTimeout: extractedSerialTimeout } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
+
+                    // Update maxCanvasElementCountRef when connecting a new device
+                    if (channelCount) {
+                        maxCanvasElementCountRef.current = channelCount; // Ensure the new device’s channel count is applied
+                    }
+
+                    const allSelected = initialSelectedChannelsRef.current.length == channelCount;
+                    setIsAllEnabledChannelSelected(!allSelected);
+
+                    baudRate = extractedBaudRate ?? baudRate;
+                    serialTimeout = extractedSerialTimeout ?? serialTimeout;
+
+                    toast.success("Connection Successful", {
+                        description: (
+                            <div className="mt-2 flex flex-col space-y-1">
+                                <p>Device: {formattedInfo}</p>
+                                <p>Product ID: {usbProductId}</p>
+                                <p>Baud Rate: {baudRate}</p>
+                                {adcResolution && <p>Resolution: {adcResolution} bits</p>}
+                                {channelCount && <p>Channel: {channelCount}</p>}
+                            </div>
+                        ),
+                    });
+
+                    const startMessage = new TextEncoder().encode("START\n");
+                    setTimeout(() => writer.write(startMessage), 2000);
+                } else {
+                    console.error("Writable stream not available");
+                }
+            } else {
+                console.error("Readable stream not available");
+            }
+
+            setSelectedChannels(initialSelectedChannelsRef.current);
+            FFT(true);
+            setIsDeviceConnected(true);
+            setFFTDeviceConnected(true);
+            setIsDisplay(true);
+            setCanvasCount(1);
+            isDeviceConnectedRef.current = true;
+            portRef.current = port;
+
+            const data = await getFileCountFromIndexedDB();
+            setDatasets(data);
+            readData();
+
+            await navigator.wakeLock.request("screen");
+
+        } catch (error) {
+            await disconnectDevice();
+            console.error("Error connecting to device:", error);
+            toast.error("Failed to connect to device.");
+        }
+    };
+
 
     const getFileCountFromIndexedDB = async (): Promise<any[]> => {
         if (!workerRef.current) {
@@ -804,6 +958,8 @@ const Connection: React.FC<ConnectionProps> = ({
                 }
                 portRef.current = null;
                 setIsDeviceConnected(false); // Update connection state
+                setFFTDeviceConnected(false);
+                FFT(false);
                 toast("Disconnected from device", {
                     action: {
                         label: "Reconnect",
@@ -1145,66 +1301,75 @@ const Connection: React.FC<ConnectionProps> = ({
             <div className="flex gap-3 items-center justify-center">
                 {/* Connection button with tooltip */}
                 <TooltipProvider>
-    <Tooltip>
-        <TooltipTrigger asChild>
-            <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                    <Button
-                        className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevice())}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <>
-                                <Loader size={17} className="animate-spin" />
-                                Connecting...
-                            </>
-                        ) : isDeviceConnected ? (
-                            <>
-                                Disconnect
-                                <CircleX size={17} />
-                            </>
-                        ) : (
-                            <>
-                                Chords Visualizer
-                                <Cable size={17} />
-                            </>
-                        )}
-                    </Button>
-                </PopoverTrigger>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Popover open={open} onOpenChange={setOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevice())}
+                                        disabled={isLoading}
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <Loader size={17} className="animate-spin" />
+                                                Connecting...
+                                            </>
+                                        ) : isDeviceConnected ? (
+                                            <>
+                                                Disconnect
+                                                <CircleX size={17} />
+                                            </>
+                                        ) : (
+                                            <>
+                                                Chords Visualizer
+                                                <Cable size={17} />
+                                            </>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                {!isDeviceConnected && (
+                                    <Button
+                                        className="py-2 px-4 rounded-xl font-semibold"
+                                        onClick={() => {
+                                            localStorage.setItem("autoConnectSerial", "true"); // Auto-connect flag
+                                            router.push("/serial-plotter");
+                                        }}
+                                    >
+                                        Serial Wizard
+                                    </Button>
+                                )}
+                                {!isDeviceConnected && (
+                                    <Button
+                                        className="py-2 px-4 rounded-xl font-semibold"
+                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevicefft())}
 
-                {!isDeviceConnected && (
-                    <div className="flex flex-col gap-2 p-4">
-                        <Button
-                            className="py-2 px-4 rounded-xl font-semibold"
-                            onClick={() => {
-                                localStorage.setItem("autoConnectSerial", "true"); // Auto-connect flag
-                                router.push("/serial-plotter");
-                            }}
-                        >
-                            Serial Wizard
-                        </Button>
-                        <Button
-                            className="py-2 px-4 rounded-xl font-semibold text-white"
-                            onClick={() => router.push("/game_components/chords-game")
-                            }
-                        >
-                            Game
-                        </Button>
-                    </div>
-                )}
-            </Popover>
-        </TooltipTrigger>
-        <TooltipContent>
-            <p>{isDeviceConnected ? "Disconnect Device" : "Connect Device"}</p>
-        </TooltipContent>
-    </Tooltip>
-</TooltipProvider>
+                                    >
+                                        FFT Visualizer
+                                    </Button>
+                                )}
+                                {!isDeviceConnected && (
+                                        <Button
+                                            className="py-2 px-4 rounded-xl font-semibold"
+                                            onClick={() => router.push("/game_components/chords-game")
+                                            }
+                                        >
+                                            Game
+                                        </Button>
+                                   
+                                )}
+                            </Popover>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{isDeviceConnected ? "Disconnect Device" : "Connect Device"}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
 
 
 
                 {/* Display (Play/Pause) button with tooltip */}
-                {isDeviceConnected && (
+                {isDeviceConnected && !FFTDeviceConnected && (
                     <div className="flex items-center gap-0.5 mx-0 px-0">
                         <Button
                             className="rounded-xl rounded-r-none"
@@ -1339,7 +1504,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         </div>
                     </TooltipProvider>
                 )}
-                {isDeviceConnected && (
+                {isDeviceConnected && !FFTDeviceConnected && (
                     <Popover
                         open={isFilterPopoverOpen}
                         onOpenChange={setIsFilterPopoverOpen}
@@ -1575,7 +1740,131 @@ const Connection: React.FC<ConnectionProps> = ({
                     </Popover>
                 )}
 
-                {isDeviceConnected && (
+                {FFTDeviceConnected && (
+                    <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                className="flex items-center justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
+                                disabled={!isDisplay}
+                            >
+                                Filter
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-50 p-4 mx-4 mb-2">
+                            <div className="flex flex-col max-h-80 overflow-y-auto">
+                                <div className="flex items-center">
+                                    <div className="text-sm font-semibold w-12">{channelNames[0]}</div>
+                                    <div className="flex space-x-2">
+                                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => removeEXGFilter(0)}
+                                                className={`rounded-xl rounded-r-none border-l-none border-0
+                                                        ${appliedEXGFiltersRef.current[0] === undefined
+                                                        ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                <CircleOff size={17} />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleFrequencySelectionEXG(0, 4)}
+                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                        ${appliedEXGFiltersRef.current[0] === 4
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                <BicepsFlexed size={17} />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleFrequencySelectionEXG(0, 3)}
+                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                      ${appliedEXGFiltersRef.current[0] === 3
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                <Brain size={17} />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleFrequencySelectionEXG(0, 1)}
+                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                        ${appliedEXGFiltersRef.current[0] === 1
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                <Heart size={17} />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleFrequencySelectionEXG(0, 2)}
+                                                className={`rounded-xl rounded-l-none border-0
+                                                        ${appliedEXGFiltersRef.current[0] === 2
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                <Eye size={17} />
+                                            </Button>
+                                        </div>
+                                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => removeNotchFilter(0)}
+                                                className={`rounded-xl rounded-r-none border-0
+                                                        ${appliedFiltersRef.current[0] === undefined
+                                                        ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                <CircleOff size={17} />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleFrequencySelection(0, 1)}
+                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                        ${appliedFiltersRef.current[0] === 1
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                50Hz
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleFrequencySelection(0, 2)}
+                                                className={
+                                                    `rounded-xl rounded-l-none border-0 ${appliedFiltersRef.current[0] === 2
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white "
+                                                        : "bg-white-500 animate-fade-in-right"
+                                                    }`
+                                                }
+                                            >
+                                                60Hz
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                )}
+
+                {isDeviceConnected && !FFTDeviceConnected && (
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-lg">

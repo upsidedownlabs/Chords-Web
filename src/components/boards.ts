@@ -184,13 +184,13 @@ export const BoardsList: ReadonlyArray<BoardConfig> = Object.freeze([
         sampling_rate: 500,
         serial_timeout: HIGH_SPEED_TIMEOUT,
     }),
-    createBoardConfig({
+    createBoardConfig({ 
         chords_id: "NPG-LITE",
         device_name: "NPG-LITE",
         field_pid: 4097,
         adc_resolution: 12,
         channel_count: 3,
-        baud_Rate: 230400,
         sampling_rate: 500,
+        serial_timeout: HIGH_SPEED_TIMEOUT,
     }),
 ]);
