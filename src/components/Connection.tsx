@@ -160,6 +160,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // Loading State
     const [isLoading, setIsLoading] = useState(false); // Track loading state for asynchronous operations
+    const [isfftLoading, setIsfftLoading] = useState(false); // Track loading state for asynchronous operations
 
 
     let activeBufferIndex = 0;
@@ -776,7 +777,9 @@ const Connection: React.FC<ConnectionProps> = ({
                 baudRate = board ? board.baud_Rate : 0;
                 serialTimeout = board ? board.serial_timeout : 0;
                 await port.open({ baudRate });
+                setIsfftLoading(true);
             } else {
+                setIsfftLoading(true);
                 const info = port.getInfo();
                 const savedDevice = savedPorts.find(
                     (saved: SavedDevice) => saved.usbProductId === info.usbProductId
@@ -894,6 +897,8 @@ const Connection: React.FC<ConnectionProps> = ({
             console.error("Error connecting to device:", error);
             toast.error("Failed to connect to device.");
         }
+        setIsfftLoading(false);
+
     };
 
 
@@ -1340,13 +1345,28 @@ const Connection: React.FC<ConnectionProps> = ({
                                     </Button>
                                 )}
                                 {!isDeviceConnected && (
-                                    <Button
-                                        className="py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevicefft())}
-
-                                    >
+                                       <Button
+                                       className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                                       onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevicefft())}
+                                       disabled={isfftLoading}
+                                   >
+                                       {isfftLoading ? (
+                                           <>
+                                               <Loader size={17} className="animate-spin" />
+                                               Connecting...
+                                           </>
+                                       ) : isDeviceConnected ? (
+                                           <>
+                                               Disconnect
+                                               <CircleX size={17} />
+                                           </>
+                                       ) : (
+                                           <>
                                         FFT Visualizer
-                                    </Button>
+                                        <Cable size={17} />
+                                           </>
+                                       )}
+                                   </Button>
                                 )}
                             </Popover>
                         </TooltipTrigger>
