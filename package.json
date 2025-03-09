@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "ts-node scripts/generateManifest.ts",
+    "prebuild": "ts-node scripts/generateManifest.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
