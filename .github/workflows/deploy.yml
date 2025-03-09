@@ -58,8 +58,30 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
-      # Step 5: Install ts-node (if required for TypeScript scripts)
-      - name: Install ts-node (if needed)
+      - name: Check for CNAME
+        id: check-cname
+        run: |
+          if [ -f "CNAME" ]; then
+            echo "HAS_CNAME=true" >> $GITHUB_OUTPUT
+          else
+            echo "HAS_CNAME=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Set BASE_PATH based on CNAME presence
+      - name: Set Base Path
+        env:
+          REPO_NAME: ${{ github.repository }} 
+        run: |
+          if [ "${{ steps.check-cname.outputs.HAS_CNAME }}" = "true" ]; then
+            echo "BASE_PATH=" >> $GITHUB_ENV  # Root path for custom domain
+          else
+            REPO=${REPO_NAME#*/}             # Extract "Chords-Web" from repo name
+            echo "BASE_PATH=/$REPO" >> $GITHUB_ENV
+          fi
+
+
+      # Step 5: Install ts-node
+      - name: Install ts-node 
         run: npm install -g ts-node
 
       # Step 6: Run script to generate the manifest file for Next.js

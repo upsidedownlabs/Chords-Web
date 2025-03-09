@@ -7,13 +7,12 @@ const withPWA = nextPwa({
   skipWaiting: true,
 });
 
-const isGithubPages = process.env.GITHUB_PAGES === "true";
+const basePath = process.env.BASE_PATH || "";
 
 const config = {
   reactStrictMode: true,
   output: "export", // Ensures it works with static export
-  basePath: isGithubPages ? "/Chords-Web" : "",
-  assetPrefix: isGithubPages ? "/Chords-Web/" : "",
+  basePath,
   images: {
     unoptimized: true,
     remotePatterns: [

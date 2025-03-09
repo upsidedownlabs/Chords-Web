@@ -72,10 +72,33 @@ jobs:
 
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
+     
+      - name: Check for CNAME
+        id: check-cname
+        run: |
+          if [ -f "CNAME" ]; then
+            echo "HAS_CNAME=true" >> $GITHUB_OUTPUT
+          else
+            echo "HAS_CNAME=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Install ts-node (if needed)
+      # Set BASE_PATH based on CNAME presence
+      - name: Set Base Path
+        env:
+          REPO_NAME: ${{ github.repository }} 
+        run: |
+          if [ "${{ steps.check-cname.outputs.HAS_CNAME }}" = "true" ]; then
+            echo "BASE_PATH=" >> $GITHUB_ENV  # Root path for custom domain
+          else
+            REPO=${REPO_NAME#*/}             # Extract "Chords-Web" from repo name
+            echo "BASE_PATH=/$REPO" >> $GITHUB_ENV
+          fi
+
+
+
+      - name: Install ts-node 
         run: npm install -g ts-node
-        
+
       - name: Generate Manifest
         run: node --loader ts-node/esm scripts/generateManifest.mjs
 
