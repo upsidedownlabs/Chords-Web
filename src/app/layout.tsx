@@ -10,13 +10,15 @@ import {
 import { cn } from "../lib/utils";
 import { Toaster } from "../components/ui/sonner";
 import "./globals.css";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ""; // Default to empty string
+
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Chords",
   description: "Web Serial based Biopotential Signal recorder application.",
-  manifest: "/Chords-Web/manifest.json", // ✅ Add this line to register the manifest
+  manifest: `${basePath}/manifest.json`, // ✅ Dynamically set manifest path
 };
 
 const lobsterTwo = Lobster_Two({
@@ -45,7 +47,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="manifest" href="/manifest.json" /> 
+      <link rel="manifest" href={`${basePath}/manifest.json`} /> {/* ✅ Dynamic manifest */}
       </head>
       <body
         className={cn(

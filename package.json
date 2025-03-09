@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "sed -i 's|BASE_PATH|${NEXT_PUBLIC_BASE_PATH:-}|g' public/manifest.json",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
