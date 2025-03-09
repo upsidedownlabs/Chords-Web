@@ -7,12 +7,13 @@ const withPWA = nextPwa({
   skipWaiting: true,
 });
 
-const basePath = process.env.BASE_PATH || "";
+const isGithubActor = process.env.NEXT_PUBLIC_GITHUB_ACTOR === "upsidedownlabs" || process.env.NEXT_PUBLIC_GITHUB_ACTOR === undefined;
 
 const config = {
   reactStrictMode: true,
   output: "export", // Ensures it works with static export
-  basePath: basePath,
+  basePath: isGithubActor ? "" : "/Chords-Web",
+  assetPrefix: isGithubActor ? "" : "/Chords-Web",
   images: {
     unoptimized: true,
     remotePatterns: [
