@@ -73,8 +73,11 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
+      - name: Install ts-node (if needed)
+        run: npm install -g ts-node
+        
       - name: Generate Manifest
-        run: node --loader ts-node/esm scripts/generateManifest.ts
+        run: node --loader ts-node/esm scripts/generateManifest.mjs
 
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
