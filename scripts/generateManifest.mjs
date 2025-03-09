@@ -14,9 +14,7 @@ const isGithubActor = process.env.NEXT_PUBLIC_GITHUB_ACTOR === "upsidedownlabs" 
 
 // Get the BASE_PATH dynamically
 const basePath = isGithubActor ? "" : "/Chords-Web";
-console.log("NEXT_PUBLIC_GITHUB_ACTOR:", process.env.NEXT_PUBLIC_GITHUB_ACTOR);
-console.log("isGithubActor:", isGithubActor);
-console.log("basePath:", basePath);
+
 
 // Define the manifest object
 const manifest = {
