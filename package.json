@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "sed -i 's|BASE_PATH|${NEXT_PUBLIC_BASE_PATH:-}|g' public/manifest.json",
+    "prebuild": "ts-node scripts/generateManifest.ts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -63,10 +63,12 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/uuid": "^10.0.0",
+    "dotenv": "^16.4.7",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }
