@@ -11,7 +11,7 @@ const withPWA = nextPwa({
 const config = {
   reactStrictMode: true,
   output: "export",  // Ensures it works with static export
-  basePath: "/Chords-Web",
+  basePath: "/",
   assetPrefix: "/Chords-Web/",
   images: {
     unoptimized: true,

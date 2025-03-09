@@ -5,7 +5,7 @@ import Steps from "./Steps";
 import React, { useState, useCallback, useRef } from "react";
 import Canvas from "./Canvas";
 import Navbar from "./Navbar"; // Import the Navbar
-import FFT from "./FFT"; // Import the Navbar
+import FFT from "./FFT"; // Import the FFT
 
 export type BitSelection = 10 | 12 | 14 | 16;
 
