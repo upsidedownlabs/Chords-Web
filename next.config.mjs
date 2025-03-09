@@ -8,6 +8,10 @@ const withPWA = nextPwa({
 });
 
 const isGithubActor = process.env.NEXT_PUBLIC_GITHUB_ACTOR === "upsidedownlabs" || process.env.NEXT_PUBLIC_GITHUB_ACTOR === undefined;
+const basePath = isGithubActor ? "" : "/Chords-Web";
+console.log("NEXT_PUBLIC_GITHUB_ACTOR:", process.env.NEXT_PUBLIC_GITHUB_ACTOR);
+console.log("isGithubActor:", isGithubActor);
+console.log("basePath:", basePath);
 
 const config = {
   reactStrictMode: true,
