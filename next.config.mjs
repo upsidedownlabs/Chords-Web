@@ -12,7 +12,7 @@ const basePath = process.env.BASE_PATH || "";
 const config = {
   reactStrictMode: true,
   output: "export", // Ensures it works with static export
-  basePath,
+  basePath: basePath,
   images: {
     unoptimized: true,
     remotePatterns: [
