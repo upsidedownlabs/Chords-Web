@@ -15,7 +15,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Chords",
-  description: "Web Serial based Biopotential Signal recorder applicaion.",
+  description: "Web Serial based Biopotential Signal recorder application.",
+  manifest: "/Chords-Web/manifest.json", // ✅ Add this line to register the manifest
 };
 
 const lobsterTwo = Lobster_Two({
@@ -43,6 +44,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" /> 
+      </head>
       <body
         className={cn(
           lobsterTwo.variable,
