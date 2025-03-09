@@ -64,7 +64,7 @@ jobs:
 
       # Step 6: Run script to generate the manifest file for Next.js
       - name: Run manifest generation script
-        run: ts-node scripts/generateManifest.ts
+        run: ts-node scripts/generateManifest.mjs
 
       # Step 7: Debugging - Check if manifest.json exists
       - name: Debug Manifest Generation
