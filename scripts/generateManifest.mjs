@@ -33,3 +33,5 @@ const outputPath = path.join(__dirname, "../public/manifest.json");
 fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2));
 
 console.log("✅ Manifest generated successfully at", outputPath);
+console.log("✅ basePath", basePath);
+
