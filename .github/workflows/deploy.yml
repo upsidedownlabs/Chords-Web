@@ -58,28 +58,18 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
-      # Step 5: Install ts-node (if required for TypeScript scripts)
-      - name: Install ts-node (if needed)
-        run: npm install -g ts-node
-
-      # Step 6: Run script to generate the manifest file for Next.js
+      # Step 5: Run script to generate the manifest file for Next.js
       - name: Run manifest generation script
         run: ts-node scripts/generateManifest.mjs
 
-      # Step 7: Debugging - Check if manifest.json exists
-      - name: Debug Manifest Generation
-        run: |
-          ls -l ./public/
-          cat ./public/manifest.json || echo "❌ Manifest not found"
-
-      # Step 8: Configure GitHub Pages for Next.js
+      # Step 6: Configure GitHub Pages for Next.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
           # Automatically configures basePath and disables image optimization
           static_site_generator: next
 
-      # Step 9: Restore Next.js build cache to speed up builds
+      # Step 7: Restore Next.js build cache to speed up builds
       - name: Restore Next.js cache
         uses: actions/cache@v4
         with:
@@ -91,11 +81,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
 
-      # Step 10: Build the Next.js project
+      # Step 8: Build the Next.js project
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
 
-      # Step 11: Upload the built site as an artifact for deployment
+      # Step 9: Upload the built site as an artifact for deployment
       - name: Upload build artifacts
         uses: actions/upload-pages-artifact@v3
         with:
