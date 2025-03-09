@@ -100,7 +100,7 @@ jobs:
         run: npm install -g ts-node
 
       - name: Generate Manifest
-        run: node --loader ts-node/esm scripts/generateManifest.mjs
+        run: ts-node scripts/generateManifest.mjs
 
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build

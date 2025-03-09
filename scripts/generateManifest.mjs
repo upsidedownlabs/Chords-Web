@@ -30,3 +30,4 @@ const outputPath = path.join(__dirname, "../public/manifest.json");
 fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2));
 
 
+
