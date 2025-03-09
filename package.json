@@ -1,6 +1,6 @@
 {
   "name": "chords",
-  "version": "2.4.5a",
+  "version": "2.5.0a",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -35,6 +35,7 @@
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.1.5",
     "esc-pos-encoder": "^2.0.1",
+    "fft-js": "^0.0.12",
     "file-saver": "^2.0.5",
     "framer-motion": "^11.5.4",
     "html2canvas": "^1.4.1",

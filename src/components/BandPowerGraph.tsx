@@ -6,7 +6,6 @@ import React, {
   useMemo,
 } from "react";
 import { useTheme } from "next-themes";
-import * as math from "mathjs";
 
 interface GraphProps
  {
