@@ -1365,9 +1365,6 @@ const Connection: React.FC<ConnectionProps> = ({
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
-
-
-
                 {/* Display (Play/Pause) button with tooltip */}
                 {isDeviceConnected && !FFTDeviceConnected && (
                     <div className="flex items-center gap-0.5 mx-0 px-0">

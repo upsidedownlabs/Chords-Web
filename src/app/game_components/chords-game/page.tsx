@@ -7,6 +7,7 @@ import InstructionsModal from "../instructions/page"; // Adjust the path as need
 import { useRouter } from "next/navigation";
 const leftThreshold = 1800;
 const rightThreshold = 2000;
+import { EXGFilter, Notch } from './filters';
 
 
 export default function Home() {
@@ -509,6 +510,32 @@ export default function Home() {
         }, 1000);
     };
 
+
+    class EnvelopeFilter {
+        private circularBuffer: number[];
+        private sum: number = 0;
+        private dataIndex: number = 0;
+        private readonly bufferSize: number;
+      
+        constructor(bufferSize: number) {
+          this.bufferSize = bufferSize;
+          this.circularBuffer = new Array(bufferSize).fill(0);
+        }
+      
+        getEnvelope(absEmg: number): number {
+          this.sum -= this.circularBuffer[this.dataIndex];
+          this.sum += absEmg;
+          this.circularBuffer[this.dataIndex] = absEmg;
+          this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
+          return (this.sum / this.bufferSize) * 2;
+        }
+      }
+      
+      // Usage example
+      const envelope1 = new EnvelopeFilter(64);
+      const envelope2 = new EnvelopeFilter(64);
+      
+
     // ----- Serial Read Loop: Begin reading data from device after game launch -----
     const startSerialReadLoop = async () => {
         try {
@@ -524,12 +551,20 @@ export default function Home() {
 
             const blockSize = 9; // Declare blockSize here.
             let previousSampleNumber = -1;
-            const moveSpeed = 0.5;
+            const moveSpeed = 0.02;
             let accumulatedBuffer = new Uint8Array(0);
 
             const SYNC_BYTE_1 = 0xC7;
             const SYNC_BYTE_2 = 0x7C;
-
+            const notchFilters = Array.from({ length: 3}, () => new Notch());
+            const EXGFilters = Array.from({ length:3 }, () => new EXGFilter());
+            notchFilters.forEach((filter) => {
+                filter.setbits(500)// the bits value for all instances
+            });
+            EXGFilters.forEach((filter) => {
+                filter.setbits((12).toString(),500);//Set the bits value for all instances
+            });
+    
 
             while (readLoopActiveRef.current && reader) {
                 const { value, done } = await reader.read();
@@ -569,7 +604,7 @@ export default function Home() {
 
                         // Remove garbage data before sync
                         if (syncIndex > 0) {
-                            console.warn("Misaligned data detected, realigning...");
+                            // console.warn("Misaligned data detected, realigning...");
                             accumulatedBuffer = accumulatedBuffer.slice(syncIndex);
                         }
 
@@ -585,8 +620,14 @@ export default function Home() {
                         for (let channel = 0; channel < 3; channel++) {
                             const channelOffset = 3 + channel * 2;
                             const sample = dataView.getInt16(channelOffset, false);
-                            channelData.push(sample);
-                        }
+                            channelData.push(
+                                notchFilters[channel].process(
+                                    EXGFilters[channel].process(
+                                        sample,4
+                                    ),
+                                  1
+                                )
+                            );                        }
 
                         // Sample checking...
                         if (previousSampleNumber !== -1) {
@@ -597,19 +638,27 @@ export default function Home() {
                             }
                         }
                         previousSampleNumber = sampleNumber;
-
-                        console.log("EEG Data:", sampleNumber, ...channelData);
+                        const env1=envelope1.getEnvelope(Math.abs(channelData[0]));
+                        const env2=envelope2.getEnvelope(Math.abs(channelData[1]));
+                        console.log("Moving left:", envelope1.getEnvelope(Math.abs(channelData[0])) );
+                        console.log("Moving right:", envelope2.getEnvelope(Math.abs(channelData[1])));
 
                         if (isGameRunningRef.current && cube) {
-                            if (Math.abs(channelData[0] - 1800) > Math.abs(channelData[1] - 1800)) {
-                                console.log("Moving left:", channelData[0]);
+                            if (env1>500
+                            ){
+                                // console.log("Moving left:", envelope1.getEnvelope(Math.abs(channelData[0])) );
                                 cube.position.x = Math.max(cube.position.x - moveSpeed, -3);
-                                console.log("New Cube X:", cube.position.x);
+                                // console.log("New Cube X:", cube.position.x);
                             }
-                            else if (Math.abs(channelData[1] - 1800) > Math.abs(channelData[0] - 1800)) {
-                                console.log("Moving right:", channelData[1]);
+                            else 
+                            if ( env2>400
+                            ){
+                                // console.log("Moving right:", envelope2.getEnvelope(Math.abs(channelData[1])));
                                 cube.position.x = Math.min(cube.position.x + moveSpeed, 3);
-                                console.log("New Cube X:", cube.position.x);
+                                // console.log("New Cube X:", cube.position.x);
+                            }
+                            else{
+                              console.log("hello");  
                             }
                         }
                     }
