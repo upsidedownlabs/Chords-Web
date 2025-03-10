@@ -399,7 +399,7 @@ EXGFilters.forEach((filter) => {
 });
   function processSample(dataView: DataView): void {
     if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
-      console.log("Unexpected sample length: " + dataView.byteLength);
+    //   console.log("Unexpected sample length: " + dataView.byteLength);
       return;
     }
   
@@ -409,7 +409,7 @@ EXGFilters.forEach((filter) => {
     const endByte = dataView.getUint8(9);
   
     if (sync1 !== 0xC7 || sync2 !== 0x7C || endByte !== 0x01) {
-      console.log(`Invalid sample header/footer: ${sync1} ${sync2} ${endByte}`);
+    //   console.log(`Invalid sample header/footer: ${sync1} ${sync2} ${endByte}`);
       return;
     }
   
@@ -418,7 +418,7 @@ EXGFilters.forEach((filter) => {
     } else {
       const expected = (prevSampleCounter + 1) % 256;
       if (sampleCounter !== expected) {
-        console.log(`Missing sample: expected ${expected}, got ${sampleCounter}`);
+        // console.log(`Missing sample: expected ${expected}, got ${sampleCounter}`);
       }
       prevSampleCounter = sampleCounter;
     }
@@ -433,8 +433,30 @@ EXGFilters.forEach((filter) => {
             )
         );
     }
-  
     updatePlots(channelData, zoomRef.current);
+    if (isRecordingRef.current) {
+        const channeldatavalues = channelData
+            .slice(0, canvasElementCountRef.current + 1)
+            .map((value) => (value !== undefined ? value : null))
+            .filter((value): value is number => value !== null); // Filter out null values
+        // Check if recording is enabled
+        recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
+
+        if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
+            processBuffer(activeBufferIndex, canvasElementCountRef.current, selectedChannels);
+            activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
+        }
+        fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
+        const elapsedTime = Date.now() - recordingStartTimeRef.current;
+        setRecordingElapsedTime((prev) => {
+            if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
+                stopRecording();
+                return endTimeRef.current;
+            }
+            return elapsedTime;
+        });
+
+    }
 channelData=[];
     samplesReceived++;
   }
@@ -443,7 +465,7 @@ channelData=[];
     value?: DataView;
   }
   
-  function handleNotification(event: Event): void {
+  function handledata(event: Event): void {
     const target = event.target as BluetoothRemoteGATTCharacteristicExtended;
     if (!target.value) {
       console.log("Received event with no value.");
@@ -460,73 +482,186 @@ channelData=[];
       processSample(new DataView(value.buffer));
     } else {
       console.log("Unexpected packet length: " + value.byteLength);
+
     }
   }
   
-  async function connectBLE(): Promise<void> {
+//   async function connectBLE(): Promise<void> {
+//     try {
+//         setIsLoading(true);
+//       const nav = navigator as any;
+//       if (!nav.bluetooth) {
+//         console.log("Web Bluetooth API is not available in this browser.");
+//         return;
+//       }
+//       console.log("Requesting Bluetooth device...");
+//       const device = await nav.bluetooth.requestDevice({
+//         filters: [{ name: DEVICE_NAME }],
+//         optionalServices: [SERVICE_UUID],
+//       });
+  
+//       console.log("Connecting to GATT Server...");
+//       const server = await device.gatt?.connect();
+//       if (!server) {
+//         console.log("Failed to connect to GATT Server.");
+//         return;
+//       }
+  
+//       console.log("Getting Service...");
+//       const service = await server.getPrimaryService(SERVICE_UUID);
+  
+//       console.log("Getting Control Characteristic...");
+//       const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
+//       console.log("Getting Data Characteristic...");
+//       const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+  
+//       console.log("Sending START command...");
+//       const encoder = new TextEncoder();
+//       await controlChar.writeValue(encoder.encode("START"));
+  
+//       console.log("Starting notifications...");
+//       await dataChar.startNotifications();
+//       dataChar.addEventListener("characteristicvaluechanged", handledata);
+//       setIsLoading(false);
+//       setIsConnected(true);
+
+//       console.log("Notifications started. Listening for data...");
+  
+//       setInterval(() => {
+//         console.log("Samples per second: " + samplesReceived);
+//         samplesReceived = 0;
+//       }, 1000);
+//     } catch (error) {
+//       console.log("Error: " + (error instanceof Error ? error.message : error));
+//     }
+//   }
+  
+
+  
+//     async function disconnect(): Promise<void> {
+//         try {
+//           if (!device) {
+//             console.log("No connected device to disconnect.");
+//             return;
+//           }
+      
+//           console.log("Stopping notifications...");
+//           const server = device.gatt;
+//           if (server && server.connected) {
+//             const service = await server.getPrimaryService(SERVICE_UUID);
+//             const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+//             await dataChar.stopNotifications();
+//             dataChar.removeEventListener("characteristicvaluechanged", handledata);
+      
+//             console.log("Disconnecting from GATT Server...");
+//             server.disconnect();
+//           }
+      
+//           console.log("Bluetooth device disconnected.");
+//           setIsConnected(false);
+//         } catch (error) {
+//           console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
+//         }
+//       }
+      
+
+const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
+
+async function connectBLE(): Promise<void> {
+  try {
+    setIsLoading(true);
+    const nav = navigator as any;
+    if (!nav.bluetooth) {
+      console.log("Web Bluetooth API is not available in this browser.");
+      return;
+    }
+
+    console.log("Requesting Bluetooth device...");
+    const device = await nav.bluetooth.requestDevice({
+      filters: [{ name: DEVICE_NAME }],
+      optionalServices: [SERVICE_UUID],
+    });
+
+    console.log("Connecting to GATT Server...");
+    const server = await device.gatt?.connect();
+    if (!server) {
+      console.log("Failed to connect to GATT Server.");
+      return;
+    }
+
+    console.log("Getting Service...");
+    const service = await server.getPrimaryService(SERVICE_UUID);
+
+    console.log("Getting Control Characteristic...");
+    const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
+    console.log("Getting Data Characteristic...");
+    const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+
+    console.log("Sending START command...");
+    const encoder = new TextEncoder();
+    await controlChar.writeValue(encoder.encode("START"));
+
+    console.log("Starting notifications...");
+    await dataChar.startNotifications();
+    dataChar.addEventListener("characteristicvaluechanged", handledata);
+
+    // Store the device globally for later disconnection
+    connectedDeviceRef.current = device;
+
+    setIsLoading(false);
+    setIsConnected(true);
+
+    console.log("Notifications started. Listening for data...");
+
+    setInterval(() => {
+      console.log("Samples per second: " + samplesReceived);
+      samplesReceived = 0;
+    }, 1000);
+  } catch (error) {
+    console.log("Error: " + (error instanceof Error ? error.message : error));
+  }
+}
+async function disconnect(): Promise<void> {
     try {
-        setIsLoading(true);
-      const nav = navigator as any;
-      if (!nav.bluetooth) {
-        console.log("Web Bluetooth API is not available in this browser.");
+      if (!connectedDeviceRef) {
+        console.log("No connected device to disconnect.");
         return;
       }
-      console.log("Requesting Bluetooth device...");
-      const device = await nav.bluetooth.requestDevice({
-        filters: [{ name: DEVICE_NAME }],
-        optionalServices: [SERVICE_UUID],
-      });
   
-      console.log("Connecting to GATT Server...");
-      const server = await device.gatt?.connect();
+      const server = connectedDeviceRef.current.gatt;
       if (!server) {
-        console.log("Failed to connect to GATT Server.");
+        console.log("No GATT server found.");
         return;
       }
   
-      console.log("Getting Service...");
+      console.log("Checking connection status...");
+      console.log("GATT Connected:", server.connected);
+  
+      if (!server.connected) {
+        console.log("Device is already disconnected.");
+        connectedDeviceRef.current = null;
+        setIsConnected(false);
+        return;
+      }
+  
+      console.log("Stopping notifications...");
       const service = await server.getPrimaryService(SERVICE_UUID);
-  
-      console.log("Getting Control Characteristic...");
-      const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
-      console.log("Getting Data Characteristic...");
       const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+      await dataChar.stopNotifications();
+      dataChar.removeEventListener("characteristicvaluechanged", handledata);
   
-      console.log("Sending START command...");
-      const encoder = new TextEncoder();
-      await controlChar.writeValue(encoder.encode("START"));
+      console.log("Disconnecting from GATT Server...");
+      server.disconnect(); // Disconnect the device
   
-      console.log("Starting notifications...");
-      await dataChar.startNotifications();
-      dataChar.addEventListener("characteristicvaluechanged", handleNotification);
-      setIsLoading(false);
-      setIsConnected(true);
-
-      console.log("Notifications started. Listening for data...");
-  
-      setInterval(() => {
-        console.log("Samples per second: " + samplesReceived);
-        samplesReceived = 0;
-      }, 1000);
+      console.log("Bluetooth device disconnected.");
+      connectedDeviceRef.current = null; // Clear the global reference
+      setIsConnected(false);
     } catch (error) {
-      console.log("Error: " + (error instanceof Error ? error.message : error));
+      console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
     }
   }
   
-
-    const disconnect = () => {
-        setManualDisconnect(true);
-        setIsConnected(false);
-        if (wsRef.current) {
-
-            wsRef.current.onclose = () => console.log("WebSocket closed by disconnect()");
-            wsRef.current.close();
-            wsRef.current = null;
-        }
-    };
-
-
-
+  
     const workerRef = useRef<Worker | null>(null);
 
     const initializeWorker = () => {
@@ -845,7 +980,7 @@ channelData=[];
                     console.warn(`WebglPlot instance at index ${index} is undefined.`);
                 }
             });
-            console.log(data);
+            // console.log(data);
             linesRef.current.forEach((line, i) => {
                 if (!line) {
                     console.warn(`Line at index ${i} is undefined.`);
