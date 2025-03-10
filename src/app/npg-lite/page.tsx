@@ -95,11 +95,9 @@ const Websocket = () => {
     const [isSelectAllDisabled, setIsSelectAllDisabled] = useState(false);
     const [isLoading, setIsLoading] = useState(false); // Track loading state for asynchronous operations
     const [open, setOpen] = useState(false);
-    // const [canvasCount, setCanvasCount] = useState<number>(1); // Number of canvases
     const selectedChannelsRef = useRef(selectedChannels);
     const [Zoom, SetZoom] = useState<number>(1); // Number of canvases
     const [timeBase, setTimeBase] = useState<number>(4); // To track the current index to show
-    const checkref = useRef<number>(0);
 
 
     const createCanvasElements = () => {
@@ -141,7 +139,7 @@ const Websocket = () => {
         const opacityLightMajor = "0.4";
         const opacityLightMinor = "0.1";
         const distanceminor = sampingrateref.current * 0.04;
-        const numGridLines = (500* 4) / distanceminor;
+        const numGridLines = (500 * 4) / distanceminor;
 
         for (let j = 1; j < numGridLines; j++) {
             const gridLineX = document.createElement("div");
@@ -324,344 +322,224 @@ const Websocket = () => {
         zoomRef.current = Zoom;
     }, [Zoom]);
 
- 
+    const DEVICE_NAME = "ESP32_BLE_Device";
+    const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+    const DATA_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+    const CONTROL_CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
 
-    const wsRef = useRef<WebSocket | null>(null);
-    const [manualDisconnect, setManualDisconnect] = useState(false);
+    const SINGLE_SAMPLE_LEN = 10; // Each sample is 10 bytes
+    const BLOCK_COUNT = 10; // 10 samples batched per notification
+    const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT; // 100 bytes
 
-    // const connect = () => {
-    //     checkref.current = 0;
-    //     setManualDisconnect(false);
-    //     setIsLoading(true);
-    //     const allData = Array.from({ length: numChannels }, () => [] as number[]);
-    //     const blockSize = 13;
-    //     setIsLoading(true);
+    let prevSampleCounter: number | null = null;
+    let samplesReceived = 0;
+    let channelData: number[] = [];
+    const notchFilters = Array.from(
+        { length: maxCanvasElementCountRef.current },
+        () => new Notch()
+    );
+    const EXGFilters = Array.from(
+        { length: maxCanvasElementCountRef.current },
+        () => new EXGFilter()
+    );
 
-    //     wsRef.current = new WebSocket("ws://multi-emg.local:81");
-
-    //     wsRef.current.onopen = () => {
-    //         console.log("Connected to WebSocket");
-    //         if (
-    //             wsRef.current) sendData(
-    //                 wsRef.current, blockSize, Date.now(), allData); // Ensure ws is not null
-    //         setIsLoading(false);
-    //         setIsConnected(true);
-
-    //     };
-
-    //     wsRef.current.onerror = (error) => {
-    //         console.error("WebSocket Error: ", error);
-    //     };
-
-    //     wsRef.current.onclose = () => {
-    //         console.log("WebSocket connection closed");
-
-    //         if (!manualDisconnect) {
-    //             setIsConnected(false);
-    //             setIsLoading(true);
-
-
-    //         }
-    //     };
-    // };
-
-
-
-
-
-
-  const DEVICE_NAME = "ESP32_BLE_Device";
-  const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-  const DATA_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-  const CONTROL_CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
-  
-  const SINGLE_SAMPLE_LEN = 10; // Each sample is 10 bytes
-  const BLOCK_COUNT = 10; // 10 samples batched per notification
-  const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT; // 100 bytes
-  
-  let prevSampleCounter: number | null = null;
-  let samplesReceived = 0;
-  let channelData: number[] = [];
-  const notchFilters = Array.from(
-    { length: maxCanvasElementCountRef.current },
-    () => new Notch()
-);
-const EXGFilters = Array.from(
-    { length: maxCanvasElementCountRef.current },
-    () => new EXGFilter()
-);
-
-notchFilters.forEach((filter) => {
-    filter.setbits(sampingrateref.current);
-});
-EXGFilters.forEach((filter) => {
-    filter.setbits("12", sampingrateref.current);
-});
-  function processSample(dataView: DataView): void {
-    if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
-    //   console.log("Unexpected sample length: " + dataView.byteLength);
-      return;
-    }
-  
-    const sync1 = dataView.getUint8(0);
-    const sync2 = dataView.getUint8(1);
-    const sampleCounter = dataView.getUint8(2);
-    const endByte = dataView.getUint8(9);
-  
-    if (sync1 !== 0xC7 || sync2 !== 0x7C || endByte !== 0x01) {
-    //   console.log(`Invalid sample header/footer: ${sync1} ${sync2} ${endByte}`);
-      return;
-    }
-  
-    if (prevSampleCounter === null) {
-      prevSampleCounter = sampleCounter;
-    } else {
-      const expected = (prevSampleCounter + 1) % 256;
-      if (sampleCounter !== expected) {
-        // console.log(`Missing sample: expected ${expected}, got ${sampleCounter}`);
-      }
-      prevSampleCounter = sampleCounter;
-    }
-    channelData.push(dataView.getUint8(2));
-
-    for (let channel = 0; channel < numChannels; channel++) {
-        const sample = dataView.getInt16(3+(channel*2), false);;
-        channelData.push(
-            notchFilters[channel].process(
-                EXGFilters[channel].process(sample, appliedEXGFiltersRef.current[channel]),
-                appliedFiltersRef.current[channel]
-            )
-        );
-    }
-    updatePlots(channelData, zoomRef.current);
-    if (isRecordingRef.current) {
-        const channeldatavalues = channelData
-            .slice(0, canvasElementCountRef.current + 1)
-            .map((value) => (value !== undefined ? value : null))
-            .filter((value): value is number => value !== null); // Filter out null values
-        // Check if recording is enabled
-        recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
-
-        if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
-            processBuffer(activeBufferIndex, canvasElementCountRef.current, selectedChannels);
-            activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
-        }
-        fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
-        const elapsedTime = Date.now() - recordingStartTimeRef.current;
-        setRecordingElapsedTime((prev) => {
-            if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
-                stopRecording();
-                return endTimeRef.current;
-            }
-            return elapsedTime;
-        });
-
-    }
-channelData=[];
-    samplesReceived++;
-  }
-  
-  interface BluetoothRemoteGATTCharacteristicExtended extends EventTarget {
-    value?: DataView;
-  }
-  
-  function handledata(event: Event): void {
-    const target = event.target as BluetoothRemoteGATTCharacteristicExtended;
-    if (!target.value) {
-      console.log("Received event with no value.");
-      return;
-    }
-    const value = target.value;
-    if (value.byteLength === NEW_PACKET_LEN) {
-      for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
-        const sampleBuffer = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
-        const sampleDataView = new DataView(sampleBuffer);
-        processSample(sampleDataView);
-      }
-    } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
-      processSample(new DataView(value.buffer));
-    } else {
-      console.log("Unexpected packet length: " + value.byteLength);
-
-    }
-  }
-  
-//   async function connectBLE(): Promise<void> {
-//     try {
-//         setIsLoading(true);
-//       const nav = navigator as any;
-//       if (!nav.bluetooth) {
-//         console.log("Web Bluetooth API is not available in this browser.");
-//         return;
-//       }
-//       console.log("Requesting Bluetooth device...");
-//       const device = await nav.bluetooth.requestDevice({
-//         filters: [{ name: DEVICE_NAME }],
-//         optionalServices: [SERVICE_UUID],
-//       });
-  
-//       console.log("Connecting to GATT Server...");
-//       const server = await device.gatt?.connect();
-//       if (!server) {
-//         console.log("Failed to connect to GATT Server.");
-//         return;
-//       }
-  
-//       console.log("Getting Service...");
-//       const service = await server.getPrimaryService(SERVICE_UUID);
-  
-//       console.log("Getting Control Characteristic...");
-//       const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
-//       console.log("Getting Data Characteristic...");
-//       const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
-  
-//       console.log("Sending START command...");
-//       const encoder = new TextEncoder();
-//       await controlChar.writeValue(encoder.encode("START"));
-  
-//       console.log("Starting notifications...");
-//       await dataChar.startNotifications();
-//       dataChar.addEventListener("characteristicvaluechanged", handledata);
-//       setIsLoading(false);
-//       setIsConnected(true);
-
-//       console.log("Notifications started. Listening for data...");
-  
-//       setInterval(() => {
-//         console.log("Samples per second: " + samplesReceived);
-//         samplesReceived = 0;
-//       }, 1000);
-//     } catch (error) {
-//       console.log("Error: " + (error instanceof Error ? error.message : error));
-//     }
-//   }
-  
-
-  
-//     async function disconnect(): Promise<void> {
-//         try {
-//           if (!device) {
-//             console.log("No connected device to disconnect.");
-//             return;
-//           }
-      
-//           console.log("Stopping notifications...");
-//           const server = device.gatt;
-//           if (server && server.connected) {
-//             const service = await server.getPrimaryService(SERVICE_UUID);
-//             const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
-//             await dataChar.stopNotifications();
-//             dataChar.removeEventListener("characteristicvaluechanged", handledata);
-      
-//             console.log("Disconnecting from GATT Server...");
-//             server.disconnect();
-//           }
-      
-//           console.log("Bluetooth device disconnected.");
-//           setIsConnected(false);
-//         } catch (error) {
-//           console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
-//         }
-//       }
-      
-
-const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
-
-async function connectBLE(): Promise<void> {
-  try {
-    setIsLoading(true);
-    const nav = navigator as any;
-    if (!nav.bluetooth) {
-      console.log("Web Bluetooth API is not available in this browser.");
-      return;
-    }
-
-    console.log("Requesting Bluetooth device...");
-    const device = await nav.bluetooth.requestDevice({
-      filters: [{ name: DEVICE_NAME }],
-      optionalServices: [SERVICE_UUID],
+    notchFilters.forEach((filter) => {
+        filter.setbits(sampingrateref.current);
     });
+    EXGFilters.forEach((filter) => {
+        filter.setbits("12", sampingrateref.current);
+    });
+    function processSample(dataView: DataView): void {
+        if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
+            //   console.log("Unexpected sample length: " + dataView.byteLength);
+            return;
+        }
 
-    console.log("Connecting to GATT Server...");
-    const server = await device.gatt?.connect();
-    if (!server) {
-      console.log("Failed to connect to GATT Server.");
-      return;
+        const sync1 = dataView.getUint8(0);
+        const sync2 = dataView.getUint8(1);
+        const sampleCounter = dataView.getUint8(2);
+        const endByte = dataView.getUint8(9);
+
+        if (sync1 !== 0xC7 || sync2 !== 0x7C || endByte !== 0x01) {
+            //   console.log(`Invalid sample header/footer: ${sync1} ${sync2} ${endByte}`);
+            return;
+        }
+
+        if (prevSampleCounter === null) {
+            prevSampleCounter = sampleCounter;
+        } else {
+            const expected = (prevSampleCounter + 1) % 256;
+            if (sampleCounter !== expected) {
+                // console.log(`Missing sample: expected ${expected}, got ${sampleCounter}`);
+            }
+            prevSampleCounter = sampleCounter;
+        }
+        channelData.push(dataView.getUint8(2));
+
+        for (let channel = 0; channel < numChannels; channel++) {
+            const sample = dataView.getInt16(3 + (channel * 2), false);;
+            channelData.push(
+                notchFilters[channel].process(
+                    EXGFilters[channel].process(sample, appliedEXGFiltersRef.current[channel]),
+                    appliedFiltersRef.current[channel]
+                )
+            );
+        }
+        updatePlots(channelData, zoomRef.current);
+        if (isRecordingRef.current) {
+            const channeldatavalues = channelData
+                .slice(0, canvasElementCountRef.current + 1)
+                .map((value) => (value !== undefined ? value : null))
+                .filter((value): value is number => value !== null); // Filter out null values
+            // Check if recording is enabled
+            recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
+
+            if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
+                processBuffer(activeBufferIndex, canvasElementCountRef.current, selectedChannels);
+                activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
+            }
+            fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
+            const elapsedTime = Date.now() - recordingStartTimeRef.current;
+            setRecordingElapsedTime((prev) => {
+                if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
+                    stopRecording();
+                    return endTimeRef.current;
+                }
+                return elapsedTime;
+            });
+
+        }
+        channelData = [];
+        samplesReceived++;
     }
 
-    console.log("Getting Service...");
-    const service = await server.getPrimaryService(SERVICE_UUID);
-
-    console.log("Getting Control Characteristic...");
-    const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
-    console.log("Getting Data Characteristic...");
-    const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
-
-    console.log("Sending START command...");
-    const encoder = new TextEncoder();
-    await controlChar.writeValue(encoder.encode("START"));
-
-    console.log("Starting notifications...");
-    await dataChar.startNotifications();
-    dataChar.addEventListener("characteristicvaluechanged", handledata);
-
-    // Store the device globally for later disconnection
-    connectedDeviceRef.current = device;
-
-    setIsLoading(false);
-    setIsConnected(true);
-
-    console.log("Notifications started. Listening for data...");
-
-    setInterval(() => {
-      console.log("Samples per second: " + samplesReceived);
-      samplesReceived = 0;
-    }, 1000);
-  } catch (error) {
-    console.log("Error: " + (error instanceof Error ? error.message : error));
-  }
-}
-async function disconnect(): Promise<void> {
-    try {
-      if (!connectedDeviceRef) {
-        console.log("No connected device to disconnect.");
-        return;
-      }
-  
-      const server = connectedDeviceRef.current.gatt;
-      if (!server) {
-        console.log("No GATT server found.");
-        return;
-      }
-  
-      console.log("Checking connection status...");
-      console.log("GATT Connected:", server.connected);
-  
-      if (!server.connected) {
-        console.log("Device is already disconnected.");
-        connectedDeviceRef.current = null;
-        setIsConnected(false);
-        return;
-      }
-  
-      console.log("Stopping notifications...");
-      const service = await server.getPrimaryService(SERVICE_UUID);
-      const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
-      await dataChar.stopNotifications();
-      dataChar.removeEventListener("characteristicvaluechanged", handledata);
-  
-      console.log("Disconnecting from GATT Server...");
-      server.disconnect(); // Disconnect the device
-  
-      console.log("Bluetooth device disconnected.");
-      connectedDeviceRef.current = null; // Clear the global reference
-      setIsConnected(false);
-    } catch (error) {
-      console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
+    interface BluetoothRemoteGATTCharacteristicExtended extends EventTarget {
+        value?: DataView;
     }
-  }
-  
-  
+
+    function handledata(event: Event): void {
+        const target = event.target as BluetoothRemoteGATTCharacteristicExtended;
+        if (!target.value) {
+            console.log("Received event with no value.");
+            return;
+        }
+        const value = target.value;
+        if (value.byteLength === NEW_PACKET_LEN) {
+            for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
+                const sampleBuffer = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
+                const sampleDataView = new DataView(sampleBuffer);
+                processSample(sampleDataView);
+            }
+        } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
+            processSample(new DataView(value.buffer));
+        } else {
+            console.log("Unexpected packet length: " + value.byteLength);
+
+        }
+    }
+
+    const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
+
+    async function connectBLE(): Promise<void> {
+        try {
+            setIsLoading(true);
+            const nav = navigator as any;
+            if (!nav.bluetooth) {
+                console.log("Web Bluetooth API is not available in this browser.");
+                return;
+            }
+
+            console.log("Requesting Bluetooth device...");
+            const device = await nav.bluetooth.requestDevice({
+                filters: [{ name: DEVICE_NAME }],
+                optionalServices: [SERVICE_UUID],
+            });
+
+            console.log("Connecting to GATT Server...");
+            const server = await device.gatt?.connect();
+            if (!server) {
+                console.log("Failed to connect to GATT Server.");
+                return;
+            }
+
+            console.log("Getting Service...");
+            const service = await server.getPrimaryService(SERVICE_UUID);
+
+            console.log("Getting Control Characteristic...");
+            const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
+            console.log("Getting Data Characteristic...");
+            const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+
+            console.log("Sending START command...");
+            const encoder = new TextEncoder();
+            await controlChar.writeValue(encoder.encode("START"));
+
+            console.log("Starting notifications...");
+            await dataChar.startNotifications();
+            dataChar.addEventListener("characteristicvaluechanged", handledata);
+
+            // Store the device globally for later disconnection
+            connectedDeviceRef.current = device;
+
+            setIsLoading(false);
+            setIsConnected(true);
+
+            console.log("Notifications started. Listening for data...");
+
+            setInterval(() => {
+                console.log("Samples per second: " + samplesReceived);
+                if (samplesReceived===0){
+                    disconnect();
+                    window.location.reload();
+                }
+                samplesReceived = 0;
+            }, 1000);
+        } catch (error) {
+            console.log("Error: " + (error instanceof Error ? error.message : error));
+        }
+    }
+    async function disconnect(): Promise<void> {
+        try {
+            if (!connectedDeviceRef) {
+                console.log("No connected device to disconnect.");
+                return;
+            }
+
+            const server = connectedDeviceRef.current.gatt;
+            if (!server) {
+                console.log("No GATT server found.");
+                return;
+            }
+
+            console.log("Checking connection status...");
+            console.log("GATT Connected:", server.connected);
+
+            if (!server.connected) {
+                console.log("Device is already disconnected.");
+                connectedDeviceRef.current = null;
+                setIsConnected(false);
+                return;
+            }
+
+            console.log("Stopping notifications...");
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+            await dataChar.stopNotifications();
+            dataChar.removeEventListener("characteristicvaluechanged", handledata);
+
+            console.log("Disconnecting from GATT Server...");
+            server.disconnect(); // Disconnect the device
+
+            console.log("Bluetooth device disconnected.");
+            connectedDeviceRef.current = null; // Clear the global reference
+            setIsConnected(false);
+            window.location.reload();
+        } catch (error) {
+            console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
+        }
+    }
+
+
     const workerRef = useRef<Worker | null>(null);
 
     const initializeWorker = () => {
@@ -675,7 +553,6 @@ async function disconnect(): Promise<void> {
         if (!workerRef.current) {
             initializeWorker();
         }
-        // setCanvasCount(selectedChannels.length);
         // Send canvasCount independently to the worker
         workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasElementCountRef.current });
     };
@@ -688,7 +565,6 @@ async function disconnect(): Promise<void> {
         if (!workerRef.current) {
             initializeWorker();
         }
-
         // Send selectedChannels independently to the worker
         workerRef.current?.postMessage({
             action: 'setSelectedChannels',
