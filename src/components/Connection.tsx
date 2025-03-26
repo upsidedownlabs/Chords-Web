@@ -160,6 +160,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // Loading State
     const [isLoading, setIsLoading] = useState(false); // Track loading state for asynchronous operations
+    const [isfftLoading, setIsfftLoading] = useState(false); // Track loading state for asynchronous operations
 
 
     let activeBufferIndex = 0;
@@ -763,7 +764,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     );
                 }) || null;
             }
-
+            handleFrequencySelectionEXG(0, 3);
             let baudRate;
             let serialTimeout;
 
@@ -776,7 +777,9 @@ const Connection: React.FC<ConnectionProps> = ({
                 baudRate = board ? board.baud_Rate : 0;
                 serialTimeout = board ? board.serial_timeout : 0;
                 await port.open({ baudRate });
+                setIsfftLoading(true);
             } else {
+                setIsfftLoading(true);
                 const info = port.getInfo();
                 const savedDevice = savedPorts.find(
                     (saved: SavedDevice) => saved.usbProductId === info.usbProductId
@@ -894,6 +897,8 @@ const Connection: React.FC<ConnectionProps> = ({
             console.error("Error connecting to device:", error);
             toast.error("Failed to connect to device.");
         }
+        setIsfftLoading(false);
+
     };
 
 
@@ -1340,13 +1345,28 @@ const Connection: React.FC<ConnectionProps> = ({
                                     </Button>
                                 )}
                                 {!isDeviceConnected && (
-                                    <Button
-                                        className="py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevicefft())}
-
-                                    >
+                                       <Button
+                                       className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                                       onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevicefft())}
+                                       disabled={isfftLoading}
+                                   >
+                                       {isfftLoading ? (
+                                           <>
+                                               <Loader size={17} className="animate-spin" />
+                                               Connecting...
+                                           </>
+                                       ) : isDeviceConnected ? (
+                                           <>
+                                               Disconnect
+                                               <CircleX size={17} />
+                                           </>
+                                       ) : (
+                                           <>
                                         FFT Visualizer
-                                    </Button>
+                                        <Cable size={17} />
+                                           </>
+                                       )}
+                                   </Button>
                                 )}
                                 {!isDeviceConnected && (
                                         <Button
@@ -1752,68 +1772,6 @@ const Connection: React.FC<ConnectionProps> = ({
                                 <div className="flex items-center">
                                     <div className="text-sm font-semibold w-12">{channelNames[0]}</div>
                                     <div className="flex space-x-2">
-                                        <div className="flex border border-input rounded-xl items-center mx-0 px-0">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => removeEXGFilter(0)}
-                                                className={`rounded-xl rounded-r-none border-l-none border-0
-                                                        ${appliedEXGFiltersRef.current[0] === undefined
-                                                        ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <CircleOff size={17} />
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleFrequencySelectionEXG(0, 4)}
-                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                                                        ${appliedEXGFiltersRef.current[0] === 4
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <BicepsFlexed size={17} />
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleFrequencySelectionEXG(0, 3)}
-                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                                                      ${appliedEXGFiltersRef.current[0] === 3
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <Brain size={17} />
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleFrequencySelectionEXG(0, 1)}
-                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                                                        ${appliedEXGFiltersRef.current[0] === 1
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <Heart size={17} />
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleFrequencySelectionEXG(0, 2)}
-                                                className={`rounded-xl rounded-l-none border-0
-                                                        ${appliedEXGFiltersRef.current[0] === 2
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <Eye size={17} />
-                                            </Button>
-                                        </div>
                                         <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                                             <Button
                                                 variant="outline"

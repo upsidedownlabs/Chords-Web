@@ -36,7 +36,7 @@
     ".next/types/**/*.ts",
     "**/*.tsx",
     "out/types/**/*.ts"
-  ],
+, "scripts/generateManifest.mjs"  ],
   "exclude": [
     "node_modules"
   ]
