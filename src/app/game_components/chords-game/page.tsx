@@ -644,14 +644,14 @@ export default function Home() {
                         console.log("Moving right:", envelope2.getEnvelope(Math.abs(channelData[1])));
 
                         if (isGameRunningRef.current && cube) {
-                            if (env1>500
+                            if (env1>400
                             ){
                                 // console.log("Moving left:", envelope1.getEnvelope(Math.abs(channelData[0])) );
                                 cube.position.x = Math.max(cube.position.x - moveSpeed, -3);
                                 // console.log("New Cube X:", cube.position.x);
                             }
                             else 
-                            if ( env2>400
+                            if ( env2>430
                             ){
                                 // console.log("Moving right:", envelope2.getEnvelope(Math.abs(channelData[1])));
                                 cube.position.x = Math.min(cube.position.x + moveSpeed, 3);
@@ -716,10 +716,31 @@ export default function Home() {
 
     };
 
-    // Restart game after game over
-    const restartGame = () => {
-        startGame();
-    };
+//     // Restart game: reset all game state and start a new round.
+//   const restartGame = () => {
+//     if (sceneRef.current) {
+//       obstacles.forEach((obstacle) => sceneRef.current.remove(obstacle));
+//       coins.forEach((coin) => sceneRef.current.remove(coin));
+//       if (powerUp) {
+//         sceneRef.current.remove(powerUp);
+//       }
+//     }
+//     setScore(0);
+//     setGameOver(false);
+//     setLevel(1);
+//     setIsGameRunning(false);
+//     setObstacles([]);
+//     setPowerUp(null);
+//     setPowerUpTimer(0);
+//     setGameSpeed(0.05);
+//     setExplosionTriggered(false);
+//     setShowCongrats(false);
+//     if (cube) {
+//       cube.position.set(0, 0, 0);
+//       cube.rotation.set(0, 0, 0);
+//     }
+//     startGame();
+//   };
 
     return (
         <div className="relative w-screen h-screen bg-gradient-to-b from-blue-900 to-black overflow-hidden">
@@ -990,7 +1011,7 @@ export default function Home() {
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
-                                onClick={restartGame}
+                                
                                 className="block w-full mt-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-4 rounded-lg text-xl font-bold transition-all duration-300 transform hover:scale-105 relative overflow-hidden"
                             >
                                 <div className="absolute inset-0 flex items-center justify-center">
