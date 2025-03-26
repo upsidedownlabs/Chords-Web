@@ -12,6 +12,7 @@ import { BitSelection } from "./DataPass";
 import BandPowerGraph from "./BandPowerGraph";
 import { fft } from "fft-js";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
+import BrightCandleView from "./CandleLit";
 
 interface CanvasProps {
   canvasCount?: number;
@@ -28,26 +29,48 @@ const FFT = forwardRef(
       timeBase = 4,
       currentSamplingRate,
       Zoom,
-
     }: CanvasProps,
     ref
   ) => {
     const fftBufferRef = useRef<number[][]>(Array.from({ length: 16 }, () => []));
     const [fftData, setFftData] = useState<number[][]>(Array.from({ length: 16 }, () => []));
     const fftSize = currentSamplingRate + 6 * (currentSamplingRate / 250);
-    // console.log(fftSize);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
-    const maxFreq = 60; // Maximum frequency to display
+    const maxFreq = 60;
     const channelColors = useMemo(() => ["red", "green", "blue", "purple", "orange", "yellow"], []);
     const canvasContainerRef = useRef<HTMLDivElement>(null);
-    const dataPointCountRef = useRef<number>(1000); // To track the calculated value
+    const dataPointCountRef = useRef<number>(1000);
     const [canvasElements, setCanvasElements] = useState<HTMLCanvasElement[]>([]);
     const wglPlotsref = useRef<WebglPlot[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
-    const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
+    const sweepPositions = useRef<number[]>(new Array(6).fill(0));
+    const [activeBandPowerView, setActiveBandPowerView] = useState<'bandpower' | 'brightcandle' | 'moveup'>('bandpower');
 
+    const buttonStyles = (view: string) => `
+      px-4 py-2 text-sm font-medium transition-all duration-300 rounded-md
+      ${activeBandPowerView === view
+        ? 'bg-primary text-primary-foreground border rounded-xl '
+        : 'border  rounded-xl bg-gray-600 text-primary-foreground'}
+    `;
+
+    const renderBandPowerView = () => {
+      switch (activeBandPowerView) {
+        case 'bandpower':
+          return <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />;
+        case 'brightcandle':
+          return <BrightCandleView fftData={fftData} />;
+        case 'moveup':
+          return (
+            <div className="w-full h-full flex items-center justify-center text-gray-400">
+              Move Up View
+            </div>
+          );
+        default:
+          return <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />;
+      }
+    };
 
     useImperativeHandle(
       ref,
@@ -68,7 +91,7 @@ const FFT = forwardRef(
               const magnitude = complexFFT.map(([real, imaginary]) =>
                 Math.sqrt(real ** 2 + imaginary ** 2)
               ); // Calculate the magnitude
-              // console.log("magnitude", complexFFT);
+
               const freqs = Array.from({ length: fftSize / 2 }, (_, i) => (i * currentSamplingRate) / fftSize);
               // console.log(freqs);
               setFftData((prevData) => {
@@ -322,28 +345,50 @@ const FFT = forwardRef(
     }, [plotData]);
 
     return (
-      <div className="flex flex-col w-full h-screen overflow-hidden">
-      {/* Plotting Data / Main content area */}
-      <main
-        ref={canvasContainerRef}
-        className="flex-1 bg-highlight rounded-2xl m-2 overflow-hidden min-h-0"
-      >
-        {/* Main content goes here */}
-      </main>
-          
-      {/* Responsive container for FFT (canvas) and BandPowerGraph */}
-      <div className="flex-1 m-2 flex flex-col md:flex-row overflow-hidden min-h-0 gap-2">
-        {/* FFT Canvas container */}
-        <div ref={containerRef} className="flex-1 overflow-hidden min-h-0 min-w-0">
-          <canvas ref={canvasRef} className="w-full h-full" />
-        </div>
-              
-        {/* BandPowerGraph container */}
-        <div className="flex-1 overflow-hidden min-h-0 min-w-0">
-          <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />
+      <div className="flex flex-col w-full h-screen overflow-hidden ">
+        {/* Main plotting area */}
+        <main
+          ref={canvasContainerRef}
+          className="flex-1 bg-highlight rounded-2xl m-2 overflow-hidden min-h-0"
+        >
+          {/* Your frequency graph content */}
+        </main>
+
+        {/* Data display area with view switching */}
+        <div className="flex-1 m-2 flex flex-col md:flex-row overflow-hidden min-h-0 gap-2">
+          {/* Frequency graph container */}
+          <div
+            ref={containerRef}
+            className="w-full h-full max-w-[700px] min-h-[300px] bg-gray-50 dark:bg-highlight rounded-lg  p-4"
+          >
+            <canvas ref={canvasRef} className="w-full h-full" />
+          </div>
+
+          {/* Band power view container with switching */}
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0 border rounded-lg dark:bg-highlight">
+            {/* Button Group for BandPower views */}
+            <div className="flex justify-center space-x-2 p-1 border rounded-lg">
+              <button
+                onClick={() => setActiveBandPowerView('bandpower')}
+                className={buttonStyles('bandpower')}
+              >
+                Band Power
+              </button>
+              <button
+                onClick={() => setActiveBandPowerView('brightcandle')}
+                className={buttonStyles('brightcandle')}
+              >
+                Bright Candle
+              </button>
+            </div>
+
+            {/* BandPower view container */}
+            <div className="flex-1  rounded-b-lg overflow-hidden">
+              {renderBandPowerView()}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
     );
   }
 );

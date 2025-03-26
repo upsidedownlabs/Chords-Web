@@ -6,18 +6,18 @@ import React, {
   useMemo,
 } from "react";
 import { useTheme } from "next-themes";
+import { motion } from "framer-motion";
 
-interface GraphProps
- {
+interface GraphProps {
   fftData: number[][];
   samplingRate: number;
+  className?: string;
 }
 
-const Graph
-: React.FC<GraphProps
-> = ({
+const Graph: React.FC<GraphProps> = ({
   fftData,
   samplingRate,
+  className = "",
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,14 +29,23 @@ const Graph
   const { theme } = useTheme();
   const [hasValidData, setHasValidData] = useState(false);
 
-  const bandColors = useMemo(
-    () => ["red", "yellow", "green", "blue", "purple"],
+   // Specific color strings for canvas drawing
+   const bandColors = useMemo(
+    () => [
+      "#EF4444", // Tailwind red-500
+      "#EAB308", // Tailwind yellow-500
+      "#22C55E", // Tailwind green-500
+      "#3B82F6", // Tailwind blue-500
+      "#8B5CF6"  // Tailwind purple-500
+    ],
     []
   );
+
   const bandNames = useMemo(
-    () => ["DELTA", "THETA", "ALPHA", "BETA", "GAMMA"],
+    () => ["Delta", "Theta", "Alpha", "Beta", "Gamma"],
     []
   );
+
   const bandRanges = useMemo(
     () => [
       [0.5, 4],
@@ -48,6 +57,7 @@ const Graph
     []
   );
 
+  // Existing calculateBandPower method remains the same
   const calculateBandPower = useCallback(
     (fftChannelData: number[]) => {
       const freqResolution = samplingRate / (fftChannelData.length * 2);
@@ -62,14 +72,11 @@ const Graph
         let bandPower = 0;
         for (let i = startIndex; i <= endIndex; i++) {
           if (!isNaN(fftChannelData[i]) && i < fftChannelData.length) {
-            bandPower += Math.pow(fftChannelData[i], 2); // Use square of magnitude
+            bandPower += Math.pow(fftChannelData[i], 2);
           }
         }
 
-        // Normalize by the number of frequency bins in the band
         const normalizedPower = bandPower / (endIndex - startIndex + 1);
-
-        // Convert to dB
         const powerDB = 10 * Math.log10(normalizedPower);
 
         return powerDB;
@@ -136,7 +143,7 @@ const Graph
 
       // Draw bars
       currentBandPowerData.forEach((power, index) => {
-        const x = 70 + index * barWidth; // Adjusted x position
+        const x = 70 + index * barWidth;
         const normalizedHeight = (power - minPower) / (maxPower - minPower);
         const barHeight = normalizedHeight * (height - 60);
         ctx.fillStyle = bandColors[index];
@@ -150,7 +157,7 @@ const Graph
       // Y-axis labels (log scale)
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      const yLabelCount = 5; // Number of labels on y-axis
+      const yLabelCount = 5;
       for (let i = 0; i <= yLabelCount; i++) {
         const value = minPower + (maxPower - minPower) * (i / yLabelCount);
         const labelY = height - 50 - (i / yLabelCount) * (height - 60);
@@ -176,6 +183,7 @@ const Graph
     },
     [theme, bandColors, bandNames]
   );
+
 
   const animateGraph = useCallback(() => {
     const interpolationFactor = 0.1;
@@ -216,9 +224,18 @@ const Graph
   }, [animateGraph]);
 
   return (
-    <div ref={containerRef} className="w-full h-full max-w-[700px] min-h-0 min-w-0">
-  <canvas ref={canvasRef} className="w-full h-full" />
-</div>
+    <div 
+    ref={containerRef} 
+    className=" w-full flex  justify-center items-center ">
+    <div 
+      className=" w-full max-w-[700px] h-[250px] rounded-lg shadow-md flex justify-center items-center p-4">
+      <canvas 
+        ref={canvasRef} 
+        className=" w-full h-full dark:bg-highlight rounded-md
+        " 
+      />
+    </div>
+  </div>
   );
 };
 

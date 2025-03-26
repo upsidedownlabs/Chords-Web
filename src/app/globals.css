@@ -157,3 +157,20 @@
     border-color: hsl(var(--gray-light));
   }
 }
+@keyframes flicker {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.95; }
+}
+
+.animate-flicker {
+  animation: flicker 1.2s ease-in-out infinite;
+}
+
+@keyframes wickFlicker {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(1px); }
+}
+
+.animate-wickFlicker {
+  animation: wickFlicker 0.5s infinite;
+}
