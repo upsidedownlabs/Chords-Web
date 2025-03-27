@@ -29,8 +29,8 @@ const Graph: React.FC<GraphProps> = ({
   const { theme } = useTheme();
   const [hasValidData, setHasValidData] = useState(false);
 
-   // Specific color strings for canvas drawing
-   const bandColors = useMemo(
+  // Specific color strings for canvas drawing
+  const bandColors = useMemo(
     () => [
       "#EF4444", // Tailwind red-500
       "#EAB308", // Tailwind yellow-500
@@ -115,15 +115,24 @@ const Graph: React.FC<GraphProps> = ({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
+      // Responsive canvas sizing
+      const containerWidth = container.clientWidth;
+      const containerHeight = Math.min(containerWidth * 0.5, 400); // Limit max height
+      canvas.width = containerWidth;
+      canvas.height = containerHeight;
 
       const width = canvas.width;
       const height = canvas.height;
 
       ctx.clearRect(0, 0, width, height);
 
-      const barWidth = (width - 70) / bandNames.length;
+      // Responsive bar sizing and margins
+      const leftMargin = width < 640 ? 40 : 70; // Smaller margin on mobile
+      const rightMargin = 20;
+      const bottomMargin = width < 640 ? 40 : 50; // Smaller margin on mobile
+      const barWidth = (width - leftMargin - rightMargin) / bandNames.length;
+      const barSpacing = barWidth * 0.2; // Space between bars
+
       let minPower = Math.min(...currentBandPowerData);
       let maxPower = Math.max(...currentBandPowerData);
 
@@ -135,56 +144,59 @@ const Graph: React.FC<GraphProps> = ({
 
       // Draw axes
       ctx.beginPath();
-      ctx.moveTo(70, 10);
-      ctx.lineTo(70, height - 50);
-      ctx.lineTo(width - 20, height - 50);
+      ctx.moveTo(leftMargin, 10);
+      ctx.lineTo(leftMargin, height - bottomMargin);
+      ctx.lineTo(width - rightMargin, height - bottomMargin);
       ctx.strokeStyle = axisColor;
       ctx.stroke();
 
       // Draw bars
       currentBandPowerData.forEach((power, index) => {
-        const x = 70 + index * barWidth;
+        const x = leftMargin + index * barWidth;
         const normalizedHeight = (power - minPower) / (maxPower - minPower);
-        const barHeight = normalizedHeight * (height - 60);
+        const barHeight = normalizedHeight * (height - bottomMargin - 10);
         ctx.fillStyle = bandColors[index];
-        ctx.fillRect(x, height - 50 - barHeight, barWidth * 0.8, barHeight);
+        ctx.fillRect(x + barSpacing/2, height - bottomMargin - barHeight, barWidth - barSpacing, barHeight);
       });
 
       // Draw labels
       ctx.fillStyle = axisColor;
-      ctx.font = "12px Arial";
+      const fontSize = width < 640 ? 10 : 12; // Smaller text on mobile
+      ctx.font = `${fontSize}px Arial`;
 
       // Y-axis labels (log scale)
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      const yLabelCount = 5;
+      const yLabelCount = Math.min(5, Math.floor(height / 50)); // Fewer labels on small screens
       for (let i = 0; i <= yLabelCount; i++) {
         const value = minPower + (maxPower - minPower) * (i / yLabelCount);
-        const labelY = height - 50 - (i / yLabelCount) * (height - 60);
-        ctx.fillText(value.toFixed(1) + " dB", 65, labelY);
+        const labelY = height - bottomMargin - (i / yLabelCount) * (height - bottomMargin - 10);
+        ctx.fillText(value.toFixed(1) + " dB", leftMargin - 5, labelY);
       }
 
       // X-axis labels
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       bandNames.forEach((band, index) => {
-        const labelX = 70 + index * barWidth + barWidth * 0.4;
-        ctx.fillText(band, labelX, height - 35);
+        const labelX = leftMargin + index * barWidth + barWidth * 0.5;
+        ctx.fillText(band, labelX, height - bottomMargin + 5);
       });
 
-      ctx.font = "14px Arial";
-      ctx.fillText("EEG Band Power ", width / 2, height - 15);
+      // Title
+      ctx.font = `${Math.min(fontSize + 2, 14)}px Arial`;
+      ctx.fillText("EEG Band Power", width / 2, height - 10);
 
       // Rotate and position the y-axis label
       ctx.save();
       ctx.rotate(-Math.PI / 2);
-      ctx.fillText("Power — dB", -height / 2 + 15, 0);
+      ctx.textAlign = "center";
+      ctx.fillText("Power — dB", -height / 2 + 15, fontSize);
       ctx.restore();
     },
     [theme, bandColors, bandNames]
   );
 
-
+  // Rest of the component remains the same (animateGraph, useEffect hooks)
   const animateGraph = useCallback(() => {
     const interpolationFactor = 0.1;
 
@@ -225,17 +237,16 @@ const Graph: React.FC<GraphProps> = ({
 
   return (
     <div 
-    ref={containerRef} 
-    className=" w-full flex  justify-center items-center ">
-    <div 
-      className=" w-full max-w-[700px] h-[250px] rounded-lg shadow-md flex justify-center items-center p-4">
-      <canvas 
-        ref={canvasRef} 
-        className=" w-full h-full dark:bg-highlight rounded-md
-        " 
-      />
+      ref={containerRef} 
+      className={`w-full h-full flex justify-center items-center ${className}`}
+    >
+      <div className="w-full h-full max-w-4xl ">
+        <canvas 
+          ref={canvasRef} 
+          className="w-full h-full dark:bg-highlight rounded-md"
+        />
+      </div>
     </div>
-  </div>
   );
 };
 

@@ -52,7 +52,7 @@ const FFT = forwardRef(
       px-4 py-2 text-sm font-medium transition-all duration-300 rounded-md
       ${activeBandPowerView === view
         ? 'bg-primary text-primary-foreground border rounded-xl '
-        : 'border  rounded-xl bg-gray-600 text-primary-foreground'}
+        : 'border rounded-xl bg-gray-600 text-primary-foreground'}
     `;
 
     const renderBandPowerView = () => {
@@ -77,7 +77,6 @@ const FFT = forwardRef(
       () => ({
         updateData(data: number[]) {
           for (let i = 0; i < 1; i++) {
-
             const sensorValue = data[i + 1];
             fftBufferRef.current[i].push(sensorValue);
             updatePlot(sensorValue, Zoom);
@@ -93,7 +92,6 @@ const FFT = forwardRef(
               ); // Calculate the magnitude
 
               const freqs = Array.from({ length: fftSize / 2 }, (_, i) => (i * currentSamplingRate) / fftSize);
-              // console.log(freqs);
               setFftData((prevData) => {
                 const newData = [...prevData];
                 newData[i] = magnitude.slice(0, fftSize / 2); // Assign to the corresponding channel
@@ -107,9 +105,8 @@ const FFT = forwardRef(
       }),
       [Zoom, timeBase, canvasCount]
     );
-    ///
-    const createCanvasElement = () => {
 
+    const createCanvasElement = () => {
       const container = canvasContainerRef.current;
       if (!container) return;
 
@@ -164,10 +161,10 @@ const FFT = forwardRef(
         console.error("Error creating WebglPlot:", error);
       }
     };
+
     useEffect(() => {
       const handleResize = () => {
         createCanvasElement();
-
       };
       window.addEventListener("resize", handleResize);
       return () => {
@@ -176,12 +173,9 @@ const FFT = forwardRef(
     }, [createCanvasElement]);
 
     const updatePlot = useCallback((data: number, Zoom: number) => {
-      // console.log("updatePlot called with data:", data);
       if (!wglPlotsref.current[0] || !linesRef.current[0]) {
-
         console.log(linesRef.current[0]);
         console.log(wglPlotsref.current[0]);
-        // console.log("Skipping updatePlot due to missing WebGL elements.");
         return;
       }
       const line = linesRef.current[0];
@@ -202,16 +196,12 @@ const FFT = forwardRef(
     }, [theme, timeBase]);
 
     const animate = useCallback(() => {
-
-      // If not paused, continue with normal updates (e.g., real-time plotting)
       wglPlotsref.current[0].update();
-      requestAnimationFrame(animate); // Continue the animation loop
-
+      requestAnimationFrame(animate);
     }, [wglPlotsref, Zoom]);
 
     useEffect(() => {
       requestAnimationFrame(animate);
-
     }, [animate]);
 
     const removeDCComponent = (buffer: number[]): number[] => {
@@ -324,13 +314,12 @@ const FFT = forwardRef(
       ctx.fillText("Magnitude", -height / 2, 15);
       ctx.restore();
     }, [fftData, theme, maxFreq, currentSamplingRate, fftSize, channelColors]);
+
     useEffect(() => {
-      // console.log('FFT Data:', fftData);  // Log fftData to check its values
       if (fftData.some((channel) => channel.length > 0)) {
         plotData();
       }
     }, [fftData, plotData]);
-
 
     useEffect(() => {
       const resizeObserver = new ResizeObserver(() => {
@@ -345,50 +334,51 @@ const FFT = forwardRef(
     }, [plotData]);
 
     return (
-      <div className="flex flex-col w-full h-screen overflow-hidden ">
-        {/* Main plotting area */}
-        <main
-          ref={canvasContainerRef}
-          className="flex-1 bg-highlight rounded-2xl m-2 overflow-hidden min-h-0"
-        >
-          {/* Your frequency graph content */}
-        </main>
+      <div className="flex flex-col w-full h-full overflow-hidden p-2 gap-2 relative">
+    {/* Main plotting area with minimum height */}
+    <main
+      ref={canvasContainerRef}
+      className="flex-1 bg-highlight rounded-xl overflow-hidden"
+      style={{ minHeight: 'clamp(200px, 30vh, 400px)' }}
+    >
+      {/* WebGL canvas will be inserted here */}
+    </main>
 
-        {/* Data display area with view switching */}
-        <div className="flex-1 m-2 flex flex-col md:flex-row overflow-hidden min-h-0 gap-2">
-          {/* Frequency graph container */}
-          <div
-            ref={containerRef}
-            className="w-full h-full max-w-[700px] min-h-[300px] bg-gray-50 dark:bg-highlight rounded-lg  p-4"
-          >
-            <canvas ref={canvasRef} className="w-full h-full" />
-          </div>
+    {/* Data display area with responsive layout */}
+    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden gap-2"
+         style={{ minHeight: 'clamp(300px, 40vh, 500px)' }}>
+      
+      {/* Frequency graph container with overflow protection */}
+      <div
+        ref={containerRef}
+        className="w-full lg:w-1/2 h-full bg-gray-50 dark:bg-highlight rounded-xl relative"
+        style={{ overflow: 'hidden' }}
+      >
+        <canvas 
+          ref={canvasRef} 
+          className="absolute inset-0 w-full h-full"
+        />
+      </div>
 
-          {/* Band power view container with switching */}
-          <div className="flex-1 flex flex-col overflow-hidden min-h-0 border rounded-lg dark:bg-highlight">
-            {/* Button Group for BandPower views */}
-            <div className="flex justify-center space-x-2 p-1 border rounded-lg">
-              <button
-                onClick={() => setActiveBandPowerView('bandpower')}
-                className={buttonStyles('bandpower')}
-              >
-                Band Power
-              </button>
-              <button
-                onClick={() => setActiveBandPowerView('brightcandle')}
-                className={buttonStyles('brightcandle')}
-              >
-                Bright Candle
-              </button>
-            </div>
+      {/* Band power view container */}
+      <div className="w-full lg:w-1/2 flex flex-col overflow-hidden border rounded-xl bg-gray-50 dark:bg-highlight">
+        {/* Button Group */}
+        <div className="flex justify-center space-x-2 p-2  rounded-t-xl">
+          <button onClick={() => setActiveBandPowerView('bandpower')} className={buttonStyles('bandpower')}>
+            Band Power
+          </button>
+          <button onClick={() => setActiveBandPowerView('brightcandle')} className={buttonStyles('brightcandle')}>
+            Beta Candle
+          </button>
+        </div>
 
-            {/* BandPower view container */}
-            <div className="flex-1  rounded-b-lg overflow-hidden">
-              {renderBandPowerView()}
-            </div>
-          </div>
+        {/* View container with minimum height */}
+        <div className="flex-1 rounded-b-lg overflow-hidden min-h-[200px]">
+          {renderBandPowerView()}
         </div>
       </div>
+    </div>
+  </div>
     );
   }
 );
