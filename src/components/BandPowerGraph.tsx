@@ -47,41 +47,69 @@ const Graph
     ],
     []
   );
+  const DELTA_RANGE = [0, 4],
+  THETA_RANGE = [4, 8],
+  ALPHA_RANGE = [8, 12],
+  BETA_RANGE = [12, 30],
+  GAMMA_RANGE = [30, 100];
 
-  const calculateBandPower = useCallback(
-    (fftChannelData: number[]) => {
-      const freqResolution = samplingRate / (fftChannelData.length * 2);
 
-      return bandRanges.map(([low, high]) => {
-        const startIndex = Math.max(1, Math.floor(low / freqResolution));
-        const endIndex = Math.min(
-          Math.ceil(high / freqResolution),
-          fftChannelData.length - 1
-        );
+  const FREQ_RESOLUTION = samplingRate / 256;
+  function calculateBandPower(fftMagnitudes:number[], freqRange:number[]) {
+    const [startFreq, endFreq] = freqRange;
+    const startIndex = Math.max(1, Math.floor(startFreq / FREQ_RESOLUTION));
+    const endIndex = Math.min(Math.floor(endFreq / FREQ_RESOLUTION), fftMagnitudes.length - 1);
+    let power = 0;
+    for (let i = startIndex; i <= endIndex; i++) {
+      power += fftMagnitudes[i] * fftMagnitudes[i];
+    }
+    return power;
+  }
+  let buffer_size = 32;
+    let circular_buffer = new Array(buffer_size).fill(0);
+    let data_index = 0, sum = 0;
 
-        let bandPower = 0;
-        for (let i = startIndex; i <= endIndex; i++) {
-          if (!isNaN(fftChannelData[i]) && i < fftChannelData.length) {
-            bandPower += Math.pow(fftChannelData[i], 2); // Use square of magnitude
-          }
-        }
+    class SmoothedBeta {
+      private bufferSize: number;
+      private circularBuffer: number[];
+      private sum: number;
+      private dataIndex: number;
+    
+      constructor(bufferSize: number) {
+        this.bufferSize = bufferSize;
+        this.circularBuffer = new Array(bufferSize).fill(0);
+        this.sum = 0;
+        this.dataIndex = 0;
+      }
+    
+      getSmoothedBeta(beta: number): number {
+        this.sum -= this.circularBuffer[this.dataIndex];
+        this.sum += beta;
+        this.circularBuffer[this.dataIndex] = beta;
+        this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
+        return this.sum / this.bufferSize;
+      }
+    }
+    
+    // Example usage:
+    const smoother1 = new SmoothedBeta(buffer_size);
+    const smoother2 = new SmoothedBeta(buffer_size);
+    const smoother3= new SmoothedBeta(buffer_size);
+    const smoother4 = new SmoothedBeta(buffer_size);
+    const smoother5= new SmoothedBeta(buffer_size);
 
-        // Normalize by the number of frequency bins in the band
-        const normalizedPower = bandPower / (endIndex - startIndex + 1);
-
-        // Convert to dB
-        const powerDB = 10 * Math.log10(normalizedPower);
-
-        return powerDB;
-      });
-    },
-    [bandRanges, samplingRate]
-  );
 
   useEffect(() => {
     if (fftData.length > 0 && fftData[0].length > 0) {
       const channelData = fftData[0];
-      const newBandPowerData = calculateBandPower(channelData);
+
+      const deltaPower = calculateBandPower(channelData, DELTA_RANGE);
+      const thetaPower = calculateBandPower(channelData, THETA_RANGE);
+      const alphaPower = calculateBandPower(channelData, ALPHA_RANGE);
+      const betaPower = calculateBandPower(channelData, BETA_RANGE);
+      const gammaPower = calculateBandPower(channelData, GAMMA_RANGE)
+      const total=deltaPower+thetaPower+alphaPower+betaPower+gammaPower;
+      const newBandPowerData = [(deltaPower / total)*100,(thetaPower / total)*100,(alphaPower / total)*100,(betaPower / total)*100,(gammaPower / total)*100];
 
       if (
         newBandPowerData.some((value) => !isNaN(value) && value > -Infinity)
@@ -117,7 +145,7 @@ const Graph
       ctx.clearRect(0, 0, width, height);
 
       const barWidth = (width - 70) / bandNames.length;
-      let minPower = Math.min(...currentBandPowerData);
+      let minPower = Math.min(0);
       let maxPower = Math.max(...currentBandPowerData);
 
       if (maxPower - minPower < 1) {
@@ -179,7 +207,6 @@ const Graph
 
   const animateGraph = useCallback(() => {
     const interpolationFactor = 0.1;
-
     const currentValues = bandPowerData.map((target, i) => {
       const prev = prevBandPowerData.current[i];
       return prev + (target - prev) * interpolationFactor;

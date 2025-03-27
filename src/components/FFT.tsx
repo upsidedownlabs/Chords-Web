@@ -8,7 +8,6 @@ import React, {
   useCallback,
 } from "react";
 import { useTheme } from "next-themes";
-import { BitSelection } from "./DataPass";
 import BandPowerGraph from "./BandPowerGraph";
 import { fft } from "fft-js";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
@@ -34,8 +33,7 @@ const FFT = forwardRef(
   ) => {
     const fftBufferRef = useRef<number[][]>(Array.from({ length: 16 }, () => []));
     const [fftData, setFftData] = useState<number[][]>(Array.from({ length: 16 }, () => []));
-    const fftSize = currentSamplingRate + 6 * (currentSamplingRate / 250);
-    // console.log(fftSize);
+    const fftSize = Math.pow(2, Math.round(Math.log2(currentSamplingRate / 2)));
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
@@ -47,43 +45,157 @@ const FFT = forwardRef(
     const wglPlotsref = useRef<WebglPlot[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
-
+    let samplesReceived = 0;
+    class SmoothingFilter {
+      private bufferSize: number;
+      private circularBuffers: number[][];
+      private sums: number[];
+      private dataIndex: number = 0;
+    
+      constructor(bufferSize: number = 5, initialLength: number = 0) {
+        this.bufferSize = bufferSize;
+        this.circularBuffers = Array.from({ length: initialLength }, () => 
+          new Array(bufferSize).fill(0)
+        );
+        this.sums = new Array(initialLength).fill(0);
+      }
+    
+      getSmoothedValues(newValues: number[]): number[] {
+        // Initialize buffers if first run or size changed
+        if (this.circularBuffers.length !== newValues.length) {
+          this.circularBuffers = Array.from({ length: newValues.length }, () => 
+            new Array(this.bufferSize).fill(0)
+          );
+          this.sums = new Array(newValues.length).fill(0);
+        }
+    
+        const smoothed = new Array(newValues.length);
+        
+        for (let i = 0; i < newValues.length; i++) {
+          this.sums[i] -= this.circularBuffers[i][this.dataIndex];
+          this.sums[i] += newValues[i];
+          this.circularBuffers[i][this.dataIndex] = newValues[i];
+          smoothed[i] = this.sums[i] / this.bufferSize;
+        }
+    
+        this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
+        return smoothed;
+      }
+    }
+    const filter = new SmoothingFilter(32,fftSize/2); // 5-point moving average
 
     useImperativeHandle(
       ref,
       () => ({
         updateData(data: number[]) {
           for (let i = 0; i < 1; i++) {
-
             const sensorValue = data[i + 1];
+            // Add new sample to the buffer
             fftBufferRef.current[i].push(sensorValue);
+            // Update the plot with the new sensor value
             updatePlot(sensorValue, Zoom);
+            // Ensure the buffer does not exceed fftSize
+            if (fftBufferRef.current[i].length > fftSize) {
+              fftBufferRef.current[i].shift(); // Remove the oldest sample
+            }
+            samplesReceived++;
 
-            if (fftBufferRef.current[i].length >= fftSize) {
+            // Trigger FFT computation every 5 samples
+            if (samplesReceived % 25 === 0 ) {
               const processedBuffer = fftBufferRef.current[i].slice(0, fftSize); // Ensure exact length
-              const dcRemovedBuffer = removeDCComponent(processedBuffer);
-              const filteredBuffer = applyHighPassFilter(dcRemovedBuffer, 0.5); // 0.5 Hz cutoff
-              const windowedBuffer = applyHannWindow(filteredBuffer);
-              const complexFFT = fft(windowedBuffer); // Perform FFT
-              const magnitude = complexFFT.map(([real, imaginary]) =>
-                Math.sqrt(real ** 2 + imaginary ** 2)
-              ); // Calculate the magnitude
-              // console.log("magnitude", complexFFT);
-              const freqs = Array.from({ length: fftSize / 2 }, (_, i) => (i * currentSamplingRate) / fftSize);
-              // console.log(freqs);
+              const floatInput = new Float32Array(processedBuffer);
+
+              // const dcRemovedBuffer = removeDCComponent(processedBuffer);
+              // const filteredBuffer = applyHighPassFilter(dcRemovedBuffer, 0.5); // 0.5 Hz cutoff
+              // const windowedBuffer = applyHannWindow(filteredBuffer);
+              // const complexFFT = fft(windowedBuffer); // Perform FFT
+              // const magnitude = complexFFT.map(([real, imaginary]) =>
+              //   Math.sqrt(real ** 2 + imaginary ** 2)
+              // ); 
+              // Calculate frequencies for the FFT result
+              const fftMags = fftProcessor.computeMagnitudes(floatInput);
+              const magArray = Array.from(fftMags); // Convert Float32Array to regular array
+              const smoothedMags = filter.getSmoothedValues(magArray);
+              // Update the FFT data state
               setFftData((prevData) => {
                 const newData = [...prevData];
-                newData[i] = magnitude.slice(0, fftSize / 2); // Assign to the corresponding channel
+                newData[i] = smoothedMags;
                 return newData;
               });
 
-              fftBufferRef.current[i] = []; // Clear buffer after processing
+              // Clear the buffer after processing (optional, depending on your use case)
+              // fftBufferRef.current[i] = [];
             }
           }
         },
       }),
-      [Zoom, timeBase, canvasCount]
+      [Zoom, timeBase, canvasCount, fftSize, currentSamplingRate]
     );
+    
+    ////
+    class FFT {
+      private size: number;
+      private cosTable: Float32Array;
+      private sinTable: Float32Array;
+
+      constructor(size: number) {
+        this.size = size;
+        this.cosTable = new Float32Array(size / 2);
+        this.sinTable = new Float32Array(size / 2);
+        for (let i = 0; i < size / 2; i++) {
+          this.cosTable[i] = Math.cos(-2 * Math.PI * i / size);
+          this.sinTable[i] = Math.sin(-2 * Math.PI * i / size);
+        }
+      }
+
+      computeMagnitudes(input: Float32Array): Float32Array {
+        const real = new Float32Array(this.size);
+        const imag = new Float32Array(this.size);
+        for (let i = 0; i < input.length && i < this.size; i++) {
+          real[i] = input[i];
+        }
+        this.fft(real, imag);
+        const mags = new Float32Array(this.size / 2);
+        for (let i = 0; i < this.size / 2; i++) {
+          mags[i] = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]) / (this.size / 2);
+        }
+        return mags;
+      }
+
+      private fft(real: Float32Array, imag: Float32Array): void {
+        const n = this.size;
+        let j = 0;
+        for (let i = 0; i < n - 1; i++) {
+          if (i < j) {
+            [real[i], real[j]] = [real[j], real[i]];
+            [imag[i], imag[j]] = [imag[j], imag[i]];
+          }
+          let k = n / 2;
+          while (k <= j) { j -= k; k /= 2; }
+          j += k;
+        }
+        for (let l = 2; l <= n; l *= 2) {
+          const le2 = l / 2;
+          for (let k = 0; k < le2; k++) {
+            const kth = k * (n / l);
+            const c = this.cosTable[kth], s = this.sinTable[kth];
+            for (let i = k; i < n; i += l) {
+              const i2 = i + le2;
+              const tr = c * real[i2] - s * imag[i2];
+              const ti = c * imag[i2] + s * real[i2];
+              real[i2] = real[i] - tr;
+              imag[i2] = imag[i] - ti;
+              real[i] += tr;
+              imag[i] += ti;
+            }
+          }
+        }
+      }
+    }
+
+
+    const fftProcessor = new FFT(fftSize);
+
     ///
     const createCanvasElement = () => {
 
@@ -253,7 +365,7 @@ const FFT = forwardRef(
 
       const xScale = (width - leftMargin - 10) / displayPoints;
 
-      let yMax = 1; // Default to prevent division by zero
+      let yMax = 0; // Default to prevent division by zero
       fftData.forEach((channelData) => {
         if (channelData.length > 0) {
           yMax = Math.max(yMax, ...channelData.slice(0, displayPoints));
@@ -326,27 +438,27 @@ const FFT = forwardRef(
 
     return (
       <div className="flex flex-col w-full h-screen overflow-hidden">
-      {/* Plotting Data / Main content area */}
-      <main
-        ref={canvasContainerRef}
-        className="flex-1 bg-highlight rounded-2xl m-2 overflow-hidden min-h-0"
-      >
-        {/* Main content goes here */}
-      </main>
-          
-      {/* Responsive container for FFT (canvas) and BandPowerGraph */}
-      <div className="flex-1 m-2 flex flex-col md:flex-row justify-center  overflow-hidden min-h-0 gap-12">
+        {/* Plotting Data / Main content area */}
+        <main
+          ref={canvasContainerRef}
+          className="flex-1 bg-highlight rounded-2xl m-2 overflow-hidden min-h-0"
+        >
+          {/* Main content goes here */}
+        </main>
 
-      {/* FFT Canvas container */}
-        <div ref={containerRef} className="flex-1 overflow-hidden min-h-0 min-w-0 ml-12 ">
-          <canvas ref={canvasRef} className="w-full h-full" />
-        </div>
-        {/* BandPowerGraph container */}
-        <div className="flex-1 overflow-hidden min-h-0 min-w-0 ml-4">
-          <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />
+        {/* Responsive container for FFT (canvas) and BandPowerGraph */}
+        <div className="flex-1 m-2 flex flex-col md:flex-row justify-center  overflow-hidden min-h-0 gap-12">
+
+          {/* FFT Canvas container */}
+          <div ref={containerRef} className="flex-1 overflow-hidden min-h-0 min-w-0 ml-12 ">
+            <canvas ref={canvasRef} className="w-full h-full" />
+          </div>
+          {/* BandPowerGraph container */}
+          <div className="flex-1 overflow-hidden min-h-0 min-w-0 ml-4">
+            <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />
+          </div>
         </div>
       </div>
-    </div>
     );
   }
 );
