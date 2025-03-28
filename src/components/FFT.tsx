@@ -519,7 +519,7 @@ const FFT = forwardRef(
           </div>
 
           {/* Band power view container */}
-          <div className="w-full lg:w-1/2 flex flex-col overflow-hidden border rounded-xl bg-gray-50 dark:bg-highlight">
+          <div className="w-full lg:w-1/2 flex flex-col overflow-hidden bg-gray-50 dark:bg-highlight">
             {/* Button Group */}
             <div className="flex justify-center space-x-2 p-2  rounded-t-xl">
               <button onClick={() => setActiveBandPowerView('bandpower')} className={buttonStyles('bandpower')}>
