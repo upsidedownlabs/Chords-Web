@@ -37,7 +37,8 @@ const FFT = forwardRef(
     const containerRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
     const maxFreq = 60;
-    const [betaPower, setBetaPower] = useState(0);
+    const [betaPower, setBetaPower] = useState<number>(0);
+    const betaPowerRef = useRef<number>(0);
     const channelColors = useMemo(() => ["red", "green", "blue", "purple", "orange", "yellow"], []);
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const dataPointCountRef = useRef<number>(1000);
@@ -92,14 +93,57 @@ const FFT = forwardRef(
         return smoothed;
       }
     }
+
+    // Add this useEffect to calculate initial beta power
+    useEffect(() => {
+      if (fftData.length > 0 && fftData[0].length > 0) {
+        const channelData = fftData[0];
+        const betaPower = calculateBandPower(channelData, [13, 32]); // Beta range
+        const totalPower = calculateBandPower(channelData, [0.5, 100]); // Full range
+        const normalizedBeta = (betaPower / totalPower) * 100;
+        setBetaPower(normalizedBeta);
+        betaPowerRef.current = normalizedBeta;
+      }
+    }, [fftData]);
+
+    // Add this calculateBandPower function to FFT.tsx
+    const calculateBandPower = useCallback((magnitudes: number[], range: [number, number]) => {
+      const [startFreq, endFreq] = range;
+      const freqStep = currentSamplingRate / fftSize;
+      const startIndex = Math.max(1, Math.floor(startFreq / freqStep));
+      const endIndex = Math.min(Math.floor(endFreq / freqStep), magnitudes.length - 1);
+
+      let power = 0;
+      for (let i = startIndex; i <= endIndex; i++) {
+        power += magnitudes[i] * magnitudes[i];
+      }
+      return power;
+    }, [currentSamplingRate, fftSize]);
+
     const filter = new SmoothingFilter(32, fftSize / 2); // 5-point moving average
     // console.log("fft", betaPower);
     const renderBandPowerView = () => {
       switch (activeBandPowerView) {
         case 'bandpower':
-          return <BandPowerGraph fftData={fftData} onBetaUpdate={setBetaPower} samplingRate={currentSamplingRate} />;
+          return (
+            <BandPowerGraph
+              fftData={fftData}
+              // Update both state and ref
+              onBetaUpdate={(beta) => {
+                betaPowerRef.current = beta;
+                setBetaPower(beta);
+              }}
+
+              samplingRate={currentSamplingRate}
+            />
+          );
         case 'brightcandle':
-          return <BrightCandleView betaPower={betaPower} fftData={fftData} />;
+          return (
+            <BrightCandleView
+              betaPower={betaPower} // Use state value instead of ref
+              fftData={fftData}
+            />
+          );
         case 'moveup':
           return (
             <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -107,10 +151,20 @@ const FFT = forwardRef(
             </div>
           );
         default:
-          return <BandPowerGraph fftData={fftData} onBetaUpdate={setBetaPower} samplingRate={currentSamplingRate} />;
+          return (
+            <BandPowerGraph
+              fftData={fftData}
+              // Update both state and ref
+              onBetaUpdate={(beta) => {
+                betaPowerRef.current = beta;
+                setBetaPower(beta);
+              }}
+
+              samplingRate={currentSamplingRate}
+            />
+          );
       }
     };
-
 
     useImperativeHandle(
       ref,
@@ -118,39 +172,33 @@ const FFT = forwardRef(
         updateData(data: number[]) {
           for (let i = 0; i < 1; i++) {
             const sensorValue = data[i + 1];
-            // Add new sample to the buffer
             fftBufferRef.current[i].push(sensorValue);
-            // Update the plot with the new sensor value
             updatePlot(sensorValue, Zoom);
-            // Ensure the buffer does not exceed fftSize
+
             if (fftBufferRef.current[i].length > fftSize) {
-              fftBufferRef.current[i].shift(); // Remove the oldest sample
+              fftBufferRef.current[i].shift();
             }
             samplesReceived++;
 
-            // Trigger FFT computation every 5 samples
-            if (samplesReceived % 25 === 0) {
-              const processedBuffer = fftBufferRef.current[i].slice(0, fftSize); // Ensure exact length
+            // Trigger FFT computation more frequently
+            if (samplesReceived % 5 === 0) { // Changed from 25 to 5
+              const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
               const floatInput = new Float32Array(processedBuffer);
-
-              // Calculate frequencies for the FFT result
               const fftMags = fftProcessor.computeMagnitudes(floatInput);
-              const magArray = Array.from(fftMags); // Convert Float32Array to regular array
+              const magArray = Array.from(fftMags);
               const smoothedMags = filter.getSmoothedValues(magArray);
-              // Update the FFT data state
+
               setFftData((prevData) => {
                 const newData = [...prevData];
                 newData[i] = smoothedMags;
                 return newData;
               });
-
             }
           }
         },
       }),
       [Zoom, timeBase, canvasCount, fftSize, currentSamplingRate]
     );
-
     ////
     class FFT {
       private size: number;

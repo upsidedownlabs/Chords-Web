@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 type FFTChannel = number[];
 type FFTData = FFTChannel[];
@@ -14,11 +14,27 @@ interface CandleLitProps {
 
 const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaPower }) => {
   const brightness = Math.max(0, betaPower / 100); // Normalize brightness
+  // Add smoothing and minimum brightness
+  const [displayBrightness, setDisplayBrightness] = useState(0.1); // Start with small flame
 
+  useEffect(() => {
+    // Always show at least a small flame (0.1) and cap at 1.0
+    const target = Math.max(0.1, Math.min(1, betaPower / 100));
+
+    // Smooth transition
+    const timer = setInterval(() => {
+      setDisplayBrightness(prev => {
+        const diff = target - prev;
+        return Math.abs(diff) < 0.01 ? target : prev + diff * 0.1;
+      });
+    }, 16); // ~60fps
+
+    return () => clearInterval(timer);
+  }, [betaPower]);
   // console.log("beta",betaPower);
 
-  // console.log(brightness);
-  const flameColor = `rgba(255, 165, 0, ${brightness})`;
+  // Use displayBrightness instead of raw betaPower for all visual elements
+  const flameColor = `rgba(255, 165, 0, ${displayBrightness})`;
   // Calculate brightness from FFT data
   const calculateBrightness = (): number => {
     if (!Array.isArray(fftData) || fftData.length === 0) {
@@ -82,30 +98,31 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
           className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full h-48 z-10 drop-shadow-xl"
         >
           <defs>
-            {/* Outer Flame Gradient: bright yellow to orange */}
+            {/* Outer Flame Gradient: Rich, Realistic Candle Flame Colors */}
             <linearGradient id="outerFlameGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={`rgba(255,255,0, ${brightness * 0.5})`} />
-              <stop offset="100%" stopColor={`rgba(255,165,0, ${brightness * 0.3})`} />
+              <stop offset="0%" stopColor={`rgba(255,140,0, ${brightness * 0.6})`} />
+              <stop offset="100%" stopColor={`rgba(255,69,0, ${brightness * 0.3})`} />
             </linearGradient>
 
-            {/* Inner Flame Gradient: pale yellow to gold */}
+            {/* Inner Flame Gradient: Warm, Luminous Colors */}
             <linearGradient id="innerFlameGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={`rgba(255,255,204, ${brightness * 0.7})`} />
-              <stop offset="100%" stopColor={`rgba(255,215,0, ${brightness * 0.5})`} />
+              <stop offset="0%" stopColor={`rgba(255,165,0, ${brightness * 0.8})`} />
+              <stop offset="100%" stopColor={`rgba(255,99,71, ${brightness * 0.5})`} />
             </linearGradient>
 
-            {/* Filters for Blur and Glow */}
+            {/* Filters for Enhanced Realism */}
             <filter id="flameBlur">
-              <feGaussianBlur stdDeviation="5" />
+              <feGaussianBlur stdDeviation="7" />
             </filter>
             <filter id="innerGlow">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
           </defs>
+
 
           {/* Outer Flame Layer */}
           <path
@@ -135,10 +152,6 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
           />
         </svg>
 
-        {/* Wick with subtle flicker */}
-        <div
-          className="absolute top-12 left-1/2 transform -translate-x-1/2 w-0.5 h-8 bg-gray-400 dark:bg-gray-300 rounded-full z-20 shadow-lg animate-wickFlicker"
-        ></div>
 
         {/* Energy Indicator */}
         <div className="absolute bottom-[-30px] left-1/2 transform -translate-x-1/2 

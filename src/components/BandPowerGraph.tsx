@@ -66,6 +66,7 @@ const Graph: React.FC<GraphProps> = ({
 
 
   const FREQ_RESOLUTION = samplingRate / 256;
+
   function calculateBandPower(fftMagnitudes: number[], freqRange: number[]) {
     const [startFreq, endFreq] = freqRange;
     const startIndex = Math.max(1, Math.floor(startFreq / FREQ_RESOLUTION));
