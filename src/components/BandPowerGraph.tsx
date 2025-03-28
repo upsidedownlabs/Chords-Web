@@ -6,18 +6,20 @@ import React, {
   useMemo,
 } from "react";
 import { useTheme } from "next-themes";
-import { motion } from "framer-motion";
 
 interface GraphProps {
   fftData: number[][];
   samplingRate: number;
   className?: string;
+  onBetaUpdate?: (betaValue: number) => void; // New prop
+
 }
 
 const Graph: React.FC<GraphProps> = ({
   fftData,
   samplingRate,
   className = "",
+  onBetaUpdate,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,50 +58,86 @@ const Graph: React.FC<GraphProps> = ({
     ],
     []
   );
+  const DELTA_RANGE = [0, 4],
+    THETA_RANGE = [4, 8],
+    ALPHA_RANGE = [8, 12],
+    BETA_RANGE = [12, 30],
+    GAMMA_RANGE = [30, 100];
 
-  // Existing calculateBandPower method remains the same
-  const calculateBandPower = useCallback(
-    (fftChannelData: number[]) => {
-      const freqResolution = samplingRate / (fftChannelData.length * 2);
 
-      return bandRanges.map(([low, high]) => {
-        const startIndex = Math.max(1, Math.floor(low / freqResolution));
-        const endIndex = Math.min(
-          Math.ceil(high / freqResolution),
-          fftChannelData.length - 1
-        );
+  const FREQ_RESOLUTION = samplingRate / 256;
+  function calculateBandPower(fftMagnitudes: number[], freqRange: number[]) {
+    const [startFreq, endFreq] = freqRange;
+    const startIndex = Math.max(1, Math.floor(startFreq / FREQ_RESOLUTION));
+    const endIndex = Math.min(Math.floor(endFreq / FREQ_RESOLUTION), fftMagnitudes.length - 1);
+    let power = 0;
+    for (let i = startIndex; i <= endIndex; i++) {
+      power += fftMagnitudes[i] * fftMagnitudes[i];
+    }
+    return power;
+  }
+  let buffer_size = 32;
+  let circular_buffer = new Array(buffer_size).fill(0);
+  let data_index = 0, sum = 0;
 
-        let bandPower = 0;
-        for (let i = startIndex; i <= endIndex; i++) {
-          if (!isNaN(fftChannelData[i]) && i < fftChannelData.length) {
-            bandPower += Math.pow(fftChannelData[i], 2);
-          }
-        }
+  class SmoothedBeta {
+    private bufferSize: number;
+    private circularBuffer: number[];
+    private sum: number;
+    private dataIndex: number;
 
-        const normalizedPower = bandPower / (endIndex - startIndex + 1);
-        const powerDB = 10 * Math.log10(normalizedPower);
+    constructor(bufferSize: number) {
+      this.bufferSize = bufferSize;
+      this.circularBuffer = new Array(bufferSize).fill(0);
+      this.sum = 0;
+      this.dataIndex = 0;
+    }
 
-        return powerDB;
-      });
-    },
-    [bandRanges, samplingRate]
-  );
+    getSmoothedBeta(beta: number): number {
+      this.sum -= this.circularBuffer[this.dataIndex];
+      this.sum += beta;
+      this.circularBuffer[this.dataIndex] = beta;
+      this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
+      return this.sum / this.bufferSize;
+    }
+  }
+
 
   useEffect(() => {
     if (fftData.length > 0 && fftData[0].length > 0) {
       const channelData = fftData[0];
-      const newBandPowerData = calculateBandPower(channelData);
+
+      const deltaPower = calculateBandPower(channelData, DELTA_RANGE);
+      const thetaPower = calculateBandPower(channelData, THETA_RANGE);
+      const alphaPower = calculateBandPower(channelData, ALPHA_RANGE);
+      const betaPower = calculateBandPower(channelData, BETA_RANGE);
+      const gammaPower = calculateBandPower(channelData, GAMMA_RANGE);
+      const total = deltaPower + thetaPower + alphaPower + betaPower + gammaPower;
+
+      const newBandPowerData = [
+        (deltaPower / total) * 100,
+        (thetaPower / total) * 100,
+        (alphaPower / total) * 100,
+        (betaPower / total) * 100,
+        (gammaPower / total) * 100,
+      ];
 
       if (
         newBandPowerData.some((value) => !isNaN(value) && value > -Infinity)
       ) {
         setHasValidData(true);
         setBandPowerData(newBandPowerData);
+
+        // Send smoothed beta value to parent
+        if (onBetaUpdate) {
+          onBetaUpdate(newBandPowerData[3]);
+        }
       } else if (!hasValidData) {
         setBandPowerData(Array(5).fill(-100));
       }
     }
-  }, [fftData, calculateBandPower, hasValidData]);
+  }, [fftData, calculateBandPower, hasValidData, onBetaUpdate]);
+
 
   const drawGraph = useCallback(
     (currentBandPowerData: number[]) => {
@@ -156,7 +194,7 @@ const Graph: React.FC<GraphProps> = ({
         const normalizedHeight = (power - minPower) / (maxPower - minPower);
         const barHeight = normalizedHeight * (height - bottomMargin - 10);
         ctx.fillStyle = bandColors[index];
-        ctx.fillRect(x + barSpacing/2, height - bottomMargin - barHeight, barWidth - barSpacing, barHeight);
+        ctx.fillRect(x + barSpacing / 2, height - bottomMargin - barHeight, barWidth - barSpacing, barHeight);
       });
 
       // Draw labels
@@ -199,7 +237,6 @@ const Graph: React.FC<GraphProps> = ({
   // Rest of the component remains the same (animateGraph, useEffect hooks)
   const animateGraph = useCallback(() => {
     const interpolationFactor = 0.1;
-
     const currentValues = bandPowerData.map((target, i) => {
       const prev = prevBandPowerData.current[i];
       return prev + (target - prev) * interpolationFactor;
@@ -236,13 +273,13 @@ const Graph: React.FC<GraphProps> = ({
   }, [animateGraph]);
 
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className={`w-full h-full flex justify-center items-center ${className}`}
     >
       <div className="w-full h-full max-w-4xl ">
-        <canvas 
-          ref={canvasRef} 
+        <canvas
+          ref={canvasRef}
           className="w-full h-full dark:bg-highlight rounded-md"
         />
       </div>

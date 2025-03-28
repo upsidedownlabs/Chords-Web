@@ -8,9 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { useTheme } from "next-themes";
-import { BitSelection } from "./DataPass";
 import BandPowerGraph from "./BandPowerGraph";
-import { fft } from "fft-js";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 import BrightCandleView from "./CandleLit";
 
@@ -34,33 +32,74 @@ const FFT = forwardRef(
   ) => {
     const fftBufferRef = useRef<number[][]>(Array.from({ length: 16 }, () => []));
     const [fftData, setFftData] = useState<number[][]>(Array.from({ length: 16 }, () => []));
-    const fftSize = currentSamplingRate + 6 * (currentSamplingRate / 250);
+    const fftSize = Math.pow(2, Math.round(Math.log2(currentSamplingRate / 2)));
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
     const maxFreq = 60;
+    const [betaPower, setBetaPower] = useState(0);
     const channelColors = useMemo(() => ["red", "green", "blue", "purple", "orange", "yellow"], []);
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const dataPointCountRef = useRef<number>(1000);
     const [canvasElements, setCanvasElements] = useState<HTMLCanvasElement[]>([]);
     const wglPlotsref = useRef<WebglPlot[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
-    const sweepPositions = useRef<number[]>(new Array(6).fill(0));
+    const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     const [activeBandPowerView, setActiveBandPowerView] = useState<'bandpower' | 'brightcandle' | 'moveup'>('bandpower');
 
     const buttonStyles = (view: string) => `
-      px-4 py-2 text-sm font-medium transition-all duration-300 rounded-md
-      ${activeBandPowerView === view
+    px-4 py-2 text-sm font-medium transition-all duration-300 rounded-md
+    ${activeBandPowerView === view
         ? 'bg-primary text-primary-foreground border rounded-xl '
         : 'border rounded-xl bg-gray-600 text-primary-foreground'}
-    `;
+  `;
 
+
+    let samplesReceived = 0;
+    class SmoothingFilter {
+      private bufferSize: number;
+      private circularBuffers: number[][];
+      private sums: number[];
+      private dataIndex: number = 0;
+
+      constructor(bufferSize: number = 5, initialLength: number = 0) {
+        this.bufferSize = bufferSize;
+        this.circularBuffers = Array.from({ length: initialLength }, () =>
+          new Array(bufferSize).fill(0)
+        );
+        this.sums = new Array(initialLength).fill(0);
+      }
+
+      getSmoothedValues(newValues: number[]): number[] {
+        // Initialize buffers if first run or size changed
+        if (this.circularBuffers.length !== newValues.length) {
+          this.circularBuffers = Array.from({ length: newValues.length }, () =>
+            new Array(this.bufferSize).fill(0)
+          );
+          this.sums = new Array(newValues.length).fill(0);
+        }
+
+        const smoothed = new Array(newValues.length);
+
+        for (let i = 0; i < newValues.length; i++) {
+          this.sums[i] -= this.circularBuffers[i][this.dataIndex];
+          this.sums[i] += newValues[i];
+          this.circularBuffers[i][this.dataIndex] = newValues[i];
+          smoothed[i] = this.sums[i] / this.bufferSize;
+        }
+
+        this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
+        return smoothed;
+      }
+    }
+    const filter = new SmoothingFilter(32, fftSize / 2); // 5-point moving average
+    // console.log("fft", betaPower);
     const renderBandPowerView = () => {
       switch (activeBandPowerView) {
         case 'bandpower':
-          return <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />;
+          return <BandPowerGraph fftData={fftData} onBetaUpdate={setBetaPower} samplingRate={currentSamplingRate} />;
         case 'brightcandle':
-          return <BrightCandleView fftData={fftData} />;
+          return <BrightCandleView betaPower={betaPower} fftData={fftData} />;
         case 'moveup':
           return (
             <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -68,9 +107,10 @@ const FFT = forwardRef(
             </div>
           );
         default:
-          return <BandPowerGraph fftData={fftData} samplingRate={currentSamplingRate} />;
+          return <BandPowerGraph fftData={fftData} onBetaUpdate={setBetaPower} samplingRate={currentSamplingRate} />;
       }
     };
+
 
     useImperativeHandle(
       ref,
@@ -78,34 +118,104 @@ const FFT = forwardRef(
         updateData(data: number[]) {
           for (let i = 0; i < 1; i++) {
             const sensorValue = data[i + 1];
+            // Add new sample to the buffer
             fftBufferRef.current[i].push(sensorValue);
+            // Update the plot with the new sensor value
             updatePlot(sensorValue, Zoom);
+            // Ensure the buffer does not exceed fftSize
+            if (fftBufferRef.current[i].length > fftSize) {
+              fftBufferRef.current[i].shift(); // Remove the oldest sample
+            }
+            samplesReceived++;
 
-            if (fftBufferRef.current[i].length >= fftSize) {
+            // Trigger FFT computation every 5 samples
+            if (samplesReceived % 25 === 0) {
               const processedBuffer = fftBufferRef.current[i].slice(0, fftSize); // Ensure exact length
-              const dcRemovedBuffer = removeDCComponent(processedBuffer);
-              const filteredBuffer = applyHighPassFilter(dcRemovedBuffer, 0.5); // 0.5 Hz cutoff
-              const windowedBuffer = applyHannWindow(filteredBuffer);
-              const complexFFT = fft(windowedBuffer); // Perform FFT
-              const magnitude = complexFFT.map(([real, imaginary]) =>
-                Math.sqrt(real ** 2 + imaginary ** 2)
-              ); // Calculate the magnitude
+              const floatInput = new Float32Array(processedBuffer);
 
-              const freqs = Array.from({ length: fftSize / 2 }, (_, i) => (i * currentSamplingRate) / fftSize);
+              // Calculate frequencies for the FFT result
+              const fftMags = fftProcessor.computeMagnitudes(floatInput);
+              const magArray = Array.from(fftMags); // Convert Float32Array to regular array
+              const smoothedMags = filter.getSmoothedValues(magArray);
+              // Update the FFT data state
               setFftData((prevData) => {
                 const newData = [...prevData];
-                newData[i] = magnitude.slice(0, fftSize / 2); // Assign to the corresponding channel
+                newData[i] = smoothedMags;
                 return newData;
               });
 
-              fftBufferRef.current[i] = []; // Clear buffer after processing
             }
           }
         },
       }),
-      [Zoom, timeBase, canvasCount]
+      [Zoom, timeBase, canvasCount, fftSize, currentSamplingRate]
     );
 
+    ////
+    class FFT {
+      private size: number;
+      private cosTable: Float32Array;
+      private sinTable: Float32Array;
+
+      constructor(size: number) {
+        this.size = size;
+        this.cosTable = new Float32Array(size / 2);
+        this.sinTable = new Float32Array(size / 2);
+        for (let i = 0; i < size / 2; i++) {
+          this.cosTable[i] = Math.cos(-2 * Math.PI * i / size);
+          this.sinTable[i] = Math.sin(-2 * Math.PI * i / size);
+        }
+      }
+
+      computeMagnitudes(input: Float32Array): Float32Array {
+        const real = new Float32Array(this.size);
+        const imag = new Float32Array(this.size);
+        for (let i = 0; i < input.length && i < this.size; i++) {
+          real[i] = input[i];
+        }
+        this.fft(real, imag);
+        const mags = new Float32Array(this.size / 2);
+        for (let i = 0; i < this.size / 2; i++) {
+          mags[i] = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]) / (this.size / 2);
+        }
+        return mags;
+      }
+
+      private fft(real: Float32Array, imag: Float32Array): void {
+        const n = this.size;
+        let j = 0;
+        for (let i = 0; i < n - 1; i++) {
+          if (i < j) {
+            [real[i], real[j]] = [real[j], real[i]];
+            [imag[i], imag[j]] = [imag[j], imag[i]];
+          }
+          let k = n / 2;
+          while (k <= j) { j -= k; k /= 2; }
+          j += k;
+        }
+        for (let l = 2; l <= n; l *= 2) {
+          const le2 = l / 2;
+          for (let k = 0; k < le2; k++) {
+            const kth = k * (n / l);
+            const c = this.cosTable[kth], s = this.sinTable[kth];
+            for (let i = k; i < n; i += l) {
+              const i2 = i + le2;
+              const tr = c * real[i2] - s * imag[i2];
+              const ti = c * imag[i2] + s * real[i2];
+              real[i2] = real[i] - tr;
+              imag[i2] = imag[i] - ti;
+              real[i] += tr;
+              imag[i] += ti;
+            }
+          }
+        }
+      }
+    }
+
+
+    const fftProcessor = new FFT(fftSize);
+
+    ///
     const createCanvasElement = () => {
       const container = canvasContainerRef.current;
       if (!container) return;
@@ -263,7 +373,7 @@ const FFT = forwardRef(
 
       const xScale = (width - leftMargin - 10) / displayPoints;
 
-      let yMax = 1; // Default to prevent division by zero
+      let yMax = 0; // Default to prevent division by zero
       fftData.forEach((channelData) => {
         if (channelData.length > 0) {
           yMax = Math.max(yMax, ...channelData.slice(0, displayPoints));
@@ -335,50 +445,50 @@ const FFT = forwardRef(
 
     return (
       <div className="flex flex-col w-full h-full overflow-hidden p-2 gap-2 relative">
-    {/* Main plotting area with minimum height */}
-    <main
-      ref={canvasContainerRef}
-      className="flex-1 bg-highlight rounded-xl overflow-hidden"
-      style={{ minHeight: 'clamp(200px, 30vh, 400px)' }}
-    >
-      {/* WebGL canvas will be inserted here */}
-    </main>
+        {/* Main plotting area with minimum height */}
+        <main
+          ref={canvasContainerRef}
+          className="flex-1 bg-highlight rounded-xl overflow-hidden"
+          style={{ minHeight: 'clamp(200px, 30vh, 400px)' }}
+        >
+          {/* WebGL canvas will be inserted here */}
+        </main>
 
-    {/* Data display area with responsive layout */}
-    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden gap-2"
-         style={{ minHeight: 'clamp(300px, 40vh, 500px)' }}>
-      
-      {/* Frequency graph container with overflow protection */}
-      <div
-        ref={containerRef}
-        className="w-full lg:w-1/2 h-full bg-gray-50 dark:bg-highlight rounded-xl relative"
-        style={{ overflow: 'hidden' }}
-      >
-        <canvas 
-          ref={canvasRef} 
-          className="absolute inset-0 w-full h-full"
-        />
-      </div>
+        {/* Data display area with responsive layout */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden gap-2"
+          style={{ minHeight: 'clamp(300px, 40vh, 500px)' }}>
 
-      {/* Band power view container */}
-      <div className="w-full lg:w-1/2 flex flex-col overflow-hidden border rounded-xl bg-gray-50 dark:bg-highlight">
-        {/* Button Group */}
-        <div className="flex justify-center space-x-2 p-2  rounded-t-xl">
-          <button onClick={() => setActiveBandPowerView('bandpower')} className={buttonStyles('bandpower')}>
-            Band Power
-          </button>
-          <button onClick={() => setActiveBandPowerView('brightcandle')} className={buttonStyles('brightcandle')}>
-            Beta Candle
-          </button>
+          {/* Frequency graph container with overflow protection */}
+          <div
+            ref={containerRef}
+            className="w-full lg:w-1/2 h-full bg-gray-50 dark:bg-highlight rounded-xl relative"
+            style={{ overflow: 'hidden' }}
+          >
+            <canvas
+              ref={canvasRef}
+              className="absolute inset-0 w-full h-full"
+            />
+          </div>
+
+          {/* Band power view container */}
+          <div className="w-full lg:w-1/2 flex flex-col overflow-hidden border rounded-xl bg-gray-50 dark:bg-highlight">
+            {/* Button Group */}
+            <div className="flex justify-center space-x-2 p-2  rounded-t-xl">
+              <button onClick={() => setActiveBandPowerView('bandpower')} className={buttonStyles('bandpower')}>
+                Band Power
+              </button>
+              <button onClick={() => setActiveBandPowerView('brightcandle')} className={buttonStyles('brightcandle')}>
+                Beta Candle
+              </button>
+            </div>
+
+            {/* View container with minimum height */}
+            <div className="flex-1 rounded-b-lg overflow-hidden min-h-[200px]">
+              {renderBandPowerView()}
+            </div>
+          </div>
         </div>
-
-        {/* View container with minimum height */}
-        <div className="flex-1 rounded-b-lg overflow-hidden min-h-[200px]">
-          {renderBandPowerView()}
-        </div>
       </div>
-    </div>
-  </div>
     );
   }
 );

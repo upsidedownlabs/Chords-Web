@@ -1,13 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 type FFTChannel = number[];
 type FFTData = FFTChannel[];
 
 interface BrightCandleViewProps {
   fftData?: FFTData;
+  betaPower: number;
 }
 
-const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [] }) => {
+interface CandleLitProps {
+  betaPower: number;
+}
+
+const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaPower }) => {
+  const brightness = Math.max(0, betaPower / 100); // Normalize brightness
+
+  // console.log("beta",betaPower);
+
+  // console.log(brightness);
+  const flameColor = `rgba(255, 165, 0, ${brightness})`;
   // Calculate brightness from FFT data
   const calculateBrightness = (): number => {
     if (!Array.isArray(fftData) || fftData.length === 0) {
@@ -22,7 +33,6 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [] }) => 
     return Math.min(Math.max(totalEnergy / 100, 0.3), 1);
   };
 
-  const brightness = calculateBrightness();
 
   // Generate a slightly randomized organic flame path
   const generateFlamePath = () => {
