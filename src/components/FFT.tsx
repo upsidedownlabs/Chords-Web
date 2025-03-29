@@ -119,7 +119,6 @@ const FFT = forwardRef(
       return power;
     }, [currentSamplingRate, fftSize]);
 
-    const filter = new SmoothingFilter(32, fftSize / 2); // 5-point moving average
     const renderBandPowerView = () => {
       switch (activeBandPowerView) {
         case 'bandpower':
@@ -162,6 +161,7 @@ const FFT = forwardRef(
           );
       }
     };
+    const filter = new SmoothingFilter(128, 1); 
 
     useImperativeHandle(
       ref,
@@ -178,7 +178,7 @@ const FFT = forwardRef(
             samplesReceived++;
 
             // Trigger FFT computation more frequently
-            if (samplesReceived % 5 === 0) { // Changed from 25 to 5
+            if (samplesReceived % 15 === 0) { // Changed from 25 to 5
               const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
               const floatInput = new Float32Array(processedBuffer);
               const fftMags = fftProcessor.computeMagnitudes(floatInput);
@@ -391,12 +391,13 @@ const FFT = forwardRef(
 
       const xScale = (width - leftMargin - 10) / displayPoints;
 
-      let yMax = 0; // Default to prevent division by zero
-      fftData.forEach((channelData) => {
-        if (channelData.length > 0) {
-          yMax = Math.max(yMax, ...channelData.slice(0, displayPoints));
-        }
-      });
+      let yMax = 1; // Default to prevent division by zero
+      yMax = Math.max(...fftData[0]);
+      // fftData.forEach((channelData) => {
+      //   if (channelData.length > 0) {
+      //     yMax = Math.max(yMax, ...channelData.slice(0, displayPoints));
+      //   }
+      // });
 
       const yScale = (height - bottomMargin - 10) / yMax;
 
@@ -442,7 +443,7 @@ const FFT = forwardRef(
       ctx.fillText("Magnitude", -height / 2, 15);
       ctx.restore();
     }, [fftData, theme, maxFreq, currentSamplingRate, fftSize, channelColors]);
-
+  
     useEffect(() => {
       if (fftData.some((channel) => channel.length > 0)) {
         plotData();

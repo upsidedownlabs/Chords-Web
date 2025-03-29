@@ -29,7 +29,6 @@ const Graph: React.FC<GraphProps> = ({
   const prevBandPowerData = useRef<number[]>(Array(5).fill(0));
   const animationRef = useRef<number>();
   const { theme } = useTheme();
-  const [hasValidData, setHasValidData] = useState(false);
 
   // Specific color strings for canvas drawing
   const bandColors = useMemo(
@@ -48,7 +47,7 @@ const Graph: React.FC<GraphProps> = ({
     []
   );
 
-  const DELTA_RANGE = [0, 4],
+  const DELTA_RANGE = [0.5, 4],
     THETA_RANGE = [4, 8],
     ALPHA_RANGE = [8, 12],
     BETA_RANGE = [12, 30],
@@ -89,18 +88,15 @@ const Graph: React.FC<GraphProps> = ({
       if (
         newBandPowerData.some((value) => !isNaN(value) && value > -Infinity)
       ) {
-        setHasValidData(true);
         setBandPowerData(newBandPowerData);
 
         // Send smoothed beta value to parent
         if (onBetaUpdate) {
           onBetaUpdate(newBandPowerData[3]);
         }
-      } else if (!hasValidData) {
-        setBandPowerData(Array(5).fill(-100));
-      }
+      } 
     }
-  }, [fftData, calculateBandPower, hasValidData, onBetaUpdate]);
+  }, [fftData, calculateBandPower, onBetaUpdate]);
 
 
   const drawGraph = useCallback(
