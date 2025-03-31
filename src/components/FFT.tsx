@@ -33,6 +33,8 @@ const FFT = forwardRef(
     const fftBufferRef = useRef<number[][]>(Array.from({ length: 16 }, () => []));
     const [fftData, setFftData] = useState<number[][]>(Array.from({ length: 16 }, () => []));
     const fftSize = Math.pow(2, Math.round(Math.log2(currentSamplingRate / 2)));
+    const sampleupdateref = useRef<number>(50);
+    sampleupdateref.current=currentSamplingRate/10;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
@@ -53,7 +55,6 @@ const FFT = forwardRef(
         ? 'bg-primary text-primary-foreground border rounded-xl '
         : 'border rounded-xl bg-gray-600 text-primary-foreground'}
   `;
-
 
     let samplesReceived = 0;
     class SmoothingFilter {
@@ -111,7 +112,6 @@ const FFT = forwardRef(
       const freqStep = currentSamplingRate / fftSize;
       const startIndex = Math.max(1, Math.floor(startFreq / freqStep));
       const endIndex = Math.min(Math.floor(endFreq / freqStep), magnitudes.length - 1);
-
       let power = 0;
       for (let i = startIndex; i <= endIndex; i++) {
         power += magnitudes[i] * magnitudes[i];
@@ -161,7 +161,7 @@ const FFT = forwardRef(
           );
       }
     };
-    const filter = new SmoothingFilter(128, 1); 
+    const filter = new SmoothingFilter((currentSamplingRate/ sampleupdateref.current)*2,1); 
 
     useImperativeHandle(
       ref,
@@ -178,7 +178,7 @@ const FFT = forwardRef(
             samplesReceived++;
 
             // Trigger FFT computation more frequently
-            if (samplesReceived % 15 === 0) { // Changed from 25 to 5
+            if (samplesReceived %  sampleupdateref.current === 0) { // Changed from 25 to 5
               const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
               const floatInput = new Float32Array(processedBuffer);
               const fftMags = fftProcessor.computeMagnitudes(floatInput);
@@ -299,7 +299,6 @@ const FFT = forwardRef(
 
       try {
         const wglp = new WebglPlot(canvas);
-        console.log("WebglPlot created:", wglp);
         wglp.gScaleY = Zoom;
         const lineColor = theme === "dark" ? new ColorRGBA(1, 2, 2, 1) : new ColorRGBA(0, 0, 0, 1); // Adjust colors as needed
 
@@ -308,7 +307,6 @@ const FFT = forwardRef(
         line.lineSpaceX(-1, 2 / dataPointCountRef.current);
         wglp.addLine(line);
         newWglPlots.push(wglp);
-        console.log(newWglPlots)
         linesRef.current = [line];
         wglPlotsref.current = [wglp];
       } catch (error) {
@@ -328,8 +326,6 @@ const FFT = forwardRef(
 
     const updatePlot = useCallback((data: number, Zoom: number) => {
       if (!wglPlotsref.current[0] || !linesRef.current[0]) {
-        console.log(linesRef.current[0]);
-        console.log(wglPlotsref.current[0]);
         return;
       }
       const line = linesRef.current[0];
@@ -391,13 +387,8 @@ const FFT = forwardRef(
 
       const xScale = (width - leftMargin - 10) / displayPoints;
 
-      let yMax = 1; // Default to prevent division by zero
-      yMax = Math.max(...fftData[0]);
-      // fftData.forEach((channelData) => {
-      //   if (channelData.length > 0) {
-      //     yMax = Math.max(yMax, ...channelData.slice(0, displayPoints));
-      //   }
-      // });
+      let yMax = 1;//Default to prevent division by zero
+      yMax = Math.max(...fftData.flat());
 
       const yScale = (height - bottomMargin - 10) / yMax;
 
@@ -408,8 +399,7 @@ const FFT = forwardRef(
           const x = leftMargin + i * xScale;
           const y = height - bottomMargin - channelData[i] * yScale;
 
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+       ctx.lineTo(x, y);
         }
         ctx.stroke();
       });
@@ -422,7 +412,7 @@ const FFT = forwardRef(
       for (let i = 0; i <= 5; i++) {
         const labelY =
           height - bottomMargin - (i / 5) * (height - bottomMargin - 10);
-        ctx.fillText(((yMax * i) / 5).toFixed(1), leftMargin - 5, labelY);
+        ctx.fillText(((yMax * i) / 5).toFixed(3), leftMargin - 5, labelY);
       }
 
       ctx.textAlign = "center";
