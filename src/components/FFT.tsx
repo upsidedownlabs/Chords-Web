@@ -161,7 +161,7 @@ const FFT = forwardRef(
           );
       }
     };
-    const filter = new SmoothingFilter(128, 1); 
+    const filter = new SmoothingFilter(40, 1); 
 
     useImperativeHandle(
       ref,
@@ -178,7 +178,7 @@ const FFT = forwardRef(
             samplesReceived++;
 
             // Trigger FFT computation more frequently
-            if (samplesReceived % 15 === 0) { // Changed from 25 to 5
+            if (samplesReceived % 20 === 0) { // Changed from 25 to 5
               const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
               const floatInput = new Float32Array(processedBuffer);
               const fftMags = fftProcessor.computeMagnitudes(floatInput);
