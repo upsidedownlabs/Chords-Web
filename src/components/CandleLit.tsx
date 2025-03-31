@@ -70,7 +70,7 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
   };
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-4 ">
+    <div className="w-full h-full flex items-center justify-center min-h-0 min-w-0 ">
       {/* Candle Container with reduced width */}
       <div className="relative w-32 h-64 group">
         {/* Candle Holder with a glassy, frosted look */}
@@ -151,17 +151,6 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
             className="transition-all duration-300"
           />
         </svg>
-
-
-        {/* Energy Indicator */}
-        <div className="absolute bottom-[-30px] left-1/2 transform -translate-x-1/2 
-          w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"
-        >
-          <div
-            className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 transition-all duration-300"
-            style={{ width: `${brightness * 100}%` }}
-          ></div>
-        </div>
       </div>
     </div>
   );

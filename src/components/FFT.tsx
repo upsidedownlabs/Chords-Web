@@ -42,7 +42,6 @@ const FFT = forwardRef(
     const channelColors = useMemo(() => ["red", "green", "blue", "purple", "orange", "yellow"], []);
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const dataPointCountRef = useRef<number>(1000);
-    const [canvasElements, setCanvasElements] = useState<HTMLCanvasElement[]>([]);
     const wglPlotsref = useRef<WebglPlot[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
@@ -120,8 +119,6 @@ const FFT = forwardRef(
       return power;
     }, [currentSamplingRate, fftSize]);
 
-    const filter = new SmoothingFilter(32, fftSize / 2); // 5-point moving average
-    // console.log("fft", betaPower);
     const renderBandPowerView = () => {
       switch (activeBandPowerView) {
         case 'bandpower':
@@ -154,7 +151,6 @@ const FFT = forwardRef(
           return (
             <BandPowerGraph
               fftData={fftData}
-              // Update both state and ref
               onBetaUpdate={(beta) => {
                 betaPowerRef.current = beta;
                 setBetaPower(beta);
@@ -165,6 +161,7 @@ const FFT = forwardRef(
           );
       }
     };
+    const filter = new SmoothingFilter(128, 1); 
 
     useImperativeHandle(
       ref,
@@ -181,7 +178,7 @@ const FFT = forwardRef(
             samplesReceived++;
 
             // Trigger FFT computation more frequently
-            if (samplesReceived % 5 === 0) { // Changed from 25 to 5
+            if (samplesReceived % 15 === 0) { // Changed from 25 to 5
               const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
               const floatInput = new Float32Array(processedBuffer);
               const fftMags = fftProcessor.computeMagnitudes(floatInput);
@@ -199,7 +196,7 @@ const FFT = forwardRef(
       }),
       [Zoom, timeBase, canvasCount, fftSize, currentSamplingRate]
     );
-    ////
+
     class FFT {
       private size: number;
       private cosTable: Float32Array;
@@ -283,7 +280,6 @@ const FFT = forwardRef(
         container.removeChild(firstChild);
       }
 
-      setCanvasElements([]);
       const newWglPlots: WebglPlot[] = [];
 
       linesRef.current = [];
@@ -305,8 +301,9 @@ const FFT = forwardRef(
         const wglp = new WebglPlot(canvas);
         console.log("WebglPlot created:", wglp);
         wglp.gScaleY = Zoom;
+        const lineColor = theme === "dark" ? new ColorRGBA(1, 2, 2, 1) : new ColorRGBA(0, 0, 0, 1); // Adjust colors as needed
 
-        const line = new WebglLine(new ColorRGBA(1, 2, 2, 1), dataPointCountRef.current);
+        const line = new WebglLine(lineColor, dataPointCountRef.current);
         line.offsetY = 0;
         line.lineSpaceX(-1, 2 / dataPointCountRef.current);
         wglp.addLine(line);
@@ -314,7 +311,6 @@ const FFT = forwardRef(
         console.log(newWglPlots)
         linesRef.current = [line];
         wglPlotsref.current = [wglp];
-        setCanvasElements([canvas]);
       } catch (error) {
         console.error("Error creating WebglPlot:", error);
       }
@@ -362,32 +358,6 @@ const FFT = forwardRef(
       requestAnimationFrame(animate);
     }, [animate]);
 
-    const removeDCComponent = (buffer: number[]): number[] => {
-      const mean = buffer.reduce((sum, val) => sum + val, 0) / buffer.length;
-      return buffer.map((val) => val - mean);
-    };
-
-    const applyHighPassFilter = (buffer: number[], cutoffFreq: number): number[] => {
-      const rc = 1 / (2 * Math.PI * cutoffFreq);
-      const dt = 1 / currentSamplingRate;
-      const alpha = rc / (rc + dt);
-      let filteredBuffer = new Array(buffer.length);
-      filteredBuffer[0] = buffer[0];
-      for (let i = 1; i < buffer.length; i++) {
-        filteredBuffer[i] =
-          alpha * (filteredBuffer[i - 1] + buffer[i] - buffer[i - 1]);
-      }
-      return filteredBuffer;
-    };
-
-    const applyHannWindow = (buffer: number[]): number[] => {
-      return buffer.map(
-        (value, index) =>
-          value *
-          (0.5 - 0.5 * Math.cos((2 * Math.PI * index) / (buffer.length - 1)))
-      );
-    };
-
     const plotData = useCallback(() => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
@@ -421,12 +391,13 @@ const FFT = forwardRef(
 
       const xScale = (width - leftMargin - 10) / displayPoints;
 
-      let yMax = 0; // Default to prevent division by zero
-      fftData.forEach((channelData) => {
-        if (channelData.length > 0) {
-          yMax = Math.max(yMax, ...channelData.slice(0, displayPoints));
-        }
-      });
+      let yMax = 1; // Default to prevent division by zero
+      yMax = Math.max(...fftData[0]);
+      // fftData.forEach((channelData) => {
+      //   if (channelData.length > 0) {
+      //     yMax = Math.max(yMax, ...channelData.slice(0, displayPoints));
+      //   }
+      // });
 
       const yScale = (height - bottomMargin - 10) / yMax;
 
@@ -472,7 +443,7 @@ const FFT = forwardRef(
       ctx.fillText("Magnitude", -height / 2, 15);
       ctx.restore();
     }, [fftData, theme, maxFreq, currentSamplingRate, fftSize, channelColors]);
-
+  
     useEffect(() => {
       if (fftData.some((channel) => channel.length > 0)) {
         plotData();
@@ -492,36 +463,34 @@ const FFT = forwardRef(
     }, [plotData]);
 
     return (
-      <div className="flex flex-col w-full h-full overflow-hidden p-2 gap-2 relative">
+      <div className="flex flex-col w-full h-screen overflow-hidden">
         {/* Main plotting area with minimum height */}
         <main
           ref={canvasContainerRef}
-          className="flex-1 bg-highlight rounded-xl overflow-hidden"
-          style={{ minHeight: 'clamp(200px, 30vh, 400px)' }}
+          className="flex-1 bg-highlight rounded-2xl m-2 overflow-hidden min-h-0 "
         >
           {/* WebGL canvas will be inserted here */}
         </main>
 
         {/* Data display area with responsive layout */}
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden gap-2"
-          style={{ minHeight: 'clamp(300px, 40vh, 500px)' }}>
+        <div className="flex-1 m-2 flex flex-col md:flex-row justify-center  overflow-hidden min-h-0  "
+        >
 
           {/* Frequency graph container with overflow protection */}
           <div
             ref={containerRef}
-            className="w-full lg:w-1/2 h-full bg-gray-50 dark:bg-highlight rounded-xl relative"
-            style={{ overflow: 'hidden' }}
+            className="flex-1 overflow-hidden min-h-0 min-w-0 rounded-2xl bg-highlight  "
           >
             <canvas
               ref={canvasRef}
-              className="absolute inset-0 w-full h-full"
+              className="w-full h-full"
             />
           </div>
 
           {/* Band power view container */}
-          <div className="w-full lg:w-1/2 flex flex-col overflow-hidden bg-gray-50 dark:bg-highlight">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 ml-4 bg-highlight rounded-2xl">
             {/* Button Group */}
-            <div className="flex justify-center space-x-2 p-2  rounded-t-xl">
+            <div className="flex justify-center space-x-2 pt-2 rounded-t-xl">
               <button onClick={() => setActiveBandPowerView('bandpower')} className={buttonStyles('bandpower')}>
                 Band Power
               </button>
@@ -531,9 +500,7 @@ const FFT = forwardRef(
             </div>
 
             {/* View container with minimum height */}
-            <div className="flex-1 rounded-b-lg overflow-hidden min-h-[200px]">
-              {renderBandPowerView()}
-            </div>
+            {renderBandPowerView()}
           </div>
         </div>
       </div>

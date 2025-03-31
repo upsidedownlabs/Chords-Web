@@ -29,7 +29,6 @@ const Graph: React.FC<GraphProps> = ({
   const prevBandPowerData = useRef<number[]>(Array(5).fill(0));
   const animationRef = useRef<number>();
   const { theme } = useTheme();
-  const [hasValidData, setHasValidData] = useState(false);
 
   // Specific color strings for canvas drawing
   const bandColors = useMemo(
@@ -48,22 +47,11 @@ const Graph: React.FC<GraphProps> = ({
     []
   );
 
-  const bandRanges = useMemo(
-    () => [
-      [0.5, 4],
-      [4, 8],
-      [8, 13],
-      [13, 32],
-      [32, 100],
-    ],
-    []
-  );
-  const DELTA_RANGE = [0, 4],
+  const DELTA_RANGE = [0.5, 4],
     THETA_RANGE = [4, 8],
     ALPHA_RANGE = [8, 12],
     BETA_RANGE = [12, 30],
     GAMMA_RANGE = [30, 100];
-
 
   const FREQ_RESOLUTION = samplingRate / 256;
 
@@ -77,32 +65,6 @@ const Graph: React.FC<GraphProps> = ({
     }
     return power;
   }
-  let buffer_size = 32;
-  let circular_buffer = new Array(buffer_size).fill(0);
-  let data_index = 0, sum = 0;
-
-  class SmoothedBeta {
-    private bufferSize: number;
-    private circularBuffer: number[];
-    private sum: number;
-    private dataIndex: number;
-
-    constructor(bufferSize: number) {
-      this.bufferSize = bufferSize;
-      this.circularBuffer = new Array(bufferSize).fill(0);
-      this.sum = 0;
-      this.dataIndex = 0;
-    }
-
-    getSmoothedBeta(beta: number): number {
-      this.sum -= this.circularBuffer[this.dataIndex];
-      this.sum += beta;
-      this.circularBuffer[this.dataIndex] = beta;
-      this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
-      return this.sum / this.bufferSize;
-    }
-  }
-
 
   useEffect(() => {
     if (fftData.length > 0 && fftData[0].length > 0) {
@@ -126,18 +88,15 @@ const Graph: React.FC<GraphProps> = ({
       if (
         newBandPowerData.some((value) => !isNaN(value) && value > -Infinity)
       ) {
-        setHasValidData(true);
         setBandPowerData(newBandPowerData);
 
         // Send smoothed beta value to parent
         if (onBetaUpdate) {
           onBetaUpdate(newBandPowerData[3]);
         }
-      } else if (!hasValidData) {
-        setBandPowerData(Array(5).fill(-100));
-      }
+      } 
     }
-  }, [fftData, calculateBandPower, hasValidData, onBetaUpdate]);
+  }, [fftData, calculateBandPower, onBetaUpdate]);
 
 
   const drawGraph = useCallback(
@@ -210,7 +169,7 @@ const Graph: React.FC<GraphProps> = ({
       for (let i = 0; i <= yLabelCount; i++) {
         const value = minPower + (maxPower - minPower) * (i / yLabelCount);
         const labelY = height - bottomMargin - (i / yLabelCount) * (height - bottomMargin - 10);
-        ctx.fillText(value.toFixed(1) + " dB", leftMargin - 5, labelY);
+        ctx.fillText(value.toFixed(1), leftMargin - 5, labelY);
       }
 
       // X-axis labels
@@ -223,13 +182,13 @@ const Graph: React.FC<GraphProps> = ({
 
       // Title
       ctx.font = `${Math.min(fontSize + 2, 14)}px Arial`;
-      ctx.fillText("EEG Band Power", width / 2, height - 10);
+      ctx.fillText("EEG Band Power", width / 2, height - 20);
 
       // Rotate and position the y-axis label
       ctx.save();
       ctx.rotate(-Math.PI / 2);
       ctx.textAlign = "center";
-      ctx.fillText("Power — dB", -height / 2 + 15, fontSize);
+      ctx.fillText("Power", -height / 2 + 15, fontSize);
       ctx.restore();
     },
     [theme, bandColors, bandNames]
@@ -276,14 +235,12 @@ const Graph: React.FC<GraphProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full flex justify-center items-center ${className}`}
+      className={`w-full h-full min-h-0 min-w-0`}
     >
-      <div className="w-full h-full max-w-4xl ">
         <canvas
           ref={canvasRef}
           className="w-full h-full dark:bg-highlight rounded-md"
         />
-      </div>
     </div>
   );
 };
