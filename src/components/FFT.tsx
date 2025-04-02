@@ -34,7 +34,7 @@ const FFT = forwardRef(
     const [fftData, setFftData] = useState<number[][]>(Array.from({ length: 16 }, () => []));
     const fftSize = Math.pow(2, Math.round(Math.log2(currentSamplingRate / 2)));
     const sampleupdateref = useRef<number>(50);
-    sampleupdateref.current=currentSamplingRate/10;
+    sampleupdateref.current = currentSamplingRate / 10;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
@@ -161,7 +161,7 @@ const FFT = forwardRef(
           );
       }
     };
-    const filter = new SmoothingFilter((currentSamplingRate/ sampleupdateref.current)*2,1); 
+    const filter = new SmoothingFilter((currentSamplingRate / sampleupdateref.current) * 2, 1);
 
     useImperativeHandle(
       ref,
@@ -178,7 +178,7 @@ const FFT = forwardRef(
             samplesReceived++;
 
             // Trigger FFT computation more frequently
-            if (samplesReceived %  sampleupdateref.current === 0) { // Changed from 25 to 5
+            if (samplesReceived % sampleupdateref.current === 0) { // Changed from 25 to 5
               const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
               const floatInput = new Float32Array(processedBuffer);
               const fftMags = fftProcessor.computeMagnitudes(floatInput);
@@ -256,11 +256,7 @@ const FFT = forwardRef(
         }
       }
     }
-
-
     const fftProcessor = new FFT(fftSize);
-
-    ///
     const createCanvasElement = () => {
       const container = canvasContainerRef.current;
       if (!container) return;
@@ -399,7 +395,7 @@ const FFT = forwardRef(
           const x = leftMargin + i * xScale;
           const y = height - bottomMargin - channelData[i] * yScale;
 
-       ctx.lineTo(x, y);
+          ctx.lineTo(x, y);
         }
         ctx.stroke();
       });
@@ -433,7 +429,7 @@ const FFT = forwardRef(
       ctx.fillText("Magnitude", -height / 2, 15);
       ctx.restore();
     }, [fftData, theme, maxFreq, currentSamplingRate, fftSize, channelColors]);
-  
+
     useEffect(() => {
       if (fftData.some((channel) => channel.length > 0)) {
         plotData();
@@ -458,15 +454,10 @@ const FFT = forwardRef(
         <main
           ref={canvasContainerRef}
           className="flex-1 bg-highlight rounded-2xl m-2 overflow-hidden min-h-0 "
-        >
-          {/* WebGL canvas will be inserted here */}
+        >    
         </main>
-
-        {/* Data display area with responsive layout */}
         <div className="flex-1 m-2 flex flex-col md:flex-row justify-center  overflow-hidden min-h-0  "
         >
-
-          {/* Frequency graph container with overflow protection */}
           <div
             ref={containerRef}
             className="flex-1 overflow-hidden min-h-0 min-w-0 rounded-2xl bg-highlight  "
@@ -476,10 +467,7 @@ const FFT = forwardRef(
               className="w-full h-full"
             />
           </div>
-
-          {/* Band power view container */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 ml-4 bg-highlight rounded-2xl">
-            {/* Button Group */}
             <div className="flex justify-center space-x-2 pt-2 rounded-t-xl">
               <button onClick={() => setActiveBandPowerView('bandpower')} className={buttonStyles('bandpower')}>
                 Band Power
@@ -488,8 +476,6 @@ const FFT = forwardRef(
                 Beta Candle
               </button>
             </div>
-
-            {/* View container with minimum height */}
             {renderBandPowerView()}
           </div>
         </div>
