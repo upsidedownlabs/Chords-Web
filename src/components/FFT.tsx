@@ -32,7 +32,7 @@ const FFT = forwardRef(
   ) => {
     const fftBufferRef = useRef<number[][]>(Array.from({ length: 16 }, () => []));
     const [fftData, setFftData] = useState<number[][]>(Array.from({ length: 16 }, () => []));
-    const fftSize = Math.pow(2, Math.round(Math.log2(currentSamplingRate / 2)));
+    const fftSize = 256;
     const sampleupdateref = useRef<number>(50);
     sampleupdateref.current = currentSamplingRate / 10;
     const canvasRef = useRef<HTMLCanvasElement>(null);
