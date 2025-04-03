@@ -86,6 +86,8 @@ const Canvas = forwardRef(
         const prevCanvasCountRef = useRef<number>(canvasCount);
 
         const processIncomingData = (incomingData: number[]) => {
+            if (pauseRef.current) return; // Skip processing if paused
+
             const currentBuffer = array3DRef.current[activeBufferIndexRef.current];
 
             // Handle canvas count changes and reset buffers
@@ -115,8 +117,8 @@ const Canvas = forwardRef(
 
             // Update data indices for referencing past buffers
             dataIndicesRef.current = Array.from(
-                { length: 5 },
-                (_, i) => (activeBufferIndexRef.current - i - 1 + 6) % 6
+                { length: 6 },
+                (_, i) => (activeBufferIndexRef.current - i + 6) % 6
             );
         };
 
