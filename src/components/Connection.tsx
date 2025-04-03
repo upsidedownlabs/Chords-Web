@@ -1818,20 +1818,20 @@ const Connection: React.FC<ConnectionProps> = ({
                         </PopoverTrigger>
                         <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm">
                             <TooltipProvider>
-                                <div className="space-y-6">
+                                <div className={`space-y-6 ${!isDisplay ? "flex justify-center" : ""}`}>
                                     {/* Channel Selection */}
                                     {isDisplay && (
-                                        <div className="flex items-center justify-center rounded-lg mb-[2.5rem]">
+                                        <div className="flex items-center justify-center rounded-lg ">
                                             <div className="w-full">
                                                 {/* Channels Count & Select All Button */}
-                                                <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center justify-between ">
                                                     <h3 className="text-xs font-semibold text-gray-500">
                                                         <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                                                     </h3>
                                                     {!(selectedChannels.length === maxCanvasElementCountRef.current && manuallySelected) && (
                                                         <button
                                                             onClick={handleSelectAllToggle}
-                                                            className={`px-4 py-1 text-xs font-light rounded-lg transition ${isSelectAllDisabled
+                                                            className={`px-4 py-1 text-xs font-light rounded-lg transition m-2 ${isSelectAllDisabled
                                                                 ? "text-gray-400 bg-gray-200 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
                                                                 : "text-white bg-black hover:bg-gray-700 dark:bg-white dark:text-black dark:border dark:border-gray-500 dark:hover:bg-primary/70"
                                                                 }`}
@@ -1887,8 +1887,9 @@ const Connection: React.FC<ConnectionProps> = ({
                                     )}
 
                                     {/* Zoom Controls */}
-                                    <div className="relative w-full flex flex-col items-start text-sm mb-[2rem]">
-                                        <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
+                                    <div className={`relative w-full flex flex-col ${!isDisplay ? "" : "items-start"} text-sm`}>
+                                        {/* Zoom Level label positioned at top left with margin/padding */}
+                                        <p className="text-xs justify-start font-semibold text-gray-500 ">
                                             <span className="font-bold text-gray-600">Zoom Level:</span> {Zoom}x
                                         </p>
                                         <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600 mb-4">
@@ -1926,8 +1927,8 @@ const Connection: React.FC<ConnectionProps> = ({
 
                                     {/* Time-Base Selection */}
                                     {isDisplay && (
-                                        <div className="relative w-full flex flex-col items-start mt-3 text-sm">
-                                            <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
+                                        <div className="relative w-full flex flex-col items-start  text-sm">
+                                            <p className="text-xs font-semibold text-gray-500 ">
                                                 <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
                                             </p>
                                             <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
@@ -1956,11 +1957,10 @@ const Connection: React.FC<ConnectionProps> = ({
                                                     10
                                                 </button>
                                                 <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;appearance: none; width: 15px; height: 15px;
-                                                  background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
+                                                background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
                                             </div>
                                         </div>
                                     )}
-
                                 </div>
                             </TooltipProvider>
                         </PopoverContent>
