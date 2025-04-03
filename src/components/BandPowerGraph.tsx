@@ -7,17 +7,19 @@ import React, {
 } from "react";
 import { useTheme } from "next-themes";
 
-interface GraphProps
- {
+interface GraphProps {
   fftData: number[][];
   samplingRate: number;
+  className?: string;
+  onBetaUpdate?: (betaValue: number) => void; // New prop
+
 }
 
-const Graph
-: React.FC<GraphProps
-> = ({
+const Graph: React.FC<GraphProps> = ({
   fftData,
   samplingRate,
+  className = "",
+  onBetaUpdate,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,72 +29,82 @@ const Graph
   const prevBandPowerData = useRef<number[]>(Array(5).fill(0));
   const animationRef = useRef<number>();
   const { theme } = useTheme();
-  const [hasValidData, setHasValidData] = useState(false);
 
+  // Specific color strings for canvas drawing
   const bandColors = useMemo(
-    () => ["red", "yellow", "green", "blue", "purple"],
-    []
-  );
-  const bandNames = useMemo(
-    () => ["DELTA", "THETA", "ALPHA", "BETA", "GAMMA"],
-    []
-  );
-  const bandRanges = useMemo(
     () => [
-      [0.5, 4],
-      [4, 8],
-      [8, 13],
-      [13, 32],
-      [32, 100],
+      "#EF4444", // Tailwind red-500
+      "#EAB308", // Tailwind yellow-500
+      "#22C55E", // Tailwind green-500
+      "#3B82F6", // Tailwind blue-500
+      "#8B5CF6"  // Tailwind purple-500
     ],
     []
   );
 
-  const calculateBandPower = useCallback(
-    (fftChannelData: number[]) => {
-      const freqResolution = samplingRate / (fftChannelData.length * 2);
-
-      return bandRanges.map(([low, high]) => {
-        const startIndex = Math.max(1, Math.floor(low / freqResolution));
-        const endIndex = Math.min(
-          Math.ceil(high / freqResolution),
-          fftChannelData.length - 1
-        );
-
-        let bandPower = 0;
-        for (let i = startIndex; i <= endIndex; i++) {
-          if (!isNaN(fftChannelData[i]) && i < fftChannelData.length) {
-            bandPower += Math.pow(fftChannelData[i], 2); // Use square of magnitude
-          }
-        }
-
-        // Normalize by the number of frequency bins in the band
-        const normalizedPower = bandPower / (endIndex - startIndex + 1);
-
-        // Convert to dB
-        const powerDB = 10 * Math.log10(normalizedPower);
-
-        return powerDB;
-      });
-    },
-    [bandRanges, samplingRate]
+  const bandNames = useMemo(
+    () => ["Delta", "Theta", "Alpha", "Beta", "Gamma"],
+    []
   );
 
+  const DELTA_RANGE = [0.5, 4],
+    THETA_RANGE = [4, 8],
+    ALPHA_RANGE = [8, 12],
+    BETA_RANGE = [12, 30],
+    GAMMA_RANGE = [30, 100];
+
+  const FREQ_RESOLUTION = samplingRate / 256;
+
+  const calculateBandPower = useCallback(
+    (fftMagnitudes: number[], freqRange: number[]) => {
+      const [startFreq, endFreq] = freqRange;
+      const startIndex = Math.max(1, Math.floor(startFreq / FREQ_RESOLUTION));
+      const endIndex = Math.min(Math.floor(endFreq / FREQ_RESOLUTION), fftMagnitudes.length - 1);
+      let power = 0;
+      for (let i = startIndex; i <= endIndex; i++) {
+        power += fftMagnitudes[i] * fftMagnitudes[i];
+      }
+      return power;
+    },
+    [FREQ_RESOLUTION]
+  );
+  
   useEffect(() => {
     if (fftData.length > 0 && fftData[0].length > 0) {
       const channelData = fftData[0];
-      const newBandPowerData = calculateBandPower(channelData);
-
+  
+      const deltaPower = calculateBandPower(channelData, DELTA_RANGE);
+      const thetaPower = calculateBandPower(channelData, THETA_RANGE);
+      const alphaPower = calculateBandPower(channelData, ALPHA_RANGE);
+      const betaPower = calculateBandPower(channelData, BETA_RANGE);
+      const gammaPower = calculateBandPower(channelData, GAMMA_RANGE);
+      const total = deltaPower + thetaPower + alphaPower + betaPower + gammaPower;
+  
+      const newBandPowerData = [
+        (deltaPower / total) * 100,
+        (thetaPower / total) * 100,
+        (alphaPower / total) * 100,
+        (betaPower / total) * 100,
+        (gammaPower / total) * 100,
+      ];
+  
       if (
         newBandPowerData.some((value) => !isNaN(value) && value > -Infinity)
       ) {
-        setHasValidData(true);
-        setBandPowerData(newBandPowerData);
-      } else if (!hasValidData) {
-        setBandPowerData(Array(5).fill(-100));
-      }
+        setBandPowerData((prev) => {
+          if (JSON.stringify(prev) !== JSON.stringify(newBandPowerData)) {
+            return newBandPowerData;
+          }
+          return prev;
+        });
+  
+        if (onBetaUpdate) {
+          onBetaUpdate(newBandPowerData[3]);
+        }
+      } 
     }
-  }, [fftData, calculateBandPower, hasValidData]);
+  }, [fftData, calculateBandPower, onBetaUpdate && onBetaUpdate.toString()]); // Memoized dependencies
+  
 
   const drawGraph = useCallback(
     (currentBandPowerData: number[]) => {
@@ -108,17 +120,26 @@ const Graph
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
+      // Responsive canvas sizing
+      const containerWidth = container.clientWidth;
+      const containerHeight = Math.min(containerWidth * 0.5, 400); // Limit max height
+      canvas.width = containerWidth;
+      canvas.height = containerHeight;
 
       const width = canvas.width;
       const height = canvas.height;
 
       ctx.clearRect(0, 0, width, height);
 
-      const barWidth = (width - 70) / bandNames.length;
-      let minPower = Math.min(...currentBandPowerData);
-      let maxPower = Math.max(...currentBandPowerData);
+      // Responsive bar sizing and margins
+      const leftMargin = width < 640 ? 40 : 70; // Smaller margin on mobile
+      const rightMargin = 20;
+      const bottomMargin = width < 640 ? 40 : 50; // Smaller margin on mobile
+      const barWidth = (width - leftMargin - rightMargin) / bandNames.length;
+      const barSpacing = barWidth * 0.2; // Space between bars
+
+      let minPower = 0;
+      let maxPower = 100;
 
       if (maxPower - minPower < 1) {
         maxPower = minPower + 1;
@@ -128,58 +149,62 @@ const Graph
 
       // Draw axes
       ctx.beginPath();
-      ctx.moveTo(70, 10);
-      ctx.lineTo(70, height - 50);
-      ctx.lineTo(width - 20, height - 50);
+      ctx.moveTo(leftMargin, 10);
+      ctx.lineTo(leftMargin, height - bottomMargin);
+      ctx.lineTo(width - rightMargin, height - bottomMargin);
       ctx.strokeStyle = axisColor;
       ctx.stroke();
 
       // Draw bars
       currentBandPowerData.forEach((power, index) => {
-        const x = 70 + index * barWidth; // Adjusted x position
-        const normalizedHeight = (power - minPower) / (maxPower - minPower);
-        const barHeight = normalizedHeight * (height - 60);
+        const x = leftMargin + index * barWidth;
+        const normalizedHeight = Math.max(0, (power - minPower) / (maxPower - minPower)); 
+        const barHeight = Math.max(0,normalizedHeight * (height - bottomMargin - 10));
+        
         ctx.fillStyle = bandColors[index];
-        ctx.fillRect(x, height - 50 - barHeight, barWidth * 0.8, barHeight);
+        ctx.fillRect(x + barSpacing / 2, height - bottomMargin - barHeight, barWidth - barSpacing, barHeight);
       });
 
       // Draw labels
       ctx.fillStyle = axisColor;
-      ctx.font = "12px Arial";
+      const fontSize = width < 640 ? 10 : 12; // Smaller text on mobile
+      ctx.font = `${fontSize}px Arial`;
 
       // Y-axis labels (log scale)
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      const yLabelCount = 5; // Number of labels on y-axis
+      const yLabelCount = Math.min(5, Math.floor(height / 50)); // Fewer labels on small screens
       for (let i = 0; i <= yLabelCount; i++) {
         const value = minPower + (maxPower - minPower) * (i / yLabelCount);
-        const labelY = height - 50 - (i / yLabelCount) * (height - 60);
-        ctx.fillText(value.toFixed(1) + " dB", 65, labelY);
+        const labelY = height - bottomMargin - (i / yLabelCount) * (height - bottomMargin - 10);
+        ctx.fillText(value.toFixed(1), leftMargin - 5, labelY);
       }
 
       // X-axis labels
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       bandNames.forEach((band, index) => {
-        const labelX = 70 + index * barWidth + barWidth * 0.4;
-        ctx.fillText(band, labelX, height - 35);
+        const labelX = leftMargin + index * barWidth + barWidth * 0.5;
+        ctx.fillText(band, labelX, height - bottomMargin + 5);
       });
 
-      ctx.font = "14px Arial";
-      ctx.fillText("EEG Band Power ", width / 2, height - 15);
+      // Title
+      ctx.font = `${Math.min(fontSize + 2, 14)}px Arial`;
+      ctx.fillText("EEG Band Power", width / 2, height - 20);
 
       // Rotate and position the y-axis label
       ctx.save();
       ctx.rotate(-Math.PI / 2);
-      ctx.fillText("Power — dB", -height / 2 + 15, 0);
+      ctx.textAlign = "center";
+      ctx.fillText("Power", -height / 2 + 15, fontSize);
       ctx.restore();
     },
     [theme, bandColors, bandNames]
   );
 
+  // Rest of the component remains the same (animateGraph, useEffect hooks)
   const animateGraph = useCallback(() => {
     const interpolationFactor = 0.1;
-
     const currentValues = bandPowerData.map((target, i) => {
       const prev = prevBandPowerData.current[i];
       return prev + (target - prev) * interpolationFactor;
@@ -216,9 +241,15 @@ const Graph
   }, [animateGraph]);
 
   return (
-    <div ref={containerRef} className="w-full h-full max-w-[700px] min-h-0 min-w-0">
-  <canvas ref={canvasRef} className="w-full h-full" />
-</div>
+    <div
+      ref={containerRef}
+      className={`w-full h-full min-h-0 min-w-0`}
+    >
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full dark:bg-highlight rounded-md"
+        />
+    </div>
   );
 };
 

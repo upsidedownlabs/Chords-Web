@@ -37,6 +37,14 @@ const SerialPlotter = () => {
     const bitsref = useRef<number>(10);
     const channelsref = useRef<number>(1);
     const sweepPositions = useRef<number[]>(new Array(channelsref.current).fill(0)); // Array for sweep positions
+    const SYNC_BYTE_1 = 0xC7;
+    const SYNC_BYTE_2 = 0x7C;
+    const blockSize = 9; // Packet size: 9 bytes per packet
+    const maxSamples = 256; // Number of samples to display in plot
+
+    // Refs to store plot data for 3 channels.
+  const plotDataRef = useRef<{ ch0: number[]; ch1: number[]; ch2: number[] }>({ch0: [],ch1: [],ch2: []});
+
 
     useEffect(() => {
         if (rawDataRef.current) {

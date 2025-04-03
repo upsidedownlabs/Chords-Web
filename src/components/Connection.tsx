@@ -1345,28 +1345,28 @@ const Connection: React.FC<ConnectionProps> = ({
                                     </Button>
                                 )}
                                 {!isDeviceConnected && (
-                                       <Button
-                                       className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                       onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevicefft())}
-                                       disabled={isfftLoading}
-                                   >
-                                       {isfftLoading ? (
-                                           <>
-                                               <Loader size={17} className="animate-spin" />
-                                               Connecting...
-                                           </>
-                                       ) : isDeviceConnected ? (
-                                           <>
-                                               Disconnect
-                                               <CircleX size={17} />
-                                           </>
-                                       ) : (
-                                           <>
-                                        FFT Visualizer
-                                        <Cable size={17} />
-                                           </>
-                                       )}
-                                   </Button>
+                                    <Button
+                                        className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevicefft())}
+                                        disabled={isfftLoading}
+                                    >
+                                        {isfftLoading ? (
+                                            <>
+                                                <Loader size={17} className="animate-spin" />
+                                                Connecting...
+                                            </>
+                                        ) : isDeviceConnected ? (
+                                            <>
+                                                Disconnect
+                                                <CircleX size={17} />
+                                            </>
+                                        ) : (
+                                            <>
+                                                FFT Visualizer
+                                                <Cable size={17} />
+                                            </>
+                                        )}
+                                    </Button>
                                 )}
                             </Popover>
                         </TooltipTrigger>
@@ -1375,8 +1375,6 @@ const Connection: React.FC<ConnectionProps> = ({
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
-
-
                 {/* Display (Play/Pause) button with tooltip */}
                 {isDeviceConnected && !FFTDeviceConnected && (
                     <div className="flex items-center gap-0.5 mx-0 px-0">
@@ -1424,7 +1422,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                 <Button
                                     className="rounded-xl"
                                     onClick={handleRecord}
-
+                                    disabled={!isDisplay}
                                 >
                                     {isRecordingRef.current ? (
                                         <CircleStop />
@@ -1765,44 +1763,44 @@ const Connection: React.FC<ConnectionProps> = ({
                                     <div className="text-sm font-semibold w-12">{channelNames[0]}</div>
                                     <div className="flex space-x-2">
                                         <div className="flex border border-input rounded-xl items-center mx-0 px-0">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => removeNotchFilter(0)}
-                                                        className={`rounded-xl rounded-r-none border-0
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => removeNotchFilter(0)}
+                                                className={`rounded-xl rounded-r-none border-0
                                                         ${appliedFiltersRef.current[0] === undefined
-                                                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
-                                                                : "bg-white-500" // Active background
-                                                            }`}
-                                                    >
-                                                        <CircleOff size={17} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleFrequencySelection(0, 1)}
-                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                        ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                <CircleOff size={17} />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleFrequencySelection(0, 1)}
+                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                                                         ${appliedFiltersRef.current[0] === 1
-                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                                : "bg-white-500" // Active background
-                                                            }`}
-                                                    >
-                                                        50Hz
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleFrequencySelection(0, 2)}
-                                                        className={
-                                                            `rounded-xl rounded-l-none border-0 ${appliedFiltersRef.current[0] === 2
-                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white "
-                                                                : "bg-white-500 animate-fade-in-right"
-                                                            }`
-                                                        }
-                                                    >
-                                                        60Hz
-                                                    </Button>
-                                                </div>
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                50Hz
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleFrequencySelection(0, 2)}
+                                                className={
+                                                    `rounded-xl rounded-l-none border-0 ${appliedFiltersRef.current[0] === 2
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white "
+                                                        : "bg-white-500 animate-fade-in-right"
+                                                    }`
+                                                }
+                                            >
+                                                60Hz
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1820,33 +1818,30 @@ const Connection: React.FC<ConnectionProps> = ({
                         </PopoverTrigger>
                         <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm">
                             <TooltipProvider>
-                                <div className="space-y-6">
+                                <div className={`space-y-6 ${!isDisplay ? "flex justify-center" : ""}`}>
                                     {/* Channel Selection */}
-                                    <div className="flex items-center justify-center rounded-lg mb-[2.5rem]">
-                                        <div className=" w-full">
-                                            <div className="absolute inset-0 rounded-lg border-gray-300 dark:border-gray-600 opacity-50 pointer-events-none"></div>
-                                            <div className="relative">
-                                                {/* Heading and Select All Button */}
-                                                <div className="flex items-center justify-between mb-4">
+                                    {isDisplay && (
+                                        <div className="flex items-center justify-center rounded-lg ">
+                                            <div className="w-full">
+                                                {/* Channels Count & Select All Button */}
+                                                <div className="flex items-center justify-between ">
                                                     <h3 className="text-xs font-semibold text-gray-500">
                                                         <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                                                     </h3>
-                                                    {
-                                                        !(selectedChannels.length === maxCanvasElementCountRef.current && manuallySelected) && (
-                                                            <button
-                                                                onClick={handleSelectAllToggle}
-                                                                className={`px-4 py-1 text-xs font-light rounded-lg transition ${isSelectAllDisabled
-                                                                    ? "text-gray-400 bg-gray-200 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
-                                                                    : "text-white bg-black hover:bg-gray-700 dark:bg-white dark:text-black dark:border dark:border-gray-500 dark:hover:bg-primary/70"
-                                                                    }`}
-                                                                disabled={isSelectAllDisabled}
-                                                            >
-                                                                {isAllEnabledChannelSelected ? "RESET" : "Select All"}
-                                                            </button>
-                                                        )
-                                                    }
+                                                    {!(selectedChannels.length === maxCanvasElementCountRef.current && manuallySelected) && (
+                                                        <button
+                                                            onClick={handleSelectAllToggle}
+                                                            className={`px-4 py-1 text-xs font-light rounded-lg transition m-2 ${isSelectAllDisabled
+                                                                ? "text-gray-400 bg-gray-200 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
+                                                                : "text-white bg-black hover:bg-gray-700 dark:bg-white dark:text-black dark:border dark:border-gray-500 dark:hover:bg-primary/70"
+                                                                }`}
+                                                            disabled={isSelectAllDisabled}
+                                                        >
+                                                            {isAllEnabledChannelSelected ? "RESET" : "Select All"}
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                {/* Button Grid */}
+                                                {/* Channel Buttons Grid */}
                                                 <div id="button-container" className="relative space-y-2 rounded-lg">
                                                     {Array.from({ length: 2 }).map((_, container) => (
                                                         <div key={container} className="grid grid-cols-8 gap-2">
@@ -1854,9 +1849,6 @@ const Connection: React.FC<ConnectionProps> = ({
                                                                 const index = container * 8 + col;
                                                                 const isChannelDisabled = index >= maxCanvasElementCountRef.current;
                                                                 const isSelected = selectedChannels.includes(index + 1);
-
-                                                                // For selected channels, use the shared custom color.
-                                                                // Otherwise, use default styles.
                                                                 const buttonStyle = isChannelDisabled
                                                                     ? isDarkModeEnabled
                                                                         ? { backgroundColor: "#030c21", color: "gray" }
@@ -1864,18 +1856,16 @@ const Connection: React.FC<ConnectionProps> = ({
                                                                     : isSelected
                                                                         ? { backgroundColor: getCustomColor(index, activeTheme), color: "white" }
                                                                         : { backgroundColor: "white", color: "black" };
-
-                                                                // Optional: calculate rounded corners based on button position.
                                                                 const isFirstInRow = col === 0;
                                                                 const isLastInRow = col === 7;
                                                                 const isFirstContainer = container === 0;
                                                                 const isLastContainer = container === 1;
                                                                 const roundedClass = `
-              ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
-              ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
-              ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
-              ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
-            `;
+                                                                ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
+                                                                ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
+                                                                ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
+                                                                ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
+                                                                     `;
 
                                                                 return (
                                                                     <button
@@ -1894,11 +1884,12 @@ const Connection: React.FC<ConnectionProps> = ({
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* Zoom Controls */}
-                                    <div className="relative w-full flex flex-col items-start text-sm mb-[2rem]">
-                                        <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
+                                    <div className={`relative w-full flex flex-col ${!isDisplay ? "" : "items-start"} text-sm`}>
+                                        {/* Zoom Level label positioned at top left with margin/padding */}
+                                        <p className="text-xs justify-start font-semibold text-gray-500 ">
                                             <span className="font-bold text-gray-600">Zoom Level:</span> {Zoom}x
                                         </p>
                                         <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600 mb-4">
@@ -1935,40 +1926,41 @@ const Connection: React.FC<ConnectionProps> = ({
                                     </div>
 
                                     {/* Time-Base Selection */}
-                                    <div className="relative w-full flex flex-col items-start mt-3 text-sm">
-                                        <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
-                                            <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
-                                        </p>
-                                        <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
-                                            {/* Button for setting Time Base to 1 */}
-                                            <button
-                                                className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                onClick={() => setTimeBase(1)}
-                                            >
-                                                1
-                                            </button>
-                                            <input
-                                                type="range"
-                                                min="1"
-                                                max="10"
-                                                value={timeBase}
-                                                onChange={(e) => setTimeBase(Number(e.target.value))}
-                                                style={{
-                                                    background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
-                                                }}
-                                                className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
-                                            />
-                                            {/* Button for setting Time Base to 10 */}
-                                            <button
-                                                className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                onClick={() => setTimeBase(10)}
-                                            >
-                                                10
-                                            </button>
-                                            <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;appearance: none; width: 15px; height: 15px;
-                                             background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
+                                    {isDisplay && (
+                                        <div className="relative w-full flex flex-col items-start  text-sm">
+                                            <p className="text-xs font-semibold text-gray-500 ">
+                                                <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
+                                            </p>
+                                            <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
+                                                {/* Buttons & Slider */}
+                                                <button
+                                                    className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                    onClick={() => setTimeBase(1)}
+                                                >
+                                                    1
+                                                </button>
+                                                <input
+                                                    type="range"
+                                                    min="1"
+                                                    max="10"
+                                                    value={timeBase}
+                                                    onChange={(e) => setTimeBase(Number(e.target.value))}
+                                                    style={{
+                                                        background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
+                                                    }}
+                                                    className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
+                                                />
+                                                <button
+                                                    className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                    onClick={() => setTimeBase(10)}
+                                                >
+                                                    10
+                                                </button>
+                                                <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;appearance: none; width: 15px; height: 15px;
+                                                background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </TooltipProvider>
                         </PopoverContent>
