@@ -55,28 +55,31 @@ const Graph: React.FC<GraphProps> = ({
 
   const FREQ_RESOLUTION = samplingRate / 256;
 
-  function calculateBandPower(fftMagnitudes: number[], freqRange: number[]) {
-    const [startFreq, endFreq] = freqRange;
-    const startIndex = Math.max(1, Math.floor(startFreq / FREQ_RESOLUTION));
-    const endIndex = Math.min(Math.floor(endFreq / FREQ_RESOLUTION), fftMagnitudes.length - 1);
-    let power = 0;
-    for (let i = startIndex; i <= endIndex; i++) {
-      power += fftMagnitudes[i] * fftMagnitudes[i];
-    }
-    return power;
-  }
-
+  const calculateBandPower = useCallback(
+    (fftMagnitudes: number[], freqRange: number[]) => {
+      const [startFreq, endFreq] = freqRange;
+      const startIndex = Math.max(1, Math.floor(startFreq / FREQ_RESOLUTION));
+      const endIndex = Math.min(Math.floor(endFreq / FREQ_RESOLUTION), fftMagnitudes.length - 1);
+      let power = 0;
+      for (let i = startIndex; i <= endIndex; i++) {
+        power += fftMagnitudes[i] * fftMagnitudes[i];
+      }
+      return power;
+    },
+    [FREQ_RESOLUTION]
+  );
+  
   useEffect(() => {
     if (fftData.length > 0 && fftData[0].length > 0) {
       const channelData = fftData[0];
-
+  
       const deltaPower = calculateBandPower(channelData, DELTA_RANGE);
       const thetaPower = calculateBandPower(channelData, THETA_RANGE);
       const alphaPower = calculateBandPower(channelData, ALPHA_RANGE);
       const betaPower = calculateBandPower(channelData, BETA_RANGE);
       const gammaPower = calculateBandPower(channelData, GAMMA_RANGE);
       const total = deltaPower + thetaPower + alphaPower + betaPower + gammaPower;
-
+  
       const newBandPowerData = [
         (deltaPower / total) * 100,
         (thetaPower / total) * 100,
@@ -84,20 +87,24 @@ const Graph: React.FC<GraphProps> = ({
         (betaPower / total) * 100,
         (gammaPower / total) * 100,
       ];
-
+  
       if (
         newBandPowerData.some((value) => !isNaN(value) && value > -Infinity)
       ) {
-        setBandPowerData(newBandPowerData);
-
-        // Send smoothed beta value to parent
+        setBandPowerData((prev) => {
+          if (JSON.stringify(prev) !== JSON.stringify(newBandPowerData)) {
+            return newBandPowerData;
+          }
+          return prev;
+        });
+  
         if (onBetaUpdate) {
           onBetaUpdate(newBandPowerData[3]);
         }
       } 
     }
-  }, [fftData, calculateBandPower, onBetaUpdate]);
-
+  }, [fftData, calculateBandPower, onBetaUpdate && onBetaUpdate.toString()]); // Memoized dependencies
+  
 
   const drawGraph = useCallback(
     (currentBandPowerData: number[]) => {
@@ -131,8 +138,8 @@ const Graph: React.FC<GraphProps> = ({
       const barWidth = (width - leftMargin - rightMargin) / bandNames.length;
       const barSpacing = barWidth * 0.2; // Space between bars
 
-      let minPower = Math.min(...currentBandPowerData);
-      let maxPower = Math.max(...currentBandPowerData);
+      let minPower = 0;
+      let maxPower = 100;
 
       if (maxPower - minPower < 1) {
         maxPower = minPower + 1;
@@ -151,8 +158,9 @@ const Graph: React.FC<GraphProps> = ({
       // Draw bars
       currentBandPowerData.forEach((power, index) => {
         const x = leftMargin + index * barWidth;
-        const normalizedHeight = (power - minPower) / (maxPower - minPower);
-        const barHeight = normalizedHeight * (height - bottomMargin - 10);
+        const normalizedHeight = Math.max(0, (power - minPower) / (maxPower - minPower)); 
+        const barHeight = Math.max(0,normalizedHeight * (height - bottomMargin - 10));
+        
         ctx.fillStyle = bandColors[index];
         ctx.fillRect(x + barSpacing / 2, height - bottomMargin - barHeight, barWidth - barSpacing, barHeight);
       });
