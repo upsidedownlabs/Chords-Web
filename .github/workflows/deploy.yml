@@ -9,8 +9,8 @@ on:
   push:
     branches-ignore : 
       - "**dev**"
-    pull_request:
-      branches-ignore : 
+  pull_request:
+    branches-ignore : 
         - "**dev**"
 
   # Allows you to run this workflow manually from the Actions tab
