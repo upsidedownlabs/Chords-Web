@@ -86,30 +86,48 @@ const Canvas = forwardRef(
         const prevCanvasCountRef = useRef<number>(canvasCount);
 
         const processIncomingData = (incomingData: number[]) => {
-            if (pauseRef.current) return; // Skip processing if paused
+            // Ensure we have valid references
+            if (!selectedChannelsRef.current || !array3DRef.current) return;
 
             const currentBuffer = array3DRef.current[activeBufferIndexRef.current];
+            if (!currentBuffer) return;
 
             // Handle canvas count changes and reset buffers
             if (prevCanvasCountRef.current !== canvasCount) {
                 for (let bufferIndex = 0; bufferIndex < 6; bufferIndex++) {
-                    array3DRef.current[bufferIndex] = Array.from({ length: canvasCount }, () => []);
+                    array3DRef.current[bufferIndex] = Array.from(
+                        { length: selectedChannelsRef.current.length },
+                        () => []
+                    );
                     snapShotRef.current[bufferIndex] = false;
                 }
                 prevCanvasCountRef.current = canvasCount;
             }
 
-            // Process incoming data for each canvas
-            currentBuffer.forEach((buffer, i) => {
-                if (buffer.length >= dataPointCountRef.current ||
-                    (!pauseRef.current && buffer.length < dataPointCountRef.current)) {
+            // Process incoming data for each selected channel
+            selectedChannelsRef.current.forEach((channelNumber, i) => {
+                // Ensure currentBuffer[i] exists
+                if (!currentBuffer[i]) {
                     currentBuffer[i] = [];
                 }
-                currentBuffer[i].push(incomingData[i + 1]);
+
+                // Clear buffer if needed
+                if (currentBuffer[i].length >= dataPointCountRef.current ||
+                    (!pauseRef.current && currentBuffer[i].length < dataPointCountRef.current)) {
+                    currentBuffer[i] = [];
+                }
+
+                // Safely access incoming data
+                if (channelNumber >= 0 && channelNumber < incomingData.length) {
+                    currentBuffer[i].push(incomingData[channelNumber]);
+                } else {
+                    console.warn(`Invalid channel number ${channelNumber} or missing data`);
+                    currentBuffer[i].push(0); // Push default value if data is missing
+                }
             });
 
             // Update snapshot and buffer index when data is ready
-            if (currentBuffer[0].length >= dataPointCountRef.current) {
+            if (currentBuffer[0] && currentBuffer[0].length >= dataPointCountRef.current) {
                 snapShotRef.current[activeBufferIndexRef.current] = true;
                 activeBufferIndexRef.current = (activeBufferIndexRef.current + 1) % 6;
                 snapShotRef.current[activeBufferIndexRef.current] = false;
@@ -117,8 +135,8 @@ const Canvas = forwardRef(
 
             // Update data indices for referencing past buffers
             dataIndicesRef.current = Array.from(
-                { length: 6 },
-                (_, i) => (activeBufferIndexRef.current - i + 6) % 6
+                { length: 5 },
+                (_, i) => (activeBufferIndexRef.current - i + 5) % 6
             );
         };
 
@@ -367,43 +385,37 @@ const Canvas = forwardRef(
 
 
         const updatePlotSnapshot = (currentSnapshot: number) => {
-            for (let i = 0; i < canvasCount; i++) {
-                wglPlots.forEach((wglp, index) => {
-                    if (wglp) {
-                        try {
-                            wglp.gScaleY = Zoom; // Adjust the zoom value
-                        } catch (error) {
-                            console.error(
-                                `Error setting gScaleY for WebglPlot instance at index ${index}:`,
-                                error
-                            );
-                        }
-                    } else {
-                        console.warn(`WebglPlot instance at index ${index} is undefined.`);
+            const currentSelectedChannels = selectedChannelsRef.current;
+
+            currentSelectedChannels.forEach((channelNumber, i) => {
+                const wglp = wglPlots[i];
+                if (wglp) {
+                    try {
+                        wglp.gScaleY = Zoom;
+                    } catch (error) {
+                        console.error(`Error setting gScaleY for WebglPlot instance at index ${i}:`, error);
                     }
-                });
-                if (
-                    array3DRef.current &&
+                }
+
+                if (array3DRef.current &&
                     dataIndicesRef.current &&
                     dataIndicesRef.current[currentSnapshot] !== undefined &&
-                    array3DRef.current[dataIndicesRef.current[currentSnapshot]] !== undefined
-                ) {
-                    const yArray = new Float32Array(array3DRef.current[dataIndicesRef.current[currentSnapshot]][i]);
-                    // Check if the line exists
+                    array3DRef.current[dataIndicesRef.current[currentSnapshot]] &&
+                    array3DRef.current[dataIndicesRef.current[currentSnapshot]][i]) {
+
+                    const channelData = array3DRef.current[dataIndicesRef.current[currentSnapshot]][i];
+                    const yArray = new Float32Array(channelData);
+
                     const line = linesRef.current[i];
                     if (line) {
-                        line.shiftAdd(yArray); // Efficiently add new points
+                        line.shiftAdd(yArray);
                     } else {
                         console.error(`Line at index ${i} is undefined or null.`);
                     }
-
-                } else {
-                    console.warn("One of the references is undefined or invalid");
                 }
+            });
 
-
-            }
-            wglPlots.forEach((wglp) => wglp.update()); // Redraw the plots
+            wglPlots.forEach((wglp) => wglp.update());
         };
 
         useEffect(() => {
