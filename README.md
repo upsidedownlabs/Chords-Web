@@ -30,7 +30,7 @@ Chords is an application based on Web Serial connection, you can connect [Compat
 9.  Click the "Record" button to record data.
 10. Click the "download" button to download the recorded data.
 11. Click the "Delete" button to delete recorded data.
-12. Click the "Settings" icon to select from up to 16 available channels. Use "Select All" to choose all channels at once, and "Reset" to revert to the previous selection.
+12. Click the "Settings" icon to select from (up to 16) available channels of your development board. Use "Select All" to choose all channels simultaneously, and "Reset" to revert to the previous channel selection.
 13. Click "Filter" button for EMG, ECG, EOG and EEG filters with muscle, heart, eye and brain icons or master buttons for all channels. You can apply 50Hz or 60Hz filter to individual or all channel.
 14. Click the "Disconnect" button to terminate the connection with the Arduino and stop the data stream.
 
