@@ -82,7 +82,7 @@ Chords is an application based on Web Serial connection, you can connect [Compat
 
 - [X] **Serial Wizard** : We are introducing the Serial Plotter and Monitor, a powerful tool that enables you to visualize data graphically, display raw data in text format, and even use both modes simultaneously for a more comprehensive analysis. In the past,we had no better option to run both plotter and monitor at the same time and high-speed plotting that hindered real-time data visualization. To address these challenges, we've created a user-friendly, smooth-performing Serial Plotter & Monitor with multi-mode support, providing a more responsive and efficient data analysis experience.
 
-- [X] **FFT Visualizer** :We've added FFT analysis and EEG band spectrum plotting to enhance real-time brain signal visualization. These features let you monitor EEG frequency bands—Delta, Theta, Alpha, Beta, and Gamma—for deeper insights into mental states. The “FFT Visualizer” shows filtered EEG signals and offers two modes: Band Power for real-time EEG strength and Beta Candle, a unique focus-level indicator where a brighter candle means higher beta activity. You can also download EEG data as CSV for further analysis.
+- [X] **FFT Visualizer** : We've added FFT analysis and EEG band spectrum plotting to enhance real-time brain signal visualization. These features let you monitor EEG frequency bands—Delta, Theta, Alpha, Beta, and Gamma—for deeper insights into mental states. The “FFT Visualizer” shows filtered EEG signals and offers two modes: Band Power for real-time EEG strength and Beta Candle, a unique focus-level indicator where a brighter candle means higher beta activity. You can also download EEG data as CSV for further analysis.
 
 ## Contributors
 
