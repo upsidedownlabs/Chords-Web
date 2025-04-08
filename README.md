@@ -30,9 +30,9 @@ Chords is an application based on Web Serial connection, you can connect [Compat
 9.  Click the "Record" button to record data.
 10. Click the "download" button to download the recorded data.
 11. Click the "Delete" button to delete recorded data.
-12. Click the "Settings" icon to select from up to 16 available channels. Use "Select All" to choose all channels at once, and "Reset" to revert to the previous selection.
-13. Click "Filter" button for EMG, ECG, EOG and EEG filters with muscle, heart, eye and brain icons or master buttons for all channels. You can apply 50Hz or 60Hz filter to individual or all channel.
-14. Click the "Disconnect" button to terminate the connection with the Arduino and stop the data stream.
+12. Click the "Settings" icon to select from (up to 16) available channels of your development board. Use "Select All" to choose all channels simultaneously, and "Reset" to revert to the previous channel selection.
+13. Click the "Filter" button to select filters for EMG, ECG, EOG, and EEG for muscle, heart, eye, and brain data, respectively. Click on individual icons or master buttons at the top to apply a filter for all channels. You can also apply 50Hz or 60Hz notch filter to individual or all channels.
+14. Click the "Disconnect" button to terminate the connection with your development board and stop the data stream.
 
 ## Technologies Used
 
@@ -82,7 +82,7 @@ Chords is an application based on Web Serial connection, you can connect [Compat
 
 - [X] **Serial Wizard** : We are introducing the Serial Plotter and Monitor, a powerful tool that enables you to visualize data graphically, display raw data in text format, and even use both modes simultaneously for a more comprehensive analysis. In the past,we had no better option to run both plotter and monitor at the same time and high-speed plotting that hindered real-time data visualization. To address these challenges, we've created a user-friendly, smooth-performing Serial Plotter & Monitor with multi-mode support, providing a more responsive and efficient data analysis experience.
 
-- [X] **FFT Visualizer** :We've added FFT analysis and EEG band spectrum plotting to enhance real-time brain signal visualization. These features let you monitor EEG frequency bands—Delta, Theta, Alpha, Beta, and Gamma—for deeper insights into mental states. The “FFT Visualizer” shows filtered EEG signals and offers two modes: Band Power for real-time EEG strength and Beta Candle, a unique focus-level indicator where a brighter candle means higher beta activity. You can also download EEG data as CSV for further analysis.
+- [X] **FFT Visualizer** : We've added FFT analysis and EEG band spectrum plotting to enhance real-time brain signal visualization. These features let you monitor EEG frequency bands—Delta, Theta, Alpha, Beta, and Gamma—for deeper insights into mental states. The “FFT Visualizer” shows filtered EEG signals and offers two modes: Band Power for real-time EEG strength and Beta Candle, a unique focus-level indicator where a brighter candle means higher beta activity. You can also download EEG data as CSV for further analysis.
 
 ## Contributors
 
