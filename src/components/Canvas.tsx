@@ -136,7 +136,7 @@ const Canvas = forwardRef(
             // Update data indices for referencing past buffers
             dataIndicesRef.current = Array.from(
                 { length: 5 },
-                (_, i) => (activeBufferIndexRef.current - i - 1 + 6) % 6
+                (_, i) => (activeBufferIndexRef.current - i + 5) % 6
             );
         };
 
