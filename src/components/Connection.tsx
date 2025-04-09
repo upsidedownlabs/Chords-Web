@@ -6,9 +6,6 @@ import { EXGFilter, Notch } from './filters';
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { getCustomColor, lightThemeColors } from './Colors';
-// Import the new services
-import { SerialService } from './serialConnection';
-import { DataReader } from './dataReader';
 
 import {
     Cable,
@@ -48,12 +45,6 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "../components/ui/popover";
-
-type ConnectOptions = {
-    onSuccess: () => void;
-    setLoading: (state: boolean) => void;
-    isFFT?: boolean;
-  };
 
 interface ConnectionProps {
     onPauseChange: (pause: boolean) => void; // Callback to pass pause state to parent
@@ -131,6 +122,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const [deviceReady, setDeviceReady] = useState(false);
     const sampingrateref = useRef<number>(0);
     const [open, setOpen] = useState(false);
+    const [isPauseSate, setIsPauseState] = useState(false);
 
     // UI Themes & Modes
     const { theme } = useTheme(); // Current theme of the app
@@ -170,49 +162,6 @@ const Connection: React.FC<ConnectionProps> = ({
     // Loading State
     const [isLoading, setIsLoading] = useState(false); // Track loading state for asynchronous operations
     const [isfftLoading, setIsfftLoading] = useState(false); // Track loading state for asynchronous operations
-// Initialize services
-const serialService = React.useMemo(() => new SerialService({
-    portRef,
-    readerRef,
-    writerRef,
-    devicenameref,
-    maxCanvasElementCountRef,
-    initialSelectedChannelsRef,
-    isDeviceConnectedRef,
-    setSelectedChannels,
-    setIsDeviceConnected,
-    setIsDisplay,
-    setCanvasCount,
-    setIsAllEnabledChannelSelected,
-    setDatasets,
-    readData,
-    formatPortInfo,
-    handleFrequencySelectionEXG,
-    getFileCountFromIndexedDB,
-    disconnectDevice,
-  }), []);
-
-  const dataReader = React.useMemo(() => new DataReader({
-    maxCanvasElementCountRef,
-    readerRef,
-    isDeviceConnectedRef,
-    datastream,
-    isRecordingRef,
-    recordingBuffers,
-    activeBufferIndex,
-    MAX_BUFFER_SIZE,
-    fillingindex,
-    canvasElementCountRef,
-    selectedChannels,
-    processBuffer,
-    recordingStartTimeRef,
-    endTimeRef,
-    setRecordingElapsedTime,
-    appliedFiltersRef,
-    appliedEXGFiltersRef,
-    detectedBitsRef,
-    sampingrateref,
-  }), []);
 
 
     let activeBufferIndex = 0;
@@ -222,8 +171,9 @@ const serialService = React.useMemo(() => new SerialService({
         onPauseChange(newPauseState); // Notify parent about the change
         SetCurrentSnapshot(0);
         setLeftArrowClickCount(0);
-
+        setIsPauseState(!newPauseState); // <-- Fix: use the new state
     };
+
 
     const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
 
@@ -643,169 +593,316 @@ const serialService = React.useMemo(() => new SerialService({
         selectedChannels: number[];
         deviceName?: string; // Add deviceName as an optional property
     };
-      
-      const connectToSerialDevice = async ({ onSuccess, setLoading, isFFT = false }: ConnectOptions) => {
-        try {
-          if (portRef.current && portRef.current.readable) {
-            await disconnectDevice();
-          }
-      
-          const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
-          const ports = await navigator.serial.getPorts();
-          let port = ports.find((p) => {
-            const info = p.getInfo();
-            return savedPorts.some((saved: SavedDevice) => saved.usbProductId === info.usbProductId);
-          }) || null;
-      
-          if (isFFT) {
-            handleFrequencySelectionEXG(0, 3);
-          }
-      
-          let baudRate: number;
-          let serialTimeout: number;
-      
-          if (!port) {
-            port = await navigator.serial.requestPort();
-            const newPortInfo = await port.getInfo();
-            const usbProductId = newPortInfo.usbProductId ?? 0;
-            const board = BoardsList.find((b) => b.field_pid === usbProductId);
-            baudRate = board?.baud_Rate ?? 0;
-            serialTimeout = board?.serial_timeout ?? 0;
-            await port.open({ baudRate });
-          } else {
-            const info = port.getInfo();
-            const savedDevice = savedPorts.find((saved: SavedDevice) => saved.usbProductId === info.usbProductId);
-            baudRate = savedDevice?.baudRate || 230400;
-            serialTimeout = savedDevice?.serialTimeout || 2000;
-            await port.open({ baudRate });
-          }
-      
-          setLoading(true);
-      
-          if (port.readable) {
-            const reader = port.readable.getReader();
-            readerRef.current = reader;
-      
-            const writer = port.writable?.getWriter();
-            if (writer) {
-              writerRef.current = writer;
-      
-              const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-              setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
-      
-              let buffer = "";
-              while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                if (value) {
-                  buffer += new TextDecoder().decode(value);
-                  if (buffer.includes("\n")) break;
-                }
-              }
-      
-              const response = buffer.trim().split("\n").pop();
-              const extractedName = response?.match(/[A-Za-z0-9\-_\s]+$/)?.[0]?.trim() || "Unknown Device";
-              devicenameref.current = extractedName;
-      
-              const currentPortInfo = port.getInfo();
-              const usbProductId = currentPortInfo.usbProductId ?? 0;
-      
-              const existingDeviceIndex = savedPorts.findIndex(
-                (saved: SavedDevice) => saved.deviceName === extractedName
-              );
-      
-              const lastSelectedChannels = existingDeviceIndex !== -1
-                ? savedPorts[existingDeviceIndex].selectedChannels
-                : [1];
-      
-              setSelectedChannels(lastSelectedChannels);
-      
-              if (existingDeviceIndex === -1) {
-                savedPorts.push({
-                  deviceName: extractedName,
-                  usbProductId,
-                  baudRate,
-                  serialTimeout,
-                  selectedChannels,
-                });
-              }
-      
-              localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-      
-              const { formattedInfo, adcResolution, channelCount, baudRate: extractedBaudRate, serialTimeout: extractedSerialTimeout } =
-                formatPortInfo(currentPortInfo, extractedName, usbProductId);
-      
-              if (channelCount) {
-                maxCanvasElementCountRef.current = channelCount;
-              }
-      
-              const allSelected = initialSelectedChannelsRef.current.length == channelCount;
-              setIsAllEnabledChannelSelected(!allSelected);
-      
-              baudRate = extractedBaudRate ?? baudRate;
-              serialTimeout = extractedSerialTimeout ?? serialTimeout;
-      
-              toast.success("Connection Successful", {
-                description: (
-                  <div className="mt-2 flex flex-col space-y-1">
-                    <p>Device: {formattedInfo}</p>
-                    <p>Product ID: {usbProductId}</p>
-                    <p>Baud Rate: {baudRate}</p>
-                    {adcResolution && <p>Resolution: {adcResolution} bits</p>}
-                    {channelCount && <p>Channel: {channelCount}</p>}
-                  </div>
-                ),
-              });
-      
-              const startMessage = new TextEncoder().encode("START\n");
-              setTimeout(() => writer.write(startMessage), 2000);
-            }
-          }
-      
-          setSelectedChannels(initialSelectedChannelsRef.current);
-          setIsDeviceConnected(true);
-          setIsDisplay(true);
-          setCanvasCount(1);
-          isDeviceConnectedRef.current = true;
-          portRef.current = port;
-      
-          const data = await getFileCountFromIndexedDB();
-          setDatasets(data);
-          readData();
-          await navigator.wakeLock.request("screen");
-      
-          onSuccess();
-        } catch (error) {
-          await disconnectDevice();
-          console.error("Error connecting to device:", error);
-          toast.error("Failed to connect to device.");
-        }
-      
-        setLoading(false);
-      };
-      
-    // Update your connectToDevice functions to use the service:
-  const connectToDevice = () => {
-    serialService.connectToSerialDevice({
-      onSuccess: () => {
-        Connection(true);
-        onPauseChange(true);
-      },
-      setLoading: setIsLoading,
-      isFFT: false,
-    });
-  };
 
-  const connectToDevicefft = () => {
-    serialService.connectToSerialDevice({
-      onSuccess: () => {
-        FFT(true);
-        setFFTDeviceConnected(true);
-      },
-      setLoading: setIsfftLoading,
-      isFFT: true,
-    });
-  };
+    const connectToDevice = async () => {
+        try {
+            if (portRef.current && portRef.current.readable) {
+                await disconnectDevice();
+            }
+
+            const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+            let port = null;
+            const ports = await navigator.serial.getPorts();
+
+            if (savedPorts.length > 0) {
+                port = ports.find((p) => {
+                    const info = p.getInfo();
+                    return savedPorts.some(
+                        (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                    );
+                }) || null;
+            }
+
+            let baudRate;
+            let serialTimeout;
+
+            if (!port) {
+                port = await navigator.serial.requestPort();
+                const newPortInfo = await port.getInfo();
+                const usbProductId = newPortInfo.usbProductId ?? 0;
+
+                const board = BoardsList.find((b) => b.field_pid === usbProductId);
+                baudRate = board ? board.baud_Rate : 0;
+                serialTimeout = board ? board.serial_timeout : 0;
+                await port.open({ baudRate });
+                setIsLoading(true);
+            } else {
+                setIsLoading(true);
+                const info = port.getInfo();
+                const savedDevice = savedPorts.find(
+                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                );
+
+                const deviceIndex = savedPorts.findIndex(
+                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                );
+
+                if (deviceIndex !== -1) {
+                    const savedChannels = savedPorts[deviceIndex].selectedChannels;
+                }
+
+                baudRate = savedDevice?.baudRate || 230400;
+                serialTimeout = savedDevice?.serialTimeout || 2000;
+
+                await port.open({ baudRate });
+            }
+
+            if (port.readable) {
+                const reader = port.readable.getReader();
+                readerRef.current = reader;
+                const writer = port.writable?.getWriter();
+                if (writer) {
+                    writerRef.current = writer;
+                    const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
+                    setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
+                    let buffer = "";
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        if (value) {
+                            buffer += new TextDecoder().decode(value);
+                            if (buffer.includes("\n")) break;
+                        }
+                    }
+                    const response = buffer.trim().split("\n").pop();
+                    const extractedName = response?.match(/[A-Za-z0-9\-_\s]+$/)?.[0]?.trim() || "Unknown Device";
+                    devicenameref.current = extractedName;
+                    const currentPortInfo = port.getInfo();
+                    const usbProductId = currentPortInfo.usbProductId ?? 0;
+
+                    const existingDeviceIndex = savedPorts.findIndex(
+                        (saved: SavedDevice) => saved.deviceName === extractedName
+                    );
+
+                    if (existingDeviceIndex !== -1) {
+                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
+                        setSelectedChannels(lastSelectedChannels);
+                    } else {
+                        savedPorts.push({
+                            deviceName: extractedName,
+                            usbProductId: currentPortInfo.usbProductId ?? 0,
+                            baudRate,
+                            serialTimeout,
+                            selectedChannels,
+                        });
+                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
+                        setSelectedChannels(lastSelectedChannels);
+                    }
+
+                    localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+
+                    const { formattedInfo, adcResolution, channelCount, baudRate: extractedBaudRate, serialTimeout: extractedSerialTimeout } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
+
+                    // Update maxCanvasElementCountRef when connecting a new device
+                    if (channelCount) {
+                        maxCanvasElementCountRef.current = channelCount; // Ensure the new device’s channel count is applied
+                    }
+
+                    const allSelected = initialSelectedChannelsRef.current.length == channelCount;
+                    setIsAllEnabledChannelSelected(!allSelected);
+
+                    baudRate = extractedBaudRate ?? baudRate;
+                    serialTimeout = extractedSerialTimeout ?? serialTimeout;
+
+                    toast.success("Connection Successful", {
+                        description: (
+                            <div className="mt-2 flex flex-col space-y-1">
+                                <p>Device: {formattedInfo}</p>
+                                <p>Product ID: {usbProductId}</p>
+                                <p>Baud Rate: {baudRate}</p>
+                                {adcResolution && <p>Resolution: {adcResolution} bits</p>}
+                                {channelCount && <p>Channel: {channelCount}</p>}
+                            </div>
+                        ),
+                    });
+
+                    const startMessage = new TextEncoder().encode("START\n");
+                    setTimeout(() => writer.write(startMessage), 2000);
+                } else {
+                    console.error("Writable stream not available");
+                }
+            } else {
+                console.error("Readable stream not available");
+            }
+
+            setSelectedChannels(initialSelectedChannelsRef.current);
+            Connection(true);
+            setIsDeviceConnected(true);
+            onPauseChange(true);
+            setIsDisplay(true);
+            setCanvasCount(1);
+            isDeviceConnectedRef.current = true;
+            portRef.current = port;
+
+            const data = await getFileCountFromIndexedDB();
+            setDatasets(data);
+            readData();
+
+            await navigator.wakeLock.request("screen");
+
+        } catch (error) {
+            await disconnectDevice();
+            console.error("Error connecting to device:", error);
+            toast.error("Failed to connect to device.");
+        }
+        setIsLoading(false);
+    };
+
+    const connectToDevicefft = async () => {
+        try {
+            if (portRef.current && portRef.current.readable) {
+                await disconnectDevice();
+            }
+
+            const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+            let port = null;
+            const ports = await navigator.serial.getPorts();
+
+            if (savedPorts.length > 0) {
+                port = ports.find((p) => {
+                    const info = p.getInfo();
+                    return savedPorts.some(
+                        (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                    );
+                }) || null;
+            }
+            handleFrequencySelectionEXG(0, 3);
+            let baudRate;
+            let serialTimeout;
+
+            if (!port) {
+                port = await navigator.serial.requestPort();
+                const newPortInfo = await port.getInfo();
+                const usbProductId = newPortInfo.usbProductId ?? 0;
+
+                const board = BoardsList.find((b) => b.field_pid === usbProductId);
+                baudRate = board ? board.baud_Rate : 0;
+                serialTimeout = board ? board.serial_timeout : 0;
+                await port.open({ baudRate });
+                setIsfftLoading(true);
+            } else {
+                setIsfftLoading(true);
+                const info = port.getInfo();
+                const savedDevice = savedPorts.find(
+                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                );
+
+                const deviceIndex = savedPorts.findIndex(
+                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
+                );
+
+                if (deviceIndex !== -1) {
+                    const savedChannels = savedPorts[deviceIndex].selectedChannels;
+                }
+
+                baudRate = savedDevice?.baudRate || 230400;
+                serialTimeout = savedDevice?.serialTimeout || 2000;
+
+                await port.open({ baudRate });
+            }
+
+            if (port.readable) {
+                const reader = port.readable.getReader();
+                readerRef.current = reader;
+                const writer = port.writable?.getWriter();
+                if (writer) {
+                    writerRef.current = writer;
+                    const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
+                    setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
+                    let buffer = "";
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        if (value) {
+                            buffer += new TextDecoder().decode(value);
+                            if (buffer.includes("\n")) break;
+                        }
+                    }
+                    const response = buffer.trim().split("\n").pop();
+                    const extractedName = response?.match(/[A-Za-z0-9\-_\s]+$/)?.[0]?.trim() || "Unknown Device";
+                    devicenameref.current = extractedName;
+                    const currentPortInfo = port.getInfo();
+                    const usbProductId = currentPortInfo.usbProductId ?? 0;
+
+                    const existingDeviceIndex = savedPorts.findIndex(
+                        (saved: SavedDevice) => saved.deviceName === extractedName
+                    );
+
+                    if (existingDeviceIndex !== -1) {
+                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
+                        setSelectedChannels(lastSelectedChannels);
+                    } else {
+                        savedPorts.push({
+                            deviceName: extractedName,
+                            usbProductId: currentPortInfo.usbProductId ?? 0,
+                            baudRate,
+                            serialTimeout,
+                            selectedChannels,
+                        });
+                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
+                        setSelectedChannels(lastSelectedChannels);
+                    }
+
+                    localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+
+                    const { formattedInfo, adcResolution, channelCount, baudRate: extractedBaudRate, serialTimeout: extractedSerialTimeout } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
+
+                    // Update maxCanvasElementCountRef when connecting a new device
+                    if (channelCount) {
+                        maxCanvasElementCountRef.current = channelCount; // Ensure the new device’s channel count is applied
+                    }
+
+                    const allSelected = initialSelectedChannelsRef.current.length == channelCount;
+                    setIsAllEnabledChannelSelected(!allSelected);
+
+                    baudRate = extractedBaudRate ?? baudRate;
+                    serialTimeout = extractedSerialTimeout ?? serialTimeout;
+
+                    toast.success("Connection Successful", {
+                        description: (
+                            <div className="mt-2 flex flex-col space-y-1">
+                                <p>Device: {formattedInfo}</p>
+                                <p>Product ID: {usbProductId}</p>
+                                <p>Baud Rate: {baudRate}</p>
+                                {adcResolution && <p>Resolution: {adcResolution} bits</p>}
+                                {channelCount && <p>Channel: {channelCount}</p>}
+                            </div>
+                        ),
+                    });
+
+                    const startMessage = new TextEncoder().encode("START\n");
+                    setTimeout(() => writer.write(startMessage), 2000);
+                } else {
+                    console.error("Writable stream not available");
+                }
+            } else {
+                console.error("Readable stream not available");
+            }
+
+            setSelectedChannels(initialSelectedChannelsRef.current);
+            FFT(true);
+            setIsDeviceConnected(true);
+            setFFTDeviceConnected(true);
+            setIsDisplay(true);
+            setCanvasCount(1);
+            isDeviceConnectedRef.current = true;
+            portRef.current = port;
+
+            const data = await getFileCountFromIndexedDB();
+            setDatasets(data);
+            readData();
+
+            await navigator.wakeLock.request("screen");
+
+        } catch (error) {
+            await disconnectDevice();
+            console.error("Error connecting to device:", error);
+            toast.error("Failed to connect to device.");
+        }
+        setIsfftLoading(false);
+
+    };
+
 
     const getFileCountFromIndexedDB = async (): Promise<any[]> => {
         if (!workerRef.current) {
@@ -952,11 +1049,131 @@ const serialService = React.useMemo(() => new SerialService({
 
     }, [selectedChannels]);
 
-     // Update your readData function to use the DataReader:
-  const readData = useCallback(async () => {
-    await dataReader.readData();
-  }, []);
+    // Function to read data from a connected device and process it
+    const readData = async (): Promise<void> => {
+        const HEADER_LENGTH = 3; // Length of the packet header
+        const NUM_CHANNELS = maxCanvasElementCountRef.current; // Number of channels in the data packet
+        const PACKET_LENGTH = NUM_CHANNELS * 2 + HEADER_LENGTH + 1; // Total length of each packet
+        const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
+        const SYNC_BYTE2 = 0x7c; // Second synchronization byte
+        const END_BYTE = 0x01; // End byte to signify the end of a packet
+        let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+        const notchFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
+        const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
+        notchFilters.forEach((filter) => {
+            filter.setbits(sampingrateref.current); // Set the bits value for all instances
+        });
+        EXGFilters.forEach((filter) => {
+            filter.setbits(detectedBitsRef.current.toString(), sampingrateref.current); // Set the bits value for all instances
+        });
+        try {
+            while (isDeviceConnectedRef.current) {
+                const streamData = await readerRef.current?.read(); // Read data from the device
+                if (streamData?.done) {
+                    // Check if the data stream has ended
+                    console.log("Thank you for using our app!"); // Log a message when the stream ends
+                    break; // Exit the loop if the stream is done
+                }
+                if (streamData) {
+                    const { value } = streamData; // Destructure the stream data to get its value
+                    buffer.push(...value); // Add the incoming data to the buffer
+                }
 
+                // Process packets while the buffer contains at least one full packet
+                while (buffer.length >= PACKET_LENGTH) {
+                    // Find the index of the synchronization bytes in the buffer
+                    const syncIndex = buffer.findIndex(
+                        (byte, index) =>
+                            byte === SYNC_BYTE1 && buffer[index + 1] === SYNC_BYTE2
+                    );
+
+                    if (syncIndex === -1) {
+                        // If no sync bytes are found, clear the buffer and continue
+                        buffer.length = 0; // Clear the buffer
+                        continue;
+                    }
+
+                    if (syncIndex + PACKET_LENGTH <= buffer.length) {
+                        // Check if a full packet is available in the buffer
+                        const endByteIndex = syncIndex + PACKET_LENGTH - 1; // Calculate the index of the end byte
+
+                        if (
+                            buffer[syncIndex] === SYNC_BYTE1 &&
+                            buffer[syncIndex + 1] === SYNC_BYTE2 &&
+                            buffer[endByteIndex] === END_BYTE
+                        ) {
+                            // Validate the packet by checking the sync and end bytes
+                            const packet = buffer.slice(syncIndex, syncIndex + PACKET_LENGTH); // Extract the packet from the buffer
+                            const channelData: number[] = []; // Array to store the extracted channel data
+                            const counter = packet[2]; // Extract the counter value from the packet
+                            channelData.push(counter); // Add the counter to the channel data
+                            for (let channel = 0; channel < NUM_CHANNELS; channel++) {
+                                const highByte = packet[channel * 2 + HEADER_LENGTH];
+                                const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
+                                const value = (highByte << 8) | lowByte;
+
+                                channelData.push(
+                                    notchFilters[channel].process(
+                                        EXGFilters[channel].process(
+                                            value,
+                                            appliedEXGFiltersRef.current[channel]
+                                        ),
+                                        appliedFiltersRef.current[channel]
+                                    )
+                                );
+
+                            }
+                            datastream(channelData); // Pass the channel data to the LineData function for further processing
+                            if (isRecordingRef.current) {
+                                const channeldatavalues = channelData
+                                    .slice(0, canvasElementCountRef.current + 1)
+                                    .map((value) => (value !== undefined ? value : null))
+                                    .filter((value): value is number => value !== null); // Filter out null values
+                                // Check if recording is enabled
+                                recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
+
+                                if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
+                                    processBuffer(activeBufferIndex, canvasElementCountRef.current, selectedChannels);
+                                    activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
+                                }
+                                fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
+                                const elapsedTime = Date.now() - recordingStartTimeRef.current;
+                                setRecordingElapsedTime((prev) => {
+                                    if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
+                                        stopRecording();
+                                        return endTimeRef.current;
+                                    }
+                                    return elapsedTime;
+                                });
+
+                            }
+
+                            if (previousCounter !== null) {
+                                // If there was a previous counter value, check for data loss
+                                const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
+                                if (counter !== expectedCounter) {
+                                    // Check for data loss by comparing the current counter with the expected counter
+                                    console.warn(
+                                        `Data loss detected! Previous counter: ${previousCounter}, Current counter: ${counter}`
+                                    );
+                                }
+                            }
+                            previousCounter = counter; // Update the previous counter with the current counter
+                            buffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
+                        } else {
+                            buffer.splice(0, syncIndex + 1); // If packet is incomplete, remove bytes up to the sync byte
+                        }
+                    } else {
+                        break; // If a full packet is not available, exit the loop and wait for more data
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Error reading from device:", error); // Handle any errors that occur during the read process
+        } finally {
+            await disconnectDevice(); // Ensure the device is disDeviceConnected when finished
+        }
+    };
 
     // Function to handle the recording process
     const handleRecord = async () => {
@@ -971,7 +1188,7 @@ const serialService = React.useMemo(() => new SerialService({
             recordingStartTimeRef.current = Date.now();
             setRecordingElapsedTime(Date.now());
             setIsRecordButtonDisabled(true);
-            setIsDisplay(false);
+
             const filename = `ChordsWeb-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
                 `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
 
@@ -1174,7 +1391,7 @@ const serialService = React.useMemo(() => new SerialService({
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button className="rounded-xl rounded-l-none rounded-r-none" onClick={togglePause}>
+                                    <Button className="rounded-xl rounded-l-none rounded-r-none" onClick={togglePause} disabled={isRecordingRef.current}>
                                         {isDisplay ? (
                                             <Pause className="h-5 w-5" />
                                         ) : (
@@ -1207,7 +1424,7 @@ const serialService = React.useMemo(() => new SerialService({
                                 <Button
                                     className="rounded-xl"
                                     onClick={handleRecord}
-                                    disabled={!isDisplay}
+                                    disabled={isPauseSate}
                                 >
                                     {isRecordingRef.current ? (
                                         <CircleStop />
@@ -1304,7 +1521,7 @@ const serialService = React.useMemo(() => new SerialService({
                         <PopoverTrigger asChild>
                             <Button
                                 className="flex items-center justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
-                                disabled={!isDisplay}
+                                disabled={isPauseSate}
                             >
                                 Filter
                             </Button>
@@ -1597,7 +1814,7 @@ const serialService = React.useMemo(() => new SerialService({
                 {isDeviceConnected && !FFTDeviceConnected && (
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-lg">
+                            <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-lg" >
                                 <Settings size={16} />
                             </Button>
                         </PopoverTrigger>
@@ -1605,11 +1822,11 @@ const serialService = React.useMemo(() => new SerialService({
                             <TooltipProvider>
                                 <div className={`space-y-6 ${!isDisplay ? "flex justify-center" : ""}`}>
                                     {/* Channel Selection */}
-                                    {isDisplay && (
+                                    {isDisplay && !isRecordingRef.current && (
                                         <div className="flex items-center justify-center rounded-lg ">
                                             <div className="w-full">
                                                 {/* Channels Count & Select All Button */}
-                                                <div className="flex items-center justify-between ">
+                                                <div className="flex items-center justify-between " >
                                                     <h3 className="text-xs font-semibold text-gray-500">
                                                         <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                                                     </h3>
