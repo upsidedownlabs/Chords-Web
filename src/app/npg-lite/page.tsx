@@ -50,6 +50,7 @@ import { useTheme } from "next-themes";
 const NPG_Ble = () => {
     const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
     const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
+    const [isRecord, setIsrecord] = useState<boolean>(true); // Display state
     const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
     const [datasets, setDatasets] = useState<any[]>([]);
     const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
@@ -91,6 +92,12 @@ const NPG_Ble = () => {
     let activeBufferIndex = 0;
     const fillingindex = useRef<number>(0); // Initialize useRef with 0
     const MAX_BUFFER_SIZE = 500;
+    const pauseRef = useRef<boolean>(true);
+    const togglePause = () => {
+        const newPauseState = !isDisplay;
+        setIsDisplay(newPauseState);
+        pauseRef.current = newPauseState;
+    };
     const createCanvasElements = () => {
         const container = canvasContainerRef.current;
         if (!container) {
@@ -234,10 +241,12 @@ const NPG_Ble = () => {
         setIsAllEnabledChannelSelected((prevState) => !prevState);
     };
 
+    const [refresh, setRefresh] = useState(0);
 
 
     useEffect(() => {
         createCanvasElements();
+        setRefresh(r => r + 1);
     }, [numChannels, theme, timeBase, selectedChannels, Zoom, isConnected]);
     useEffect(() => {
         selectedChannelsRef.current = selectedChannels;
@@ -312,11 +321,6 @@ const NPG_Ble = () => {
         zoomRef.current = Zoom;
     }, [Zoom]);
 
-
-
-    const wsRef = useRef<WebSocket | null>(null);
-    const [manualDisconnect, setManualDisconnect] = useState(false);
-
     const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
     const DATA_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
     const CONTROL_CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
@@ -346,15 +350,15 @@ const NPG_Ble = () => {
         filter.setbits("12", sampingrateref.current);
     });
 
-    function processSample(dataView: DataView): void {
+
+    // Inside your component
+    const processSample = useCallback((dataView: DataView): void => {
         if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
             console.log("Unexpected sample length: " + dataView.byteLength);
             return;
         }
 
-
         const sampleCounter = dataView.getUint8(0);
-
 
         if (prevSampleCounter === null) {
             prevSampleCounter = sampleCounter;
@@ -365,10 +369,11 @@ const NPG_Ble = () => {
             }
             prevSampleCounter = sampleCounter;
         }
+
         channelData.push(sampleCounter);
 
         for (let channel = 0; channel < numChannels; channel++) {
-            const sample = dataView.getInt16(1 + (channel * 2), false);;
+            const sample = dataView.getInt16(1 + (channel * 2), false);
             channelData.push(
                 notchFilters[channel].process(
                     EXGFilters[channel].process(sample, appliedEXGFiltersRef.current[channel]),
@@ -378,19 +383,22 @@ const NPG_Ble = () => {
         }
 
         updatePlots(channelData, zoomRef.current);
+
         if (isRecordingRef.current) {
             const channeldatavalues = channelData
                 .slice(0, canvasElementCountRef.current + 1)
                 .map((value) => (value !== undefined ? value : null))
-                .filter((value): value is number => value !== null); // Filter out null values
-            // Check if recording is enabled
+                .filter((value): value is number => value !== null);
+
             recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
 
             if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
                 processBuffer(activeBufferIndex, canvasElementCountRef.current, selectedChannels);
                 activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
             }
+
             fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
+
             const elapsedTime = Date.now() - recordingStartTimeRef.current;
             setRecordingElapsedTime((prev) => {
                 if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
@@ -399,11 +407,13 @@ const NPG_Ble = () => {
                 }
                 return elapsedTime;
             });
-
         }
+
         channelData = [];
         samplesReceived++;
-    }
+    }, [
+        canvasElementCountRef.current, selectedChannels,timeBase
+    ]);
 
     interface BluetoothRemoteGATTCharacteristicExtended extends EventTarget {
         value?: DataView;
@@ -415,6 +425,11 @@ const NPG_Ble = () => {
             console.log("Received event with no value.");
             return;
         }
+        if (currentSweepPos.current.length !== numChannels || !pauseRef.current) {
+            currentSweepPos.current = new Array(numChannels).fill(0);
+            sweepPositions.current = new Array(numChannels).fill(0);
+        }
+
         const value = target.value;
         if (value.byteLength === NEW_PACKET_LEN) {
             for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
@@ -431,6 +446,7 @@ const NPG_Ble = () => {
     const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
     async function connectBLE(): Promise<void> {
         try {
+
             setIsLoading(true);
             const nav = navigator as any;
             if (!nav.bluetooth) {
@@ -462,38 +478,38 @@ const NPG_Ble = () => {
         }
     }
 
-        async function disconnect(): Promise<void> {
-            try {
-              if (!connectedDeviceRef) {
+    async function disconnect(): Promise<void> {
+        try {
+            if (!connectedDeviceRef) {
                 console.log("No connected device to disconnect.");
                 return;
-              }
-        
-              const server = connectedDeviceRef.current.gatt;
-              if (!server) {
+            }
+
+            const server = connectedDeviceRef.current.gatt;
+            if (!server) {
                 return;
-              }
-    
-        
-              if (!server.connected) {
+            }
+
+
+            if (!server.connected) {
                 connectedDeviceRef.current = null;
                 setIsConnected(false);
                 return;
-              }
-        
-              const service = await server.getPrimaryService(SERVICE_UUID);
-              const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
-              await dataChar.stopNotifications();
-              dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
-        
-              server.disconnect(); // Disconnect the device
-        
-              connectedDeviceRef.current = null; // Clear the global reference
-              setIsConnected(false);
-            } catch (error) {
-              console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
             }
-          }
+
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+            await dataChar.stopNotifications();
+            dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
+
+            server.disconnect(); // Disconnect the device
+
+            connectedDeviceRef.current = null; // Clear the global reference
+            setIsConnected(false);
+        } catch (error) {
+            console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
+        }
+    }
 
     const workerRef = useRef<Worker | null>(null);
 
@@ -504,16 +520,8 @@ const NPG_Ble = () => {
             });
         }
     };
-    const setCanvasCountInWorker = (canvasCount: number) => {
-        if (!workerRef.current) {
-            initializeWorker();
-        }
-        // setCanvasCount(selectedChannels.length);
-        // Send canvasCount independently to the worker
-        workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasElementCountRef.current });
-    };
-    setCanvasCountInWorker(canvasElementCountRef.current);
-    useEffect(() => {
+
+    useEffect(() => {   
         canvasElementCountRef.current = selectedChannels.length;
     }, [selectedChannels]);
 
@@ -680,7 +688,7 @@ const NPG_Ble = () => {
             const now = new Date();
             recordingStartTimeRef.current = Date.now();
             setRecordingElapsedTime(Date.now());
-            setIsDisplay(false);
+            setIsrecord(false);
             const filename = `ChordsWeb-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
                 `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
 
@@ -694,7 +702,7 @@ const NPG_Ble = () => {
         }
         isRecordingRef.current = false;
         setRecordingElapsedTime(0);
-        setIsDisplay(true);
+        setIsrecord(true);
 
         recordingStartTimeRef.current = 0;
         existingRecordRef.current = undefined;
@@ -731,8 +739,6 @@ const NPG_Ble = () => {
             }
         });
     };
-
-    //////////////////////////////////////////
 
     const handlecustomTimeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         // Update custom time input with only numeric values
@@ -802,7 +808,7 @@ const NPG_Ble = () => {
             wglPlots.forEach((wglp, index) => {
                 if (wglp) {
                     try {
-                        wglp.gScaleY = Zoom; // Adjust zoom value
+                        wglp.gScaleY = zoomRef.current; // Adjust zoom value
                     } catch (error) {
                         console.error(
                             `Error setting gScaleY for WebglPlot instance at index ${index}:`,
@@ -861,7 +867,7 @@ const NPG_Ble = () => {
                 sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
             });
         },
-        [linesRef, wglPlots, selectedChannelsRef, dataPointCountRef.current, sweepPositions, Zoom, zoomRef.current]
+        [linesRef, wglPlots, selectedChannelsRef, dataPointCountRef.current, sweepPositions, Zoom, zoomRef.current,timeBase]
     );
 
     useEffect(() => {
@@ -873,19 +879,21 @@ const NPG_Ble = () => {
             window.removeEventListener("resize", handleResize);
         };
     }, [createCanvasElements]);
+
     const animate = useCallback(() => {
-
-        // If not paused, continue with normal updates (e.g., real-time plotting)
-        wglPlots.forEach((wglp) => wglp.update());
-        requestAnimationFrame(animate); // Continue the animation loop
-
-    }, [dataPointCountRef.current, wglPlots, Zoom]);
+        if (pauseRef.current) {
+            // If paused, show the buffered data (this part runs when paused)
+            wglPlots.forEach((wglp) => wglp.update());
+            requestAnimationFrame(animate); // Continue the animation loop
+        }
+    }, [dataPointCountRef.current, wglPlots, Zoom, pauseRef.current,timeBase]);
 
 
     useEffect(() => {
         requestAnimationFrame(animate);
 
     }, [animate, Zoom]);
+
 
 
     return (
@@ -998,7 +1006,7 @@ const NPG_Ble = () => {
                                                 </>
                                             ) : (
                                                 <>
-                                                  Connect
+                                                    Connect
                                                 </>
                                             )}
                                         </Button>
@@ -1011,7 +1019,29 @@ const NPG_Ble = () => {
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
+                    <div className="flex items-center gap-0.5 mx-0 px-0">
 
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button className="rounded-xl " onClick={togglePause} disabled={isConnected == false || !isRecord}
+                                    >
+                                        {isDisplay ? (
+                                            <Pause className="h-5 w-5" />
+                                        ) : (
+                                            <Play className="h-5 w-5" />
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>
+                                        {isDisplay ? "Pause Data Display" : "Resume Data Display"}
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                    </div>
 
                     {/* Record button with tooltip */}
                     <TooltipProvider>
@@ -1020,7 +1050,7 @@ const NPG_Ble = () => {
                                 <Button
                                     className="rounded-xl"
                                     onClick={handleRecord}
-                                    disabled={isConnected==false}
+                                    disabled={isConnected == false || !isDisplay}
 
                                 >
                                     {isRecordingRef.current ? (
@@ -1045,7 +1075,7 @@ const NPG_Ble = () => {
                         <div className="flex">
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button className="rounded-xl p-4" disabled={isConnected==false}
+                                    <Button className="rounded-xl p-4" disabled={isConnected == false}
                                     >
                                         <FileArchive size={16} />
                                     </Button>
@@ -1350,84 +1380,85 @@ const NPG_Ble = () => {
                         </PopoverTrigger>
                         <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm">
                             <TooltipProvider>
-                                <div className="space-y-6">
+                                <div className={`space-y-6 ${!isDisplay ? "flex justify-center" : ""}`}>
                                     {/* Channel Selection */}
-                                    <div className="flex items-center justify-center rounded-lg mb-[2.5rem]">
-                                        <div className=" w-full">
-                                            <div className="absolute inset-0 rounded-lg border-gray-300 dark:border-gray-600 opacity-50 pointer-events-none"></div>
-                                            <div className="relative">
-                                                {/* Heading and Select All Button */}
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <h3 className="text-xs font-semibold text-gray-500">
-                                                        <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
-                                                    </h3>
-                                                    {
-                                                        !(selectedChannels.length === maxCanvasElementCountRef.current && manuallySelected) && (
-                                                            <button
-                                                                onClick={handleSelectAllToggle}
-                                                                className={`px-4 py-1 text-xs font-light rounded-lg transition ${isSelectAllDisabled
-                                                                    ? "text-gray-400 bg-gray-200 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
-                                                                    : "text-white bg-black hover:bg-gray-700 dark:bg-white dark:text-black dark:border dark:border-gray-500 dark:hover:bg-primary/70"
-                                                                    }`}
-                                                                disabled={isSelectAllDisabled}
-                                                            >
-                                                                {isAllEnabledChannelSelected ? "RESET" : "Select All"}
-                                                            </button>
-                                                        )
-                                                    }
-                                                </div>
-                                                {/* Button Grid */}
-                                                <div id="button-container" className="relative space-y-2 rounded-lg">
-                                                    {Array.from({ length: 1 }).map((_, container) => (
-                                                        <div key={container} className="grid grid-cols-8 gap-2">
-                                                            {Array.from({ length: 3 }).map((_, col) => {
-                                                                const index = container * 8 + col;
-                                                                const isChannelDisabled = index >= maxCanvasElementCountRef.current;
-                                                                const isSelected = selectedChannels.includes(index + 1);
+                                    {(isDisplay && isRecord) && (
+                                        <div className="flex items-center justify-center rounded-lg mb-[2.5rem]">
+                                            <div className=" w-full">
+                                                <div className="absolute inset-0 rounded-lg border-gray-300 dark:border-gray-600 opacity-50 pointer-events-none"></div>
+                                                <div className="relative">
+                                                    {/* Heading and Select All Button */}
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <h3 className="text-xs font-semibold text-gray-500">
+                                                            <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
+                                                        </h3>
+                                                        {
+                                                            !(selectedChannels.length === maxCanvasElementCountRef.current && manuallySelected) && (
+                                                                <button
+                                                                    onClick={handleSelectAllToggle}
+                                                                    className={`px-4 py-1 text-xs font-light rounded-lg transition ${isSelectAllDisabled
+                                                                        ? "text-gray-400 bg-gray-200 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
+                                                                        : "text-white bg-black hover:bg-gray-700 dark:bg-white dark:text-black dark:border dark:border-gray-500 dark:hover:bg-primary/70"
+                                                                        }`}
+                                                                    disabled={isSelectAllDisabled}
+                                                                >
+                                                                    {isAllEnabledChannelSelected ? "RESET" : "Select All"}
+                                                                </button>
+                                                            )
+                                                        }
+                                                    </div>
+                                                    {/* Button Grid */}
+                                                    <div id="button-container" className="relative space-y-2 rounded-lg">
+                                                        {Array.from({ length: 1 }).map((_, container) => (
+                                                            <div key={container} className="grid grid-cols-8 gap-2">
+                                                                {Array.from({ length: 3 }).map((_, col) => {
+                                                                    const index = container * 8 + col;
+                                                                    const isChannelDisabled = index >= maxCanvasElementCountRef.current;
+                                                                    const isSelected = selectedChannels.includes(index + 1);
 
-                                                                // For selected channels, use the shared custom color.
-                                                                // Otherwise, use default styles.
-                                                                const buttonStyle = isChannelDisabled
-                                                                    ? isDarkModeEnabled
-                                                                        ? { backgroundColor: "#030c21", color: "gray" }
-                                                                        : { backgroundColor: "#e2e8f0", color: "gray" }
-                                                                    : isSelected
-                                                                        ? { backgroundColor: getCustomColor(index, activeTheme), color: "white" }
-                                                                        : { backgroundColor: "white", color: "black" };
+                                                                    // For selected channels, use the shared custom color.
+                                                                    // Otherwise, use default styles.
+                                                                    const buttonStyle = isChannelDisabled
+                                                                        ? isDarkModeEnabled
+                                                                            ? { backgroundColor: "#030c21", color: "gray" }
+                                                                            : { backgroundColor: "#e2e8f0", color: "gray" }
+                                                                        : isSelected
+                                                                            ? { backgroundColor: getCustomColor(index, activeTheme), color: "white" }
+                                                                            : { backgroundColor: "white", color: "black" };
 
-                                                                // Optional: calculate rounded corners based on button position.
-                                                                const isFirstInRow = col === 0;
-                                                                const isLastInRow = col === 7;
-                                                                const isFirstContainer = container === 0;
-                                                                const isLastContainer = container === 1;
-                                                                const roundedClass = `
+                                                                    // Optional: calculate rounded corners based on button position.
+                                                                    const isFirstInRow = col === 0;
+                                                                    const isLastInRow = col === 7;
+                                                                    const isFirstContainer = container === 0;
+                                                                    const isLastContainer = container === 1;
+                                                                    const roundedClass = `
                                    ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
                                    ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
                                    ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
                                    ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
                                  `;
 
-                                                                return (
-                                                                    <button
-                                                                        key={index}
-                                                                        onClick={() => !isChannelDisabled && toggleChannel(index + 1)}
-                                                                        disabled={isChannelDisabled}
-                                                                        style={buttonStyle}
-                                                                        className={`w-full h-8 text-xs font-medium py-1 border border-gray-300 dark:border-gray-600 transition-colors duration-200 ${roundedClass}`}
-                                                                    >
-                                                                        {`CH${index + 1}`}
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    ))}
+                                                                    return (
+                                                                        <button
+                                                                            key={index}
+                                                                            onClick={() => !isChannelDisabled && toggleChannel(index + 1)}
+                                                                            disabled={isChannelDisabled}
+                                                                            style={buttonStyle}
+                                                                            className={`w-full h-8 text-xs font-medium py-1 border border-gray-300 dark:border-gray-600 transition-colors duration-200 ${roundedClass}`}
+                                                                        >
+                                                                            {`CH${index + 1}`}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-
+                                    )}
                                     {/* Zoom Controls */}
-                                    <div className="relative w-full flex flex-col items-start text-sm mb-[2rem]">
+                                    <div className={`relative w-full flex flex-col ${!isDisplay ? "" : "items-start"} text-sm`}>
                                         <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
                                             <span className="font-bold text-gray-600">Zoom Level:</span> {Zoom}x
                                         </p>
@@ -1465,40 +1496,42 @@ const NPG_Ble = () => {
                                     </div>
 
                                     {/* Time-Base Selection */}
-                                    <div className="relative w-full flex flex-col items-start mt-3 text-sm">
-                                        <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
-                                            <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
-                                        </p>
-                                        <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
-                                            {/* Button for setting Time Base to 1 */}
-                                            <button
-                                                className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                onClick={() => setTimeBase(1)}
-                                            >
-                                                1
-                                            </button>
-                                            <input
-                                                type="range"
-                                                min="1"
-                                                max="10"
-                                                value={timeBase}
-                                                onChange={(e) => setTimeBase(Number(e.target.value))}
-                                                style={{
-                                                    background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
-                                                }}
-                                                className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
-                                            />
-                                            {/* Button for setting Time Base to 10 */}
-                                            <button
-                                                className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                onClick={() => setTimeBase(10)}
-                                            >
-                                                10
-                                            </button>
-                                            <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;appearance: none; width: 15px; height: 15px;
+                                    {isDisplay && (
+                                        <div className="relative w-full flex flex-col items-start mt-3 text-sm">
+                                            <p className="absolute top-[-1.2rem] left-0 text-xs font-semibold text-gray-500">
+                                                <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
+                                            </p>
+                                            <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
+                                                {/* Button for setting Time Base to 1 */}
+                                                <button
+                                                    className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                    onClick={() => setTimeBase(1)}
+                                                >
+                                                    1
+                                                </button>
+                                                <input
+                                                    type="range"
+                                                    min="1"
+                                                    max="10"
+                                                    value={timeBase}
+                                                    onChange={(e) => setTimeBase(Number(e.target.value))}
+                                                    style={{
+                                                        background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
+                                                    }}
+                                                    className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
+                                                />
+                                                {/* Button for setting Time Base to 10 */}
+                                                <button
+                                                    className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                    onClick={() => setTimeBase(10)}
+                                                >
+                                                    10
+                                                </button>
+                                                <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;appearance: none; width: 15px; height: 15px;
                                                                   background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </TooltipProvider>
                         </PopoverContent>
