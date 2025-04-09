@@ -122,6 +122,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const [deviceReady, setDeviceReady] = useState(false);
     const sampingrateref = useRef<number>(0);
     const [open, setOpen] = useState(false);
+    const [isPauseSate, setIsPauseState] = useState(false);
 
     // UI Themes & Modes
     const { theme } = useTheme(); // Current theme of the app
@@ -170,8 +171,9 @@ const Connection: React.FC<ConnectionProps> = ({
         onPauseChange(newPauseState); // Notify parent about the change
         SetCurrentSnapshot(0);
         setLeftArrowClickCount(0);
-
+        setIsPauseState(!newPauseState); // <-- Fix: use the new state
     };
+
 
     const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
 
@@ -1186,7 +1188,7 @@ const Connection: React.FC<ConnectionProps> = ({
             recordingStartTimeRef.current = Date.now();
             setRecordingElapsedTime(Date.now());
             setIsRecordButtonDisabled(true);
-            setIsDisplay(false);
+
             const filename = `ChordsWeb-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-` +
                 `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
 
@@ -1368,7 +1370,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                         )}
                                     </Button>
                                 )}
-                                  {!isDeviceConnected && (
+                                {!isDeviceConnected && (
                                     <Button
                                         className="py-2 px-4 rounded-xl font-semibold"
                                         onClick={() => {
@@ -1399,7 +1401,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button className="rounded-xl rounded-l-none rounded-r-none" onClick={togglePause}>
+                                    <Button className="rounded-xl rounded-l-none rounded-r-none" onClick={togglePause} disabled={isRecordingRef.current}>
                                         {isDisplay ? (
                                             <Pause className="h-5 w-5" />
                                         ) : (
@@ -1432,7 +1434,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                 <Button
                                     className="rounded-xl"
                                     onClick={handleRecord}
-                                    disabled={!isDisplay}
+                                    disabled={isPauseSate}
                                 >
                                     {isRecordingRef.current ? (
                                         <CircleStop />
@@ -1529,7 +1531,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         <PopoverTrigger asChild>
                             <Button
                                 className="flex items-center justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
-                                disabled={!isDisplay}
+                                disabled={isPauseSate}
                             >
                                 Filter
                             </Button>
@@ -1822,7 +1824,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 {isDeviceConnected && !FFTDeviceConnected && (
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-lg">
+                            <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-lg" >
                                 <Settings size={16} />
                             </Button>
                         </PopoverTrigger>
@@ -1830,11 +1832,11 @@ const Connection: React.FC<ConnectionProps> = ({
                             <TooltipProvider>
                                 <div className={`space-y-6 ${!isDisplay ? "flex justify-center" : ""}`}>
                                     {/* Channel Selection */}
-                                    {isDisplay && (
+                                    {isDisplay && !isRecordingRef.current && (
                                         <div className="flex items-center justify-center rounded-lg ">
                                             <div className="w-full">
                                                 {/* Channels Count & Select All Button */}
-                                                <div className="flex items-center justify-between ">
+                                                <div className="flex items-center justify-between " >
                                                     <h3 className="text-xs font-semibold text-gray-500">
                                                         <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                                                     </h3>
