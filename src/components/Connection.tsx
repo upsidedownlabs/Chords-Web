@@ -1370,6 +1370,16 @@ const Connection: React.FC<ConnectionProps> = ({
                                         )}
                                     </Button>
                                 )}
+                                {!isDeviceConnected && (
+                                    <Button
+                                        className="py-2 px-4 rounded-xl font-semibold"
+                                        onClick={() => {
+                                            router.push("/npg-lite");
+                                        }}
+                                    >
+                                       NPG-Lite
+                                    </Button>
+                                )}
                             </Popover>
                         </TooltipTrigger>
                         <TooltipContent>
