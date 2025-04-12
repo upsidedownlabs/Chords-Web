@@ -68,18 +68,18 @@ const Graph: React.FC<GraphProps> = ({
     },
     [FREQ_RESOLUTION]
   );
-  
+
   useEffect(() => {
     if (fftData.length > 0 && fftData[0].length > 0) {
       const channelData = fftData[0];
-  
+
       const deltaPower = calculateBandPower(channelData, DELTA_RANGE);
       const thetaPower = calculateBandPower(channelData, THETA_RANGE);
       const alphaPower = calculateBandPower(channelData, ALPHA_RANGE);
       const betaPower = calculateBandPower(channelData, BETA_RANGE);
       const gammaPower = calculateBandPower(channelData, GAMMA_RANGE);
       const total = deltaPower + thetaPower + alphaPower + betaPower + gammaPower;
-  
+
       const newBandPowerData = [
         (deltaPower / total) * 100,
         (thetaPower / total) * 100,
@@ -87,7 +87,7 @@ const Graph: React.FC<GraphProps> = ({
         (betaPower / total) * 100,
         (gammaPower / total) * 100,
       ];
-  
+
       if (
         newBandPowerData.some((value) => !isNaN(value) && value > -Infinity)
       ) {
@@ -97,14 +97,14 @@ const Graph: React.FC<GraphProps> = ({
           }
           return prev;
         });
-  
+
         if (onBetaUpdate) {
           onBetaUpdate(newBandPowerData[3]);
         }
-      } 
+      }
     }
   }, [fftData, calculateBandPower, onBetaUpdate && onBetaUpdate.toString()]); // Memoized dependencies
-  
+
 
   const drawGraph = useCallback(
     (currentBandPowerData: number[]) => {
@@ -132,7 +132,8 @@ const Graph: React.FC<GraphProps> = ({
       ctx.clearRect(0, 0, width, height);
 
       // Responsive bar sizing and margins
-      const leftMargin = width < 640 ? 40 : 70; // Smaller margin on mobile
+      const leftMargin = width < 500 ? 50 : 70;
+
       const rightMargin = 20;
       const bottomMargin = width < 640 ? 40 : 50; // Smaller margin on mobile
       const barWidth = (width - leftMargin - rightMargin) / bandNames.length;
@@ -156,14 +157,22 @@ const Graph: React.FC<GraphProps> = ({
       ctx.stroke();
 
       // Draw bars
+      // Draw bars and beta percentage
       currentBandPowerData.forEach((power, index) => {
         const x = leftMargin + index * barWidth;
-        const normalizedHeight = Math.max(0, (power - minPower) / (maxPower - minPower)); 
-        const barHeight = Math.max(0,normalizedHeight * (height - bottomMargin - 10));
-        
+        const normalizedHeight = Math.max(0, (power - minPower) / (maxPower - minPower));
+        const barHeight = Math.max(0, normalizedHeight * (height - bottomMargin - 10));
+
+        const barX = x + barSpacing / 2;
+        const barY = height - bottomMargin - barHeight;
+        const actualBarWidth = barWidth - barSpacing * 1.5; // Make it thinner than before
+
         ctx.fillStyle = bandColors[index];
-        ctx.fillRect(x + barSpacing / 2, height - bottomMargin - barHeight, barWidth - barSpacing, barHeight);
+        ctx.fillRect(barX, barY, actualBarWidth, barHeight);
+
+
       });
+
 
       // Draw labels
       ctx.fillStyle = axisColor;
@@ -188,16 +197,19 @@ const Graph: React.FC<GraphProps> = ({
         ctx.fillText(band, labelX, height - bottomMargin + 5);
       });
 
-      // Title
-      ctx.font = `${Math.min(fontSize + 2, 14)}px Arial`;
-      ctx.fillText("EEG Band Power", width / 2, height - 20);
+      // EEG Band Power – same as "Frequency (Hz)"
+      ctx.font = "16px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("EEG Band Power", (width + leftMargin) / 2, height - 17);
 
-      // Rotate and position the y-axis label
+      // Power – same as "Magnitude"
       ctx.save();
       ctx.rotate(-Math.PI / 2);
+      ctx.font = "20px Arial";
       ctx.textAlign = "center";
-      ctx.fillText("Power", -height / 2 + 15, fontSize);
+      ctx.fillText("Power", -height / 2, 15);
       ctx.restore();
+
     },
     [theme, bandColors, bandNames]
   );
@@ -243,12 +255,12 @@ const Graph: React.FC<GraphProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full min-h-0 min-w-0`}
+      className={`w-full h-full min-h-0 min-w-0 px-4`}
     >
-        <canvas
-          ref={canvasRef}
-          className="w-full h-full dark:bg-highlight rounded-md"
-        />
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full dark:bg-highlight rounded-md"
+      />
     </div>
   );
 };
