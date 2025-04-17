@@ -80,19 +80,18 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
           border border-gray-300 dark:border-white/20 
           backdrop-blur-md shadow-xl 
           transition-transform duration-300 
-          group-hover:scale-105
           before:absolute before:inset-0 before:bg-white/10 before:opacity-40 before:rounded-b-xl before:rounded-t-md
-          after:absolute after:bottom-0 after:left-0 after:right-0 after:h-2 after:bg-gradient-to-b after:from-transparent after:to-gray-300/30"
+          "
         >
 
-          <div className="absolute inset-0 overflow-hidden rounded-b-xl rounded-t-md bg-gradient-to-b from-cyan-300 via-blue-400 to-blue-600
+          <div className="absolute inset-0 overflow-hidden rounded-b-xl rounded-t-md bg-gradient-to-b from-cyan-300 via-blue-400 to-blue-400
 ">
 
             <div className="absolute top-2 left-2 right-2 h-0.5 bg-gray-300/30"></div>
 
             <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-center">
-              <div className="text-sm font-semibold text-gray-700   px-2 py-1 rounded-md ">
-                Beta: {betaPower.toFixed(1)}%
+              <div className="text-sm font-semibold text-gray-500   px-2 py-1 rounded-md ">
+                {String(Math.floor(betaPower)).padStart(2, '0')}
               </div>
             </div>
           </div>

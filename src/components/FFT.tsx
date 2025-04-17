@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import { Expand, Shrink } from "lucide-react";
 import { useTheme } from "next-themes";
 import BandPowerGraph from "./BandPowerGraph";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
@@ -31,7 +32,9 @@ const FFT = forwardRef(
     ref
   ) => {
     const fftBufferRef = useRef<number[][]>(Array.from({ length: 16 }, () => []));
-    const [fftData, setFftData] = useState<number[][]>(Array.from({ length: 16 }, () => []));
+    const [fftData, setFftData] = useState<number[][]>(
+      Array.from({ length: 16 }, () => [])
+    );
     const fftSize = 256;
     const sampleupdateref = useRef<number>(50);
     sampleupdateref.current = currentSamplingRate / 10;
@@ -41,20 +44,28 @@ const FFT = forwardRef(
     const maxFreq = 60;
     const [betaPower, setBetaPower] = useState<number>(0);
     const betaPowerRef = useRef<number>(0);
-    const channelColors = useMemo(() => ["red", "green", "blue", "purple", "orange", "yellow"], []);
+    const channelColors = useMemo(
+      () => ["red", "green", "blue", "purple", "orange", "yellow"],
+      []
+    );
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const dataPointCountRef = useRef<number>(1000);
     const wglPlotsref = useRef<WebglPlot[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
-    const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
-    const [activeBandPowerView, setActiveBandPowerView] = useState<'bandpower' | 'brightcandle' | 'moveup'>('bandpower');
+    const sweepPositions = useRef<number[]>(new Array(6).fill(0));
+
+    // Extend views to include 'fullcandle'
+    const [activeBandPowerView, setActiveBandPowerView] = useState<
+      'bandpower' | 'brightcandle' | 'fullcandle'
+    >('bandpower');
 
     const buttonStyles = (view: string) => `
-    px-4 py-2 text-sm font-medium transition-all duration-300 rounded-md
-    ${activeBandPowerView === view
+      px-4 py-2 text-sm font-medium transition-all duration-300 rounded-md
+      ${activeBandPowerView === view
         ? 'bg-primary text-primary-foreground border rounded-xl '
-        : 'border rounded-xl bg-gray-600 text-primary-foreground'}
-  `;
+        : 'border rounded-xl bg-gray-600 text-primary-foreground'
+      }
+    `;
 
     let samplesReceived = 0;
     class SmoothingFilter {
@@ -64,15 +75,15 @@ const FFT = forwardRef(
       private dataIndex: number = 0;
 
       constructor(bufferSize: number = 5, initialLength: number = 0) {
-        this.bufferSize = bufferSize;
+        this.bufferSize = Math.max(1, Math.floor(bufferSize)); // Prevent negative or NaN
         this.circularBuffers = Array.from({ length: initialLength }, () =>
-          new Array(bufferSize).fill(0)
+          Array(this.bufferSize).fill(0)
         );
         this.sums = new Array(initialLength).fill(0);
       }
 
+
       getSmoothedValues(newValues: number[]): number[] {
-        // Initialize buffers if first run or size changed
         if (this.circularBuffers.length !== newValues.length) {
           this.circularBuffers = Array.from({ length: newValues.length }, () =>
             new Array(this.bufferSize).fill(0)
@@ -94,30 +105,34 @@ const FFT = forwardRef(
       }
     }
 
-    // Add this useEffect to calculate initial beta power
     useEffect(() => {
       if (fftData.length > 0 && fftData[0].length > 0) {
         const channelData = fftData[0];
-        const betaPower = calculateBandPower(channelData, [13, 32]); // Beta range
-        const totalPower = calculateBandPower(channelData, [0.5, 100]); // Full range
-        const normalizedBeta = (betaPower / totalPower) * 100;
+        const beta = calculateBandPower(channelData, [13, 32]);
+        const total = calculateBandPower(channelData, [0.5, 100]);
+        const normalizedBeta = (beta / total) * 100;
         setBetaPower(normalizedBeta);
         betaPowerRef.current = normalizedBeta;
       }
     }, [fftData]);
 
-    // Add this calculateBandPower function to FFT.tsx
-    const calculateBandPower = useCallback((magnitudes: number[], range: [number, number]) => {
-      const [startFreq, endFreq] = range;
-      const freqStep = currentSamplingRate / fftSize;
-      const startIndex = Math.max(1, Math.floor(startFreq / freqStep));
-      const endIndex = Math.min(Math.floor(endFreq / freqStep), magnitudes.length - 1);
-      let power = 0;
-      for (let i = startIndex; i <= endIndex; i++) {
-        power += magnitudes[i] * magnitudes[i];
-      }
-      return power;
-    }, [currentSamplingRate, fftSize]);
+    const calculateBandPower = useCallback(
+      (magnitudes: number[], range: [number, number]) => {
+        const [startFreq, endFreq] = range;
+        const freqStep = currentSamplingRate / fftSize;
+        const startIndex = Math.max(1, Math.floor(startFreq / freqStep));
+        const endIndex = Math.min(
+          Math.floor(endFreq / freqStep),
+          magnitudes.length - 1
+        );
+        let power = 0;
+        for (let i = startIndex; i <= endIndex; i++) {
+          power += magnitudes[i] * magnitudes[i];
+        }
+        return power;
+      },
+      [currentSamplingRate, fftSize]
+    );
 
     const renderBandPowerView = () => {
       switch (activeBandPowerView) {
@@ -125,26 +140,34 @@ const FFT = forwardRef(
           return (
             <BandPowerGraph
               fftData={fftData}
-              // Update both state and ref
               onBetaUpdate={(beta) => {
                 betaPowerRef.current = beta;
                 setBetaPower(beta);
               }}
-
               samplingRate={currentSamplingRate}
             />
           );
         case 'brightcandle':
           return (
             <BrightCandleView
-              betaPower={betaPower} // Use state value instead of ref
+              betaPower={betaPower}
               fftData={fftData}
             />
           );
-        case 'moveup':
+        case 'fullcandle':
           return (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              Move Up View
+            <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black z-50 flex flex-col items-center justify-center p-4">
+              <button
+                onClick={() => setActiveBandPowerView('brightcandle')}
+                className="absolute top-4 right-4 p-2 bg-transparent text-white hover:text-gray-300 transition-all duration-300"
+              >
+                <Shrink />
+              </button>
+              <div className="w-full max-w-4xl h-full flex items-center justify-center">
+                <div className="transform scale-150 filter drop-shadow-2xl">
+                  <BrightCandleView betaPower={betaPower} fftData={fftData} />
+                </div>
+              </div>
             </div>
           );
         default:
@@ -155,13 +178,15 @@ const FFT = forwardRef(
                 betaPowerRef.current = beta;
                 setBetaPower(beta);
               }}
-
               samplingRate={currentSamplingRate}
             />
           );
       }
     };
-    const filter = new SmoothingFilter((currentSamplingRate / sampleupdateref.current) * 2, 1);
+    const rawBufferSize = (currentSamplingRate / sampleupdateref.current) * 2;
+    const safeBufferSize = Math.max(1, Math.floor(rawBufferSize) || 1);
+    const filter = new SmoothingFilter(safeBufferSize, 1);
+
 
     useImperativeHandle(
       ref,
@@ -177,8 +202,7 @@ const FFT = forwardRef(
             }
             samplesReceived++;
 
-            // Trigger FFT computation more frequently
-            if (samplesReceived % sampleupdateref.current === 0) { // Changed from 25 to 5
+            if (samplesReceived % sampleupdateref.current === 0) {
               const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
               const floatInput = new Float32Array(processedBuffer);
               const fftMags = fftProcessor.computeMagnitudes(floatInput);
@@ -454,7 +478,8 @@ const FFT = forwardRef(
         <main
           ref={canvasContainerRef}
           className="flex-1 bg-highlight rounded-2xl m-2 overflow-hidden min-h-0 "
-        >    
+        >
+
         </main>
         <div className="flex-1 m-2 flex flex-col md:flex-row justify-center  overflow-hidden min-h-0  "
         >
@@ -467,17 +492,47 @@ const FFT = forwardRef(
               className="w-full h-full"
             />
           </div>
-          <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 ml-4 bg-highlight rounded-2xl">
+          <div
+            className="
+    relative            /* ← make this container the positioning context */
+    flex-1 flex flex-col 
+    overflow-hidden min-h-0 min-w-0 
+    ml-4 bg-highlight rounded-2xl
+  "
+          >
+            {/* only show when we’re on the Beta Candle view */}
+            {activeBandPowerView === 'brightcandle' && (
+              <button
+                onClick={() => setActiveBandPowerView('fullcandle')}
+                className="
+        absolute top-2 right-2 
+        p-2 bg-transparent 
+        text-gray-500 hover:text-gray-700 
+        transition-all duration-300
+      "
+              >
+                <Expand />
+              </button>
+            )}
+
             <div className="flex justify-center space-x-2 pt-2 rounded-t-xl">
-              <button onClick={() => setActiveBandPowerView('bandpower')} className={buttonStyles('bandpower')}>
+              <button
+                onClick={() => setActiveBandPowerView('bandpower')}
+                className={buttonStyles('bandpower')}
+              >
                 Band Power
               </button>
-              <button onClick={() => setActiveBandPowerView('brightcandle')} className={buttonStyles('brightcandle')}>
+              <button
+                onClick={() => setActiveBandPowerView('brightcandle')}
+                className={buttonStyles('brightcandle')}
+              >
                 Beta Candle
               </button>
             </div>
+
             {renderBandPowerView()}
           </div>
+
         </div>
       </div>
     );
