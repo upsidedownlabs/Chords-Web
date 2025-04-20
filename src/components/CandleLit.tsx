@@ -6,16 +6,39 @@ type FFTData = FFTChannel[];
 interface BrightCandleViewProps {
   fftData?: FFTData;
   betaPower: number;
+  fullscreen?: boolean;
 }
 
 interface CandleLitProps {
   betaPower: number;
 }
 
-const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaPower }) => {
+const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaPower, fullscreen }) => {
   const brightness = Math.max(0, betaPower / 100); // Normalize brightness
   // Add smoothing and minimum brightness
   const [displayBrightness, setDisplayBrightness] = useState(0.1); // Start with small flame
+  const [screenSize, setScreenSize] = useState('normal'); // 'normal', 'large' (150%), 'xlarge' (175%)
+
+  useEffect(() => {
+    // Detect screen size
+    const detectScreenSize = () => {
+      const width = window.innerWidth;
+      if (width >= 1920) { // Assuming 1920px is 175% of standard size
+        setScreenSize('xlarge');
+      } else if (width >= 1680) { // Assuming 1680px is 150% of standard size
+        setScreenSize('large');
+      } else {
+        setScreenSize('normal');
+      }
+    };
+
+    // Set initial size
+    detectScreenSize();
+
+    // Update on resize
+    window.addEventListener('resize', detectScreenSize);
+    return () => window.removeEventListener('resize', detectScreenSize);
+  }, []);
 
   useEffect(() => {
     // Always show at least a small flame (0.1) and cap at 1.0
@@ -53,10 +76,10 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
   // Generate a slightly randomized organic flame path
   const generateFlamePath = () => {
     const basePoints = [
-      { x: 100, y: 50 },
-      { x: 70, y: 100 },
-      { x: 100, y: 180 },
-      { x: 130, y: 100 }
+      { x: 100, y: 30 },  // Adjusted Y positions
+      { x: 60, y: 80 },   // Increased vertical spread
+      { x: 100, y: 200 }, // Increased height
+      { x: 140, y: 80 }   // Wider horizontal spread
     ];
     const controlPoints = basePoints.map(point => ({
       x: point.x + (Math.random() - 0.5) * (10 * brightness),
@@ -69,28 +92,59 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
     `;
   };
 
+  // Calculate candle size based on screen size and fullscreen state
+  const getCandleWidthClass = () => {
+    if (fullscreen) {
+      return screenSize === 'xlarge' ? 'w-40' : screenSize === 'large' ? 'w-36' : 'w-32';
+    } else {
+      return screenSize === 'xlarge' ? 'w-28' : screenSize === 'large' ? 'w-24' : 'w-20';
+    }
+  };
+
+  const getCandleHeightClass = () => {
+    if (fullscreen) {
+      return 'h-96';
+    } else {
+      return screenSize === 'xlarge' ? 'h-56' : screenSize === 'large' ? 'h-48' : 'h-40';
+    }
+  };
+
+  const getCandleHolderHeightClass = () => {
+    if (fullscreen) {
+      return 'h-48';
+    } else {
+      return screenSize === 'xlarge' ? 'h-28' : screenSize === 'large' ? 'h-24' : 'h-20';
+    }
+  };
+
+  const getFlameHeightClass = () => {
+    if (fullscreen) {
+      return 'h-64';  // Increased from h-48
+    } else {
+      return screenSize === 'xlarge' ? 'h-56' :  // Increased from h-40
+        screenSize === 'large' ? 'h-48' :    // Increased from h-36
+          'h-40';                             // Increased from h-32
+    }
+  };
   return (
-    <div className="w-full h-full flex items-center justify-center min-h-0 min-w-0 ">
-      {/* Candle Container with reduced width */}
-      <div className="relative w-32 h-64 group">
+    <div className={`w-full h-full flex items-end justify-center min-h-0 min-w-0 ${fullscreen ? 'pb-4' : ''}`}>
+      {/* Candle Container with dynamic width based on screen size and fullscreen mode */}
+      <div className={`relative ${getCandleWidthClass()} ${getCandleHeightClass()} group`}>
         {/* Candle Holder with a glassy, frosted look */}
-        <div className="absolute bottom-0 w-full h-32 
-          bg-gradient-to-b from-gray-100 to-gray-200 dark:from-stone-600 dark:to-stone-700 
-          rounded-b-xl rounded-t-md 
-          border border-gray-300 dark:border-white/20 
-          backdrop-blur-md shadow-xl 
-          transition-transform duration-300 
-          before:absolute before:inset-0 before:bg-white/10 before:opacity-40 before:rounded-b-xl before:rounded-t-md
-          "
+        <div
+          className={`
+    absolute bottom-0 w-full ${getCandleHolderHeightClass()}
+    bg-gradient-to-b from-gray-100 to-gray-200 dark:from-stone-600 dark:to-stone-700
+    rounded-t-md
+    border border-gray-900 dark:border-gray-800 border-b-0
+    backdrop-blur-md
+    transition-transform duration-300
+    before:absolute before:inset-0 before:bg-white/10 before:opacity-40 before:rounded-b-xl before:rounded-t-md
+  `}
         >
-
-          <div className="absolute inset-0 overflow-hidden rounded-b-xl rounded-t-md bg-gradient-to-b from-cyan-300 via-blue-400 to-blue-400
-">
-
-            <div className="absolute top-2 left-2 right-2 h-0.5 bg-gray-300/30"></div>
-
+          <div className="absolute inset-0 overflow-hidden rounded-t-md bg-gradient-to-b from-cyan-300 via-blue-400 to-gray-900">
             <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-center">
-              <div className="text-sm font-semibold text-gray-500   px-2 py-1 rounded-md ">
+              <div className={`${fullscreen ? 'text-3xl' : screenSize === 'xlarge' ? 'text-2xl' : 'text-xl'} font-semibold text-[#030c21] px-2 py-1 rounded-md opacity-70`}>
                 {String(Math.floor(betaPower)).padStart(2, '0')}
               </div>
             </div>
@@ -100,20 +154,20 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
         {/* Yellow-Themed Animated Flame */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 200 300"
-          className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full h-48 z-10 drop-shadow-xl"
+          viewBox={`0 0 200 ${fullscreen ? 200 : 400}`}  // Increased viewBox height
+          className={`absolute top-0 left-1/2 transform -translate-x-1/2 w-full ${getFlameHeightClass()} z-10 drop-shadow-xl`}
         >
           <defs>
             {/* Outer Flame Gradient: Rich, Realistic Candle Flame Colors */}
             <linearGradient id="outerFlameGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={`rgba(255,140,0, ${brightness * 0.6})`} />
-              <stop offset="100%" stopColor={`rgba(255,69,0, ${brightness * 0.3})`} />
+              <stop offset="0%" stopColor={`rgba(255,140,0, ${brightness * 1})`} />
+              <stop offset="100%" stopColor={`rgba(255,69,0, ${brightness * 0.6})`} />
             </linearGradient>
 
             {/* Inner Flame Gradient: Warm, Luminous Colors */}
             <linearGradient id="innerFlameGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={`rgba(255,165,0, ${brightness * 0.8})`} />
-              <stop offset="100%" stopColor={`rgba(255,99,71, ${brightness * 0.5})`} />
+              <stop offset="0%" stopColor={`rgba(255,165,0, ${brightness * 1.2})`} />
+              <stop offset="100%" stopColor={`rgba(255,99,71, ${brightness * 0.8})`} />
             </linearGradient>
 
             {/* Filters for Enhanced Realism */}
@@ -128,7 +182,6 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
               </feMerge>
             </filter>
           </defs>
-
 
           {/* Outer Flame Layer */}
           <path
@@ -145,20 +198,7 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
             filter="url(#innerGlow)"
             className="transition-all duration-300 animate-flicker"
           />
-
-          {/* White Hot Core */}
-          <ellipse
-            cx="100"
-            cy="150"
-            rx={`${12 * brightness}`}
-            ry={`${24 * brightness}`}
-            fill={`rgba(255,255,255, ${brightness * 0.6})`}
-            filter="url(#innerGlow)"
-            className="transition-all duration-300"
-          />
         </svg>
-
-
       </div>
     </div>
   );

@@ -255,7 +255,7 @@ const Graph: React.FC<GraphProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full min-h-0 min-w-0 px-4`}
+      className={`w-full h-full min-h-0 min-w-0 py-2`}
     >
       <canvas
         ref={canvasRef}

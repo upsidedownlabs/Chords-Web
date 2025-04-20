@@ -53,6 +53,28 @@ const FFT = forwardRef(
     const wglPlotsref = useRef<WebglPlot[]>([]);
     const linesRef = useRef<WebglLine[]>([]);
     const sweepPositions = useRef<number[]>(new Array(6).fill(0));
+    const [screenSize, setScreenSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
+
+    // Detect screen size on mount and resize
+    useEffect(() => {
+      const detectScreenSize = () => {
+        const width = window.innerWidth;
+        if (width >= 1920) { // Assuming 1920px is 175% of standard size
+          setScreenSize('xlarge');
+        } else if (width >= 1680) { // Assuming 1680px is 150% of standard size
+          setScreenSize('large');
+        } else {
+          setScreenSize('normal');
+        }
+      };
+
+      // Set initial size
+      detectScreenSize();
+      
+      // Update on resize
+      window.addEventListener('resize', detectScreenSize);
+      return () => window.removeEventListener('resize', detectScreenSize);
+    }, []);
 
     // Extend views to include 'fullcandle'
     const [activeBandPowerView, setActiveBandPowerView] = useState<
@@ -134,6 +156,18 @@ const FFT = forwardRef(
       [currentSamplingRate, fftSize]
     );
 
+    // Get the appropriate scale class based on screen size for fullcandle view
+    const getFullCandleScaleClass = () => {
+      switch (screenSize) {
+        case 'xlarge':
+          return 'scale-150';
+        case 'large':
+          return 'scale-125';
+        default:
+          return 'scale-100';
+      }
+    };
+
     const renderBandPowerView = () => {
       switch (activeBandPowerView) {
         case 'bandpower':
@@ -149,27 +183,37 @@ const FFT = forwardRef(
           );
         case 'brightcandle':
           return (
-            <BrightCandleView
-              betaPower={betaPower}
-              fftData={fftData}
-            />
+            <div className="flex items-center justify-center h-full w-full">
+              <BrightCandleView
+                betaPower={betaPower}
+                fftData={fftData}
+              />
+            </div>
           );
+        // In the renderBandPowerView function in FFT.tsx
         case 'fullcandle':
           return (
-            <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black z-50 flex flex-col items-center justify-center p-4">
+            <div className="fixed inset-0 bg-highlight z-50 flex flex-col items-center justify-end">
               <button
                 onClick={() => setActiveBandPowerView('brightcandle')}
                 className="absolute top-4 right-4 p-2 bg-transparent text-white hover:text-gray-300 transition-all duration-300"
               >
                 <Shrink />
               </button>
-              <div className="w-full max-w-4xl h-full flex items-center justify-center">
-                <div className="transform scale-150 filter drop-shadow-2xl">
-                  <BrightCandleView betaPower={betaPower} fftData={fftData} />
+
+              {/* Candle Container with responsive sizing based on screen size */}
+              <div className="w-full max-w-4xl h-full flex justify-center pb-20">
+                <div className={`transform ${getFullCandleScaleClass()} filter drop-shadow-2xl`}>
+                  <BrightCandleView 
+                    betaPower={betaPower} 
+                    fftData={fftData} 
+                    fullscreen 
+                  />
                 </div>
               </div>
             </div>
           );
+
         default:
           return (
             <BandPowerGraph
@@ -494,13 +538,13 @@ const FFT = forwardRef(
           </div>
           <div
             className="
-    relative            /* ← make this container the positioning context */
+ relative         
     flex-1 flex flex-col 
     overflow-hidden min-h-0 min-w-0 
     ml-4 bg-highlight rounded-2xl
   "
           >
-            {/* only show when we’re on the Beta Candle view */}
+            {/* only show when we're on the Beta Candle view */}
             {activeBandPowerView === 'brightcandle' && (
               <button
                 onClick={() => setActiveBandPowerView('fullcandle')}
