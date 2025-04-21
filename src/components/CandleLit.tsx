@@ -76,10 +76,10 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
   // Generate a slightly randomized organic flame path
   const generateFlamePath = () => {
     const basePoints = [
-      { x: 100, y: 30 },  // Adjusted Y positions
-      { x: 60, y: 80 },   // Increased vertical spread
-      { x: 100, y: 200 }, // Increased height
-      { x: 140, y: 80 }   // Wider horizontal spread
+      { x: 100, y: 30 },
+      { x: 60, y: 80 },
+      { x: 100, y: 200 },
+      { x: 140, y: 80 }
     ];
     const controlPoints = basePoints.map(point => ({
       x: point.x + (Math.random() - 0.5) * (10 * brightness),
@@ -121,9 +121,9 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
     if (fullscreen) {
       return 'h-64';  // Increased from h-48
     } else {
-      return screenSize === 'xlarge' ? 'h-56' :  // Increased from h-40
-        screenSize === 'large' ? 'h-48' :    // Increased from h-36
-          'h-40';                             // Increased from h-32
+      return screenSize === 'xlarge' ? 'h-56' :
+        screenSize === 'large' ? 'h-48' :
+          'h-40';
     }
   };
   return (

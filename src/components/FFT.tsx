@@ -70,7 +70,7 @@ const FFT = forwardRef(
 
       // Set initial size
       detectScreenSize();
-      
+
       // Update on resize
       window.addEventListener('resize', detectScreenSize);
       return () => window.removeEventListener('resize', detectScreenSize);
@@ -204,10 +204,10 @@ const FFT = forwardRef(
               {/* Candle Container with responsive sizing based on screen size */}
               <div className="w-full max-w-4xl h-full flex justify-center pb-20">
                 <div className={`transform ${getFullCandleScaleClass()} filter drop-shadow-2xl`}>
-                  <BrightCandleView 
-                    betaPower={betaPower} 
-                    fftData={fftData} 
-                    fullscreen 
+                  <BrightCandleView
+                    betaPower={betaPower}
+                    fftData={fftData}
+                    fullscreen
                   />
                 </div>
               </div>
@@ -537,23 +537,13 @@ const FFT = forwardRef(
             />
           </div>
           <div
-            className="
- relative         
-    flex-1 flex flex-col 
-    overflow-hidden min-h-0 min-w-0 
-    ml-4 bg-highlight rounded-2xl
-  "
+            className="relative flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 ml-4 bg-highlight rounded-2xl"
           >
             {/* only show when we're on the Beta Candle view */}
             {activeBandPowerView === 'brightcandle' && (
               <button
                 onClick={() => setActiveBandPowerView('fullcandle')}
-                className="
-        absolute top-2 right-2 
-        p-2 bg-transparent 
-        text-gray-500 hover:text-gray-700 
-        transition-all duration-300
-      "
+                className="absolute top-2 right-2 p-2 bg-transparent text-gray-500 hover:text-gray-700 transition-all duration-300"
               >
                 <Expand />
               </button>
