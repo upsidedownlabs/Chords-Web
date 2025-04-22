@@ -134,9 +134,9 @@ const Graph: React.FC<GraphProps> = ({
   
       // inside drawGraph:
       const topMargin = 30;             // space for any in-canvas labels
-      const leftMargin = width < 500 ? 60 : 80;
-      const bottomMargin = width < 640 ? 70 : 80;
-      const rightMargin = 60;
+      const leftMargin = width < 500 ? 50 : 60;
+      const bottomMargin = width < 640 ? 40 : 50;
+      const rightMargin = 20;
   
       // Draw axes
       const axisColor = theme === "dark" ? "white" : "black";
@@ -148,7 +148,7 @@ const Graph: React.FC<GraphProps> = ({
       ctx.stroke();
   
       const barWidth = (width - leftMargin - rightMargin) / bandNames.length;
-      const barSpacing = barWidth * 0.2; // Space between bars
+      const barSpacing = barWidth * 0.3; // Space between bars
   
       let minPower = 0;
       let maxPower = 100;
