@@ -376,53 +376,41 @@ const FFT = forwardRef(
             const canvas = canvasRef.current;
             const container = containerRef.current;
             if (!canvas || !container) return;
-
+        
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
-
-            const containerWidth = container.clientWidth;
-            const containerHeight = Math.min(containerWidth * 0.6, 500);
-            canvas.width = containerWidth;
-            canvas.height = containerHeight;
-
-            const width = canvas.width;
+        
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        
+            const width = canvas.width - 20;
             const height = canvas.height;
-
-            ctx.clearRect(0, 0, width, height);
-
-            // Unified padding and spacing logic
-            const padding = Math.min(width, height) * 0.08;
-            const yAxisLabelOffset = 30;
-            const leftMargin = padding + yAxisLabelOffset + 20;
-            const rightMargin = padding;
-            const topMargin = padding;
-            const bottomMargin = padding + 40;
-
-            // Axis color and font setup
+        
+            const leftMargin = 90;
+            const bottomMargin = 50;
+            const topMargin = 30; // added top margin
+        
+            ctx.clearRect(0, 0, canvas.width, height);
+        
             const axisColor = theme === "dark" ? "white" : "black";
-            const fontSize = width < 640 ? 12 : width < 768 ? 14 : width < 1024 ? 16 : 18;
-            const labelFont = `${fontSize}px Arial`;
-            const titleFont = `${fontSize + 2}px Arial`;
-
-            ctx.strokeStyle = axisColor;
-            ctx.fillStyle = axisColor;
-            ctx.font = labelFont;
-
-            // Draw axes
+        
             ctx.beginPath();
-            ctx.moveTo(leftMargin, topMargin);
+            ctx.moveTo(leftMargin, topMargin); // use topMargin
             ctx.lineTo(leftMargin, height - bottomMargin);
-            ctx.lineTo(width - rightMargin, height - bottomMargin);
+            ctx.lineTo(width - 10, height - bottomMargin);
+            ctx.strokeStyle = axisColor;
             ctx.stroke();
-
+        
             const freqStep = currentSamplingRate / fftSize;
             const displayPoints = Math.min(Math.ceil(maxFreq / freqStep), fftSize / 2);
-            const xScale = (width - leftMargin - rightMargin) / displayPoints;
-
-            let yMax = Math.max(...fftData.flat(), 1);
-            const yScale = (height - topMargin - bottomMargin) / yMax;
-
-            // Plot lines
+        
+            const xScale = (width - leftMargin - 10) / displayPoints;
+        
+            let yMax = 1; // Default to prevent division by zero
+            yMax = Math.max(...fftData.flat());
+        
+            const yScale = (height - bottomMargin - topMargin) / yMax;
+        
             fftData.forEach((channelData, index) => {
                 ctx.beginPath();
                 ctx.strokeStyle = channelColors[index];
@@ -433,46 +421,49 @@ const FFT = forwardRef(
                 }
                 ctx.stroke();
             });
-
-            // Y-axis labels
+        
+            ctx.fillStyle = axisColor;
+            ctx.font = "12px Arial";
+        
             ctx.textAlign = "right";
             ctx.textBaseline = "middle";
-            const yTicks = 5;
-            for (let i = 0; i <= yTicks; i++) {
-                const value = (yMax * i) / yTicks;
-                const labelY = height - bottomMargin - (i / yTicks) * (height - topMargin - bottomMargin);
-                ctx.fillText(value.toFixed(2), leftMargin - 10, labelY);
+            for (let i = 0; i <= 5; i++) {
+                const labelY = height - bottomMargin - (i / 5) * (height - bottomMargin - topMargin);
+                ctx.fillText(((yMax * i) / 5).toFixed(3), leftMargin - 10, labelY);
             }
-
-            // X-axis labels (Frequency)
+        
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
-            const minLabelSpacing = fontSize * 4;
-            const labelFreqStep = Math.ceil((minLabelSpacing / xScale) / 10) * 10;
-            const maxFreqToLabel = Math.floor(Math.min(maxFreq, currentSamplingRate / 2));
-
-            for (let freq = 0; freq <= maxFreqToLabel; freq += labelFreqStep) {
+            const numLabels = Math.min(maxFreq / 10, Math.floor(currentSamplingRate / 2 / 10));
+            let lastLabelX = -Infinity;
+            const labelSpacing = 50; // Increased spacing
+        
+            for (let i = 0; i <= numLabels; i++) {
+                const freq = i * 10;
                 const labelX = leftMargin + (freq / freqStep) * xScale;
-                ctx.fillText(freq.toString(), labelX, height - bottomMargin + 5);
+        
+                // Only draw label if it is far enough from the last one
+                if (labelX - lastLabelX >= labelSpacing) {
+                    ctx.fillText(freq.toString(), labelX, height - bottomMargin + 10); // Moved label further up
+                    lastLabelX = labelX;
+                }
             }
-
-            // X-axis title
-            ctx.font = titleFont;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "top";
-            ctx.fillText("Frequency (Hz)", width / 2, height - padding * 0.9);
-
-            // Y-axis title
-            ctx.save();
-            ctx.rotate(-Math.PI / 2);
-            ctx.font = titleFont;
+        
+            ctx.font = "14px Arial";
             ctx.textAlign = "center";
             ctx.textBaseline = "bottom";
-            ctx.fillText("Magnitude", -height / 2, padding);
+            ctx.fillText("Frequency (Hz)", (width + leftMargin) / 2, height - 10);
+        
+            ctx.save();
+            ctx.rotate(-Math.PI / 2);
+            ctx.font = "14px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            ctx.fillText("Magnitude", -height / 2, topMargin - 5);
             ctx.restore();
         }, [fftData, theme, maxFreq, currentSamplingRate, fftSize, channelColors]);
-
-
+        
+        
         useEffect(() => {
             if (fftData.some((channel) => channel.length > 0)) {
                 plotData();
