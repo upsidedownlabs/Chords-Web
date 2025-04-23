@@ -48,7 +48,7 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 200 300"
-                    className={`absolute ${isFullPage ? '-top-[42%] sm:-top-[40%] md:-top-[50%] lg:-top-[43%]' : '-top-[25%] sm:-top-[18%] md:-top-[14%] lg:-top-[9%]'} left-1/2 transform -translate-x-1/2 w-full h-auto z-50 drop-shadow-xl pointer-events-none`}
+                    className={`absolute ${isFullPage ? '-top-[42%] sm:-top-[40%] md:-top-[50%] lg:-top-[40%]' : '-top-[25%] sm:-top-[18%] md:-top-[14%] lg:-top-[7%]'} left-1/2 transform -translate-x-1/2 w-full h-auto z-50 drop-shadow-xl pointer-events-none`}
                     preserveAspectRatio="xMidYMid meet"
                 >
 
