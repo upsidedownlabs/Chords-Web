@@ -112,32 +112,34 @@ const Graph: React.FC<GraphProps> = ({
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (!canvas || !container) return;
-  
+
       if (currentBandPowerData.some(isNaN)) {
         console.error("NaN values detected in band power data");
         return;
       }
-  
+
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-  
+
       // Responsive canvas sizing
       const containerWidth = container.clientWidth;
-      const containerHeight = Math.min(containerWidth * 0.5, 400); // Limit max height
+      const containerHeight = Math.min(containerWidth * 0.5, 400);
       canvas.width = containerWidth;
       canvas.height = containerHeight;
-  
+
       const width = canvas.width;
       const height = canvas.height;
-  
+
       ctx.clearRect(0, 0, width, height);
-  
-      // inside drawGraph:
-      const topMargin = 30;             // space for any in-canvas labels
-      const leftMargin = width < 500 ? 50 : 60;
-      const bottomMargin = width < 640 ? 40 : 50;
-      const rightMargin = 20;
-  
+
+      // Unified padding and offset to prevent collisions
+      const padding = Math.min(width, height) * 0.1;
+      const yAxisLabelOffset = 30;
+      const topMargin = padding;
+      const leftMargin = padding + yAxisLabelOffset + 20; // more room for Y-axis label
+      const bottomMargin = padding + 40; // title + x-axis
+      const rightMargin = padding;
+
       // Draw axes
       const axisColor = theme === "dark" ? "white" : "black";
       ctx.beginPath();
@@ -146,44 +148,44 @@ const Graph: React.FC<GraphProps> = ({
       ctx.lineTo(width - rightMargin, height - bottomMargin);
       ctx.strokeStyle = axisColor;
       ctx.stroke();
-  
+
       const barWidth = (width - leftMargin - rightMargin) / bandNames.length;
-      const barSpacing = barWidth * 0.3; // Space between bars
-  
+      const barSpacing = barWidth * 0.3;
+
       let minPower = 0;
       let maxPower = 100;
       if (maxPower - minPower < 1) {
         maxPower = minPower + 1;
       }
-  
+
       // Draw bars
       currentBandPowerData.forEach((power, index) => {
         const x = leftMargin + index * barWidth;
         const normalizedHeight = Math.max(0, (power - minPower) / (maxPower - minPower));
         const barHeight = Math.max(0, normalizedHeight * (height - bottomMargin - topMargin));
-  
         const barX = x + barSpacing / 2;
         const barY = height - bottomMargin - barHeight;
-        const actualBarWidth = barWidth - barSpacing * 1.5; // Make it thinner than before
-  
+        const actualBarWidth = barWidth - barSpacing * 1.5;
+
         ctx.fillStyle = bandColors[index];
         ctx.fillRect(barX, barY, actualBarWidth, barHeight);
       });
-  
-      // Y-axis labels
+
+      // Font sizing responsive
+      const fontSize = width < 640 ? 12 : width < 768 ? 14 : width < 1024 ? 16 : 18;
       ctx.fillStyle = axisColor;
-      const fontSize = width < 640 ? 10 : 12; // Smaller text on mobile
       ctx.font = `${fontSize}px Arial`;
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
+
       const yLabelCount = Math.min(5, Math.floor(height / 50));
       for (let i = 0; i <= yLabelCount; i++) {
         const value = minPower + (maxPower - minPower) * (i / yLabelCount);
         const labelY = height - bottomMargin - (i / yLabelCount) * (height - bottomMargin - topMargin);
-        ctx.fillText(value.toFixed(1), leftMargin - 5, labelY);
+        ctx.fillText(value.toFixed(1), leftMargin - 10, labelY);
       }
-  
-      // X-axis labels, centered under each actual bar
+
+      // X-axis labels
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       bandNames.forEach((band, index) => {
@@ -192,23 +194,26 @@ const Graph: React.FC<GraphProps> = ({
         const labelX = barX + barW / 2;
         ctx.fillText(band, labelX, height - bottomMargin + 5);
       });
-  
-      // Title
-      ctx.font = "1.2em Arial";
+
+      // Title: EEG Band Power below graph area with consistent padding
+      ctx.font = `${fontSize + 2}px Arial`;
       ctx.textAlign = "center";
-      ctx.fillText("EEG Band Power", (width + leftMargin) / 2, height - 17);
-  
-      // Power (Y-axis name) inside canvas
+      ctx.textBaseline = "top";
+      ctx.fillText("EEG Band Power", width / 2, height - padding + 6);
+
+      // Y-axis label: Power, fully visible with outer padding
       ctx.save();
       ctx.rotate(-Math.PI / 2);
-      ctx.font = "1.2em Arial";
+      ctx.font = `${fontSize + 2}px Arial`;
       ctx.textAlign = "center";
-      ctx.fillText("Power", -height / 2, 15);
+      ctx.textBaseline = "bottom";
+      ctx.fillText("Power", -height / 2, padding);
       ctx.restore();
     },
     [theme, bandColors, bandNames]
   );
-  
+
+
 
   // Rest of the component remains the same (animateGraph, useEffect hooks)
   const animateGraph = useCallback(() => {
