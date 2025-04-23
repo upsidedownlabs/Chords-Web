@@ -44,16 +44,15 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
 
     return (
         <div className="w-full h-full flex items-end justify-center min-h-0 min-w-0">
-            <div className={`relative ${
-                isFullPage 
-                    ? 'w-1/4 h-3/5 sm:w-1/5 sm:h-3/5 md:w-1/5 md:h-3/5 lg:w-1/5 lg:h-2/3 xl:w-1/6 xl:h-2/3 2xl:w-1/6 2xl:h-2/3' 
+            <div className={`relative ${isFullPage
+                    ? 'w-1/4 h-3/4 sm:w-1/4 sm:h-3/4 md:w-1/4 md:h-3/4 lg:w-1/4 lg:h-3/4 xl:w-1/4 xl:h-3/4 2xl:w-1/4 2xl:h-3/4'
                     : 'w-1/4 h-4/5 sm:w-1/5 sm:h-4/5 md:w-1/6 md:h-5/6 lg:w-1/6 lg:h-5/6 xl:w-1/6 xl:h-5/6'
                 }`}
             >
                 {/* Container wrapper with relative positioning */}
                 <div className="relative w-full h-full flex flex-col">
                     {/* Flame should take up approximately 60% of the total height */}
-                    <div style={{ height: '60%' }} className="relative w-full">
+                    <div style={{ height: '80%' }} className="relative w-full">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 200 300"
@@ -94,13 +93,12 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
                             />
                         </svg>
                     </div>
-                    
+
                     {/* Candle should take up approximately 40% of the total height */}
                     <div style={{ height: '80%' }} className="w-full bg-gradient-to-b from-gray-100 to-gray-200 dark:from-stone-600 dark:to-stone-700 rounded-t-md backdrop-blur-md shadow-xl relative">
                         <div className="absolute inset-0 overflow-hidden rounded-t-md bg-gradient-to-b from-cyan-300 via-blue-400 to-gray-900">
-                            <div className={`absolute inset-0 ${
-                                isFullPage 
-                                    ? 'flex flex-row justify-center items-center' 
+                            <div className={`absolute inset-0 ${isFullPage
+                                    ? 'flex flex-row justify-center items-center'
                                     : 'flex items-center justify-center'
                                 }`}
                             >
