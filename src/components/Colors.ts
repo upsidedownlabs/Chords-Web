@@ -1,3 +1,4 @@
+'use client';
 // colors.ts
 
 // Base custom colors as an object for configuration
