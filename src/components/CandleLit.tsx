@@ -100,13 +100,13 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
                         <div className="absolute inset-0 overflow-hidden rounded-t-md bg-gradient-to-b from-cyan-300 via-blue-400 to-gray-900">
                             <div className={`absolute inset-0 ${isFullPage
                                 ? 'flex justify-center items-start pt-4'
-                                : 'flex items-center justify-center'
+                                : 'absolute inset-0 flex justify-center items-start p-2'
                                 }`}
                             >
                                 <div
                                     className={`${isFullPage
                                             ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-4xl'
-                                            : 'text-xs sm:text-sm md:text-lg lg:text-xl xl:text-2xl'
+                                            : 'text-2xs sm:text-2sm md:text-2lg lg:text-3xl xl:text-3xl'
                                         } font-semibold text-gray-800 px-1 sm:px-2 md:px-3 py-1 transition-all duration-300 ease-in-out`}
                                 >
                                     {Number.isFinite(betaPower) ? String(Math.floor(betaPower)).padStart(2, '0') : '00'}
