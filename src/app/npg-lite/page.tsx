@@ -412,7 +412,7 @@ const NPG_Ble = () => {
         channelData = [];
         samplesReceived++;
     }, [
-        canvasElementCountRef.current, selectedChannels,timeBase
+        canvasElementCountRef.current, selectedChannels, timeBase
     ]);
 
     interface BluetoothRemoteGATTCharacteristicExtended extends EventTarget {
@@ -480,7 +480,7 @@ const NPG_Ble = () => {
 
     async function disconnect(): Promise<void> {
         try {
-            if (!connectedDeviceRef) {
+            if (!connectedDeviceRef.current) {
                 console.log("No connected device to disconnect.");
                 return;
             }
@@ -521,7 +521,7 @@ const NPG_Ble = () => {
         }
     };
 
-    useEffect(() => {   
+    useEffect(() => {
         canvasElementCountRef.current = selectedChannels.length;
     }, [selectedChannels]);
 
@@ -537,7 +537,10 @@ const NPG_Ble = () => {
         });
 
     };
-    setSelectedChannelsInWorker(selectedChannels)
+
+    useEffect(() => {
+        setSelectedChannelsInWorker(selectedChannels);
+    }, [selectedChannels]);
 
     const processBuffer = async (bufferIndex: number, canvasCount: number, selectChannel: number[]) => {
         if (!workerRef.current) {
@@ -696,7 +699,7 @@ const NPG_Ble = () => {
         }
     };
     const stopRecording = async () => {
-        if (!recordingStartTimeRef) {
+        if (!recordingStartTimeRef.current) {
             toast.error("Recording start time was not captured.");
             return;
         }
@@ -867,7 +870,7 @@ const NPG_Ble = () => {
                 sweepPositions.current[i] = (currentPos + 1) % line.numPoints;
             });
         },
-        [linesRef, wglPlots, selectedChannelsRef, dataPointCountRef.current, sweepPositions, Zoom, zoomRef.current,timeBase]
+        [linesRef, wglPlots, selectedChannelsRef, dataPointCountRef.current, sweepPositions, Zoom, zoomRef.current, timeBase]
     );
 
     useEffect(() => {
@@ -886,7 +889,7 @@ const NPG_Ble = () => {
             wglPlots.forEach((wglp) => wglp.update());
             requestAnimationFrame(animate); // Continue the animation loop
         }
-    }, [dataPointCountRef.current, wglPlots, Zoom, pauseRef.current,timeBase]);
+    }, [wglPlots, pauseRef.current]);
 
 
     useEffect(() => {
