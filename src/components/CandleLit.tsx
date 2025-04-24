@@ -46,7 +46,7 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
     return (
         <div className="w-full h-full flex items-end justify-center min-h-0 min-w-0">
             <div className={`relative ${isFullPage
-                ? 'w-1/4 h-3/4 sm:w-1/4 sm:h-3/4 md:w-1/4 md:h-3/4 lg:w-1/4 lg:h-3/4 xl:w-1/4 xl:h-3/4 2xl:w-1/4 2xl:h-3/4'
+                ? 'w-1/4 h-3/4 sm:w-1/4 sm:h-3/4 md:w-1/4 md:h-3/4 lg:w-1/4 lg:h-3/4 xl:w-1/4 xl:h-3/4 2xl:w-2/9 2xl:h-3/4'
                 : 'w-1/4 h-4/5 sm:w-1/5 sm:h-4/5 md:w-1/6 md:h-5/6 lg:w-1/6 lg:h-5/6 xl:w-1/6 xl:h-5/6'
                 }`}
             >
@@ -105,7 +105,7 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
                             >
                                 <div
                                     className={`${isFullPage
-                                            ? 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl'
+                                            ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-4xl'
                                             : 'text-xs sm:text-sm md:text-lg lg:text-xl xl:text-2xl'
                                         } font-semibold text-gray-800 px-1 sm:px-2 md:px-3 py-1 transition-all duration-300 ease-in-out`}
                                 >
