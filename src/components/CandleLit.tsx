@@ -45,8 +45,8 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
     return (
         <div className="w-full h-full flex items-end justify-center min-h-0 min-w-0">
             <div className={`relative ${isFullPage
-                    ? 'w-1/4 h-3/4 sm:w-1/4 sm:h-3/4 md:w-1/4 md:h-3/4 lg:w-1/4 lg:h-3/4 xl:w-1/4 xl:h-3/4 2xl:w-1/4 2xl:h-3/4'
-                    : 'w-1/4 h-4/5 sm:w-1/5 sm:h-4/5 md:w-1/6 md:h-5/6 lg:w-1/6 lg:h-5/6 xl:w-1/6 xl:h-5/6'
+                ? 'w-1/4 h-3/4 sm:w-1/4 sm:h-3/4 md:w-1/4 md:h-3/4 lg:w-1/4 lg:h-3/4 xl:w-1/4 xl:h-3/4 2xl:w-2/4 2xl:h-3/4'
+                : 'w-1/4 h-4/5 sm:w-1/5 sm:h-4/5 md:w-1/6 md:h-5/6 lg:w-1/6 lg:h-5/6 xl:w-1/6 xl:h-5/6'
                 }`}
             >
                 {/* Container wrapper with relative positioning */}
@@ -98,8 +98,8 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
                     <div style={{ height: '80%' }} className="w-full bg-gradient-to-b from-gray-100 to-gray-200 dark:from-stone-600 dark:to-stone-700 rounded-t-md backdrop-blur-md shadow-xl relative">
                         <div className="absolute inset-0 overflow-hidden rounded-t-md bg-gradient-to-b from-cyan-300 via-blue-400 to-gray-900">
                             <div className={`absolute inset-0 ${isFullPage
-                                    ? 'flex flex-row justify-center items-center'
-                                    : 'flex items-center justify-center'
+                                ? 'flex flex-row justify-center items-center'
+                                : 'flex items-center justify-center'
                                 }`}
                             >
                                 <div className="text-xs sm:text-sm md:text-lg lg:text-xl xl:text-2xl font-semibold text-gray-800 px-1 sm:px-2 md:px-3 py-1">
