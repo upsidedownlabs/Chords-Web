@@ -38,7 +38,7 @@ import {
 import { useTheme } from "next-themes";
 
 
-const muscle_strength = () => {
+const MuscleStrength = () => {
     const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
     const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
     // UI States for Popovers and Buttons
@@ -1383,4 +1383,4 @@ const muscle_strength = () => {
 
 }
 
-export default muscle_strength;
+export default MuscleStrength;
