@@ -54,7 +54,6 @@ const MuscleStrength = () => {
     let numChannels = 3;
     const [selectedChannels, setSelectedChannels] = useState<number[]>([0, 1, 2]);
     const { theme } = useTheme(); // Current theme of the app
-
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false); // Track loading state for asynchronous operations
     const [open, setOpen] = useState(false);
@@ -63,6 +62,7 @@ const MuscleStrength = () => {
     const [timeBase, setTimeBase] = useState<number>(10); // To track the current index to show
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const latestDataRef = useRef<number[] | null>(null);
     const animationRef = useRef<number>();
     const prevBandPowerData = useRef<number[]>(Array(3).fill(0));
     const bandColors = useMemo(
@@ -204,6 +204,7 @@ const MuscleStrength = () => {
             window.removeEventListener("resize", handleResize);
         };
     }, [createCanvasElements]);
+    
 
     const updateData = (newData: number[], evn: number[]) => {
         if (!linesRefs.current.length) return;
@@ -422,7 +423,16 @@ const MuscleStrength = () => {
         [theme, bandNames]
     );
 
-
+    useEffect(() => {
+        const handleResize = () => {
+          if (latestDataRef.current) {
+            drawGraph(latestDataRef.current);
+          }
+        };
+      
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+      }, [drawGraph]);
     const animateGraph = useCallback(() => {
         const interpolationFactor = 0.1;
 
