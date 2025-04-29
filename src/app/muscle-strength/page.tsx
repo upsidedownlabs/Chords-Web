@@ -285,7 +285,7 @@ const MuscleStrength = () => {
             const barActW = barW - barSpace;
 
             // Dynamic fonts
-            const fontMain = infoH * 0.4;
+            const fontMain = infoH * 0.3;
             const fontLabel = Math.max(infoH * 0.3, 14 * scale);
 
             // adjust infoH for text
@@ -326,6 +326,22 @@ const MuscleStrength = () => {
                 ctx.strokeStyle = axisColor;
                 ctx.lineWidth = 1;
                 ctx.stroke();
+
+                // Optional: Draw vertical dividers between sections
+                const infoBlockX = x0;
+                const infoBlockY = padding;
+                const infoBlockH = infoH;
+                const sectionWidth = barActW / 3;
+
+                ctx.strokeStyle = axisColor;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(infoBlockX + sectionWidth, infoBlockY);
+                ctx.lineTo(infoBlockX + sectionWidth, infoBlockY + infoBlockH);
+                ctx.moveTo(infoBlockX + 2 * sectionWidth, infoBlockY);
+                ctx.lineTo(infoBlockX + 2 * sectionWidth, infoBlockY + infoBlockH);
+                ctx.stroke();
+
 
                 ctx.fillStyle = axisColor;
                 ctx.textAlign = "center";
