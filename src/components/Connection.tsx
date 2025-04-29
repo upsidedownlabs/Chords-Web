@@ -1387,7 +1387,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                             router.push("/muscle-strength");
                                         }}
                                     >
-                                     Muscle-Strength
+                                    Rep-Forge
                                     </Button>
                                 )}
                             </Popover>
