@@ -204,7 +204,7 @@ const MuscleStrength = () => {
             window.removeEventListener("resize", handleResize);
         };
     }, [createCanvasElements]);
-    
+
 
     const updateData = (newData: number[], evn: number[]) => {
         if (!linesRefs.current.length) return;
@@ -262,28 +262,51 @@ const MuscleStrength = () => {
             if (!canvas || !container) return;
             if (data.some(isNaN)) return;
 
-            // Responsive sizing + DPR
+            // Responsive sizing + DPR - Force layout recalculation
+            container.style.display = 'block'; // Force layout recalculation
             const { width: cssW, height: cssH } = container.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            canvas.width = cssW * dpr;
-            canvas.height = cssH * dpr;
+
+            // Set canvas dimensions properly
+            canvas.width = Math.floor(cssW * dpr);
+            canvas.height = Math.floor(cssH * dpr);
+            canvas.style.width = `${cssW}px`;
+            canvas.style.height = `${cssH}px`;
+
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
             ctx.scale(dpr, dpr);
 
-            // Dimensions
-            const W = cssW;
+            // Constrain effective width for high zoom levels
+            // For high zoom levels, we artificially constrain the effective width
+            const effectiveWidth = cssW / Math.max(1, dpr * 0.9); // Reduce effective width as zoom increases
+            const W = Math.min(cssW, effectiveWidth);
             const H = cssH;
+
+            // Calculate scale based on effective width
             const scale = W / 800;
-            let infoH = 60 * scale;
+
+            // Fixed padding regardless of screen size (but respecting scale)
             const padding = 10 * scale;
-            const axisGap = 1 * scale;
+            let infoH = Math.min(60 * scale, W / 12);
+            const axisGap = Math.max(1 * scale, 1);
             const barCount = data.length;
-            const barW = (W - padding * 2) / barCount;
-            const barSpace = barW * 0.12;
-            const barActW = barW - barSpace;
+
+            // Calculate bar width with safety margins
+            // Critical: ensure we leave enough room for all bars
+            const availableWidth = W - (padding * 2);
+            const barMaxWidth = availableWidth / barCount; // Maximum possible width
+
+            // Cap bar width based on zoom level
+            const zoomAdjustment = Math.max(1, dpr - 0.5); // Reduce width more as zoom increases
+            const barW = barMaxWidth / zoomAdjustment;
+
+            // Reduce space between bars as screen gets smaller
+            const barSpaceFactor = W < 400 ? 0.05 :
+                W < 600 ? 0.08 :
+                    W < 800 ? 0.10 : 0.12;
+            const barSpace = barW * barSpaceFactor;
+            const barActW = Math.max(barW - barSpace, 5); // Ensure minimum bar width
 
             // Dynamic fonts
             const fontMain = infoH * 0.3;
@@ -313,7 +336,22 @@ const MuscleStrength = () => {
 
             // Draw bars and info blocks
             data.forEach((v, i) => {
-                const x0 = padding + i * barW + barSpace / 2;
+                // Calculate position - critical to prevent going off screen
+                // Center the bar area if we're at high zoom levels
+                let adjustedBarPosition;
+                if (dpr > 1.1) {
+                    // At high zoom, center the bars in the visible area
+                    const totalBarsWidth = barCount * (barActW + barSpace);
+                    const leftMargin = Math.max(0, (W - totalBarsWidth) / 2);
+                    adjustedBarPosition = leftMargin + i * (barActW + barSpace);
+                } else {
+                    // Normal positioning
+                    adjustedBarPosition = padding + i * (barActW + barSpace);
+                }
+
+                // Ensure we never exceed the canvas width
+                const x0 = Math.min(adjustedBarPosition, W - padding - barActW);
+
                 const hist = powerBuffer.current[i];
                 const mx = Math.max(...hist, 0);
                 const mn = Math.min(...hist, 0);
@@ -359,7 +397,21 @@ const MuscleStrength = () => {
 
             // Draw bar backgrounds and bars
             data.forEach((v, i) => {
-                const x0 = padding + i * barW + barSpace / 2;
+                // Calculate position - same logic as above
+                let adjustedBarPosition;
+                if (dpr > 1.1) {
+                    // At high zoom, center the bars in the visible area
+                    const totalBarsWidth = barCount * (barActW + barSpace);
+                    const leftMargin = Math.max(0, (W - totalBarsWidth) / 2);
+                    adjustedBarPosition = leftMargin + i * (barActW + barSpace);
+                } else {
+                    // Normal positioning
+                    adjustedBarPosition = padding + i * (barActW + barSpace);
+                }
+
+                // Ensure we never exceed the canvas width
+                const x0 = Math.min(adjustedBarPosition, W - padding - barActW);
+
                 const hist = powerBuffer.current[i];
                 const mx = Math.max(...hist, 0);
                 const barY = padding + infoH + axisGap;
@@ -400,7 +452,21 @@ const MuscleStrength = () => {
 
             // X-axis labels positioned under bars
             data.forEach((_, i) => {
-                const x0 = padding + i * barW + barSpace / 2;
+                // Calculate position - same logic as above
+                let adjustedBarPosition;
+                if (dpr > 1.1) {
+                    // At high zoom, center the bars in the visible area
+                    const totalBarsWidth = barCount * (barActW + barSpace);
+                    const leftMargin = Math.max(0, (W - totalBarsWidth) / 2);
+                    adjustedBarPosition = leftMargin + i * (barActW + barSpace);
+                } else {
+                    // Normal positioning
+                    adjustedBarPosition = padding + i * (barActW + barSpace);
+                }
+
+                // Ensure we never exceed the canvas width
+                const x0 = Math.min(adjustedBarPosition, W - padding - barActW);
+
                 const labelX = x0 + barActW / 2;
                 const barY = padding + infoH + axisGap;
                 const labelY = barY + barAreaH + axisGap;
@@ -423,16 +489,45 @@ const MuscleStrength = () => {
         [theme, bandNames]
     );
 
+    // Improved resize handling with zoom level detection
     useEffect(() => {
+        // Debounced resize handler to prevent too many redraws
+        let resizeTimeout: ReturnType<typeof setTimeout>;
         const handleResize = () => {
-          if (latestDataRef.current) {
-            drawGraph(latestDataRef.current);
-          }
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (latestDataRef.current) {
+                    drawGraph(latestDataRef.current);
+                }
+            }, 100); // 100ms debounce
         };
-      
+
+        // Handle zoom changes by checking device pixel ratio changes
+        let currentDpr = window.devicePixelRatio || 1;
+        const handleZoom = () => {
+            const newDpr = window.devicePixelRatio || 1;
+            if (newDpr !== currentDpr) {
+                currentDpr = newDpr;
+                if (latestDataRef.current) {
+                    drawGraph(latestDataRef.current);
+                }
+            }
+        };
+
+        // Initial draw and event registration
         window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-      }, [drawGraph]);
+        window.addEventListener("zoom", handleZoom); // Some browsers support this
+
+        // Also check periodically for zoom changes (for browsers that don't support zoom event)
+        const zoomCheckInterval = setInterval(handleZoom, 1000);
+
+        return () => {
+            clearTimeout(resizeTimeout);
+            clearInterval(zoomCheckInterval);
+            window.removeEventListener("resize", handleResize);
+            window.removeEventListener("zoom", handleZoom);
+        };
+    }, [drawGraph]);
     const animateGraph = useCallback(() => {
         const interpolationFactor = 0.1;
 
@@ -762,16 +857,16 @@ const MuscleStrength = () => {
             <div className="bg-highlight">
                 <Navbar isDisplay={true} />
             </div>
-            <div className="flex flex-row  flex-[1_1_0%] min-h-80 rounded-2xl m-4 relative">
+            <div className="flex flex-row  flex-[1_1_0%] min-h-80 rounded-2xl m-3 relative">
                 {/* Left half - Charts */}
-                <main className="flex flex-row w-2/3  min-h-80 bg-highlight rounded-2xl m-4 relative">
+                <main className="flex flex-row w-[70%]  min-h-80 bg-highlight rounded-2xl m-3 relative">
                     <div className="w-full flex-row  min-h-80 bg-highlight rounded-2xl relative"
                         ref={canvasContainerRef}
                     >
                     </div>
                 </main>
                 {/* Left half - Charts */}
-                <main className="flex flex-row  w-1/3  min-h-80 rounded-2xl my-4 relative ">
+                <main className="flex flex-row  w-[30%]  min-h-80 rounded-2xl my-3 relative ">
                     <div className=" flex justify-center items-center ">
                         <div ref={containerRef} className="w-full h-full min-h-0 min-w-0 ">
                             <canvas ref={canvasRef} className="w-full h-full " />
