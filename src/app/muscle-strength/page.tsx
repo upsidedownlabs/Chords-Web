@@ -301,7 +301,7 @@ const MuscleStrength = () => {
             ctx.clearRect(0, 0, W, H);
             const axisColor = theme === "dark" ? "#fff" : "#000";
             const bgColor = theme === "dark" ? "#020817" : "#fff";
-            const radius = 6 * scale;
+            const radius = 2 * scale;
 
             // Update buffer
             data.forEach((v, i) => {
