@@ -273,16 +273,12 @@ const MuscleStrength = () => {
             canvas.style.height = `${cssH}px`;
 
 
-
-
-
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
             ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any previous transform
             ctx.scale(dpr, dpr); // only scale once here!
 
 
-            // Constrain effective width for high zoom levels
             // For high zoom levels, we artificially constrain the effective width
             const shrinkExp = 0.1;               // try 0.5–0.9
             const shrinkFactor = Math.pow(dpr, shrinkExp);
@@ -296,46 +292,34 @@ const MuscleStrength = () => {
 
             // Fixed padding regardless of screen size (but respecting scale)
             const padding = 1 * scale;
-            let infoH = Math.min(60 * scale, W / 15);
+
             const axisGap = Math.max(1 * scale, 1);
             const barCount = data.length;
 
-            // Calculate bar width with safety margins
-            // Critical: ensure we leave enough room for all bars
-            const availableWidth = W - (padding * 2);
-            const barMaxWidth = availableWidth / barCount; // Maximum possible width
+            // === explicit vertical partitioning ===
+            const totalAvailH = H - padding * 2 + 60;        // height inside top/bottom padding
+            const middlePct = 0.7;                     // 70% for the bar area
+            const edgePct = (1 - middlePct) / 5;     // 15% each for top info & bottom labels
 
+            // Calculate bar width with safety margins
+            const availableWidth = W - (padding * 2);
+          
             const barPaddingFactor = 0.12;
             const barSpace = availableWidth * barPaddingFactor / barCount;
             const barActW = availableWidth / barCount - barSpace;
 
-            // Reduce space between bars as screen gets smaller
-            const barSpaceFactor = W < 400 ? 0.05 :
-                W < 600 ? 0.08 :
-                    W < 800 ? 0.10 : 0.12;
-
-
+            const barAreaH = totalAvailH * middlePct;  // middle bar area
+            let labelBoxH = totalAvailH * edgePct;    // bottom label block
             // Dynamic fonts
+            let infoH = totalAvailH * edgePct;    // top “info” block
             const fontMain = infoH * 0.3;
             const fontLabel = Math.max(infoH * 0.3, 14 * scale);
 
-            // adjust infoH for text
-            infoH = Math.max(infoH, fontMain * 2 + 4);
 
-            // Calculate label box height
-            let labelBoxH = fontLabel * 2.2;
-
-            // Compute bar area height, reserving space for margins, info block, and labels
-            // Minimum safe bar area height
-            const minBarHeight = 50; // px
-            const barAreaH = Math.max(H - (padding * 2 + infoH + axisGap * 2 + labelBoxH), minBarHeight);
-
-            // Dynamically reduce info/label box heights if space is tight
-            if (H < 500) {
-                infoH *= 0.6;
+            if (H < 600) {
+                infoH *= 0.8;
                 labelBoxH *= 0.8;
             }
-
 
             // Clear
             ctx.clearRect(0, 0, W, H);
@@ -468,6 +452,7 @@ const MuscleStrength = () => {
                 ctx.roundRect(x0, barY + barAreaH - bh, barActW, bh, radius);
                 ctx.fill();
             });
+
 
             // X-axis labels positioned under bars
 
@@ -876,17 +861,17 @@ const MuscleStrength = () => {
             <div className="bg-highlight">
                 <Navbar isDisplay={true} />
             </div>
-            <div className="flex flex-row flex-[1_1_0%] min-h-80 rounded-2xl relative">
+            <div className="flex flex-row flex-[1_1_0%] h-[80%] rounded-2xl relative">
                 {/* Left Panel */}
-                <main className="flex flex-row w-1/2 min-h-80 bg-highlight rounded-2xl m-3 relative">
+                <main className="flex flex-row w-2/3 h-full bg-highlight rounded-2xl m-3 relative">
                     <div
-                        className="w-full min-h-80 bg-highlight rounded-2xl relative"
+                        className="w-full h-full  bg-highlight rounded-2xl relative"
                         ref={canvasContainerRef}
                     />
                 </main>
 
                 {/* Right Panel */}
-                <main className="flex flex-row w-1/2 min-h-80 rounded-2xl my-3 relative">
+                <main className="flex flex-row w-1/3 h-[100%] rounded-2xl my-3 relative">
                     <div className="flex justify-center items-center w-full h-full">
                         <div ref={containerRef} className="w-full h-full">
                             <canvas ref={canvasRef} className="w-full h-full" />
@@ -894,6 +879,7 @@ const MuscleStrength = () => {
                     </div>
                 </main>
             </div>
+
 
             <div className="flex-none items-center justify-center pb-4 bg-g z-10" >
                 {/* Center-aligned buttons */}
