@@ -267,28 +267,36 @@ const MuscleStrength = () => {
             const { width: cssW, height: cssH } = container.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
 
-            // Set canvas dimensions properly
             canvas.width = Math.floor(cssW * dpr);
             canvas.height = Math.floor(cssH * dpr);
             canvas.style.width = `${cssW}px`;
             canvas.style.height = `${cssH}px`;
 
+
+
+
+
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
-            ctx.scale(dpr, dpr);
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any previous transform
+            ctx.scale(dpr, dpr); // only scale once here!
+
 
             // Constrain effective width for high zoom levels
             // For high zoom levels, we artificially constrain the effective width
-            const effectiveWidth = cssW / Math.max(1, dpr * 0.9); // Reduce effective width as zoom increases
-            const W = Math.min(cssW, effectiveWidth);
+            const shrinkExp = 0.1;               // try 0.5–0.9
+            const shrinkFactor = Math.pow(dpr, shrinkExp);
+            const effectiveWidth = cssW / shrinkFactor;
+            const W = cssW;
+
             const H = cssH;
 
             // Calculate scale based on effective width
             const scale = W / 800;
 
             // Fixed padding regardless of screen size (but respecting scale)
-            const padding = 10 * scale;
-            let infoH = Math.min(60 * scale, W / 12);
+            const padding = 1 * scale;
+            let infoH = Math.min(60 * scale, W / 15);
             const axisGap = Math.max(1 * scale, 1);
             const barCount = data.length;
 
@@ -297,16 +305,15 @@ const MuscleStrength = () => {
             const availableWidth = W - (padding * 2);
             const barMaxWidth = availableWidth / barCount; // Maximum possible width
 
-            // Cap bar width based on zoom level
-            const zoomAdjustment = Math.max(1, dpr - 0.5); // Reduce width more as zoom increases
-            const barW = barMaxWidth / zoomAdjustment;
+            const barPaddingFactor = 0.12;
+            const barSpace = availableWidth * barPaddingFactor / barCount;
+            const barActW = availableWidth / barCount - barSpace;
 
             // Reduce space between bars as screen gets smaller
             const barSpaceFactor = W < 400 ? 0.05 :
                 W < 600 ? 0.08 :
                     W < 800 ? 0.10 : 0.12;
-            const barSpace = barW * barSpaceFactor;
-            const barActW = Math.max(barW - barSpace, 5); // Ensure minimum bar width
+
 
             // Dynamic fonts
             const fontMain = infoH * 0.3;
@@ -316,10 +323,19 @@ const MuscleStrength = () => {
             infoH = Math.max(infoH, fontMain * 2 + 4);
 
             // Calculate label box height
-            const labelBoxH = fontLabel * 2.2;
+            let labelBoxH = fontLabel * 2.2;
 
             // Compute bar area height, reserving space for margins, info block, and labels
-            const barAreaH = H - (padding * 2 + infoH + axisGap * 2 + labelBoxH);
+            // Minimum safe bar area height
+            const minBarHeight = 50; // px
+            const barAreaH = Math.max(H - (padding * 2 + infoH + axisGap * 2 + labelBoxH), minBarHeight);
+
+            // Dynamically reduce info/label box heights if space is tight
+            if (H < 500) {
+                infoH *= 0.6;
+                labelBoxH *= 0.8;
+            }
+
 
             // Clear
             ctx.clearRect(0, 0, W, H);
@@ -342,15 +358,18 @@ const MuscleStrength = () => {
                 if (dpr > 1.1) {
                     // At high zoom, center the bars in the visible area
                     const totalBarsWidth = barCount * (barActW + barSpace);
-                    const leftMargin = Math.max(0, (W - totalBarsWidth) / 2);
+
+                    const leftMargin = Math.max(0, (cssW - totalBarsWidth) / 2);
                     adjustedBarPosition = leftMargin + i * (barActW + barSpace);
+
                 } else {
                     // Normal positioning
                     adjustedBarPosition = padding + i * (barActW + barSpace);
                 }
 
                 // Ensure we never exceed the canvas width
-                const x0 = Math.min(adjustedBarPosition, W - padding - barActW);
+                const x0 = Math.min(adjustedBarPosition, cssW - padding - barActW);
+
 
                 const hist = powerBuffer.current[i];
                 const mx = Math.max(...hist, 0);
@@ -451,20 +470,12 @@ const MuscleStrength = () => {
             });
 
             // X-axis labels positioned under bars
-            data.forEach((_, i) => {
-                // Calculate position - same logic as above
-                let adjustedBarPosition;
-                if (dpr > 1.1) {
-                    // At high zoom, center the bars in the visible area
-                    const totalBarsWidth = barCount * (barActW + barSpace);
-                    const leftMargin = Math.max(0, (W - totalBarsWidth) / 2);
-                    adjustedBarPosition = leftMargin + i * (barActW + barSpace);
-                } else {
-                    // Normal positioning
-                    adjustedBarPosition = padding + i * (barActW + barSpace);
-                }
 
-                // Ensure we never exceed the canvas width
+            data.forEach((_, i) => {
+                const totalBarsWidth = barCount * (barActW + barSpace);
+                const leftMargin = Math.max(0, (W - totalBarsWidth) / 2);
+                const adjustedBarPosition = leftMargin + i * (barActW + barSpace);
+
                 const x0 = Math.min(adjustedBarPosition, W - padding - barActW);
 
                 const labelX = x0 + barActW / 2;
@@ -484,10 +495,17 @@ const MuscleStrength = () => {
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(bandNames[i], labelX, labelY + fontLabel);
+
             });
         },
         [theme, bandNames]
     );
+    useEffect(() => {
+        if (canvasRef.current && containerRef.current && latestDataRef.current) {
+            drawGraph(latestDataRef.current);
+        }
+    }, [containerRef, canvasRef]);  // Or after `selectedChannels` change
+
 
     // Improved resize handling with zoom level detection
     useEffect(() => {
@@ -528,6 +546,7 @@ const MuscleStrength = () => {
             window.removeEventListener("zoom", handleZoom);
         };
     }, [drawGraph]);
+
     const animateGraph = useCallback(() => {
         const interpolationFactor = 0.1;
 
@@ -857,19 +876,20 @@ const MuscleStrength = () => {
             <div className="bg-highlight">
                 <Navbar isDisplay={true} />
             </div>
-            <div className="flex flex-row  flex-[1_1_0%] min-h-80 rounded-2xl m-3 relative">
-                {/* Left half - Charts */}
-                <main className="flex flex-row w-[70%]  min-h-80 bg-highlight rounded-2xl m-3 relative">
-                    <div className="w-full flex-row  min-h-80 bg-highlight rounded-2xl relative"
+            <div className="flex flex-row flex-[1_1_0%] min-h-80 rounded-2xl relative">
+                {/* Left Panel */}
+                <main className="flex flex-row w-1/2 min-h-80 bg-highlight rounded-2xl m-3 relative">
+                    <div
+                        className="w-full min-h-80 bg-highlight rounded-2xl relative"
                         ref={canvasContainerRef}
-                    >
-                    </div>
+                    />
                 </main>
-                {/* Left half - Charts */}
-                <main className="flex flex-row  w-[30%]  min-h-80 rounded-2xl my-3 relative ">
-                    <div className=" flex justify-center items-center ">
-                        <div ref={containerRef} className="w-full h-full min-h-0 min-w-0 ">
-                            <canvas ref={canvasRef} className="w-full h-full " />
+
+                {/* Right Panel */}
+                <main className="flex flex-row w-1/2 min-h-80 rounded-2xl my-3 relative">
+                    <div className="flex justify-center items-center w-full h-full">
+                        <div ref={containerRef} className="w-full h-full">
+                            <canvas ref={canvasRef} className="w-full h-full" />
                         </div>
                     </div>
                 </main>
