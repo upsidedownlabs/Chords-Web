@@ -272,19 +272,16 @@ const MuscleStrength = () => {
             canvas.style.width = `${cssW}px`;
             canvas.style.height = `${cssH}px`;
 
-
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
             ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any previous transform
             ctx.scale(dpr, dpr); // only scale once here!
-
 
             // For high zoom levels, we artificially constrain the effective width
             const shrinkExp = 0.1;               // try 0.5–0.9
             const shrinkFactor = Math.pow(dpr, shrinkExp);
             const effectiveWidth = cssW / shrinkFactor;
             const W = cssW;
-
             const H = cssH;
 
             // Calculate scale based on effective width
@@ -292,29 +289,31 @@ const MuscleStrength = () => {
 
             // Fixed padding regardless of screen size (but respecting scale)
             const padding = 1 * scale;
-
             const axisGap = Math.max(1 * scale, 1);
             const barCount = data.length;
 
             // === explicit vertical partitioning ===
             const totalAvailH = H - padding * 2 + 60;        // height inside top/bottom padding
-            const middlePct = 0.7;                     // 70% for the bar area
-            const edgePct = (1 - middlePct) / 5;     // 15% each for top info & bottom labels
+            const middlePct = dpr < 1.5 ? 0.8 : 0.7;          // Increase bar area for zoom <150%
+            const edgePct = (1 - middlePct) / 5;             // 15% each for info & labels
 
             // Calculate bar width with safety margins
             const availableWidth = W - (padding * 2);
-          
             const barPaddingFactor = 0.12;
             const barSpace = availableWidth * barPaddingFactor / barCount;
             const barActW = availableWidth / barCount - barSpace;
 
-            const barAreaH = totalAvailH * middlePct;  // middle bar area
-            let labelBoxH = totalAvailH * edgePct;    // bottom label block
-            // Dynamic fonts
-            let infoH = totalAvailH * edgePct;    // top “info” block
+            const barAreaH = totalAvailH * middlePct;        // middle bar area
+            let infoH = totalAvailH * edgePct;               // top “info” block
+            let labelBoxH = totalAvailH * edgePct;           // bottom label block
+
+            // ** Boost top info height slightly when zoom <150% **
+            if (dpr < 1.5) {
+                infoH *= 1.2;
+            }
+
             const fontMain = infoH * 0.3;
             const fontLabel = Math.max(infoH * 0.3, 14 * scale);
-
 
             if (H < 600) {
                 infoH *= 0.8;
@@ -336,25 +335,16 @@ const MuscleStrength = () => {
 
             // Draw bars and info blocks
             data.forEach((v, i) => {
-                // Calculate position - critical to prevent going off screen
-                // Center the bar area if we're at high zoom levels
                 let adjustedBarPosition;
                 if (dpr > 1.1) {
-                    // At high zoom, center the bars in the visible area
                     const totalBarsWidth = barCount * (barActW + barSpace);
-
                     const leftMargin = Math.max(0, (cssW - totalBarsWidth) / 2);
                     adjustedBarPosition = leftMargin + i * (barActW + barSpace);
-
                 } else {
-                    // Normal positioning
                     adjustedBarPosition = padding + i * (barActW + barSpace);
                 }
 
-                // Ensure we never exceed the canvas width
                 const x0 = Math.min(adjustedBarPosition, cssW - padding - barActW);
-
-
                 const hist = powerBuffer.current[i];
                 const mx = Math.max(...hist, 0);
                 const mn = Math.min(...hist, 0);
@@ -369,30 +359,23 @@ const MuscleStrength = () => {
                 ctx.lineWidth = 1;
                 ctx.stroke();
 
-                // Optional: Draw vertical dividers between sections
-                const infoBlockX = x0;
-                const infoBlockY = padding;
-                const infoBlockH = infoH;
+                // Dividers
                 const sectionWidth = barActW / 3;
-
-                ctx.strokeStyle = axisColor;
-                ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.moveTo(infoBlockX + sectionWidth, infoBlockY);
-                ctx.lineTo(infoBlockX + sectionWidth, infoBlockY + infoBlockH);
-                ctx.moveTo(infoBlockX + 2 * sectionWidth, infoBlockY);
-                ctx.lineTo(infoBlockX + 2 * sectionWidth, infoBlockY + infoBlockH);
+                ctx.moveTo(x0 + sectionWidth, padding);
+                ctx.lineTo(x0 + sectionWidth, padding + infoH);
+                ctx.moveTo(x0 + 2 * sectionWidth, padding);
+                ctx.lineTo(x0 + 2 * sectionWidth, padding + infoH);
                 ctx.stroke();
 
-
+                // Info text
                 ctx.fillStyle = axisColor;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.font = `${fontMain}px Arial`;
-                const sectionW = barActW / 3;
                 const stats: [number, string][] = [[mx, '▲'], [avg, '~'], [mn, '▼']];
                 stats.forEach(([val, sym], idx) => {
-                    const cx = x0 + sectionW * (idx + 0.5);
+                    const cx = x0 + sectionWidth * (idx + 0.5);
                     ctx.fillText(sym, cx, padding + infoH * 0.3);
                     ctx.fillText(val.toFixed(2), cx, padding + infoH * 0.7);
                 });
@@ -400,21 +383,16 @@ const MuscleStrength = () => {
 
             // Draw bar backgrounds and bars
             data.forEach((v, i) => {
-                // Calculate position - same logic as above
                 let adjustedBarPosition;
                 if (dpr > 1.1) {
-                    // At high zoom, center the bars in the visible area
                     const totalBarsWidth = barCount * (barActW + barSpace);
                     const leftMargin = Math.max(0, (W - totalBarsWidth) / 2);
                     adjustedBarPosition = leftMargin + i * (barActW + barSpace);
                 } else {
-                    // Normal positioning
                     adjustedBarPosition = padding + i * (barActW + barSpace);
                 }
 
-                // Ensure we never exceed the canvas width
                 const x0 = Math.min(adjustedBarPosition, W - padding - barActW);
-
                 const hist = powerBuffer.current[i];
                 const mx = Math.max(...hist, 0);
                 const barY = padding + infoH + axisGap;
@@ -434,6 +412,7 @@ const MuscleStrength = () => {
                 const grad = ctx.createLinearGradient(x0, barY + barAreaH, x0, barY + barAreaH - bh);
                 const one3 = barAreaH / 3;
                 const two3 = one3 * 2;
+
                 if (bh <= one3) {
                     grad.addColorStop(0, "green");
                     grad.addColorStop(1, "green");
@@ -447,20 +426,18 @@ const MuscleStrength = () => {
                     grad.addColorStop(two3 / bh, "yellow");
                     grad.addColorStop(1, "red");
                 }
+
                 ctx.fillStyle = grad;
                 ctx.beginPath();
                 ctx.roundRect(x0, barY + barAreaH - bh, barActW, bh, radius);
                 ctx.fill();
             });
 
-
-            // X-axis labels positioned under bars
-
+            // X-axis labels
             data.forEach((_, i) => {
                 const totalBarsWidth = barCount * (barActW + barSpace);
                 const leftMargin = Math.max(0, (W - totalBarsWidth) / 2);
                 const adjustedBarPosition = leftMargin + i * (barActW + barSpace);
-
                 const x0 = Math.min(adjustedBarPosition, W - padding - barActW);
 
                 const labelX = x0 + barActW / 2;
@@ -480,11 +457,11 @@ const MuscleStrength = () => {
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(bandNames[i], labelX, labelY + fontLabel);
-
             });
         },
         [theme, bandNames]
     );
+
     useEffect(() => {
         if (canvasRef.current && containerRef.current && latestDataRef.current) {
             drawGraph(latestDataRef.current);
@@ -863,7 +840,7 @@ const MuscleStrength = () => {
             </div>
             <div className="flex flex-row flex-[1_1_0%] h-[80%] rounded-2xl relative">
                 {/* Left Panel */}
-                <main className="flex flex-row w-2/3 h-full bg-highlight rounded-2xl m-3 relative">
+                <main className="flex flex-row w-2/3  bg-highlight rounded-2xl m-3 relative">
                     <div
                         className="w-full h-full  bg-highlight rounded-2xl relative"
                         ref={canvasContainerRef}
@@ -871,7 +848,7 @@ const MuscleStrength = () => {
                 </main>
 
                 {/* Right Panel */}
-                <main className="flex flex-row w-1/3 h-[100%] rounded-2xl my-3 relative">
+                <main className="flex flex-row w-1/3 h-[100%] rounded-2xl my-3 relative bg-black">
                     <div className="flex justify-center items-center w-full h-full">
                         <div ref={containerRef} className="w-full h-full">
                             <canvas ref={canvasRef} className="w-full h-full" />
