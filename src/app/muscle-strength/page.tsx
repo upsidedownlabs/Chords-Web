@@ -293,9 +293,10 @@ const MuscleStrength = () => {
             const barCount = data.length;
 
             // === explicit vertical partitioning ===
-            const totalAvailH = H - padding * 2 + 60;        // height inside top/bottom padding
-            const middlePct = dpr < 1.5 ? 0.8 : 0.7;          // Increase bar area for zoom <150%
-            const edgePct = (1 - middlePct) / 5;             // 15% each for info & labels
+            const totalAvailH = H - padding * 2 + 60;
+            const middlePct = dpr < 1.7 ? 0.76 : 0.71;
+            const edgePct = (1 - middlePct) / 5;
+
 
             // Calculate bar width with safety margins
             const availableWidth = W - (padding * 2);
@@ -303,12 +304,12 @@ const MuscleStrength = () => {
             const barSpace = availableWidth * barPaddingFactor / barCount;
             const barActW = availableWidth / barCount - barSpace;
 
-            const barAreaH = totalAvailH * middlePct;        // middle bar area
-            let infoH = totalAvailH * edgePct;               // top “info” block
-            let labelBoxH = totalAvailH * edgePct;           // bottom label block
+            const barAreaH = totalAvailH * middlePct;
+            let infoH = totalAvailH * edgePct;
+            let labelBoxH = totalAvailH * edgePct;
 
             // ** Boost top info height slightly when zoom <150% **
-            if (dpr < 1.5) {
+            if (dpr < 2) {
                 infoH *= 1.2;
             }
 
@@ -324,7 +325,11 @@ const MuscleStrength = () => {
             ctx.clearRect(0, 0, W, H);
             const axisColor = theme === "dark" ? "#fff" : "#000";
             const bgColor = theme === "dark" ? "#020817" : "#fff";
-            const radius = 2 * scale;
+            const radius = 15 * scale;
+
+            // [ top-left, top-right, bottom-right, bottom-left ]
+            const cornerRadii = [radius, radius, 0, 0];
+
 
             // Update buffer
             data.forEach((v, i) => {
@@ -353,8 +358,11 @@ const MuscleStrength = () => {
                 // Info block
                 ctx.fillStyle = bgColor;
                 ctx.beginPath();
+                // round only the two top corners:
                 ctx.roundRect(x0, padding, barActW, infoH, [radius, radius, 0, 0]);
                 ctx.fill();
+                ctx.stroke();
+
                 ctx.strokeStyle = axisColor;
                 ctx.lineWidth = 1;
                 ctx.stroke();
@@ -400,7 +408,7 @@ const MuscleStrength = () => {
                 // Bar background
                 ctx.fillStyle = bgColor;
                 ctx.beginPath();
-                ctx.roundRect(x0, barY, barActW, barAreaH, radius);
+                ctx.roundRect(x0, barY, barActW, barAreaH);
                 ctx.fill();
                 ctx.strokeStyle = axisColor;
                 ctx.lineWidth = 1;
@@ -429,7 +437,7 @@ const MuscleStrength = () => {
 
                 ctx.fillStyle = grad;
                 ctx.beginPath();
-                ctx.roundRect(x0, barY + barAreaH - bh, barActW, bh, radius);
+                ctx.roundRect(x0, barY + barAreaH - bh, barActW, bh);
                 ctx.fill();
             });
 
@@ -848,9 +856,9 @@ const MuscleStrength = () => {
                 </main>
 
                 {/* Right Panel */}
-                <main className="flex flex-row w-1/3 h-[100%] rounded-2xl my-3 relative bg-black">
+                <main className="flex flex-row w-1/3 h-[100%] rounded-2xl my-3 relative">
                     <div className="flex justify-center items-center w-full h-full">
-                        <div ref={containerRef} className="w-full h-full">
+                        <div ref={containerRef} className="w-full h-full" >
                             <canvas ref={canvasRef} className="w-full h-full" />
                         </div>
                     </div>
