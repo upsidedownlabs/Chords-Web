@@ -78,7 +78,9 @@ const MuscleStrength = () => {
     const globalMax = useRef<number[]>(bandNames.map(() => -Infinity));
     const tempStatsBuffer = useRef<number[][]>(bandNames.map(() => []));
     const powerHistory = useRef<number[][]>(bandNames.map(() => []));
-    const avg = useRef(0); // To store the last calculated average value
+    const avg = useRef<number[]>(bandNames.map(() => 0));
+
+
 
     const [bandPowerData, setBandPowerData] = useState<number[]>(
         Array(3).fill(-100)
@@ -273,10 +275,14 @@ const MuscleStrength = () => {
             const { width: cssW, height: cssH } = container.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
 
-            canvas.width = Math.floor(cssW * dpr);
-            canvas.height = Math.floor(cssH * dpr);
-            canvas.style.width = `${cssW}px`;
-            canvas.style.height = `${cssH}px`;
+
+            if (canvas.width !== Math.floor(cssW * dpr) || canvas.height !== Math.floor(cssH * dpr)) {
+                canvas.width = Math.floor(cssW * dpr);
+                canvas.height = Math.floor(cssH * dpr);
+                canvas.style.width = `${cssW}px`;
+                canvas.style.height = `${cssH}px`;
+            }
+
 
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
@@ -327,8 +333,7 @@ const MuscleStrength = () => {
                 labelBoxH *= 0.8;
             }
 
-            // Clear
-            ctx.clearRect(0, 0, W, H);
+
             const axisColor = theme === "dark" ? "#fff" : "#000";
             const bgColor = theme === "dark" ? "#020817" : "#fff";
             const radius = 15 * scale;
@@ -383,7 +388,7 @@ const MuscleStrength = () => {
                     const newAvg = history.reduce((s: number, x: number) => s + x, 0) / history.length;
 
                     // Get the old average from the ref
-                    const oldAvg = avg.current;
+                    const oldAvg = avg.current[i]; // ✅ get per-band average
 
                     // Check if newAvg and oldAvg are valid numbers
                     if (isNaN(newAvg) || isNaN(oldAvg)) {
@@ -395,7 +400,7 @@ const MuscleStrength = () => {
                     // Calculate the new blended average
                     const blendedAvg = (newAvg + oldAvg) / 2;
 
-                    avg.current = blendedAvg; // Update the ref with the new average
+                    avg.current[i] = blendedAvg; // ✅ update just that band's avg
 
 
                     // Continue with min/max calculation
@@ -452,7 +457,7 @@ const MuscleStrength = () => {
                 // 1) Build a list of the values you want to show, plus their labels:
                 const metrics = [
                     { value: globalMax.current[i], label: 'Max' },
-                    { value: avg.current, label: 'Avg' },
+                    { value: avg.current[i], label: 'Avg' },
                     { value: globalMin.current[i], label: 'Min' },
                 ];
 
