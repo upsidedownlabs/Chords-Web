@@ -73,6 +73,12 @@ const MuscleStrength = () => {
         () => ["CH0", "CH1", "CH2"],
         []
     );
+    const SAMPLE_BLOCK = 100;
+    const globalMin = useRef<number[]>(bandNames.map(() => Infinity));
+    const globalMax = useRef<number[]>(bandNames.map(() => -Infinity));
+    const tempStatsBuffer = useRef<number[][]>(bandNames.map(() => []));
+    const powerHistory = useRef<number[][]>(bandNames.map(() => []));
+    const avg = useRef(0); // To store the last calculated average value
 
     const [bandPowerData, setBandPowerData] = useState<number[]>(
         Array(3).fill(-100)
@@ -327,16 +333,13 @@ const MuscleStrength = () => {
             const bgColor = theme === "dark" ? "#020817" : "#fff";
             const radius = 15 * scale;
 
-            // [ top-left, top-right, bottom-right, bottom-left ]
-            const cornerRadii = [radius, radius, 0, 0];
-
-
             // Update buffer
             data.forEach((v, i) => {
                 const buf = powerBuffer.current[i];
                 if (buf.length >= 500) buf.shift();
                 buf.push(v);
             });
+
 
             // Draw bars and info blocks
             data.forEach((v, i) => {
@@ -347,13 +350,78 @@ const MuscleStrength = () => {
                     adjustedBarPosition = leftMargin + i * (barActW + barSpace);
                 } else {
                     adjustedBarPosition = padding + i * (barActW + barSpace);
+
+
+                }
+                // Power buffer
+                const buf = powerBuffer.current[i];
+                if (buf.length >= 500) buf.shift();
+                buf.push(v);
+
+                // Power history for avg
+                const hist = powerHistory.current[i];
+                if (hist.length >= SAMPLE_BLOCK) hist.shift(); // keep last 100
+                hist.push(v);
+
+                // Temp buffer for min/max block updates
+                const tempBuf = tempStatsBuffer.current[i];
+                tempBuf.push(v);
+
+                const MIN_VALID_VALUE = 0; // or whatever makes sense in your context
+
+                if (tempStatsBuffer.current[i].length === SAMPLE_BLOCK) {
+                    const history = powerHistory.current[i].filter(v => v >= MIN_VALID_VALUE);  // Ensure valid history
+
+                    // Check if history is empty before calculating average
+                    if (history.length === 0) {
+                        console.warn(`Band ${i}: No valid data for avg calculation.`);
+                        tempStatsBuffer.current[i] = [];
+                        return; // Skip if all values were invalid
+                    }
+
+                    // Calculate average of the new 100 samples
+                    const newAvg = history.reduce((s: number, x: number) => s + x, 0) / history.length;
+
+                    // Get the old average from the ref
+                    const oldAvg = avg.current;
+
+                    // Check if newAvg and oldAvg are valid numbers
+                    if (isNaN(newAvg) || isNaN(oldAvg)) {
+                        console.error(`Band ${i}: Invalid avg calculation. newAvg: ${newAvg}, oldAvg: ${oldAvg}`);
+                        tempStatsBuffer.current[i] = [];
+                        return;
+                    }
+
+                    // Calculate the new blended average
+                    const blendedAvg = (newAvg + oldAvg) / 2;
+
+                    avg.current = blendedAvg; // Update the ref with the new average
+
+
+                    // Continue with min/max calculation
+                    const tempMin = Math.min(...history);
+                    const tempMax = Math.max(...history);
+
+                    if (isFinite(tempMin) && tempMin < globalMin.current[i]) {
+                        globalMin.current[i] = tempMin;
+                    }
+
+                    if (isFinite(tempMax) && tempMax > globalMax.current[i]) {
+                        globalMax.current[i] = tempMax;
+                    }
+
+                    // Reset buffer after processing
+                    tempStatsBuffer.current[i] = [];
                 }
 
+
+
                 const x0 = Math.min(adjustedBarPosition, cssW - padding - barActW);
-                const hist = powerBuffer.current[i];
-                const mx = Math.max(...hist, 0);
-                const mn = Math.min(...hist, 0);
-                const avg = hist.reduce((sum, x) => sum + x, 0) / hist.length;
+
+
+
+                const section = barActW / 3;
+
 
                 // Info block
                 ctx.fillStyle = bgColor;
@@ -381,12 +449,23 @@ const MuscleStrength = () => {
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.font = `${fontMain}px Arial`;
-                const stats: [number, string][] = [[mx, '▲'], [avg, '~'], [mn, '▼']];
-                stats.forEach(([val, sym], idx) => {
-                    const cx = x0 + sectionWidth * (idx + 0.5);
-                    ctx.fillText(sym, cx, padding + infoH * 0.3);
-                    ctx.fillText(val.toFixed(2), cx, padding + infoH * 0.7);
+                // 1) Build a list of the values you want to show, plus their labels:
+                const metrics = [
+                    { value: globalMax.current[i], label: 'Max' },
+                    { value: avg.current, label: 'Avg' },
+                    { value: globalMin.current[i], label: 'Min' },
+                ];
+
+                metrics.forEach(({ value, label }, idx) => {
+                    const cx = x0 + section * (idx + 0.5);
+                    ctx.fillText(label, cx, padding + infoH * 0.3);
+                    ctx.fillText(
+                        (typeof value === "number" ? value.toFixed(2) : (value as number).toFixed(2)),
+                        cx,
+                        padding + infoH * 0.7
+                    );
                 });
+
             });
 
             // Draw bar backgrounds and bars
