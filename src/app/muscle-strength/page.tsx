@@ -1030,39 +1030,6 @@ const MuscleStrength = () => {
                                                     }`}
                                             >
                                                 <BicepsFlexed size={17} />
-                                            </Button> <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 3)}
-                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <Brain size={17} />
-                                            </Button> <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 1)}
-                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <Heart size={17} />
-                                            </Button> <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 2)}
-                                                className={`rounded-xl rounded-l-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <Eye size={17} />
                                             </Button>
                                         </div>
                                         <div className="flex border border-input rounded-xl items-center mx-0 px-0">
@@ -1137,42 +1104,7 @@ const MuscleStrength = () => {
                                                     >
                                                         <BicepsFlexed size={17} />
                                                     </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleFrequencySelectionEXG(index, 3)}
-                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                                                      ${appliedEXGFiltersRef.current[index] === 3
-                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                                : "bg-white-500" // Active background
-                                                            }`}
-                                                    >
-                                                        <Brain size={17} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleFrequencySelectionEXG(index, 1)}
-                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                                                        ${appliedEXGFiltersRef.current[index] === 1
-                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                                : "bg-white-500" // Active background
-                                                            }`}
-                                                    >
-                                                        <Heart size={17} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleFrequencySelectionEXG(index, 2)}
-                                                        className={`rounded-xl rounded-l-none border-0
-                                                        ${appliedEXGFiltersRef.current[index] === 2
-                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                                : "bg-white-500" // Active background
-                                                            }`}
-                                                    >
-                                                        <Eye size={17} />
-                                                    </Button>
+
                                                 </div>
                                                 <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                                                     <Button
