@@ -35,6 +35,87 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
+class CircularMaxBuffer {
+    private buffer: number[];
+    private size: number;
+    private writeIndex: number;
+    private firstMax: number;
+    private secondMax: number;
+    private firstMaxIndex: number;
+    private secondMaxIndex: number;
+
+    constructor(size: number = 2000) {
+        this.size = size;
+        this.buffer = new Array(size).fill(-Infinity);
+        this.writeIndex = 0;
+        this.firstMax = -Infinity;
+        this.secondMax = -Infinity;
+        this.firstMaxIndex = -1;
+        this.secondMaxIndex = -1;
+    }
+
+    insert(value: number): void {
+        const overwrittenIndex = this.writeIndex;
+        const overwrittenValue = this.buffer[overwrittenIndex];
+
+        this.buffer[overwrittenIndex] = value;
+
+        const isOverwritingFirstMax = overwrittenIndex === this.firstMaxIndex;
+        const isOverwritingSecondMax = overwrittenIndex === this.secondMaxIndex;
+
+        if (isOverwritingFirstMax || isOverwritingSecondMax) {
+            this.recalculateMaxes();
+        } else {
+            if (value > this.firstMax) {
+                this.secondMax = this.firstMax;
+                this.secondMaxIndex = this.firstMaxIndex;
+                this.firstMax = value;
+                this.firstMaxIndex = overwrittenIndex;
+            } else if (value > this.secondMax) {
+                this.secondMax = value;
+                this.secondMaxIndex = overwrittenIndex;
+            }
+        }
+
+        this.writeIndex = (this.writeIndex + 1) % this.size;
+    }
+
+    private recalculateMaxes(): void {
+        this.firstMax = -Infinity;
+        this.secondMax = -Infinity;
+        this.firstMaxIndex = -1;
+        this.secondMaxIndex = -1;
+
+        for (let i = 0; i < this.size; i++) {
+            const value = this.buffer[i];
+            if (value > this.firstMax) {
+                this.secondMax = this.firstMax;
+                this.secondMaxIndex = this.firstMaxIndex;
+                this.firstMax = value;
+                this.firstMaxIndex = i;
+            } else if (value > this.secondMax) {
+                this.secondMax = value;
+                this.secondMaxIndex = i;
+            }
+        }
+    }
+
+    getMaxes(): {
+        firstMax: number;
+        firstMaxIndex: number;
+        secondMax: number;
+        secondMaxIndex: number;
+    } {
+        return {
+            firstMax: this.firstMax,
+            firstMaxIndex: this.firstMaxIndex,
+            secondMax: this.secondMax,
+            secondMaxIndex: this.secondMaxIndex,
+        };
+    }
+}
+
+
 
 const MuscleStrength = () => {
     const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
@@ -75,7 +156,13 @@ const MuscleStrength = () => {
     );
     const SAMPLE_BLOCK = 100;
     const globalMin = useRef<number[]>(bandNames.map(() => Infinity));
-    const globalMax = useRef<number[]>(bandNames.map(() => -Infinity));
+    const maxTrackers = useRef<CircularMaxBuffer[]>(
+        new Array(2000).fill(null).map(() => new CircularMaxBuffer(2000)) // Initialize 2000 buffers
+    );
+    const previousMaxes = useRef<{ firstMax: number; secondMax: number }[]>(
+        new Array(2000).fill(null).map(() => ({ firstMax: -Infinity, secondMax: -Infinity }))
+    );
+
     const tempStatsBuffer = useRef<number[][]>(bandNames.map(() => []));
     const powerHistory = useRef<number[][]>(bandNames.map(() => []));
     const avg = useRef<number[]>(bandNames.map(() => 0));
@@ -89,6 +176,7 @@ const MuscleStrength = () => {
 
     const wglpRefs = useRef<WebglPlot[]>([]);
     const linesRefs = useRef<WebglLine[][]>([]); // Now it's an array of arrays
+
 
     const createCanvasElements = () => {
         const container = canvasContainerRef.current;
@@ -403,17 +491,17 @@ const MuscleStrength = () => {
                     avg.current[i] = blendedAvg; // ✅ update just that band's avg
 
 
-                    // Continue with min/max calculation
+                    // Continue with min calculation
                     const tempMin = Math.min(...history);
-                    const tempMax = Math.max(...history);
+                    // Insert into the 2000-sample circular buffer for the current index `i`
+                    maxTrackers.current[i % 2000].insert(v);  // Use modulo to wrap around if more than 2000 points
+
 
                     if (isFinite(tempMin) && tempMin < globalMin.current[i]) {
                         globalMin.current[i] = tempMin;
                     }
 
-                    if (isFinite(tempMax) && tempMax > globalMax.current[i]) {
-                        globalMax.current[i] = tempMax;
-                    }
+
 
                     // Reset buffer after processing
                     tempStatsBuffer.current[i] = [];
@@ -454,14 +542,36 @@ const MuscleStrength = () => {
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.font = `${fontMain}px Arial`;
-                // 1) Build a list of the values you want to show, plus their labels:
+
+                // compute buffer index once
+                const idx = i % 2000;
+
+                // insert and get maxes
+                maxTrackers.current[idx].insert(v);
+                const { firstMax, firstMaxIndex, secondMax, secondMaxIndex } =
+                    maxTrackers.current[idx].getMaxes();
+
+                const prev = previousMaxes.current[idx];
+
+
+                if (firstMax !== prev.firstMax || secondMax !== prev.secondMax) {
+                    console.log(
+                        ` 1st Max: ${firstMax.toFixed(6)} (idx: ${firstMaxIndex}) | 2nd Max: ${secondMax.toFixed(6)} (idx: ${secondMaxIndex})`
+                    );
+
+                    // Update stored values
+                    prev.firstMax = firstMax;
+                    prev.secondMax = secondMax;
+                }
                 const metrics = [
-                    { value: globalMax.current[i], label: 'Max' },
+                    { value: firstMax, label: 'Max' },
                     { value: avg.current[i], label: 'Avg' },
                     { value: globalMin.current[i], label: 'Min' },
                 ];
 
+
                 metrics.forEach(({ value, label }, idx) => {
+                    console.log(`${label}: ${value}`);  // Check if value is correct
                     const cx = x0 + section * (idx + 0.5);
                     ctx.fillText(label, cx, padding + infoH * 0.3);
                     ctx.fillText(
@@ -470,6 +580,7 @@ const MuscleStrength = () => {
                         padding + infoH * 0.7
                     );
                 });
+
 
             });
 
@@ -871,7 +982,6 @@ const MuscleStrength = () => {
             console.log("Notifications started. Listening for data...");
 
             setInterval(() => {
-                console.log("Samples per second: " + samplesReceived);
                 if (samplesReceived === 0) {
                     disconnect();
                     window.location.reload();
