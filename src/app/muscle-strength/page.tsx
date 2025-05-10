@@ -27,95 +27,10 @@ import {
     CircleX,
     CircleOff,
     ReplaceAll,
-    Heart,
-    Brain,
-    Eye,
     BicepsFlexed,
     Loader
 } from "lucide-react";
 import { useTheme } from "next-themes";
-
-class CircularMaxBuffer {
-    private buffer: number[];
-    private size: number;
-    private writeIndex: number;
-    private firstMax: number;
-    private secondMax: number;
-    private firstMaxIndex: number;
-    private secondMaxIndex: number;
-
-    constructor(size: number = 2000) {
-        this.size = size;
-        this.buffer = new Array(size).fill(-Infinity);
-        this.writeIndex = 0;
-        this.firstMax = -Infinity;
-        this.secondMax = -Infinity;
-        this.firstMaxIndex = -1;
-        this.secondMaxIndex = -1;
-    }
-
-    insert(value: number): void {
-        const overwrittenIndex = this.writeIndex;
-        const overwrittenValue = this.buffer[overwrittenIndex];
-
-        this.buffer[overwrittenIndex] = value;
-
-        const isOverwritingFirstMax = overwrittenIndex === this.firstMaxIndex;
-        const isOverwritingSecondMax = overwrittenIndex === this.secondMaxIndex;
-
-        if (isOverwritingFirstMax || isOverwritingSecondMax) {
-            this.recalculateMaxes();
-        } else {
-            if (value > this.firstMax) {
-                this.secondMax = this.firstMax;
-                this.secondMaxIndex = this.firstMaxIndex;
-                this.firstMax = value;
-                this.firstMaxIndex = overwrittenIndex;
-            } else if (value > this.secondMax) {
-                this.secondMax = value;
-                this.secondMaxIndex = overwrittenIndex;
-            }
-        }
-
-        this.writeIndex = (this.writeIndex + 1) % this.size;
-    }
-
-    private recalculateMaxes(): void {
-        this.firstMax = -Infinity;
-        this.secondMax = -Infinity;
-        this.firstMaxIndex = -1;
-        this.secondMaxIndex = -1;
-
-        for (let i = 0; i < this.size; i++) {
-            const value = this.buffer[i];
-            if (value > this.firstMax) {
-                this.secondMax = this.firstMax;
-                this.secondMaxIndex = this.firstMaxIndex;
-                this.firstMax = value;
-                this.firstMaxIndex = i;
-            } else if (value > this.secondMax) {
-                this.secondMax = value;
-                this.secondMaxIndex = i;
-            }
-        }
-    }
-
-    getMaxes(): {
-        firstMax: number;
-        firstMaxIndex: number;
-        secondMax: number;
-        secondMaxIndex: number;
-    } {
-        return {
-            firstMax: this.firstMax,
-            firstMaxIndex: this.firstMaxIndex,
-            secondMax: this.secondMax,
-            secondMaxIndex: this.secondMaxIndex,
-        };
-    }
-}
-
-
 
 const MuscleStrength = () => {
     const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
@@ -123,7 +38,6 @@ const MuscleStrength = () => {
     const sampingrateref = useRef<number>(250);
 
     // Canvas Settings & Channels
-
     const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
     const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
     const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -146,31 +60,14 @@ const MuscleStrength = () => {
     const latestDataRef = useRef<number[] | null>(null);
     const animationRef = useRef<number>();
     const prevBandPowerData = useRef<number[]>(Array(3).fill(0));
-    const bandColors = useMemo(
-        () => ["red", "yellow", "green"],
-        []
-    );
+
     const bandNames = useMemo(
         () => ["CH0", "CH1", "CH2"],
         []
     );
-    const SAMPLE_BLOCK = 100;
-    const globalMin = useRef<number[]>(bandNames.map(() => Infinity));
-    const maxTrackers = useRef<CircularMaxBuffer[]>(
-        new Array(2000).fill(null).map(() => new CircularMaxBuffer(2000)) // Initialize 2000 buffers
-    );
-    const previousMaxes = useRef<{ firstMax: number; secondMax: number }[]>(
-        new Array(2000).fill(null).map(() => ({ firstMax: -Infinity, secondMax: -Infinity }))
-    );
-
-    const tempStatsBuffer = useRef<number[][]>(bandNames.map(() => []));
-    const powerHistory = useRef<number[][]>(bandNames.map(() => []));
-    const avg = useRef<number[]>(bandNames.map(() => 0));
-
-
 
     const [bandPowerData, setBandPowerData] = useState<number[]>(
-        Array(3).fill(-100)
+        Array(3).fill(0)
     );
     const NUM_POINTS = 2500; // Number of points per line
 
@@ -371,7 +268,6 @@ const MuscleStrength = () => {
                 canvas.style.height = `${cssH}px`;
             }
 
-
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
             ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any previous transform
@@ -380,7 +276,7 @@ const MuscleStrength = () => {
             // For high zoom levels, we artificially constrain the effective width
             const shrinkExp = 0.1;               // try 0.5–0.9
             const shrinkFactor = Math.pow(dpr, shrinkExp);
-            const effectiveWidth = cssW / shrinkFactor;
+
             const W = cssW;
             const H = cssH;
 
@@ -421,7 +317,6 @@ const MuscleStrength = () => {
                 labelBoxH *= 0.8;
             }
 
-
             const axisColor = theme === "dark" ? "#fff" : "#000";
             const bgColor = theme === "dark" ? "#020817" : "#fff";
             const radius = 15 * scale;
@@ -432,7 +327,6 @@ const MuscleStrength = () => {
                 if (buf.length >= 500) buf.shift();
                 buf.push(v);
             });
-
 
             // Draw bars and info blocks
             data.forEach((v, i) => {
@@ -451,69 +345,7 @@ const MuscleStrength = () => {
                 if (buf.length >= 500) buf.shift();
                 buf.push(v);
 
-                // Power history for avg
-                const hist = powerHistory.current[i];
-                if (hist.length >= SAMPLE_BLOCK) hist.shift(); // keep last 100
-                hist.push(v);
-
-                // Temp buffer for min/max block updates
-                const tempBuf = tempStatsBuffer.current[i];
-                tempBuf.push(v);
-
-                const MIN_VALID_VALUE = 0; // or whatever makes sense in your context
-
-                if (tempStatsBuffer.current[i].length === SAMPLE_BLOCK) {
-                    const history = powerHistory.current[i].filter(v => v >= MIN_VALID_VALUE);  // Ensure valid history
-
-                    // Check if history is empty before calculating average
-                    if (history.length === 0) {
-                        console.warn(`Band ${i}: No valid data for avg calculation.`);
-                        tempStatsBuffer.current[i] = [];
-                        return; // Skip if all values were invalid
-                    }
-
-                    // Calculate average of the new 100 samples
-                    const newAvg = history.reduce((s: number, x: number) => s + x, 0) / history.length;
-
-                    // Get the old average from the ref
-                    const oldAvg = avg.current[i]; // ✅ get per-band average
-
-                    // Check if newAvg and oldAvg are valid numbers
-                    if (isNaN(newAvg) || isNaN(oldAvg)) {
-                        console.error(`Band ${i}: Invalid avg calculation. newAvg: ${newAvg}, oldAvg: ${oldAvg}`);
-                        tempStatsBuffer.current[i] = [];
-                        return;
-                    }
-
-                    // Calculate the new blended average
-                    const blendedAvg = (newAvg + oldAvg) / 2;
-
-                    avg.current[i] = blendedAvg; // ✅ update just that band's avg
-
-
-                    // Continue with min calculation
-                    const tempMin = Math.min(...history);
-                    // Insert into the 2000-sample circular buffer for the current index `i`
-                    maxTrackers.current[i % 2000].insert(v);  // Use modulo to wrap around if more than 2000 points
-
-
-                    if (isFinite(tempMin) && tempMin < globalMin.current[i]) {
-                        globalMin.current[i] = tempMin;
-                    }
-
-
-
-                    // Reset buffer after processing
-                    tempStatsBuffer.current[i] = [];
-                }
-
-
-
                 const x0 = Math.min(adjustedBarPosition, cssW - padding - barActW);
-
-
-
-                const section = barActW / 3;
 
 
                 // Info block
@@ -528,58 +360,21 @@ const MuscleStrength = () => {
                 ctx.lineWidth = 1;
                 ctx.stroke();
 
-                // Dividers
-                const sectionWidth = barActW / 3;
-                ctx.beginPath();
-                ctx.moveTo(x0 + sectionWidth, padding);
-                ctx.lineTo(x0 + sectionWidth, padding + infoH);
-                ctx.moveTo(x0 + 2 * sectionWidth, padding);
-                ctx.lineTo(x0 + 2 * sectionWidth, padding + infoH);
-                ctx.stroke();
-
                 // Info text
                 ctx.fillStyle = axisColor;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.font = `${fontMain}px Arial`;
 
-                // compute buffer index once
-                const idx = i % 2000;
+                // Show only the current value
+                ctx.fillStyle = axisColor;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = `${fontMain}px Arial`;
 
-                // insert and get maxes
-                maxTrackers.current[idx].insert(v);
-                const { firstMax, firstMaxIndex, secondMax, secondMaxIndex } =
-                    maxTrackers.current[idx].getMaxes();
-
-                const prev = previousMaxes.current[idx];
-
-
-                if (firstMax !== prev.firstMax || secondMax !== prev.secondMax) {
-                    console.log(
-                        ` 1st Max: ${firstMax.toFixed(6)} (idx: ${firstMaxIndex}) | 2nd Max: ${secondMax.toFixed(6)} (idx: ${secondMaxIndex})`
-                    );
-
-                    // Update stored values
-                    prev.firstMax = firstMax;
-                    prev.secondMax = secondMax;
-                }
-                const metrics = [
-                    { value: firstMax, label: 'Max' },
-                    { value: avg.current[i], label: 'Avg' },
-                    { value: globalMin.current[i], label: 'Min' },
-                ];
-
-
-                metrics.forEach(({ value, label }, idx) => {
-                    console.log(`${label}: ${value}`);  // Check if value is correct
-                    const cx = x0 + section * (idx + 0.5);
-                    ctx.fillText(label, cx, padding + infoH * 0.3);
-                    ctx.fillText(
-                        (typeof value === "number" ? value.toFixed(2) : (value as number).toFixed(2)),
-                        cx,
-                        padding + infoH * 0.7
-                    );
-                });
+                const cx = x0 + barActW / 2;
+                ctx.fillText("Current Value", cx, padding + infoH * 0.3);
+                ctx.fillText(v.toFixed(2), cx, padding + infoH * 0.7);
 
 
             });
