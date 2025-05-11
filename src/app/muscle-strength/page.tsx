@@ -5,6 +5,7 @@ import React, {
     useState,
     useMemo,
     useCallback,
+    useLayoutEffect,
 } from "react";
 
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
@@ -184,9 +185,28 @@ const MuscleStrength = () => {
         });
     }
 
-    useEffect(() => {
-        createCanvasElements();
-    }, [numChannels, theme, timeBase, selectedChannels]);
+    // Re-build everything any time the container really changes size
+    useLayoutEffect(() => {
+        if (!containerRef.current) return;
+        const ro = new ResizeObserver(() => {
+            createCanvasElements();
+            rebuildInfoBoxes();   // <-- whatever your right-hand sizing fn is
+
+            function rebuildInfoBoxes() {
+                console.log("Rebuilding info boxes...");
+                // Add your logic here
+            }
+        });
+        ro.observe(containerRef.current);
+        return () => ro.disconnect();
+    }, [
+        numChannels,
+        theme,
+        timeBase,
+        selectedChannels,
+        /* …any other state your build fns read */
+    ]);
+
     useEffect(() => {
         const handleResize = () => {
             createCanvasElements();
@@ -283,14 +303,15 @@ const MuscleStrength = () => {
             // Calculate scale based on effective width
             const scale = W / 800;
 
-            // Fixed padding regardless of screen size (but respecting scale)
             const padding = 1 * scale;
             const axisGap = Math.max(1 * scale, 1);
+
+
             const barCount = data.length;
 
             // === explicit vertical partitioning ===
             const totalAvailH = H - padding * 2 + 60;
-            const middlePct = dpr < 1.7 ? 0.76 : 0.71;
+            const middlePct = dpr < 1.5 ? 0.70 : 0.71;
             const edgePct = (1 - middlePct) / 5;
 
 
@@ -300,9 +321,14 @@ const MuscleStrength = () => {
             const barSpace = availableWidth * barPaddingFactor / barCount;
             const barActW = availableWidth / barCount - barSpace;
 
-            const barAreaH = totalAvailH * middlePct;
-            let infoH = totalAvailH * edgePct;
-            let labelBoxH = totalAvailH * edgePct;
+
+            // Fixed height for your top info and bottom labels
+            let infoH = 50 * scale;   // tweak to how tall your info block must be
+            let labelBoxH = 40 * scale;   // tweak to label box height
+
+            // Full drawable height for bars
+            const barAreaH = H - padding * 2 - infoH - labelBoxH - axisGap * 9;
+
 
             // ** Boost top info height slightly when zoom <150% **
             if (dpr < 2) {
@@ -395,18 +421,25 @@ const MuscleStrength = () => {
                 const mx = Math.max(...hist, 0);
                 const barY = padding + infoH + axisGap;
 
-                // Bar background
                 ctx.fillStyle = bgColor;
                 ctx.beginPath();
-                ctx.roundRect(x0, barY, barActW, barAreaH);
+                ctx.roundRect(
+                    x0,
+                    padding + infoH + axisGap,
+                    barActW,
+                    barAreaH
+                );
                 ctx.fill();
-                ctx.strokeStyle = axisColor;
-                ctx.lineWidth = 1;
                 ctx.stroke();
 
                 // Actual bar
                 const normH = (v / Math.max(mx, 1)) * barAreaH;
-                const bh = Math.max(normH, 3 * scale);
+                // 2️⃣ Draw the filled bar, scaled to barAreaH
+                const max = Math.max(...powerBuffer.current[i], 1);
+                const bh = (v / max) * barAreaH;
+                const barTopY = padding + infoH + axisGap + (barAreaH - bh);
+
+
                 const grad = ctx.createLinearGradient(x0, barY + barAreaH, x0, barY + barAreaH - bh);
                 const one3 = barAreaH / 3;
                 const two3 = one3 * 2;
@@ -425,9 +458,15 @@ const MuscleStrength = () => {
                     grad.addColorStop(1, "red");
                 }
 
+                // (Recreate your gradient here if you like)
                 ctx.fillStyle = grad;
                 ctx.beginPath();
-                ctx.roundRect(x0, barY + barAreaH - bh, barActW, bh);
+                ctx.roundRect(
+                    x0,
+                    barTopY,
+                    barActW,
+                    bh
+                );
                 ctx.fill();
             });
 
@@ -830,32 +869,43 @@ const MuscleStrength = () => {
     }
 
     return (
-        <div className="flex flex-col h-screen m-0 p-0 bg-g ">
+        <div className="flex flex-col h-screen m-0 p-0 bg-g">
 
             <div className="bg-highlight">
                 <Navbar isDisplay={true} />
             </div>
-            <div className="flex flex-row flex-[1_1_0%] h-[80%] rounded-2xl relative">
+            <div className="flex flex-row flex-1 overflow-auto  relative">
                 {/* Left Panel */}
-                <main className="flex flex-row w-2/3  bg-highlight rounded-2xl m-3 relative">
+                <main className="w-2/3 m-3 relative flex  bg-highlight">
+
                     <div
-                        className="w-full h-full  bg-highlight rounded-2xl relative"
                         ref={canvasContainerRef}
+                        className="absolute inset-0  rounded-2xl "
                     />
                 </main>
 
+
                 {/* Right Panel */}
-                <main className="flex flex-row w-1/3 h-[100%] rounded-2xl my-3 relative">
-                    <div className="flex justify-center items-center w-full h-full">
-                        <div ref={containerRef} className="w-full h-full" >
-                            <canvas ref={canvasRef} className="w-full h-full" />
-                        </div>
+                <main className="w-1/3 m-3 relative flex overflow-hidden">
+                    <div
+                        ref={containerRef}
+                        className="absolute inset-0  rounded-2xl"
+
+                    >
+
+                        <canvas
+                            ref={canvasRef}
+                            className="w-full h-full"
+                        />
                     </div>
                 </main>
+
+
+
             </div>
 
 
-            <div className="flex-none items-center justify-center pb-4 bg-g z-10" >
+            <div className="flex-none pb-1 flex items-center justify-center bg-g gap-3 z-10" >
                 {/* Center-aligned buttons */}
                 <div className="flex gap-3 items-center justify-center">
                     {/* Connection button with tooltip */}
