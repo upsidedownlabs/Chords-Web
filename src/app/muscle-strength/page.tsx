@@ -7,6 +7,7 @@ import React, {
     useCallback,
     useLayoutEffect,
 } from "react";
+import { toast } from "sonner";
 
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 import Navbar from "@/components/Navbar";
@@ -749,22 +750,27 @@ const MuscleStrength = () => {
     const envelope3 = new EnvelopeFilter(64);
 
     function handledata(event: Event): void {
-        const target = event.target as BluetoothRemoteGATTCharacteristicExtended;
-        if (!target.value) {
-            console.log("Received event with no value.");
-            return;
-        }
-        const value = target.value;
-        if (value.byteLength === NEW_PACKET_LEN) {
-            for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
-                const sampleBuffer = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
-                const sampleDataView = new DataView(sampleBuffer);
-                processSample(sampleDataView);
+        try {
+            const target = event.target as BluetoothRemoteGATTCharacteristicExtended;
+            if (!target.value) {
+                console.log("Received event with no value.");
+                return;
             }
-        } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
-            processSample(new DataView(value.buffer));
-        } else {
-            console.log("Unexpected packet length: " + value.byteLength);
+            const value = target.value;
+            if (value.byteLength === NEW_PACKET_LEN) {
+                for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
+                    const sampleBuffer = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
+                    const sampleDataView = new DataView(sampleBuffer);
+                    processSample(sampleDataView);
+                }
+            } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
+                processSample(new DataView(value.buffer));
+            } else {
+                console.log("Unexpected packet length: " + value.byteLength);
+            }
+        } catch (error) {
+            console.error("Error processing BLE data:", error);
+           
         }
     }
 
@@ -774,7 +780,8 @@ const MuscleStrength = () => {
             setIsLoading(true);
             const nav = navigator as any;
             if (!nav.bluetooth) {
-                console.log("Web Bluetooth API is not available in this browser.");
+                setIsLoading(false);
+                toast("Web Bluetooth API is not available in your browser. Please use Chrome, Edge, or Opera.");  
                 return;
             }
 
