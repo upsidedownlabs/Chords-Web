@@ -132,7 +132,7 @@ const MuscleStrength = () => {
         // Create canvasElements for each selected channel
         selectedChannels.forEach((channelNumber, index) => {
             const canvasWrapper = document.createElement("div");
-            canvasWrapper.className = "canvas-container relative flex-[1_1_0%]";
+            canvasWrapper.className = "canvas-container relative flex-[1_1_0%] ";
 
             const canvas = document.createElement("canvas");
             canvas.id = `canvas${channelNumber}`;
@@ -876,7 +876,7 @@ const MuscleStrength = () => {
             </div>
             <div className="flex flex-row flex-1 overflow-auto  relative">
                 {/* Left Panel */}
-                <main className="w-2/3 m-3 relative flex  bg-highlight">
+                <main className="w-2/3 m-3 relative flex  bg-highlight rounded-2xl ">
 
                     <div
                         ref={canvasContainerRef}

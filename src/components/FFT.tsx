@@ -15,6 +15,7 @@ import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 import BrightCandleView from "./CandleLit";
 
 interface CanvasProps {
+    selectedChannel: number;
     canvasCount?: number;
     selectedChannels: number[];
     timeBase?: number;
@@ -25,6 +26,7 @@ interface CanvasProps {
 const FFT = forwardRef(
     (
         {
+            selectedChannel,
             canvasCount = 6,
             timeBase = 4,
             currentSamplingRate,
@@ -74,6 +76,7 @@ const FFT = forwardRef(
             private circularBuffers: number[][];
             private sums: number[];
             private dataIndex: number = 0;
+
 
             constructor(bufferSize: number = 5, initialLength: number = 0) {
                 this.bufferSize = Math.max(1, Math.floor(bufferSize)); // Prevent negative or NaN
@@ -192,7 +195,7 @@ const FFT = forwardRef(
             () => ({
                 updateData(data: number[]) {
                     for (let i = 0; i < 1; i++) {
-                        const sensorValue = data[i + 1];
+                        const sensorValue = data[selectedChannel ];
                         fftBufferRef.current[i].push(sensorValue);
                         updatePlot(sensorValue, Zoom);
 
@@ -200,7 +203,6 @@ const FFT = forwardRef(
                             fftBufferRef.current[i].shift();
                         }
                         samplesReceived++;
-
                         if (samplesReceived % sampleupdateref.current === 0) {
                             const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
                             const floatInput = new Float32Array(processedBuffer);
@@ -217,7 +219,7 @@ const FFT = forwardRef(
                     }
                 },
             }),
-            [Zoom, timeBase, canvasCount, fftSize, currentSamplingRate]
+            [Zoom, timeBase, canvasCount, fftSize, currentSamplingRate, selectedChannel]
         );
 
         class FFT {
@@ -377,41 +379,41 @@ const FFT = forwardRef(
             const canvas = canvasRef.current;
             const container = containerRef.current;
             if (!canvas || !container) return;
-        
+
             const ctx = canvas.getContext("2d");
             if (!ctx) return;
-        
+
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
-        
+
             const width = canvas.width - 20;
             const height = canvas.height;
-        
+
             const leftMargin = 90;
             const bottomMargin = 50;
             const topMargin = 30; // added top margin
-        
+
             ctx.clearRect(0, 0, canvas.width, height);
-        
+
             const axisColor = theme === "dark" ? "white" : "black";
-        
+
             ctx.beginPath();
             ctx.moveTo(leftMargin, topMargin); // use topMargin
             ctx.lineTo(leftMargin, height - bottomMargin);
             ctx.lineTo(width - 10, height - bottomMargin);
             ctx.strokeStyle = axisColor;
             ctx.stroke();
-        
+
             const freqStep = currentSamplingRate / fftSize;
             const displayPoints = Math.min(Math.ceil(maxFreq / freqStep), fftSize / 2);
-        
+
             const xScale = (width - leftMargin - 10) / displayPoints;
-        
+
             let yMax = 1; // Default to prevent division by zero
             yMax = Math.max(...fftData.flat());
-        
+
             const yScale = (height - bottomMargin - topMargin) / yMax;
-        
+
             fftData.forEach((channelData, index) => {
                 ctx.beginPath();
                 ctx.strokeStyle = channelColors[index];
@@ -422,39 +424,39 @@ const FFT = forwardRef(
                 }
                 ctx.stroke();
             });
-        
+
             ctx.fillStyle = axisColor;
             ctx.font = "12px Arial";
-        
+
             ctx.textAlign = "right";
             ctx.textBaseline = "middle";
             for (let i = 0; i <= 5; i++) {
                 const labelY = height - bottomMargin - (i / 5) * (height - bottomMargin - topMargin);
                 ctx.fillText(((yMax * i) / 5).toFixed(3), leftMargin - 10, labelY);
             }
-        
+
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
             const numLabels = Math.min(maxFreq / 10, Math.floor(currentSamplingRate / 2 / 10));
             let lastLabelX = -Infinity;
             const labelSpacing = 50; // Increased spacing
-        
+
             for (let i = 0; i <= numLabels; i++) {
                 const freq = i * 10;
                 const labelX = leftMargin + (freq / freqStep) * xScale;
-        
+
                 // Only draw label if it is far enough from the last one
                 if (labelX - lastLabelX >= labelSpacing) {
                     ctx.fillText(freq.toString(), labelX, height - bottomMargin + 10); // Moved label further up
                     lastLabelX = labelX;
                 }
             }
-        
+
             ctx.font = "14px Arial";
             ctx.textAlign = "center";
             ctx.textBaseline = "bottom";
             ctx.fillText("Frequency (Hz)", (width + leftMargin) / 2, height - 10);
-        
+
             ctx.save();
             ctx.rotate(-Math.PI / 2);
             ctx.font = "14px Arial";
@@ -463,8 +465,8 @@ const FFT = forwardRef(
             ctx.fillText("Magnitude", -height / 2, topMargin - 5);
             ctx.restore();
         }, [fftData, theme, maxFreq, currentSamplingRate, fftSize, channelColors]);
-        
-        
+
+
         useEffect(() => {
             if (fftData.some((channel) => channel.length > 0)) {
                 plotData();

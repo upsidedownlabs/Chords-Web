@@ -6,7 +6,6 @@ import { EXGFilter, Notch } from './filters';
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { getCustomColor, lightThemeColors } from './Colors';
-
 import {
     Cable,
     Circle,
@@ -57,6 +56,8 @@ interface ConnectionProps {
     setIsDisplay: React.Dispatch<React.SetStateAction<boolean>>;
     setCanvasCount: React.Dispatch<React.SetStateAction<number>>; // Specify type for setCanvasCount
     canvasCount: number;
+    selectedChannel: number;
+    setSelectedChannel: React.Dispatch<React.SetStateAction<number>>;
     selectedChannels: number[]; // Array of selected channel indices
     setSelectedChannels: React.Dispatch<React.SetStateAction<number[]>>; // State updater for selectedChannels
     channelCount: number;
@@ -80,6 +81,8 @@ const Connection: React.FC<ConnectionProps> = ({
     isDisplay,
     setIsDisplay,
     setCanvasCount,
+    setSelectedChannel,
+    selectedChannel,
     canvasCount,
     setSelectedChannels,
     selectedChannels,
@@ -96,6 +99,8 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // States and Refs for Connection & Recording
     const [isDeviceConnected, setIsDeviceConnected] = useState<boolean>(false); // Track if the device is connected
+    const [isserial, setIsserial] = useState<boolean>(false); // Track if the device is connected
+
     const [FFTDeviceConnected, setFFTDeviceConnected] = useState<boolean>(false); // Track if the device is connected
     const isDeviceConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
     const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
@@ -122,6 +127,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const [deviceReady, setDeviceReady] = useState(false);
     const sampingrateref = useRef<number>(0);
     const [open, setOpen] = useState(false);
+    const [openfft, setOpenfft] = useState(false);
     const [isPauseSate, setIsPauseState] = useState(false);
 
     // UI Themes & Modes
@@ -272,6 +278,7 @@ const Connection: React.FC<ConnectionProps> = ({
         // Toggle the "Select All" button state
         setIsAllEnabledChannelSelected((prevState) => !prevState);
     };
+
 
     const toggleChannel = (channelIndex: number) => {
         setSelectedChannels((prevSelected) => {
@@ -724,6 +731,7 @@ const Connection: React.FC<ConnectionProps> = ({
             } else {
                 console.error("Readable stream not available");
             }
+            setIsserial(true);
 
             setSelectedChannels(initialSelectedChannelsRef.current);
             Connection(true);
@@ -742,6 +750,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
         } catch (error) {
             await disconnectDevice();
+            setIsserial(false);
             console.error("Error connecting to device:", error);
             toast.error("Failed to connect to device.");
         }
@@ -757,7 +766,7 @@ const Connection: React.FC<ConnectionProps> = ({
             const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
             let port = null;
             const ports = await navigator.serial.getPorts();
-
+            setIsserial(true);
             if (savedPorts.length > 0) {
                 port = ports.find((p) => {
                     const info = p.getInfo();
@@ -769,7 +778,7 @@ const Connection: React.FC<ConnectionProps> = ({
             handleFrequencySelectionEXG(0, 3);
             let baudRate;
             let serialTimeout;
-
+            setSelectedChannel(1);
             if (!port) {
                 port = await navigator.serial.requestPort();
                 const newPortInfo = await port.getInfo();
@@ -946,6 +955,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         writerRef.current = null;
                     }
                 }
+                setIsserial(false);
                 snapShotRef.current?.fill(false);
                 if (readerRef.current) {
                     try {
@@ -984,6 +994,210 @@ const Connection: React.FC<ConnectionProps> = ({
         }
 
     };
+    const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+    const DATA_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+    const CONTROL_CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
+
+    let prevSampleCounter: number | null = null;
+    let samplesReceived = 0;
+    let channelData: number[] = [];
+    const SINGLE_SAMPLE_LEN = 7; // Each sample is 10 bytes
+    const BLOCK_COUNT = 10; // 10 samples batched per notification
+    const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT; // 100 bytes
+    interface BluetoothRemoteGATTCharacteristicExtended extends EventTarget {
+        value?: DataView;
+    }
+    // Add these to your component's refs
+    const notchFiltersRef = useRef<Notch[]>([]);
+    const EXGFiltersRef = useRef<EXGFilter[]>([]);
+    const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
+
+    // Initialize filters when device connects or channel count changes
+    useEffect(() => {
+        if (maxCanvasElementCountRef.current > 0) {
+            notchFiltersRef.current = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
+            EXGFiltersRef.current = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
+
+            // Set initial filter parameters
+            notchFiltersRef.current.forEach(filter => filter.setbits(500));
+            EXGFiltersRef.current.forEach(filter => filter.setbits("12", 500));
+        }
+    }, [maxCanvasElementCountRef.current]);
+    const processSample = useCallback((dataView: DataView): void => {
+        if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
+            console.log("Unexpected sample length: " + dataView.byteLength);
+            return;
+        }
+        const sampleCounter = dataView.getUint8(0);
+
+        if (prevSampleCounter === null) {
+            prevSampleCounter = sampleCounter;
+        } else {
+            const expected = (prevSampleCounter + 1) % 256;
+            if (sampleCounter !== expected) {
+                console.log(`Missing sample: expected ${expected}, got ${sampleCounter}`);
+            }
+            prevSampleCounter = sampleCounter;
+        }
+
+        channelData.push(sampleCounter);
+
+        for (let channel = 0; channel < maxCanvasElementCountRef.current; channel++) {
+            const sample = dataView.getInt16(1 + (channel * 2), false);
+            channelData.push(
+                notchFiltersRef.current[channel].process(
+                    EXGFiltersRef.current[channel].process(
+                        sample,
+                        appliedEXGFiltersRef.current[channel] || 0
+                    ),
+                    appliedFiltersRef.current[channel] || 0
+                )
+            );
+        }
+        datastream(channelData);
+        if (isRecordingRef.current) {
+            const channeldatavalues = channelData
+                .slice(0, canvasElementCountRef.current + 1)
+                .map((value) => (value !== undefined ? value : null))
+                .filter((value): value is number => value !== null);
+
+            recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
+
+            if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
+                processBuffer(activeBufferIndex, canvasElementCountRef.current, selectedChannels);
+                activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
+            }
+
+            fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
+
+            const elapsedTime = Date.now() - recordingStartTimeRef.current;
+            setRecordingElapsedTime((prev) => {
+                if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
+                    stopRecording();
+                    return endTimeRef.current;
+                }
+                return elapsedTime;
+            });
+        }
+
+        channelData = [];
+        samplesReceived++;
+    }, [
+        canvasElementCountRef.current, selectedChannels, timeBase
+    ]);
+    function handleNotification(event: Event): void {
+        const target = event.target as BluetoothRemoteGATTCharacteristicExtended;
+        if (!target.value) {
+            console.log("Received event with no value.");
+            return;
+        }
+
+        const value = target.value;
+        if (value.byteLength === NEW_PACKET_LEN) {
+            for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
+                const sampleBuffer = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
+                const sampleDataView = new DataView(sampleBuffer);
+                processSample(sampleDataView);
+            }
+        } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
+            processSample(new DataView(value.buffer));
+        } else {
+            console.log("Unexpected packet length: " + value.byteLength);
+        }
+    }
+    async function connectBLE(): Promise<void> {
+        try {
+
+            setIsfftLoading(true);
+            const nav = navigator as any;
+            if (!nav.bluetooth) {
+                console.log("Web Bluetooth API is not available in this browser.");
+                return;
+            }
+            const device = await nav.bluetooth.requestDevice({
+                filters: [{ namePrefix: "NPG" }],
+                optionalServices: [SERVICE_UUID],
+            });
+            const server = await device.gatt?.connect();
+            if (!server) {
+                setIsfftLoading(false);
+
+            }
+            connectedDeviceRef.current = device;
+            // Initialize filters
+            notchFiltersRef.current = Array.from({ length: 3 }, () => new Notch());
+            EXGFiltersRef.current = Array.from({ length: 3 }, () => new EXGFilter());
+            notchFiltersRef.current.forEach(filter => filter.setbits(500));
+            EXGFiltersRef.current.forEach(filter => filter.setbits("12", 500));
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
+            const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+            const encoder = new TextEncoder();
+            await controlChar.writeValue(encoder.encode("START"));
+            await dataChar.startNotifications();
+            dataChar.addEventListener("characteristicvaluechanged", handleNotification);
+            setSelectedChannels(initialSelectedChannelsRef.current);
+            FFT(true);
+            setIsDeviceConnected(true);
+            setFFTDeviceConnected(true);
+            setIsDisplay(true);
+            setCanvasCount(1);
+            isDeviceConnectedRef.current = true;
+            setIsfftLoading(false);
+            setSelectedBitsValue(12);
+            setSelectedBits(12);
+            detectedBitsRef.current = 12;
+            maxCanvasElementCountRef.current = 3;
+            setSelectedChannel(1);
+            setCurrentSamplingRate(500);
+            sampingrateref.current = 500;
+
+        } catch (error) {
+            console.log("Error: " + (error instanceof Error ? error.message : error));
+            setIsfftLoading(false);
+
+        }
+    }
+
+    async function disconnect(): Promise<void> {
+        try {
+            if (!connectedDeviceRef.current) {
+                console.log("No connected device to disconnect.");
+                return;
+            }
+
+            const server = connectedDeviceRef.current.gatt;
+            if (!server) {
+                return;
+            }
+
+
+            if (!server.connected) {
+                connectedDeviceRef.current = null;
+                return;
+            }
+
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+            await dataChar.stopNotifications();
+            dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
+
+            server.disconnect(); // Disconnect the device
+            setIsDeviceConnected(false); // Update connection state
+            setFFTDeviceConnected(false);
+            FFT(false);
+            toast("Disconnected from device", {
+                action: {
+                    label: "Reconnect",
+                    onClick: () => connectBLE(),
+                },
+            });
+            connectedDeviceRef.current = null; // Clear the global reference
+        } catch (error) {
+            console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
+        }
+    }
+
 
     const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
     const appliedEXGFiltersRef = React.useRef<{ [key: number]: number }>({});
@@ -1314,7 +1528,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                 <PopoverTrigger asChild>
                                     <Button
                                         className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevice())}
+                                        onClick={() => (isDeviceConnected ? isserial ? disconnectDevice() : disconnect() : connectToDevice())}
                                         disabled={isLoading}
                                     >
                                         {isLoading ? (
@@ -1347,28 +1561,48 @@ const Connection: React.FC<ConnectionProps> = ({
                                     </Button>
                                 )}
                                 {!isDeviceConnected && (
-                                    <Button
-                                        className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => (isDeviceConnected ? disconnectDevice() : connectToDevicefft())}
-                                        disabled={isfftLoading}
-                                    >
-                                        {isfftLoading ? (
-                                            <>
-                                                <Loader size={17} className="animate-spin" />
-                                                Connecting...
-                                            </>
-                                        ) : isDeviceConnected ? (
-                                            <>
-                                                Disconnect
-                                                <CircleX size={17} />
-                                            </>
-                                        ) : (
-                                            <>
-                                                FFT Visualizer
-                                                <Cable size={17} />
-                                            </>
+                                    <Popover open={openfft} onOpenChange={setOpenfft}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                                                disabled={isfftLoading || isPauseSate}
+                                            >
+                                                {isfftLoading ? (
+                                                    <>
+                                                        <Loader size={17} className="animate-spin" />
+                                                        Connecting...
+                                                    </>
+                                                ) : isDeviceConnected ? (
+                                                    <>
+                                                        Disconnect
+                                                        <CircleX size={17} />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        FFT Visualizer
+                                                        <Cable size={17} />
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </PopoverTrigger>
+
+                                        {!isDeviceConnected && (
+                                            <PopoverContent className="w-40 p-3 space-y-2 mx-4 mb-2">
+                                                <Button
+                                                    className="w-full"
+                                                    onClick={() => connectToDevicefft()}
+                                                >
+                                                    Serial
+                                                </Button>
+                                                <Button
+                                                    className="w-full"
+                                                    onClick={() => { connectBLE() }}
+                                                >
+                                                    Bluetooth
+                                                </Button>
+                                            </PopoverContent>
                                         )}
-                                    </Button>
+                                    </Popover>
                                 )}
                                 {!isDeviceConnected && (
                                     <Button
@@ -1377,17 +1611,17 @@ const Connection: React.FC<ConnectionProps> = ({
                                             router.push("/npg-lite");
                                         }}
                                     >
-                                       NPG-Lite
+                                        NPG-Lite
                                     </Button>
                                 )}
-                                 {!isDeviceConnected && (
+                                {!isDeviceConnected && (
                                     <Button
                                         className="py-2 px-4 rounded-xl font-semibold"
                                         onClick={() => {
                                             router.push("/muscle-strength");
                                         }}
                                     >
-                                    Rep-Forge
+                                        Rep-Forge
                                     </Button>
                                 )}
                             </Popover>
@@ -1780,17 +2014,46 @@ const Connection: React.FC<ConnectionProps> = ({
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-50 p-4 mx-4 mb-2">
-                            <div className="flex flex-col max-h-80 overflow-y-auto">
-                                <div className="flex items-center">
-                                    <div className="text-sm font-semibold w-12">{channelNames[0]}</div>
+                        <div className="flex flex-col max-h-80 overflow-y-auto">
+                                <div className="flex items-center pb-2 ">
+                                    {/* Filter Name */}
+                                    <div className="text-sm font-semibold w-12"><ReplaceAll size={20} /></div>
+                                    {/* Buttons */}
                                     <div className="flex space-x-2">
+                                        <div className="flex items-center border border-input rounded-xl mx-0 px-0">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => removeEXGFilterFromAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i))}
+                                                className={`rounded-xl rounded-r-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === 0
+                                                        ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                <CircleOff size={17} />
+                                            </Button>
+                                          <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 3)}
+                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
+                                            >
+                                                <Brain size={17} />
+                                            </Button> 
+                                          
+                                        </div>
                                         <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => removeNotchFilter(0)}
+                                                onClick={() => removeNotchFromAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i))}
                                                 className={`rounded-xl rounded-r-none border-0
-                                                        ${appliedFiltersRef.current[0] === undefined
+                          ${Object.keys(appliedFiltersRef.current).length === 0
                                                         ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
                                                         : "bg-white-500" // Active background
                                                     }`}
@@ -1800,9 +2063,9 @@ const Connection: React.FC<ConnectionProps> = ({
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => handleFrequencySelection(0, 1)}
+                                                onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 1)}
                                                 className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                                                        ${appliedFiltersRef.current[0] === 1
+                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 1)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                         : "bg-white-500" // Active background
                                                     }`}
@@ -1812,20 +2075,153 @@ const Connection: React.FC<ConnectionProps> = ({
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => handleFrequencySelection(0, 2)}
-                                                className={
-                                                    `rounded-xl rounded-l-none border-0 ${appliedFiltersRef.current[0] === 2
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white "
-                                                        : "bg-white-500 animate-fade-in-right"
-                                                    }`
-                                                }
+                                                onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 2)}
+                                                className={`rounded-xl rounded-l-none border-0
+                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 2)
+                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                        : "bg-white-500" // Active background
+                                                    }`}
                                             >
                                                 60Hz
                                             </Button>
                                         </div>
                                     </div>
                                 </div>
+                                <div className="flex flex-col space-y-2">
+                                    {channelNames.map((filterName, index) => (
+                                        <div key={filterName} className="flex items-center">
+                                            {/* Filter Name */}
+                                            <div className="text-sm font-semibold w-12">{filterName}</div>
+                                            {/* Buttons */}
+                                            <div className="flex space-x-2">
+                                                <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => removeEXGFilter(index)}
+                                                        className={`rounded-xl rounded-r-none border-l-none border-0
+                                                        ${appliedEXGFiltersRef.current[index] === undefined
+                                                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                                                : "bg-white-500" // Active background
+                                                            }`}
+                                                    >
+                                                        <CircleOff size={17} />
+                                                    </Button>
+                                        
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleFrequencySelectionEXG(index, 3)}
+                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                      ${appliedEXGFiltersRef.current[index] === 3
+                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                                : "bg-white-500" // Active background
+                                                            }`}
+                                                    >
+                                                        <Brain size={17} />
+                                                    </Button>
+                                               
+                                          
+                                                </div>
+                                                <div className="flex border border-input rounded-xl items-center mx-0 px-0">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => removeNotchFilter(index)}
+                                                        className={`rounded-xl rounded-r-none border-0
+                                                        ${appliedFiltersRef.current[index] === undefined
+                                                                ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
+                                                                : "bg-white-500" // Active background
+                                                            }`}
+                                                    >
+                                                        <CircleOff size={17} />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleFrequencySelection(index, 1)}
+                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                        ${appliedFiltersRef.current[index] === 1
+                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                                : "bg-white-500" // Active background
+                                                            }`}
+                                                    >
+                                                        50Hz
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleFrequencySelection(index, 2)}
+                                                        className={
+                                                            `rounded-xl rounded-l-none border-0 ${appliedFiltersRef.current[index] === 2
+                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white "
+                                                                : "bg-white-500 animate-fade-in-right"
+                                                            }`
+                                                        }
+                                                    >
+                                                        60Hz
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                )}
 
+                {FFTDeviceConnected && (
+                    <Popover open={open} onOpenChange={setOpen}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                                disabled={isfftLoading || isPauseSate}
+                            >
+                                Channels
+                            </Button>
+                        </PopoverTrigger>
+
+                        <PopoverContent className="w-full p-3 space-y-2 mx-4 mb-2">
+                            <div id="button-container" className="relative space-y-2 rounded-lg">
+                                {Array.from({ length: 2 }).map((_, container) => (
+                                    <div key={container} className="grid grid-cols-8 gap-2">
+                                        {Array.from({ length: 8 }).map((_, col) => {
+                                            const index = container * 8 + col;
+                                            const isChannelDisabled = index >= maxCanvasElementCountRef.current;
+                                            const isSelected = selectedChannel === index + 1; // Changed to check against single selected channel
+                                            const buttonStyle = isChannelDisabled
+                                                ? isDarkModeEnabled
+                                                    ? { backgroundColor: "#030c21", color: "gray" }
+                                                    : { backgroundColor: "#e2e8f0", color: "gray" }
+                                                : isSelected
+                                                    ? { backgroundColor: getCustomColor(index, activeTheme), color: "white" }
+                                                    : { backgroundColor: "white", color: "black" };
+                                            const isFirstInRow = col === 0;
+                                            const isLastInRow = col === 7;
+                                            const isFirstContainer = container === 0;
+                                            const isLastContainer = container === 1;
+                                            const roundedClass = `
+                    ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""}
+                    ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""}
+                    ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""}
+                    ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
+                `;
+
+                                            return (
+                                                <button
+                                                    key={index}
+                                                    onClick={() => !isChannelDisabled && setSelectedChannel(index + 1)} // Toggle single channel
+                                                    disabled={isChannelDisabled}
+                                                    style={buttonStyle}
+                                                    className={`w-full h-8 text-xs font-medium py-1 border border-gray-300 dark:border-gray-600 transition-colors duration-200 ${roundedClass}`}
+                                                >
+                                                    {`CH${index + 1}`}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                ))}
                             </div>
                         </PopoverContent>
                     </Popover>
@@ -1883,9 +2279,9 @@ const Connection: React.FC<ConnectionProps> = ({
                                                                 const isFirstContainer = container === 0;
                                                                 const isLastContainer = container === 1;
                                                                 const roundedClass = `
-                                                                ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""} 
-                                                                ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""} 
-                                                                ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""} 
+                                                                ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""}
+                                                                ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""}
+                                                                ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""}
                                                                 ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
                                                                      `;
 
