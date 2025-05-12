@@ -666,7 +666,7 @@ const MuscleStrength = () => {
     const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT; // 100 bytes
 
     let prevSampleCounter: number | null = null;
-    let samplesReceived = 0;
+    const samplesReceivedRef = useRef(0);
     let channelData: number[] = [];
     let envData: number[] = [];
     const notchFilters = Array.from(
@@ -719,7 +719,7 @@ const MuscleStrength = () => {
 
         channelData = [];
         envData = [];
-        samplesReceived++;
+        samplesReceivedRef.current += 1;
     }
 
     interface BluetoothRemoteGATTCharacteristicExtended extends EventTarget {
@@ -816,11 +816,11 @@ const MuscleStrength = () => {
             console.log("Notifications started. Listening for data...");
 
             setInterval(() => {
-                if (samplesReceived === 0) {
+                if (samplesReceivedRef.current === 0) {
                     disconnect();
                     window.location.reload();
                 }
-                samplesReceived = 0;
+                samplesReceivedRef.current = 0;
             }, 1000);
         } catch (error) {
             console.log("Error: " + (error instanceof Error ? error.message : error));

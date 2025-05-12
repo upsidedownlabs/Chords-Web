@@ -999,7 +999,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const CONTROL_CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
 
     let prevSampleCounter: number | null = null;
-    let samplesReceived = 0;
+    const samplesReceivedRef = useRef(0);
     let channelData: number[] = [];
     const SINGLE_SAMPLE_LEN = 7; // Each sample is 10 bytes
     const BLOCK_COUNT = 10; // 10 samples batched per notification
@@ -1081,7 +1081,7 @@ const Connection: React.FC<ConnectionProps> = ({
         }
 
         channelData = [];
-        samplesReceived++;
+        samplesReceivedRef.current += 1;
     }, [
         canvasElementCountRef.current, selectedChannels, timeBase
     ]);
@@ -1151,7 +1151,14 @@ const Connection: React.FC<ConnectionProps> = ({
             setSelectedChannel(1);
             setCurrentSamplingRate(500);
             sampingrateref.current = 500;
-
+            setInterval(() => {
+                if (samplesReceivedRef.current === 0) {
+                    console.log("hello");
+                    disconnect();
+                    window.location.reload();
+                }
+                samplesReceivedRef.current = 0;
+            }, 1000);
         } catch (error) {
             console.log("Error: " + (error instanceof Error ? error.message : error));
             setIsfftLoading(false);
@@ -2014,7 +2021,7 @@ const Connection: React.FC<ConnectionProps> = ({
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-50 p-4 mx-4 mb-2">
-                        <div className="flex flex-col max-h-80 overflow-y-auto">
+                            <div className="flex flex-col max-h-80 overflow-y-auto">
                                 <div className="flex items-center pb-2 ">
                                     {/* Filter Name */}
                                     <div className="text-sm font-semibold w-12"><ReplaceAll size={20} /></div>
@@ -2033,7 +2040,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                             >
                                                 <CircleOff size={17} />
                                             </Button>
-                                          <Button
+                                            <Button
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 3)}
@@ -2044,8 +2051,8 @@ const Connection: React.FC<ConnectionProps> = ({
                                                     }`}
                                             >
                                                 <Brain size={17} />
-                                            </Button> 
-                                          
+                                            </Button>
+
                                         </div>
                                         <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                                             <Button
@@ -2107,7 +2114,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                     >
                                                         <CircleOff size={17} />
                                                     </Button>
-                                        
+
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
@@ -2120,8 +2127,8 @@ const Connection: React.FC<ConnectionProps> = ({
                                                     >
                                                         <Brain size={17} />
                                                     </Button>
-                                               
-                                          
+
+
                                                 </div>
                                                 <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                                                     <Button
