@@ -80,7 +80,11 @@
     @apply bg-background text-foreground;
     margin: 0;
   }
-
+  
+  .canvas-container {
+    flex: 1.1 1 0%; /* slightly more width */
+  }
+  
   /* Custom Keyframes & Animations */
   @keyframes twinkle {
     0% { opacity: 0.2; }
