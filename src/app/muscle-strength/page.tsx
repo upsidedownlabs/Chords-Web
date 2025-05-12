@@ -303,7 +303,7 @@ const MuscleStrength = () => {
             // Calculate scale based on effective width
             const scale = W / 800;
 
-            const padding = 1 * scale;
+            const padding = 5 * scale;
             const axisGap = Math.max(1 * scale, 1);
 
 
@@ -892,18 +892,13 @@ const MuscleStrength = () => {
                         className="absolute inset-0  rounded-2xl"
 
                     >
-
                         <canvas
                             ref={canvasRef}
                             className="w-full h-full"
                         />
                     </div>
                 </main>
-
-
-
             </div>
-
 
             <div className="flex-none pb-1 flex items-center justify-center bg-g gap-3 z-10" >
                 {/* Center-aligned buttons */}
