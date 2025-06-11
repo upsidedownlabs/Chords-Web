@@ -99,7 +99,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // States and Refs for Connection & Recording
     const [isDeviceConnected, setIsDeviceConnected] = useState<boolean>(false); // Track if the device is connected
-    const [isserial, setIsserial] = useState<boolean>(false); // Track if the device is connected
+    const [isserial, setIsserial] = useState(false); // Track if the device is connected
 
     const [FFTDeviceConnected, setFFTDeviceConnected] = useState<boolean>(false); // Track if the device is connected
     const isDeviceConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
@@ -128,7 +128,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const sampingrateref = useRef<number>(0);
     const [open, setOpen] = useState(false);
     const [openfft, setOpenfft] = useState(false);
-    const [isPauseSate, setIsPauseState] = useState(false);
+    const [isPauseState, setIsPauseState] = useState(false);
 
     // UI Themes & Modes
     const { theme } = useTheme(); // Current theme of the app
@@ -379,8 +379,13 @@ const Connection: React.FC<ConnectionProps> = ({
         });
 
     };
-    setSelectedChannelsInWorker(selectedChannels)
-
+    if (FFTDeviceConnected) {
+        // If FFT device is connected, send only the selected channel
+        setSelectedChannelsInWorker([selectedChannel]);
+    } else {
+        // Otherwise, send all selected channels
+        setSelectedChannelsInWorker(selectedChannels);
+    }
     const processBuffer = async (bufferIndex: number, canvasCount: number, selectChannel: number[]) => {
         if (!workerRef.current) {
             initializeWorker();
@@ -1001,7 +1006,7 @@ const Connection: React.FC<ConnectionProps> = ({
     let prevSampleCounter: number | null = null;
     const samplesReceivedRef = useRef(0);
     let channelData: number[] = [];
-    const SINGLE_SAMPLE_LEN = 7; // Each sample is 10 bytes
+    const SINGLE_SAMPLE_LEN = 7; // Each sample is 7 bytes: 1 counter + 3 × 2-byte channels
     const BLOCK_COUNT = 10; // 10 samples batched per notification
     const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT; // 100 bytes
     interface BluetoothRemoteGATTCharacteristicExtended extends EventTarget {
@@ -1572,7 +1577,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                         <PopoverTrigger asChild>
                                             <Button
                                                 className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                                disabled={isfftLoading || isPauseSate}
+                                                disabled={isfftLoading || isPauseState}
                                             >
                                                 {isfftLoading ? (
                                                     <>
@@ -1685,7 +1690,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                 <Button
                                     className="rounded-xl"
                                     onClick={handleRecord}
-                                    disabled={isPauseSate}
+                                    disabled={isPauseState}
                                 >
                                     {isRecordingRef.current ? (
                                         <CircleStop />
@@ -1782,7 +1787,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         <PopoverTrigger asChild>
                             <Button
                                 className="flex items-center justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
-                                disabled={isPauseSate}
+                                disabled={isPauseState}
                             >
                                 Filter
                             </Button>
@@ -2183,7 +2188,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         <PopoverTrigger asChild>
                             <Button
                                 className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                disabled={isfftLoading || isPauseSate}
+                                disabled={isfftLoading || isPauseState}
                             >
                                 Channels
                             </Button>

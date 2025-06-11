@@ -48,7 +48,7 @@ const MuscleStrength = () => {
     const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     const maxCanvasElementCountRef = useRef<number>(3);
     const channelNames = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => `CH${i + 1}`);
-    let numChannels = 3;
+    const numChannels = 3;
     const [selectedChannels, setSelectedChannels] = useState<number[]>([0, 1, 2]);
     const { theme } = useTheme(); // Current theme of the app
     const [isConnected, setIsConnected] = useState(false);
@@ -148,9 +148,8 @@ const MuscleStrength = () => {
             canvasWrapper.appendChild(badge);
             canvasWrapper.appendChild(canvas);
             container.appendChild(canvasWrapper);
-
-            const wglp = new WebglPlot(canvas);
             if (!canvas) return;
+            const wglp = new WebglPlot(canvas);
 
             // Ensure linesRefs.current[index] is initialized as an array
             if (!linesRefs.current[index]) {
@@ -201,7 +200,6 @@ const MuscleStrength = () => {
         ro.observe(containerRef.current);
         return () => ro.disconnect();
     }, [
-        numChannels,
         theme,
         timeBase,
         selectedChannels,
@@ -914,8 +912,6 @@ const MuscleStrength = () => {
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Popover open={open} onOpenChange={setOpen}>
-                                    <PopoverTrigger asChild>
                                         <Button
                                             className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
                                             onClick={() => (isConnected ? disconnect() : connectBLE())}
@@ -937,9 +933,6 @@ const MuscleStrength = () => {
                                                 </>
                                             )}
                                         </Button>
-                                    </PopoverTrigger>
-
-                                </Popover>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>{isConnected ? "Disconnect Device" : "Connect Device"}</p>

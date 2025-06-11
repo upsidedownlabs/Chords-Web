@@ -52,7 +52,7 @@ const Graph: React.FC<GraphProps> = ({
     THETA_RANGE = [4, 8],
     ALPHA_RANGE = [8, 12],
     BETA_RANGE = [12, 30],
-    GAMMA_RANGE = [30, 100];
+    GAMMA_RANGE = [30, 45];
 
   const FREQ_RESOLUTION = samplingRate / 256;
 

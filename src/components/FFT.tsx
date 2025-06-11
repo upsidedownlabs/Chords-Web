@@ -52,7 +52,7 @@ const FFT = forwardRef(
             []
         );
         const canvasContainerRef = useRef<HTMLDivElement>(null);
-        const dataPointCountRef = useRef<number>(1000);
+        const dataPointCountRef = useRef<number>(2000);
         const wglPlotsref = useRef<WebglPlot[]>([]);
         const linesRef = useRef<WebglLine[]>([]);
         const sweepPositions = useRef<number[]>(new Array(6).fill(0));
