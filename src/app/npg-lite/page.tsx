@@ -11,7 +11,7 @@ import { saveAs } from "file-saver";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { EXGFilter, Notch } from '@/components/filters';
+import { EXGFilter, Notch, HighPassFilter } from '@/components/filters';
 import {
     Popover,
     PopoverContent,
@@ -98,6 +98,7 @@ const NPG_Ble = () => {
         setIsDisplay(newPauseState);
         pauseRef.current = newPauseState;
     };
+    const samplesReceivedRef = useRef(0);
     const createCanvasElements = () => {
         const container = canvasContainerRef.current;
         if (!container) {
@@ -332,7 +333,6 @@ const NPG_Ble = () => {
 
 
     let prevSampleCounter: number | null = null;
-    let samplesReceived = 0;
     let channelData: number[] = [];
     const notchFilters = Array.from(
         { length: maxCanvasElementCountRef.current },
@@ -342,6 +342,10 @@ const NPG_Ble = () => {
         { length: maxCanvasElementCountRef.current },
         () => new EXGFilter()
     );
+    const pointoneFilter = Array.from(
+        { length: maxCanvasElementCountRef.current },
+        () => new HighPassFilter()
+    );
 
     notchFilters.forEach((filter) => {
         filter.setbits(sampingrateref.current);
@@ -349,7 +353,9 @@ const NPG_Ble = () => {
     EXGFilters.forEach((filter) => {
         filter.setbits("12", sampingrateref.current);
     });
-
+    pointoneFilter.forEach((filter) => {
+        filter.setSamplingRate(sampingrateref.current);
+    });
 
     // Inside your component
     const processSample = useCallback((dataView: DataView): void => {
@@ -376,7 +382,7 @@ const NPG_Ble = () => {
             const sample = dataView.getInt16(1 + (channel * 2), false);
             channelData.push(
                 notchFilters[channel].process(
-                    EXGFilters[channel].process(sample, appliedEXGFiltersRef.current[channel]),
+                    EXGFilters[channel].process(pointoneFilter[channel].process(sample), appliedEXGFiltersRef.current[channel]),
                     appliedFiltersRef.current[channel]
                 )
             );
@@ -410,7 +416,7 @@ const NPG_Ble = () => {
         }
 
         channelData = [];
-        samplesReceived++;
+        samplesReceivedRef.current += 1;
     }, [
         canvasElementCountRef.current, selectedChannels, timeBase
     ]);
@@ -470,7 +476,13 @@ const NPG_Ble = () => {
             await dataChar.startNotifications();
             dataChar.addEventListener("characteristicvaluechanged", handleNotification);
             setIsConnected(true);
-
+            setInterval(() => {
+                if (samplesReceivedRef.current === 0) {
+                    disconnect();
+                    window.location.reload();
+                }
+                samplesReceivedRef.current = 0;
+            }, 1000);
         } catch (error) {
             console.log("Error: " + (error instanceof Error ? error.message : error));
             setIsLoading(false);

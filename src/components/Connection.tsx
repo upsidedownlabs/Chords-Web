@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { EXGFilter, Notch } from './filters';
+import { EXGFilter, Notch,HighPassFilter } from './filters';
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { getCustomColor, lightThemeColors } from './Colors';
@@ -1014,20 +1014,24 @@ const Connection: React.FC<ConnectionProps> = ({
     }
     // Add these to your component's refs
     const notchFiltersRef = useRef<Notch[]>([]);
+    const onehighRef = useRef<HighPassFilter[]>([]);
     const EXGFiltersRef = useRef<EXGFilter[]>([]);
     const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
 
-    // Initialize filters when device connects or channel count changes
-    useEffect(() => {
-        if (maxCanvasElementCountRef.current > 0) {
-            notchFiltersRef.current = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
-            EXGFiltersRef.current = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
+    // // Initialize filters when device connects or channel count changes
+    // useEffect(() => {
+    //     if (maxCanvasElementCountRef.current > 0) {
+    //         notchFiltersRef.current = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
+    //         EXGFiltersRef.current = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
+    //         onehighRef.current = Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter());
 
-            // Set initial filter parameters
-            notchFiltersRef.current.forEach(filter => filter.setbits(500));
-            EXGFiltersRef.current.forEach(filter => filter.setbits("12", 500));
-        }
-    }, [maxCanvasElementCountRef.current]);
+    //         // Set initial filter parameters
+    //         // onehighRef.current.forEach(filter => filter.setbits(500));
+    //         onehighRef.current.forEach(filter => filter.setSamplingRate(500));
+    //         notchFiltersRef.current.forEach(filter => filter.setbits(500));
+    //         EXGFiltersRef.current.forEach(filter => filter.setbits("12", 500));
+    //     }
+    // }, [maxCanvasElementCountRef.current]);
     const processSample = useCallback((dataView: DataView): void => {
         if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
             console.log("Unexpected sample length: " + dataView.byteLength);
@@ -1052,7 +1056,7 @@ const Connection: React.FC<ConnectionProps> = ({
             channelData.push(
                 notchFiltersRef.current[channel].process(
                     EXGFiltersRef.current[channel].process(
-                        sample,
+                        onehighRef.current[channel].process(sample),
                         appliedEXGFiltersRef.current[channel] || 0
                     ),
                     appliedFiltersRef.current[channel] || 0
@@ -1132,6 +1136,8 @@ const Connection: React.FC<ConnectionProps> = ({
             // Initialize filters
             notchFiltersRef.current = Array.from({ length: 3 }, () => new Notch());
             EXGFiltersRef.current = Array.from({ length: 3 }, () => new EXGFilter());
+            onehighRef.current = Array.from({ length: 3 }, () => new HighPassFilter());
+            onehighRef.current.forEach(filter => filter.setSamplingRate(500));
             notchFiltersRef.current.forEach(filter => filter.setbits(500));
             EXGFiltersRef.current.forEach(filter => filter.setbits("12", 500));
             const service = await server.getPrimaryService(SERVICE_UUID);
@@ -1158,7 +1164,6 @@ const Connection: React.FC<ConnectionProps> = ({
             sampingrateref.current = 500;
             setInterval(() => {
                 if (samplesReceivedRef.current === 0) {
-                    console.log("hello");
                     disconnect();
                     window.location.reload();
                 }
@@ -1286,8 +1291,12 @@ const Connection: React.FC<ConnectionProps> = ({
         let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
         const notchFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
         const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
+        const pointoneFilter = Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter());
         notchFilters.forEach((filter) => {
             filter.setbits(sampingrateref.current); // Set the bits value for all instances
+        });
+        pointoneFilter.forEach((filter) => {
+            filter.setSamplingRate(sampingrateref.current); // Set the bits value for all instances
         });
         EXGFilters.forEach((filter) => {
             filter.setbits(detectedBitsRef.current.toString(), sampingrateref.current); // Set the bits value for all instances
@@ -1341,7 +1350,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                 channelData.push(
                                     notchFilters[channel].process(
                                         EXGFilters[channel].process(
-                                            value,
+                                            pointoneFilter[channel].process(value),
                                             appliedEXGFiltersRef.current[channel]
                                         ),
                                         appliedFiltersRef.current[channel]
