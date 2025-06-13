@@ -9,6 +9,64 @@
 // Note:
 // filter_gen.py provides C/C++ type functions which we have converted to TS
 
+export class HighPassFilter {
+    // State variables for the filter
+    private z1: number;
+    private z2: number;
+    private x1: number;
+    private currentSamplingRate: number;
+
+    constructor() {
+        this.z1 = 0;
+        this.z2 = 0;
+        this.x1 = 0;
+        this.currentSamplingRate = 0;
+    }
+
+    // Set the sampling rate (250 or 500 Hz)
+    setSamplingRate(samplingRate: number): void {
+        if (this.currentSamplingRate !== samplingRate) {
+            // flush history because the biquad coefficients changed
+            this.z1 = this.z2 = this.x1 = 0;
+        }
+        this.currentSamplingRate = samplingRate;
+    }
+
+    // Process the input sample through the appropriate high-pass filter
+    process(input: number): number {
+        let output = input;
+
+        switch (this.currentSamplingRate) {
+            case 250:
+                // High-Pass Butterworth IIR digital filter for 250Hz
+                // Sampling rate: 250.0 Hz, frequency: 1.0 Hz.
+                {
+                    this.x1 = output - (-1.99644570 * this.z1) - (0.99645200 * this.z2);
+                    output = (0.99822443 * this.x1) + (-1.99644885 * this.z1) + (0.99822443 * this.z2);
+                    this.z2 = this.z1;
+                    this.z1 = this.x1;
+                }
+                break;
+
+            case 500:
+                // High-Pass Butterworth IIR digital filter for 500Hz
+                // Sampling rate: 500.0 Hz, frequency: 1.0 Hz.
+                {
+                    this.x1 = output - (-1.99822285 * this.z1) - (0.99822443 * this.z2);
+                    output = (0.99911182 * this.x1) + (-1.99822364 * this.z1) + (0.99911182 * this.z2);
+                    this.z2 = this.z1;
+                    this.z1 = this.x1;
+                }
+                break;
+
+            default:
+                throw new Error(`Unsupported sampling rate: ${this.currentSamplingRate}. Only 250Hz and 500Hz are supported.`);
+        }
+
+        return output;
+    }
+}
+
 //Notch Filter 50Hz/60Hz
 export class EXGFilter {
     // Properties to hold the state of the filter
@@ -21,7 +79,7 @@ export class EXGFilter {
     private bits: string | null;
     private bitsPoints: number;
     private yScale: number;
-    private  currentSamplingRate:number;
+    private currentSamplingRate: number;
 
 
     constructor() {
@@ -33,9 +91,9 @@ export class EXGFilter {
         this.x3 = 0;
         this.x4 = 0;
         this.bits = null;
-        this.bitsPoints=0;
-        this.yScale=0;
-        this.currentSamplingRate=0;
+        this.bitsPoints = 0;
+        this.yScale = 0;
+        this.currentSamplingRate = 0;
     }
     //bits-
     //1.500 
@@ -46,21 +104,21 @@ export class EXGFilter {
     //3.EEG
     //4.EMG
     // function to apply the 
-    setbits(bits: string,currentSamplingRate:number): void {
-        this.currentSamplingRate=currentSamplingRate;
+    setbits(bits: string, currentSamplingRate: number): void {
+        this.currentSamplingRate = currentSamplingRate;
         this.bits = bits;
-        this.bitsPoints = Math.pow(2,parseInt(bits)
+        this.bitsPoints = Math.pow(2, parseInt(bits)
         ); // Adjust according to your ADC resolution
         this.yScale = 2 / this.bitsPoints;
     }
 
     process(input: number, type: number): number {
-        if(!type) return (input - this.bitsPoints / 2) * this.yScale;
+        if (!type) return input * this.yScale;
         let output = input;
-        let chData=0;
+        let chData = 0;
         switch (this.currentSamplingRate) {
             //bitsrate 500Hz
-            case 500: 
+            case 500:
                 switch (type) {
                     case 1: // ECG Sampling rate: 500.0 Hz, frequency: 30.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -68,7 +126,7 @@ export class EXGFilter {
                         output = 0.02785977 * this.x1 + 0.05571953 * this.z1 + 0.02785977 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x1;
-                        chData = (output - this.bitsPoints / 2) * this.yScale;
+                        chData = output * this.yScale;
                         break;
                     case 2: // EOG Sampling rate: 500.0 Hz, frequency: 10.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -76,7 +134,7 @@ export class EXGFilter {
                         output = 0.00362168 * this.x2 + 0.00724336 * this.z1 + 0.00362168 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x2;
-                        chData = (output - this.bitsPoints / 2) * this.yScale;
+                        chData = output * this.yScale;
                         break;
                     case 3: // EEG Sampling rate: 500.0 Hz, frequency: 45.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -84,7 +142,7 @@ export class EXGFilter {
                         output = 0.17508764 * this.x3 + 0.35017529 * this.z1 + 0.17508764 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x3;
-                        chData = (output - this.bitsPoints / 2) * this.yScale;
+                        chData = output * this.yScale;
                         break;
                     case 4: // EMG Sampling rate: 500.0 Hz, frequency: 70.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -107,7 +165,7 @@ export class EXGFilter {
                         output = 0.09131490 * this.x1 + 0.18262980 * this.z1 + 0.09131490 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x1;
-                        chData = (output - this.bitsPoints / 2) * this.yScale;
+                        chData = output * this.yScale;
                         break;
 
                     case 2: // EOG Sampling rate: 250.0 Hz, frequency: 10.0 Hz.
@@ -116,7 +174,7 @@ export class EXGFilter {
                         output = 0.01335920 * this.x2 + 0.02671840 * this.z1 + 0.01335920 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x2;
-                        chData = (output - this.bitsPoints / 2) * this.yScale;
+                        chData = output * this.yScale;
                         break;
 
                     case 3: // EEG Sampling rate: 250.0 Hz, frequency: 45.0 Hz.
@@ -125,7 +183,7 @@ export class EXGFilter {
                         output = 0.17508764 * this.x3 + 0.35017529 * this.z1 + 0.17508764 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = this.x3;
-                        chData = (output - this.bitsPoints / 2) * this.yScale;
+                        chData = output * this.yScale;
                         break;
 
                     case 4: // EMG Sampling rate: 250.0 Hz, frequency: 70.0 Hz.
@@ -156,7 +214,7 @@ export class Notch {
     private z2_2: number;
     private x_1: number;
     private x_2: number;
-    private currentSamplingRate:number;
+    private currentSamplingRate: number;
 
 
     constructor() {
@@ -167,17 +225,17 @@ export class Notch {
         this.z2_2 = 0;
         this.x_1 = 0;
         this.x_2 = 0;
-        this.currentSamplingRate=0;
+        this.currentSamplingRate = 0;
 
     }
 
-    setbits(currentSamplingRate:number): void {
-        this.currentSamplingRate=currentSamplingRate;
+    setbits(currentSamplingRate: number): void {
+        this.currentSamplingRate = currentSamplingRate;
     }
 
     // Method to apply the filter
     process(input: number, type: number): number {
-        if(!type) return input;
+        if (!type) return input;
         let output = input;
         switch (this.currentSamplingRate) {
             case 500:   // 500Hz

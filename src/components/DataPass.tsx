@@ -24,12 +24,12 @@ const DataPass = () => {
   const [Zoom, SetZoom] = useState<number>(1); // Number of canvases
   const [currentSnapshot, SetCurrentSnapshot] = useState<number>(0); // Number of canvases
   const pauseRef = useRef<boolean>(true);
+  const [selectedChannel, setSelectedChannel] = useState<number>(1);
   const handlePauseChange = (newPauseState: boolean) => {
     pauseRef.current = newPauseState;
   };
   const snapShotRef = useRef<boolean[]>(Array(6).fill(false));
   const datastream = useCallback((data: number[]) => {
-
     if (canvasRef.current) {
       canvasRef.current.updateData(data); // Assuming data is the new data to be displayed
     }
@@ -66,6 +66,7 @@ const DataPass = () => {
         />
       ) : FFTConnected ? (
         <FFT
+        selectedChannel={selectedChannel}
         Zoom={Zoom}
         ref={canvasRef} // Pass the ref to the Canvas component
         canvasCount={canvasCount} // Pass canvas count
@@ -82,6 +83,8 @@ const DataPass = () => {
         datastream={datastream}
         Connection={setIsConnected}
         FFT={setFFTConnected}
+        selectedChannel={selectedChannel}
+        setSelectedChannel={setSelectedChannel}
         selectedBits={selectedBits}
         setSelectedBits={setSelectedBits}
         isDisplay={isDisplay}

@@ -11,7 +11,7 @@ import { saveAs } from "file-saver";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { EXGFilter, Notch } from '@/components/filters';
+import { EXGFilter, Notch, HighPassFilter } from '@/components/filters';
 import {
     Popover,
     PopoverContent,
@@ -98,6 +98,7 @@ const NPG_Ble = () => {
         setIsDisplay(newPauseState);
         pauseRef.current = newPauseState;
     };
+    const samplesReceivedRef = useRef(0);
     const createCanvasElements = () => {
         const container = canvasContainerRef.current;
         if (!container) {
@@ -332,24 +333,19 @@ const NPG_Ble = () => {
 
 
     let prevSampleCounter: number | null = null;
-    let samplesReceived = 0;
     let channelData: number[] = [];
-    const notchFilters = Array.from(
-        { length: maxCanvasElementCountRef.current },
-        () => new Notch()
-    );
-    const EXGFilters = Array.from(
-        { length: maxCanvasElementCountRef.current },
-        () => new EXGFilter()
-    );
-
-    notchFilters.forEach((filter) => {
+    const notchFiltersRef   = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch()));
+    const exgFiltersRef     = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter()));
+    const pointoneFilterRef = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter()));
+    notchFiltersRef.current.forEach((filter) => {
         filter.setbits(sampingrateref.current);
     });
-    EXGFilters.forEach((filter) => {
+    exgFiltersRef.current.forEach((filter) => {
         filter.setbits("12", sampingrateref.current);
     });
-
+    pointoneFilterRef.current.forEach((filter) => {
+        filter.setSamplingRate(sampingrateref.current);
+    });
 
     // Inside your component
     const processSample = useCallback((dataView: DataView): void => {
@@ -375,8 +371,8 @@ const NPG_Ble = () => {
         for (let channel = 0; channel < numChannels; channel++) {
             const sample = dataView.getInt16(1 + (channel * 2), false);
             channelData.push(
-                notchFilters[channel].process(
-                    EXGFilters[channel].process(sample, appliedEXGFiltersRef.current[channel]),
+                notchFiltersRef.current[channel].process(
+                    exgFiltersRef.current[channel].process(pointoneFilterRef.current[channel].process(sample), appliedEXGFiltersRef.current[channel]),
                     appliedFiltersRef.current[channel]
                 )
             );
@@ -410,7 +406,7 @@ const NPG_Ble = () => {
         }
 
         channelData = [];
-        samplesReceived++;
+        samplesReceivedRef.current += 1;
     }, [
         canvasElementCountRef.current, selectedChannels, timeBase
     ]);
@@ -470,7 +466,13 @@ const NPG_Ble = () => {
             await dataChar.startNotifications();
             dataChar.addEventListener("characteristicvaluechanged", handleNotification);
             setIsConnected(true);
-
+            setInterval(() => {
+                if (samplesReceivedRef.current === 0) {
+                    disconnect();
+                    window.location.reload();
+                }
+                samplesReceivedRef.current = 0;
+            }, 1000);
         } catch (error) {
             console.log("Error: " + (error instanceof Error ? error.message : error));
             setIsLoading(false);
