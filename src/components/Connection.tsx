@@ -1273,6 +1273,7 @@ const Connection: React.FC<ConnectionProps> = ({
         setSelectedChannels(selectedChannels)
 
     }, [selectedChannels]);
+    const prevSampleCounterRef = useRef<number | null>(null); // Variable to store the previous counter value for loss detection
 
     // Function to read data from a connected device and process it
     const readData = async (): Promise<void> => {
@@ -1282,7 +1283,6 @@ const Connection: React.FC<ConnectionProps> = ({
         const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
         const SYNC_BYTE2 = 0x7c; // Second synchronization byte
         const END_BYTE = 0x01; // End byte to signify the end of a packet
-        const prevSampleCounterRef = useRef<number | null>(null); // Variable to store the previous counter value for loss detection
         const notchFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
         const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
         const pointoneFilter = Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter());
