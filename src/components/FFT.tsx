@@ -251,7 +251,7 @@ const FFT = forwardRef(
                 return mags;
             }
 
-            private fft(real: Float32Array, imag: Float32Array) {
+            private fft(real: Float32Array, imag: Float32Array): void {
                 const n = this.size;
                 let j = 0;
                 for (let i = 0; i < n - 1; i++) {
@@ -263,16 +263,19 @@ const FFT = forwardRef(
                     while (k <= j) { j -= k; k /= 2; }
                     j += k;
                 }
-                for (let len = 2; len <= n; len *= 2) {
-                    const half = len / 2;
-                    for (let i = 0; i < n; i += len) {
-                        for (let j = i, k = 0; j < i + half; j++, k++) {
-                            const tRe = real[j + half] * this.cosTable[k] - imag[j + half] * this.sinTable[k];
-                            const tIm = real[j + half] * this.sinTable[k] + imag[j + half] * this.cosTable[k];
-                            real[j + half] = real[j] - tRe;
-                            imag[j + half] = imag[j] - tIm;
-                            real[j] += tRe;
-                            imag[j] += tIm;
+                for (let l = 2; l <= n; l *= 2) {
+                    const le2 = l / 2;
+                    for (let k = 0; k < le2; k++) {
+                        const kth = k * (n / l);
+                        const c = this.cosTable[kth], s = this.sinTable[kth];
+                        for (let i = k; i < n; i += l) {
+                            const i2 = i + le2;
+                            const tr = c * real[i2] - s * imag[i2];
+                            const ti = c * imag[i2] + s * real[i2];
+                            real[i2] = real[i] - tr;
+                            imag[i2] = imag[i] - ti;
+                            real[i] += tr;
+                            imag[i] += ti;
                         }
                     }
                 }

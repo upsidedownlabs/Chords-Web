@@ -25,6 +25,10 @@ export class HighPassFilter {
 
     // Set the sampling rate (250 or 500 Hz)
     setSamplingRate(samplingRate: number): void {
+        if (this.currentSamplingRate !== samplingRate) {
+            // flush history because the biquad coefficients changed
+            this.z1 = this.z2 = this.x1 = 0;
+        }
         this.currentSamplingRate = samplingRate;
     }
 
@@ -109,7 +113,7 @@ export class EXGFilter {
     }
 
     process(input: number, type: number): number {
-        if (!type) return input  * this.yScale;
+        if (!type) return input * this.yScale;
         let output = input;
         let chData = 0;
         switch (this.currentSamplingRate) {

@@ -334,26 +334,16 @@ const NPG_Ble = () => {
 
     let prevSampleCounter: number | null = null;
     let channelData: number[] = [];
-    const notchFilters = Array.from(
-        { length: maxCanvasElementCountRef.current },
-        () => new Notch()
-    );
-    const EXGFilters = Array.from(
-        { length: maxCanvasElementCountRef.current },
-        () => new EXGFilter()
-    );
-    const pointoneFilter = Array.from(
-        { length: maxCanvasElementCountRef.current },
-        () => new HighPassFilter()
-    );
-
-    notchFilters.forEach((filter) => {
+    const notchFiltersRef   = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch()));
+    const exgFiltersRef     = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter()));
+    const pointoneFilterRef = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter()));
+    notchFiltersRef.current.forEach((filter) => {
         filter.setbits(sampingrateref.current);
     });
-    EXGFilters.forEach((filter) => {
+    exgFiltersRef.current.forEach((filter) => {
         filter.setbits("12", sampingrateref.current);
     });
-    pointoneFilter.forEach((filter) => {
+    pointoneFilterRef.current.forEach((filter) => {
         filter.setSamplingRate(sampingrateref.current);
     });
 
@@ -381,8 +371,8 @@ const NPG_Ble = () => {
         for (let channel = 0; channel < numChannels; channel++) {
             const sample = dataView.getInt16(1 + (channel * 2), false);
             channelData.push(
-                notchFilters[channel].process(
-                    EXGFilters[channel].process(pointoneFilter[channel].process(sample), appliedEXGFiltersRef.current[channel]),
+                notchFiltersRef.current[channel].process(
+                    exgFiltersRef.current[channel].process(pointoneFilterRef.current[channel].process(sample), appliedEXGFiltersRef.current[channel]),
                     appliedFiltersRef.current[channel]
                 )
             );

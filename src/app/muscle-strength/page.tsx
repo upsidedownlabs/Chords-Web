@@ -36,10 +36,7 @@ import { useTheme } from "next-themes";
 
 const MuscleStrength = () => {
     const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
-    // UI States for Popovers and Buttons
     const sampingrateref = useRef<number>(250);
-
-    // Canvas Settings & Channels
     const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
     const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
     const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -712,10 +709,7 @@ const MuscleStrength = () => {
         const env2 = envelope2.getEnvelope(Math.abs(channelData[2]));
         const env3 = envelope3.getEnvelope(Math.abs(channelData[3]));
         updateData(channelData, [env1, env2, env3]);
-
         setBandPowerData([env1, env2, env3]);
-
-
         channelData = [];
         envData = [];
         samplesReceivedRef.current += 1;

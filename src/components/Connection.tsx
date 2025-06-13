@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { EXGFilter, Notch,HighPassFilter } from './filters';
+import { EXGFilter, Notch, HighPassFilter } from './filters';
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { getCustomColor, lightThemeColors } from './Colors';
@@ -99,7 +99,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // States and Refs for Connection & Recording
     const [isDeviceConnected, setIsDeviceConnected] = useState<boolean>(false); // Track if the device is connected
-    const [isserial, setIsserial] = useState(false); // Track if the device is connected
+    const [isSerial, setIsSerial] = useState(false); // Track if the device is connected
 
     const [FFTDeviceConnected, setFFTDeviceConnected] = useState<boolean>(false); // Track if the device is connected
     const isDeviceConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
@@ -120,7 +120,6 @@ const Connection: React.FC<ConnectionProps> = ({
     const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
     const [customTimeInput, setCustomTimeInput] = useState<string>(""); // State to store the custom stop time input
     const [leftArrowClickCount, setLeftArrowClickCount] = useState(0); // Track how many times the left arrow is clicked
-    const [popoverVisible, setPopoverVisible] = useState(false);
     const [selectedBitsValue, setSelectedBitsValue] = useState<BitSelection>(10);
     const existingRecordRef = useRef<any | undefined>(undefined);
     const devicenameref = useRef<string>("");
@@ -346,10 +345,7 @@ const Connection: React.FC<ConnectionProps> = ({
             }
         }
     };
-
-    //////////////////////////////////
     const workerRef = useRef<Worker | null>(null);
-
     const initializeWorker = () => {
         if (!workerRef.current) {
             workerRef.current = new Worker(new URL('../../workers/indexedDBWorker.ts', import.meta.url), {
@@ -379,13 +375,11 @@ const Connection: React.FC<ConnectionProps> = ({
         });
 
     };
-    if (FFTDeviceConnected) {
-        // If FFT device is connected, send only the selected channel
-        setSelectedChannelsInWorker([selectedChannel]);
-    } else {
-        // Otherwise, send all selected channels
-        setSelectedChannelsInWorker(selectedChannels);
-    }
+    useEffect(() => {
+        const channels = FFTDeviceConnected ? [selectedChannel] : selectedChannels;
+        setSelectedChannelsInWorker(channels);
+    }, [FFTDeviceConnected, selectedChannel, selectedChannels]);
+
     const processBuffer = async (bufferIndex: number, canvasCount: number, selectChannel: number[]) => {
         if (!workerRef.current) {
             initializeWorker();
@@ -736,7 +730,7 @@ const Connection: React.FC<ConnectionProps> = ({
             } else {
                 console.error("Readable stream not available");
             }
-            setIsserial(true);
+            setIsSerial(true);
 
             setSelectedChannels(initialSelectedChannelsRef.current);
             Connection(true);
@@ -755,7 +749,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
         } catch (error) {
             await disconnectDevice();
-            setIsserial(false);
+            setIsSerial(false);
             console.error("Error connecting to device:", error);
             toast.error("Failed to connect to device.");
         }
@@ -771,7 +765,7 @@ const Connection: React.FC<ConnectionProps> = ({
             const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
             let port = null;
             const ports = await navigator.serial.getPorts();
-            setIsserial(true);
+            setIsSerial(true);
             if (savedPorts.length > 0) {
                 port = ports.find((p) => {
                     const info = p.getInfo();
@@ -960,7 +954,7 @@ const Connection: React.FC<ConnectionProps> = ({
                         writerRef.current = null;
                     }
                 }
-                setIsserial(false);
+                setIsSerial(false);
                 snapShotRef.current?.fill(false);
                 if (readerRef.current) {
                     try {
@@ -1288,7 +1282,7 @@ const Connection: React.FC<ConnectionProps> = ({
         const SYNC_BYTE1 = 0xc7; // First synchronization byte to identify the start of a packet
         const SYNC_BYTE2 = 0x7c; // Second synchronization byte
         const END_BYTE = 0x01; // End byte to signify the end of a packet
-        let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+        const prevSampleCounterRef = useRef<number | null>(null); // Variable to store the previous counter value for loss detection
         const notchFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
         const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
         const pointoneFilter = Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter());
@@ -1383,17 +1377,17 @@ const Connection: React.FC<ConnectionProps> = ({
 
                             }
 
-                            if (previousCounter !== null) {
+                            if (prevSampleCounterRef.current !== null) {
                                 // If there was a previous counter value, check for data loss
-                                const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
+                                const expectedCounter: number = (prevSampleCounterRef.current + 1) % 256; // Calculate the expected counter value
                                 if (counter !== expectedCounter) {
                                     // Check for data loss by comparing the current counter with the expected counter
                                     console.warn(
-                                        `Data loss detected! Previous counter: ${previousCounter}, Current counter: ${counter}`
+                                        `Data loss detected! Previous counter: ${prevSampleCounterRef.current}, Current counter: ${counter}`
                                     );
                                 }
                             }
-                            previousCounter = counter; // Update the previous counter with the current counter
+                            prevSampleCounterRef.current = counter; // Update the previous counter with the current counter
                             buffer.splice(0, endByteIndex + 1); // Remove the processed packet from the buffer
                         } else {
                             buffer.splice(0, syncIndex + 1); // If packet is incomplete, remove bytes up to the sync byte
@@ -1549,7 +1543,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                 <PopoverTrigger asChild>
                                     <Button
                                         className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => (isDeviceConnected ? isserial ? disconnectDevice() : disconnect() : connectToDevice())}
+                                        onClick={() => (isDeviceConnected ? isSerial ? disconnectDevice() : disconnect() : connectToDevice())}
                                         disabled={isLoading}
                                     >
                                         {isLoading ? (
