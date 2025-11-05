@@ -193,4 +193,13 @@ export const BoardsList: ReadonlyArray<BoardConfig> = Object.freeze([
         baud_Rate: 230400,
         sampling_rate: 500,
     }),
+    createBoardConfig({
+        chords_id: "ESP32-S3",
+        device_name: "ESP32-S3",
+        field_pid: 4097,
+        adc_resolution: 12,
+        channel_count: 16,
+        baud_Rate: 230400,
+        sampling_rate: 250,
+    }),
 ]);
