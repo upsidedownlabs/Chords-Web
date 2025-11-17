@@ -357,11 +357,21 @@ const Connection: React.FC<ConnectionProps> = ({
         if (!workerRef.current) {
             initializeWorker();
         }
-        setCanvasCount(selectedChannels.length)
+        // Update parent canvasCount only when it differs to avoid unnecessary rerenders
+        const newCount = selectedChannels.length;
+        if (typeof setCanvasCount === 'function' && newCount !== canvasCount) {
+            setCanvasCount(newCount);
+        }
+
         // Send canvasCount independently to the worker
         workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasElementCountRef.current });
     };
-    setCanvasCountInWorker(canvasElementCountRef.current);
+
+    // Run the canvas count sync after render (and when selectedChannels change)
+    useEffect(() => {
+        setCanvasCountInWorker(canvasElementCountRef.current);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedChannels.length]);
 
     const setSelectedChannelsInWorker = (selectedChannels: number[]) => {
         if (!workerRef.current) {
@@ -1537,7 +1547,7 @@ const Connection: React.FC<ConnectionProps> = ({
             <div className="flex gap-3 items-center justify-center">
                 {/* Connection button with tooltip */}
                 <TooltipProvider>
-                    <Tooltip>
+                        <Tooltip>
                         <TooltipTrigger asChild>
                             <Popover open={open} onOpenChange={setOpen}>
                                 <PopoverTrigger asChild>

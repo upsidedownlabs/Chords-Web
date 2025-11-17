@@ -62,7 +62,7 @@ const contributors = [
 export default function Contributors() {
   return (
     <Dialog>
-      <DialogTrigger>
+      <DialogTrigger asChild>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
