@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npm run generate-manifest",
+    "prebuild": "ts-node scripts/generateManifest.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "export": "next export",
     "distDir": "out",
-    "generate-manifest": "node scripts/generateManifest.mjs"
+    "generate-manifest": "ts-node scripts/generateManifest.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
