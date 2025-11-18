@@ -47,8 +47,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* ✅ Dynamic manifest */}
-      <head><link rel="manifest" href={`${basePath}/manifest.json`} /></head>
       <body
         className={cn(
           lobsterTwo.variable,
