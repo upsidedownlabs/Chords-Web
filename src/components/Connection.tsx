@@ -1554,7 +1554,7 @@ const Connection: React.FC<ConnectionProps> = ({
             <div className="flex gap-3 items-center justify-center">
                 {/* Connection button with tooltip */}
                 <TooltipProvider>
-                        <Tooltip>
+                    <Tooltip>
                         <TooltipTrigger asChild>
                             <Popover open={open} onOpenChange={setOpen}>
                                 <PopoverTrigger asChild>
