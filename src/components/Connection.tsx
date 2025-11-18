@@ -427,8 +427,10 @@ const Connection: React.FC<ConnectionProps> = ({
 
                     if (zipBlob) {
                         saveAs(zipBlob, 'ChordsWeb.zip');
+                        toast.success("Data successfully downloaded as ZIP.");
                     } else if (error) {
                         console.error(error);
+                        toast.error(`Error while creating ZIP: ${error}`);
                     }
                 };
             }
