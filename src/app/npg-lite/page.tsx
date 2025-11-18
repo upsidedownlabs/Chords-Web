@@ -786,7 +786,6 @@ const NPG_Ble = () => {
 
     const toggleChannel = (channelIndex: number) => {
         setSelectedChannels((prevSelected) => {
-            setManuallySelected(true);
             const updatedChannels = prevSelected.includes(channelIndex)
                 ? prevSelected.filter((ch) => ch !== channelIndex)
                 : [...prevSelected, channelIndex];
@@ -799,6 +798,8 @@ const NPG_Ble = () => {
 
             return sortedChannels;
         });
+
+        setManuallySelected(true);
     };
 
 

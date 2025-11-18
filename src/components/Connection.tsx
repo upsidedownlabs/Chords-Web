@@ -280,8 +280,8 @@ const Connection: React.FC<ConnectionProps> = ({
 
 
     const toggleChannel = (channelIndex: number) => {
+        // Mark as manually selected and update selectedChannels
         setSelectedChannels((prevSelected) => {
-            setManuallySelected(true);
             const updatedChannels = prevSelected.includes(channelIndex)
                 ? prevSelected.filter((ch) => ch !== channelIndex)
                 : [...prevSelected, channelIndex];
@@ -292,24 +292,29 @@ const Connection: React.FC<ConnectionProps> = ({
                 sortedChannels.push(1);
             }
 
-            // Retrieve saved devices from localStorage
-            const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
-            const portInfo = portRef.current?.getInfo();
+            // Retrieve saved devices from localStorage and persist selection
+            try {
+                const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+                const portInfo = portRef.current?.getInfo();
 
-            if (portInfo) {
-                const deviceIndex = savedPorts.findIndex(
-                    (saved: SavedDevice) => saved.deviceName === devicenameref.current
-                );
+                if (portInfo) {
+                    const deviceIndex = savedPorts.findIndex(
+                        (saved: SavedDevice) => saved.deviceName === devicenameref.current
+                    );
 
-                if (deviceIndex !== -1) {
-                    savedPorts[deviceIndex].selectedChannels = sortedChannels;
-                    localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-
+                    if (deviceIndex !== -1) {
+                        savedPorts[deviceIndex].selectedChannels = sortedChannels;
+                        localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+                    }
                 }
+            } catch (e) {
+                console.warn('Failed to persist selected channels:', e);
             }
 
             return sortedChannels;
         });
+
+        setManuallySelected(true);
     };
 
     // Handle right arrow click (reset count and disable button if needed)
