@@ -70,7 +70,7 @@ const FFT = forwardRef(
             }
       `;
 
-        let samplesReceived = 0;
+        const samplesReceivedRef = useRef<number>(0);
         class SmoothingFilter {
             private bufferSize: number;
             private circularBuffers: number[][];
@@ -202,8 +202,8 @@ const FFT = forwardRef(
                         if (fftBufferRef.current[i].length > fftSize) {
                             fftBufferRef.current[i].shift();
                         }
-                        samplesReceived++;
-                        if (samplesReceived % sampleupdateref.current === 0) {
+                        samplesReceivedRef.current++;
+                        if (samplesReceivedRef.current % sampleupdateref.current === 0) {
                             const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
                             const floatInput = new Float32Array(processedBuffer);
                             const fftMags = fftProcessor.computeMagnitudes(floatInput);
@@ -215,6 +215,8 @@ const FFT = forwardRef(
                                 newData[i] = smoothedMags;
                                 return newData;
                             });
+                            // prevent overflow
+                            if (samplesReceivedRef.current > 1e9) samplesReceivedRef.current = 0;
                         }
                     }
                 },

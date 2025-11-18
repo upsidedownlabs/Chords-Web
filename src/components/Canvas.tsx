@@ -40,7 +40,7 @@ const Canvas = forwardRef(
         ref
     ) => {
         const { theme } = useTheme();
-        let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+        const previousCounterRef = useRef<number | null>(null); // Variable to store the previous counter value for loss detection
         const canvasContainerRef = useRef<HTMLDivElement>(null);
         const [numChannels, setNumChannels] = useState<number>(selectedChannels.length);
         const dataPointCountRef = useRef<number>(2000); // To track the calculated value
@@ -165,17 +165,17 @@ const Canvas = forwardRef(
                         processIncomingData(data);
                         updatePlots(data, Zoom);
                     }
-                    if (previousCounter !== null) {
+                    if (previousCounterRef.current !== null) {
                         // If there was a previous counter value
-                        const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
+                        const expectedCounter: number = (previousCounterRef.current + 1) % 256; // Calculate the expected counter value
                         if (data[0] !== expectedCounter) {
                             // Check for data loss by comparing the current counter with the expected counter
                             console.warn(
-                                `Data loss detected in canvas! Previous counter: ${previousCounter}, Current counter: ${data[0]}`
+                                `Data loss detected in canvas! Previous counter: ${previousCounterRef.current}, Current counter: ${data[0]}`
                             );
                         }
                     }
-                    previousCounter = data[0]; // Update the previous counter with the current counter
+                    previousCounterRef.current = data[0]; // Update the previous counter with the current counter
                 },
             }),
             [Zoom, numChannels, timeBase]
