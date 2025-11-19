@@ -20,7 +20,7 @@ const DataPass = () => {
   const [channelCount, setChannelCount] = useState<number>(1); // Number of channels
   const canvasRef = useRef<any>(null); // Create a ref for the Canvas component
   const [selectedChannels, setSelectedChannels] = useState<number[]>([1]);
-  let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+  const previousCounter = useRef<number | null>(null); // Variable to store the previous counter value for loss detection
   const [Zoom, SetZoom] = useState<number>(1); // Number of canvases
   const [currentSnapshot, SetCurrentSnapshot] = useState<number>(0); // Number of canvases
   const pauseRef = useRef<boolean>(true);
@@ -33,9 +33,9 @@ const DataPass = () => {
     if (canvasRef.current) {
       canvasRef.current.updateData(data); // Assuming data is the new data to be displayed
     }
-    if (previousCounter !== null) {
+    if (previousCounter.current !== null) {
       // If there was a previous counter value
-      const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
+      const expectedCounter: number = (previousCounter.current + 1) % 256; // Calculate the expected counter value
       if (data[0] !== expectedCounter) {
         // Check for data loss by comparing the current counter with the expected counter
         console.warn(
@@ -43,7 +43,7 @@ const DataPass = () => {
         );
       }
     }
-    previousCounter = data[0]; // Update the previous counter with the current counter
+    previousCounter.current = data[0]; // Update the previous counter with the current counter
   }, []);
   return (
     <div className="flex flex-col h-screen m-0 p-0 bg-g ">

@@ -36,7 +36,7 @@ import { useTheme } from "next-themes";
 
 const MuscleStrength = () => {
     const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
-    const sampingrateref = useRef<number>(250);
+    const samplingrateref = useRef<number>(250);
     const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
     const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
     const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -644,7 +644,7 @@ const MuscleStrength = () => {
         forceUpdate(); // Trigger re-render
     };
     useEffect(() => {
-        dataPointCountRef.current = (sampingrateref.current * timeBase);
+        dataPointCountRef.current = (samplingrateref.current * timeBase);
     }, [timeBase]);
     const zoomRef = useRef(Zoom);
 
@@ -675,10 +675,10 @@ const MuscleStrength = () => {
     );
 
     notchFilters.forEach((filter) => {
-        filter.setbits(sampingrateref.current);
+        filter.setbits(samplingrateref.current);
     });
     EXGFilters.forEach((filter) => {
-        filter.setbits("12", sampingrateref.current);
+        filter.setbits("12", samplingrateref.current);
     });
     function processSample(dataView: DataView): void {
         if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
