@@ -124,7 +124,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const existingRecordRef = useRef<any | undefined>(undefined);
     const devicenameref = useRef<string>("");
     const [deviceReady, setDeviceReady] = useState(false);
-    const sampingrateref = useRef<number>(0);
+    const samplingrateref = useRef<number>(0);
     const [open, setOpen] = useState(false);
     const [openfft, setOpenfft] = useState(false);
     const [isPauseState, setIsPauseState] = useState(false);
@@ -358,7 +358,7 @@ const Connection: React.FC<ConnectionProps> = ({
             });
         }
     };
-    const setCanvasCountInWorker = (canvasCount: number) => {
+    const setCanvasCountInWorker = useCallback((canvasCount: number) => {
         if (!workerRef.current) {
             initializeWorker();
         }
@@ -370,13 +370,12 @@ const Connection: React.FC<ConnectionProps> = ({
 
         // Send canvasCount independently to the worker
         workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasElementCountRef.current });
-    };
+    }, [selectedChannels, setCanvasCount]);
 
     // Run the canvas count sync after render (and when selectedChannels change)
     useEffect(() => {
         setCanvasCountInWorker(canvasElementCountRef.current);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedChannels.length]);
+    }, [setCanvasCountInWorker]);
 
     const setSelectedChannelsInWorker = (selectedChannels: number[]) => {
         if (!workerRef.current) {
@@ -576,7 +575,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
                 if (sampling_rate) {
                     setCurrentSamplingRate(sampling_rate);
-                    sampingrateref.current = sampling_rate;
+                    samplingrateref.current = sampling_rate;
                 }
 
                 return {
@@ -1172,7 +1171,7 @@ const Connection: React.FC<ConnectionProps> = ({
             maxCanvasElementCountRef.current = 3;
             setSelectedChannel(1);
             setCurrentSamplingRate(500);
-            sampingrateref.current = 500;
+            samplingrateref.current = 500;
             setInterval(() => {
                 if (samplesReceivedRef.current === 0) {
                     disconnect();
@@ -1304,13 +1303,13 @@ const Connection: React.FC<ConnectionProps> = ({
         const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
         const pointoneFilter = Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter());
         notchFilters.forEach((filter) => {
-            filter.setbits(sampingrateref.current); // Set the bits value for all instances
+            filter.setbits(samplingrateref.current); // Set the bits value for all instances
         });
         pointoneFilter.forEach((filter) => {
-            filter.setSamplingRate(sampingrateref.current); // Set the bits value for all instances
+            filter.setSamplingRate(samplingrateref.current); // Set the bits value for all instances
         });
         EXGFilters.forEach((filter) => {
-            filter.setbits(detectedBitsRef.current.toString(), sampingrateref.current); // Set the bits value for all instances
+            filter.setbits(detectedBitsRef.current.toString(), samplingrateref.current); // Set the bits value for all instances
         });
         try {
             while (isDeviceConnectedRef.current) {

@@ -56,7 +56,7 @@ const NPG_Ble = () => {
     const [recordingElapsedTime, setRecordingElapsedTime] = useState<number>(0); // State to store the recording duration
     const [customTimeInput, setCustomTimeInput] = useState<string>(""); // State to store the custom stop time input
     const existingRecordRef = useRef<any | undefined>(undefined);
-    const sampingrateref = useRef<number>(500);
+    const samplingrateref = useRef<number>(500);
     const recordingStartTimeRef = useRef<number>(0);
     const endTimeRef = useRef<number | null>(null); // Ref to store the end time of the recording
     const canvasElementCountRef = useRef<number>(1);
@@ -105,6 +105,10 @@ const NPG_Ble = () => {
             return; // Exit if the ref is null
         }
 
+        // Ensure dataPointCount is calculated from current sampling rate and timeBase
+        const dpCount = samplingrateref.current * timeBase;
+        dataPointCountRef.current = dpCount;
+
         currentSweepPos.current = new Array(numChannels).fill(0);
         sweepPositions.current = new Array(numChannels).fill(0);
 
@@ -137,7 +141,7 @@ const NPG_Ble = () => {
         const opacityDarkMinor = "0.05";
         const opacityLightMajor = "0.4";
         const opacityLightMinor = "0.1";
-        const distanceminor = sampingrateref.current * 0.04;
+        const distanceminor = samplingrateref.current * 0.04;
         const numGridLines = (500 * 4) / distanceminor;
 
         for (let j = 1; j < numGridLines; j++) {
@@ -188,10 +192,10 @@ const NPG_Ble = () => {
             wglp.gScaleY = Zoom;
 
 
-            const line = new WebglLine(getLineColor(channelNumber, theme), dataPointCountRef.current);
+            const line = new WebglLine(getLineColor(channelNumber, theme), dpCount);
             wglp.gOffsetY = 0;
             line.offsetY = 0;
-            line.lineSpaceX(-1, 2 / dataPointCountRef.current);
+            line.lineSpaceX(-1, 2 / dpCount);
 
             wglp.addLine(line);
             newLines.push(line);
@@ -314,7 +318,7 @@ const NPG_Ble = () => {
         forceUpdate(); // Trigger re-render
     };
     useEffect(() => {
-        dataPointCountRef.current = (sampingrateref.current * timeBase);
+        dataPointCountRef.current = (samplingrateref.current * timeBase);
     }, [timeBase]);
     const zoomRef = useRef(Zoom);
 
@@ -338,13 +342,13 @@ const NPG_Ble = () => {
     const exgFiltersRef     = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter()));
     const pointoneFilterRef = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter()));
     notchFiltersRef.current.forEach((filter) => {
-        filter.setbits(sampingrateref.current);
+        filter.setbits(samplingrateref.current);
     });
     exgFiltersRef.current.forEach((filter) => {
-        filter.setbits("12", sampingrateref.current);
+        filter.setbits("12", samplingrateref.current);
     });
     pointoneFilterRef.current.forEach((filter) => {
-        filter.setSamplingRate(sampingrateref.current);
+        filter.setSamplingRate(samplingrateref.current);
     });
 
     // Inside your component
@@ -1510,6 +1514,7 @@ const NPG_Ble = () => {
                                             <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
                                                 {/* Button for setting Time Base to 1 */}
                                                 <button
+                                                    type="button"
                                                     className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
                                                     onClick={() => setTimeBase(1)}
                                                 >
@@ -1528,6 +1533,7 @@ const NPG_Ble = () => {
                                                 />
                                                 {/* Button for setting Time Base to 10 */}
                                                 <button
+                                                    type="button"
                                                     className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
                                                     onClick={() => setTimeBase(10)}
                                                 >
