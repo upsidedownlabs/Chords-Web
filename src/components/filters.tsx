@@ -113,7 +113,7 @@ export class EXGFilter {
     }
 
     process(input: number, type: number): number {
-        if (!type) return input * this.yScale;
+        if (!type) return (input - this.bitsPoints / 2) * this.yScale;
         let output = input;
         let chData = 0;
         switch (this.currentSamplingRate) {
@@ -134,7 +134,7 @@ export class EXGFilter {
                         output = 0.00094469 * x0 + 0.00188938 * this.z1 + 0.00094469 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = x0;
-                        chData = output * this.yScale;
+                        chData = (output - this.bitsPoints / 2) * this.yScale;
                         break;
                     case 3: // EEG Sampling rate: 500.0 Hz, frequency: 45.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -174,7 +174,7 @@ export class EXGFilter {
                         output = 0.00094469 * x0 + 0.00188938 * this.z1 + 0.00094469 * this.z2;
                         this.z2 = this.z1;
                         this.z1 = x0;
-                        chData = output * this.yScale;
+                        chData = (output - this.bitsPoints / 2) * this.yScale;
                         break;
 
                     case 3: // EEG Sampling rate: 250.0 Hz, frequency: 45.0 Hz.
