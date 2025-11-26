@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { EXGFilter, Notch, HighPassFilter } from './filters';
+import { EXGFilter, Notch } from './filters';
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { getCustomColor, lightThemeColors } from './Colors';
@@ -1024,7 +1024,8 @@ const Connection: React.FC<ConnectionProps> = ({
     }
     // Add these to your component's refs
     const notchFiltersRef = useRef<Notch[]>([]);
-    const onehighRef = useRef<HighPassFilter[]>([]);
+    // High-pass filtering removed per user request
+    const onehighRef = useRef<any[]>([]);
     const EXGFiltersRef = useRef<EXGFilter[]>([]);
     const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
 
@@ -1063,10 +1064,11 @@ const Connection: React.FC<ConnectionProps> = ({
 
         for (let channel = 0; channel < maxCanvasElementCountRef.current; channel++) {
             const sample = dataView.getInt16(1 + (channel * 2), false);
+            // HighPass removed: pass raw sample into EXG then Notch
             channelData.push(
                 notchFiltersRef.current[channel].process(
                     EXGFiltersRef.current[channel].process(
-                        onehighRef.current[channel].process(sample),
+                        sample,
                         appliedEXGFiltersRef.current[channel] || 0
                     ),
                     appliedFiltersRef.current[channel] || 0
@@ -1143,11 +1145,9 @@ const Connection: React.FC<ConnectionProps> = ({
 
             }
             connectedDeviceRef.current = device;
-            // Initialize filters
+            // Initialize filters (HighPass removed)
             notchFiltersRef.current = Array.from({ length: 3 }, () => new Notch());
             EXGFiltersRef.current = Array.from({ length: 3 }, () => new EXGFilter());
-            onehighRef.current = Array.from({ length: 3 }, () => new HighPassFilter());
-            onehighRef.current.forEach(filter => filter.setSamplingRate(500));
             notchFiltersRef.current.forEach(filter => filter.setbits(500));
             EXGFiltersRef.current.forEach(filter => filter.setbits("12", 500));
             const service = await server.getPrimaryService(SERVICE_UUID);
@@ -1301,12 +1301,9 @@ const Connection: React.FC<ConnectionProps> = ({
         const END_BYTE = 0x01; // End byte to signify the end of a packet
         const notchFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
         const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
-        const pointoneFilter = Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter());
+        // High-pass filter removed: process value directly through EXG and Notch filters
         notchFilters.forEach((filter) => {
             filter.setbits(samplingrateref.current); // Set the bits value for all instances
-        });
-        pointoneFilter.forEach((filter) => {
-            filter.setSamplingRate(samplingrateref.current); // Set the bits value for all instances
         });
         EXGFilters.forEach((filter) => {
             filter.setbits(detectedBitsRef.current.toString(), samplingrateref.current); // Set the bits value for all instances
@@ -1357,10 +1354,11 @@ const Connection: React.FC<ConnectionProps> = ({
                                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
                                 const value = (highByte << 8) | lowByte;
 
+                                // Skip HighPass: send raw value into EXG then Notch
                                 channelData.push(
                                     notchFilters[channel].process(
                                         EXGFilters[channel].process(
-                                            pointoneFilter[channel].process(value),
+                                            value,
                                             appliedEXGFiltersRef.current[channel]
                                         ),
                                         appliedFiltersRef.current[channel]
