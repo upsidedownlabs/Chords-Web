@@ -11,7 +11,7 @@ import { saveAs } from "file-saver";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { EXGFilter, Notch } from '@/components/filters';
+import { EXGFilter, Notch, HighPassFilter } from '@/components/filters';
 import {
     Popover,
     PopoverContent,
@@ -340,12 +340,15 @@ const NPG_Ble = () => {
     let channelData: number[] = [];
     const notchFiltersRef   = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch()));
     const exgFiltersRef     = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter()));
-    // High-pass filtering removed: samples go directly into EXG -> Notch
+    const pointoneFilterRef = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter()));
     notchFiltersRef.current.forEach((filter) => {
         filter.setbits(samplingrateref.current);
     });
     exgFiltersRef.current.forEach((filter) => {
         filter.setbits("12", samplingrateref.current);
+    });
+    pointoneFilterRef.current.forEach((filter) => {
+        filter.setSamplingRate(samplingrateref.current);
     });
 
     // Inside your component
@@ -371,10 +374,9 @@ const NPG_Ble = () => {
 
         for (let channel = 0; channel < numChannels; channel++) {
             const sample = dataView.getInt16(1 + (channel * 2), false);
-            // High-pass removed: pass raw sample into EXG then Notch
             channelData.push(
                 notchFiltersRef.current[channel].process(
-                    exgFiltersRef.current[channel].process(sample, appliedEXGFiltersRef.current[channel]),
+                    exgFiltersRef.current[channel].process(pointoneFilterRef.current[channel].process(sample), appliedEXGFiltersRef.current[channel]),
                     appliedFiltersRef.current[channel]
                 )
             );

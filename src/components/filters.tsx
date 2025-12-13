@@ -113,7 +113,7 @@ export class EXGFilter {
     }
 
     process(input: number, type: number): number {
-        if (!type) return (input - this.bitsPoints / 2) * this.yScale;
+        if (!type) return input * this.yScale;
         let output = input;
         let chData = 0;
         switch (this.currentSamplingRate) {
@@ -128,13 +128,13 @@ export class EXGFilter {
                         this.z1 = this.x1;
                         chData = output * this.yScale;
                         break;
-                    case 2: // EOG Sampling rate: 500.0 Hz, frequency: 5.0 Hz.
+                    case 2: // EOG Sampling rate: 500.0 Hz, frequency: 10.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
-                        const x0: number = output - (-1.91119707 * this.z1) - (0.91497583 * this.z2);
-                        output = 0.00094469 * x0 + 0.00188938 * this.z1 + 0.00094469 * this.z2;
+                        this.x2 = output - (-1.82269493 * this.z1) - (0.83718165 * this.z2);
+                        output = 0.00362168 * this.x2 + 0.00724336 * this.z1 + 0.00362168 * this.z2;
                         this.z2 = this.z1;
-                        this.z1 = x0;
-                        chData = (output - this.bitsPoints / 2) * this.yScale;
+                        this.z1 = this.x2;
+                        chData = output * this.yScale;
                         break;
                     case 3: // EEG Sampling rate: 500.0 Hz, frequency: 45.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
@@ -168,13 +168,13 @@ export class EXGFilter {
                         chData = output * this.yScale;
                         break;
 
-                    case 2: // EOG Sampling rate: 250.0 Hz, frequency: 5.0 Hz.
+                    case 2: // EOG Sampling rate: 250.0 Hz, frequency: 10.0 Hz.
                         // Filter is order 2, implemented as second-order sections (biquads).
-                        const x0: number = output - (-1.91119707 * this.z1) - (0.91497583 * this.z2);
-                        output = 0.00094469 * x0 + 0.00188938 * this.z1 + 0.00094469 * this.z2;
+                        this.x2 = output - -1.64745998 * this.z1 - 0.70089678 * this.z2;
+                        output = 0.01335920 * this.x2 + 0.02671840 * this.z1 + 0.01335920 * this.z2;
                         this.z2 = this.z1;
-                        this.z1 = x0;
-                        chData = (output - this.bitsPoints / 2) * this.yScale;
+                        this.z1 = this.x2;
+                        chData = output * this.yScale;
                         break;
 
                     case 3: // EEG Sampling rate: 250.0 Hz, frequency: 45.0 Hz.
@@ -307,6 +307,3 @@ export class Notch {
         return output;
     }
 }
-
-
-
