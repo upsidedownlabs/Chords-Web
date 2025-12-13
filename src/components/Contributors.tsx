@@ -13,7 +13,7 @@ import {
 } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
-import { Dialog, DialogContent, DialogTrigger } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "../components/ui/dialog";
 import { CircleAlert } from "lucide-react";
 import { Button } from "../components/ui/button";
 import Link from "next/link";
@@ -62,22 +62,23 @@ const contributors = [
 export default function Contributors() {
   return (
     <Dialog>
-      <DialogTrigger>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
               <Button variant="ghost" size="icon">
                 <CircleAlert className="h-5 w-5" />
                 <span className="sr-only">View Contributors</span>
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Contributors</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </DialogTrigger>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Contributors</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <DialogContent className="sm:max-w-[425px] md:max-w-[570px] lg:max-w-[650px]">
+        <DialogTitle className="sr-only">Contributors</DialogTitle>
         <Card className="border-none">
           <CardHeader className="p-0 mb-2">
             <CardTitle className="font-bold items-center gap-2 flex mb-1">

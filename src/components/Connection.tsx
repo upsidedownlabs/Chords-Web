@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { EXGFilter, Notch, HighPassFilter } from './filters';
+import { EXGFilter, Notch } from './filters';
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { getCustomColor, lightThemeColors } from './Colors';
@@ -124,7 +124,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const existingRecordRef = useRef<any | undefined>(undefined);
     const devicenameref = useRef<string>("");
     const [deviceReady, setDeviceReady] = useState(false);
-    const sampingrateref = useRef<number>(0);
+    const samplingrateref = useRef<number>(0);
     const [open, setOpen] = useState(false);
     const [openfft, setOpenfft] = useState(false);
     const [isPauseState, setIsPauseState] = useState(false);
@@ -280,8 +280,8 @@ const Connection: React.FC<ConnectionProps> = ({
 
 
     const toggleChannel = (channelIndex: number) => {
+        // Mark as manually selected and update selectedChannels
         setSelectedChannels((prevSelected) => {
-            setManuallySelected(true);
             const updatedChannels = prevSelected.includes(channelIndex)
                 ? prevSelected.filter((ch) => ch !== channelIndex)
                 : [...prevSelected, channelIndex];
@@ -292,24 +292,29 @@ const Connection: React.FC<ConnectionProps> = ({
                 sortedChannels.push(1);
             }
 
-            // Retrieve saved devices from localStorage
-            const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
-            const portInfo = portRef.current?.getInfo();
+            // Retrieve saved devices from localStorage and persist selection
+            try {
+                const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
+                const portInfo = portRef.current?.getInfo();
 
-            if (portInfo) {
-                const deviceIndex = savedPorts.findIndex(
-                    (saved: SavedDevice) => saved.deviceName === devicenameref.current
-                );
+                if (portInfo) {
+                    const deviceIndex = savedPorts.findIndex(
+                        (saved: SavedDevice) => saved.deviceName === devicenameref.current
+                    );
 
-                if (deviceIndex !== -1) {
-                    savedPorts[deviceIndex].selectedChannels = sortedChannels;
-                    localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-
+                    if (deviceIndex !== -1) {
+                        savedPorts[deviceIndex].selectedChannels = sortedChannels;
+                        localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
+                    }
                 }
+            } catch (e) {
+                console.warn('Failed to persist selected channels:', e);
             }
 
             return sortedChannels;
         });
+
+        setManuallySelected(true);
     };
 
     // Handle right arrow click (reset count and disable button if needed)
@@ -353,15 +358,24 @@ const Connection: React.FC<ConnectionProps> = ({
             });
         }
     };
-    const setCanvasCountInWorker = (canvasCount: number) => {
+    const setCanvasCountInWorker = useCallback((canvasCount: number) => {
         if (!workerRef.current) {
             initializeWorker();
         }
-        setCanvasCount(selectedChannels.length)
+        // Update parent canvasCount only when it differs to avoid unnecessary rerenders
+        const newCount = selectedChannels.length;
+        if (typeof setCanvasCount === 'function' && newCount !== canvasCount) {
+            setCanvasCount(newCount);
+        }
+
         // Send canvasCount independently to the worker
         workerRef.current?.postMessage({ action: 'setCanvasCount', canvasCount: canvasElementCountRef.current });
-    };
-    setCanvasCountInWorker(canvasElementCountRef.current);
+    }, [selectedChannels, setCanvasCount]);
+
+    // Run the canvas count sync after render (and when selectedChannels change)
+    useEffect(() => {
+        setCanvasCountInWorker(canvasElementCountRef.current);
+    }, [setCanvasCountInWorker]);
 
     const setSelectedChannelsInWorker = (selectedChannels: number[]) => {
         if (!workerRef.current) {
@@ -412,8 +426,10 @@ const Connection: React.FC<ConnectionProps> = ({
 
                     if (zipBlob) {
                         saveAs(zipBlob, 'ChordsWeb.zip');
+                        toast.success("Data successfully downloaded as ZIP.");
                     } else if (error) {
                         console.error(error);
+                        toast.error(`Error while creating ZIP: ${error}`);
                     }
                 };
             }
@@ -559,7 +575,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
                 if (sampling_rate) {
                     setCurrentSamplingRate(sampling_rate);
-                    sampingrateref.current = sampling_rate;
+                    samplingrateref.current = sampling_rate;
                 }
 
                 return {
@@ -1008,7 +1024,8 @@ const Connection: React.FC<ConnectionProps> = ({
     }
     // Add these to your component's refs
     const notchFiltersRef = useRef<Notch[]>([]);
-    const onehighRef = useRef<HighPassFilter[]>([]);
+    // High-pass filtering removed per user request
+    const onehighRef = useRef<any[]>([]);
     const EXGFiltersRef = useRef<EXGFilter[]>([]);
     const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
 
@@ -1047,10 +1064,11 @@ const Connection: React.FC<ConnectionProps> = ({
 
         for (let channel = 0; channel < maxCanvasElementCountRef.current; channel++) {
             const sample = dataView.getInt16(1 + (channel * 2), false);
+            // HighPass removed: pass raw sample into EXG then Notch
             channelData.push(
                 notchFiltersRef.current[channel].process(
                     EXGFiltersRef.current[channel].process(
-                        onehighRef.current[channel].process(sample),
+                        sample,
                         appliedEXGFiltersRef.current[channel] || 0
                     ),
                     appliedFiltersRef.current[channel] || 0
@@ -1127,11 +1145,9 @@ const Connection: React.FC<ConnectionProps> = ({
 
             }
             connectedDeviceRef.current = device;
-            // Initialize filters
+            // Initialize filters (HighPass removed)
             notchFiltersRef.current = Array.from({ length: 3 }, () => new Notch());
             EXGFiltersRef.current = Array.from({ length: 3 }, () => new EXGFilter());
-            onehighRef.current = Array.from({ length: 3 }, () => new HighPassFilter());
-            onehighRef.current.forEach(filter => filter.setSamplingRate(500));
             notchFiltersRef.current.forEach(filter => filter.setbits(500));
             EXGFiltersRef.current.forEach(filter => filter.setbits("12", 500));
             const service = await server.getPrimaryService(SERVICE_UUID);
@@ -1155,7 +1171,7 @@ const Connection: React.FC<ConnectionProps> = ({
             maxCanvasElementCountRef.current = 3;
             setSelectedChannel(1);
             setCurrentSamplingRate(500);
-            sampingrateref.current = 500;
+            samplingrateref.current = 500;
             setInterval(() => {
                 if (samplesReceivedRef.current === 0) {
                     disconnect();
@@ -1285,15 +1301,12 @@ const Connection: React.FC<ConnectionProps> = ({
         const END_BYTE = 0x01; // End byte to signify the end of a packet
         const notchFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch());
         const EXGFilters = Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter());
-        const pointoneFilter = Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter());
+        // High-pass filter removed: process value directly through EXG and Notch filters
         notchFilters.forEach((filter) => {
-            filter.setbits(sampingrateref.current); // Set the bits value for all instances
-        });
-        pointoneFilter.forEach((filter) => {
-            filter.setSamplingRate(sampingrateref.current); // Set the bits value for all instances
+            filter.setbits(samplingrateref.current); // Set the bits value for all instances
         });
         EXGFilters.forEach((filter) => {
-            filter.setbits(detectedBitsRef.current.toString(), sampingrateref.current); // Set the bits value for all instances
+            filter.setbits(detectedBitsRef.current.toString(), samplingrateref.current); // Set the bits value for all instances
         });
         try {
             while (isDeviceConnectedRef.current) {
@@ -1341,10 +1354,11 @@ const Connection: React.FC<ConnectionProps> = ({
                                 const lowByte = packet[channel * 2 + HEADER_LENGTH + 1];
                                 const value = (highByte << 8) | lowByte;
 
+                                // Skip HighPass: send raw value into EXG then Notch
                                 channelData.push(
                                     notchFilters[channel].process(
                                         EXGFilters[channel].process(
-                                            pointoneFilter[channel].process(value),
+                                            value,
                                             appliedEXGFiltersRef.current[channel]
                                         ),
                                         appliedFiltersRef.current[channel]

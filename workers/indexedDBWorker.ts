@@ -1,5 +1,4 @@
 import JSZip from 'jszip';
-import { toast } from "sonner";
 
 // Global variables
 let canvasCount = 0;
@@ -193,13 +192,13 @@ const convertToCSV = (data: any[], canvasCount: number, selectedChannels: number
   const header = ["Counter", ...selectedChannels.map((channel) => `Channel${channel}`)];
 
   // Create rows by filtering and mapping valid data
-  const rows = data
+    const rows = data
     .filter((item, index) => {
       // Ensure each item is an array and has valid data
       if (!item || !Array.isArray(item) || item.length === 0) {
         console.warn(`Skipping invalid data at index ${index}:`, item);
         return false;
-      } ``
+      }
       return true;
     })
     .map((item, index) => {
@@ -256,7 +255,7 @@ const saveAllDataAsZip = async (canvasCount: number, selectedChannels: number[])
       }
     });
 
-    toast.success("Data successfully downloaded as ZIP.");
+    // Worker must not access UI. Return the blob to the main thread instead.
 
     const content = await zip.generateAsync({ type: "blob" });
     return content;
