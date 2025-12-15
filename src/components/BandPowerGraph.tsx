@@ -28,7 +28,7 @@ const Graph: React.FC<GraphProps> = ({
     Array(5).fill(-100)
   );
   const prevBandPowerData = useRef<number[]>(Array(5).fill(0));
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(0);
   const { theme } = useTheme();
 
   // Specific color strings for canvas drawing

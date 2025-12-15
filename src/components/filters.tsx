@@ -307,6 +307,3 @@ export class Notch {
         return output;
     }
 }
-
-
-
