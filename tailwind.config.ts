@@ -76,6 +76,10 @@ const config = {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        blink: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.5' },
+        },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
@@ -101,6 +105,8 @@ const config = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "typewriter": 'typewriter 5s steps(50) 1s infinite forwards, infinite',
+        'blink': 'blink 1s ease-in-out infinite',
+        'pulse-fast': 'pulse 0.5s ease-in-out infinite',
       },
     },
   },

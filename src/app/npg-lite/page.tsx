@@ -4,6 +4,7 @@ import React, {
     useRef,
     useState,
     useCallback,
+    useMemo,
 } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -41,14 +42,34 @@ import {
     Eye,
     BicepsFlexed,
     Settings,
-    Loader
+    Loader,
+    Battery,
+    BatteryLow,
+    BatteryMedium,
+    BatteryFull,
+    BatteryWarning
 } from "lucide-react";
 import { lightThemeColors, darkThemeColors, getCustomColor } from '@/components/Colors';
 import { useTheme } from "next-themes";
 
+// Device configuration interface
+interface DeviceConfig {
+    maxChannels: number;
+    sampleLength: number;
+    hasBattery: boolean;
+    name: string;
+}
+
+const defaultConfig: DeviceConfig = {
+    maxChannels: 3,
+    sampleLength: 7,
+    hasBattery: false,
+    name: ""
+};
 
 const NPG_Ble = () => {
     const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
+    const isOldfirmwareRef = useRef<boolean>(false); // Ref to track if the device has old firmware
     const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
     const [isRecord, setIsrecord] = useState<boolean>(true); // Display state
     const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
@@ -73,9 +94,22 @@ const NPG_Ble = () => {
     const linesRef = useRef<WebglLine[]>([]);
     const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
     const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
-    const maxCanvasElementCountRef = useRef<number>(3);
-    const channelNames = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => `CH${i + 1}`);
-    let numChannels = 3;
+
+    // Centralized device configuration
+    const deviceConfigRef = useRef<DeviceConfig>(defaultConfig);
+    const [deviceConfig, setDeviceConfig] = useState<DeviceConfig>(defaultConfig);
+
+    // State for UI updates only
+    const [batteryLevel, setBatteryLevel] = useState<number | null>(null); // Battery level percentage for UI
+    const [deviceName, setDeviceName] = useState<string>(""); // Store device name for UI
+    const [refreshKey, setRefreshKey] = useState(0); // Force re-render when config changes
+
+    // Derive channel names from device config
+    const channelNames = useMemo(() =>
+        Array.from({ length: deviceConfig.maxChannels }, (_, i) => `CH${i + 1}`),
+        [deviceConfig.maxChannels]
+    );
+
     const [selectedChannels, setSelectedChannels] = useState<number[]>([1]);
     const [manuallySelected, setManuallySelected] = useState(false); // New state to track manual selection
     const { theme } = useTheme(); // Current theme of the app
@@ -93,24 +127,22 @@ const NPG_Ble = () => {
     const fillingindex = useRef<number>(0); // Initialize useRef with 0
     const MAX_BUFFER_SIZE = 500;
     const pauseRef = useRef<boolean>(true);
+
     const togglePause = () => {
         const newPauseState = !isDisplay;
         setIsDisplay(newPauseState);
         pauseRef.current = newPauseState;
     };
     const samplesReceivedRef = useRef(0);
+
     const createCanvasElements = () => {
         const container = canvasContainerRef.current;
         if (!container) {
             return; // Exit if the ref is null
         }
 
-        // Ensure dataPointCount is calculated from current sampling rate and timeBase
-        const dpCount = samplingrateref.current * timeBase;
-        dataPointCountRef.current = dpCount;
-
-        currentSweepPos.current = new Array(numChannels).fill(0);
-        sweepPositions.current = new Array(numChannels).fill(0);
+        currentSweepPos.current = new Array(deviceConfig.maxChannels).fill(0);
+        sweepPositions.current = new Array(deviceConfig.maxChannels).fill(0);
 
         // Clear existing child elements
         while (container.firstChild) {
@@ -192,10 +224,10 @@ const NPG_Ble = () => {
             wglp.gScaleY = Zoom;
 
 
-            const line = new WebglLine(getLineColor(channelNumber, theme), dpCount);
+            const line = new WebglLine(getLineColor(channelNumber, theme), dataPointCountRef.current);
             wglp.gOffsetY = 0;
             line.offsetY = 0;
-            line.lineSpaceX(-1, 2 / dpCount);
+            line.lineSpaceX(-1, 2 / dataPointCountRef.current);
 
             wglp.addLine(line);
             newLines.push(line);
@@ -222,7 +254,7 @@ const NPG_Ble = () => {
 
 
     const handleSelectAllToggle = () => {
-        const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
+        const enabledChannels = Array.from({ length: deviceConfig.maxChannels }, (_, i) => i + 1);
 
         if (!isAllEnabledChannelSelected) {
             // Programmatic selection of all channels
@@ -231,12 +263,10 @@ const NPG_Ble = () => {
         } else {
             // RESET functionality
             const savedchannels = JSON.parse(localStorage.getItem('savedchannels') || '[]');
-            let initialSelectedChannelsRefs: number[] = []; // Default to channel 1 if no saved channels are found
+            let initialSelectedChannelsRefs: number[] = [1]; // Default to channel 1
 
             // Get the saved channels for the device
             initialSelectedChannelsRefs = [1]; // Load saved channels or default to [1]
-
-
 
             // Set the channels back to saved values
             setSelectedChannels(initialSelectedChannelsRefs); // Reset to saved channels
@@ -252,9 +282,11 @@ const NPG_Ble = () => {
     useEffect(() => {
         createCanvasElements();
         setRefresh(r => r + 1);
-    }, [numChannels, theme, timeBase, selectedChannels, Zoom, isConnected]);
+    }, [deviceConfig.maxChannels, theme, timeBase, selectedChannels, Zoom, isConnected, refreshKey]);
+
     useEffect(() => {
         selectedChannelsRef.current = selectedChannels;
+        canvasElementCountRef.current = selectedChannels.length;
     }, [selectedChannels]);
 
     //filters
@@ -317,9 +349,11 @@ const NPG_Ble = () => {
         });
         forceUpdate(); // Trigger re-render
     };
+
     useEffect(() => {
         dataPointCountRef.current = (samplingrateref.current * timeBase);
     }, [timeBase]);
+
     const zoomRef = useRef(Zoom);
 
     useEffect(() => {
@@ -329,31 +363,107 @@ const NPG_Ble = () => {
     const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
     const DATA_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
     const CONTROL_CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
-
-    const SINGLE_SAMPLE_LEN = 7; // Each sample is 10 bytes
-    const BLOCK_COUNT = 10; // 10 samples batched per notification
-    const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT; // 100 bytes
-
-
+    const BATTERY_CHAR_UUID = "f633d0ec-46b4-43c1-a39f-1ca06d0602e1";  // Battery characteristic UUID
 
     let prevSampleCounter: number | null = null;
     let channelData: number[] = [];
-    const notchFiltersRef   = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new Notch()));
-    const exgFiltersRef     = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new EXGFilter()));
-    const pointoneFilterRef = useRef(Array.from({ length: maxCanvasElementCountRef.current }, () => new HighPassFilter()));
-    notchFiltersRef.current.forEach((filter) => {
-        filter.setbits(samplingrateref.current);
-    });
-    exgFiltersRef.current.forEach((filter) => {
-        filter.setbits("12", samplingrateref.current);
-    });
-    pointoneFilterRef.current.forEach((filter) => {
-        filter.setSamplingRate(samplingrateref.current);
-    });
+
+    // Initialize filters with device config
+    const notchFiltersRef = useRef(Array.from({ length: deviceConfig.maxChannels }, () => new Notch()));
+    const exgFiltersRef = useRef(Array.from({ length: deviceConfig.maxChannels }, () => new EXGFilter()));
+    const pointoneFilterRef = useRef(Array.from({ length: deviceConfig.maxChannels }, () => new HighPassFilter()));
+
+    // Update filters when device config changes
+    useEffect(() => {
+        const config = deviceConfigRef.current;
+
+        notchFiltersRef.current = Array.from({ length: config.maxChannels }, () => new Notch());
+        exgFiltersRef.current = Array.from({ length: config.maxChannels }, () => new EXGFilter());
+        pointoneFilterRef.current = Array.from({ length: config.maxChannels }, () => new HighPassFilter());
+
+        notchFiltersRef.current.forEach((filter) => {
+            filter.setbits(samplingrateref.current);
+        });
+        exgFiltersRef.current.forEach((filter) => {
+            filter.setbits("12", samplingrateref.current);
+        });
+        pointoneFilterRef.current.forEach((filter) => {
+            filter.setSamplingRate(samplingrateref.current);
+        });
+    }, [deviceConfig]);
+
+    // Function to update device configuration based on name
+    const updateDeviceConfiguration = (name: string) => {
+        let newConfig: DeviceConfig;
+
+        if (name.includes("3CH")) {
+            newConfig = {
+                maxChannels: 3,
+                sampleLength: 7, // 3 channels * 2 bytes + 1 byte counter = 7 bytes
+                hasBattery: true,
+                name
+            };
+            isOldfirmwareRef.current = false; // Mark as new firmware if 3CH device is detected
+        } else if (name.includes("6CH")) {
+            newConfig = {
+                maxChannels: 6,
+                sampleLength: 13, // 6 channels * 2 bytes + 1 byte counter = 13 bytes
+                hasBattery: true,
+                name
+            };
+            isOldfirmwareRef.current = false; // Mark as new firmware if 6CH device is detected 
+        } else {
+            newConfig = {
+                maxChannels: 3,
+                sampleLength: 7,
+                hasBattery: false,
+                name
+            };
+            isOldfirmwareRef.current = true; // Mark as old firmware if device name doesn't match known patterns
+        }
+
+        // Update both ref and state
+        deviceConfigRef.current = newConfig;
+        setDeviceConfig(newConfig);
+        setDeviceName(name);
+
+        // Reinitialize filters with new channel count
+        notchFiltersRef.current = Array.from({ length: newConfig.maxChannels }, () => new Notch());
+        exgFiltersRef.current = Array.from({ length: newConfig.maxChannels }, () => new EXGFilter());
+        pointoneFilterRef.current = Array.from({ length: newConfig.maxChannels }, () => new HighPassFilter());
+
+        // Initialize filters
+        notchFiltersRef.current.forEach((filter) => {
+            filter.setbits(samplingrateref.current);
+        });
+        exgFiltersRef.current.forEach((filter) => {
+            filter.setbits("12", samplingrateref.current);
+        });
+        pointoneFilterRef.current.forEach((filter) => {
+            filter.setSamplingRate(samplingrateref.current);
+        });
+
+        // Reset UI states
+        setSelectedChannels([1]);
+        setManuallySelected(false);
+        setBatteryLevel(null);
+
+        // Force re-render to update UI with new channel count
+        setRefreshKey(prev => prev + 1);
+    };
+
+    const BLOCK_COUNT = 10; // 10 samples batched per notification
+    // Dynamic packet length based on current device config
+    const packetLengthRef = useRef<number>(0);
+    useEffect(() => {
+        packetLengthRef.current = deviceConfigRef.current.sampleLength * BLOCK_COUNT;
+    }, [deviceConfig]);
 
     // Inside your component
     const processSample = useCallback((dataView: DataView): void => {
-        if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
+        const config = deviceConfigRef.current;
+
+        if (dataView.byteLength !== config.sampleLength) {
             console.log("Unexpected sample length: " + dataView.byteLength);
             return;
         }
@@ -372,11 +482,16 @@ const NPG_Ble = () => {
 
         channelData.push(sampleCounter);
 
-        for (let channel = 0; channel < numChannels; channel++) {
+        // Process the correct number of channels based on device configuration
+
+        for (let channel = 0; channel < config.maxChannels; channel++) {
             const sample = dataView.getInt16(1 + (channel * 2), false);
             channelData.push(
                 notchFiltersRef.current[channel].process(
-                    exgFiltersRef.current[channel].process(pointoneFilterRef.current[channel].process(sample), appliedEXGFiltersRef.current[channel]),
+                    exgFiltersRef.current[channel].process(
+                        pointoneFilterRef.current[channel].process(sample),
+                        appliedEXGFiltersRef.current[channel]
+                    ),
                     appliedFiltersRef.current[channel]
                 )
             );
@@ -412,7 +527,7 @@ const NPG_Ble = () => {
         channelData = [];
         samplesReceivedRef.current += 1;
     }, [
-        canvasElementCountRef.current, selectedChannels, timeBase
+        canvasElementCountRef.current, selectedChannels, timeBase, deviceConfig
     ]);
 
     interface BluetoothRemoteGATTCharacteristicExtended extends EventTarget {
@@ -425,95 +540,209 @@ const NPG_Ble = () => {
             console.log("Received event with no value.");
             return;
         }
-        if (currentSweepPos.current.length !== numChannels || !pauseRef.current) {
-            currentSweepPos.current = new Array(numChannels).fill(0);
-            sweepPositions.current = new Array(numChannels).fill(0);
-        }
+
+        const config = deviceConfigRef.current;
+        const currentPacketLength = packetLengthRef.current;
 
         const value = target.value;
-        if (value.byteLength === NEW_PACKET_LEN) {
-            for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
-                const sampleBuffer = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
+        if (value.byteLength === currentPacketLength) {
+            for (let i = 0; i < currentPacketLength; i += config.sampleLength) {
+                const sampleBuffer = value.buffer.slice(i, i + config.sampleLength);
                 const sampleDataView = new DataView(sampleBuffer);
                 processSample(sampleDataView);
             }
-        } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
+        } else if (value.byteLength === config.sampleLength) {
             processSample(new DataView(value.buffer));
         } else {
             console.log("Unexpected packet length: " + value.byteLength);
         }
     }
+
     const connectedDeviceRef = useRef<any | null>(null); // UseRef for device tracking
+    const batteryCharacteristicRef = useRef<any | null>(null); // Ref for battery characteristic
+
+    const disconnectIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Update the connectBLE function
     async function connectBLE(): Promise<void> {
         try {
-
             setIsLoading(true);
             const nav = navigator as any;
             if (!nav.bluetooth) {
                 console.log("Web Bluetooth API is not available in this browser.");
+                setIsLoading(false);
                 return;
             }
+
             const device = await nav.bluetooth.requestDevice({
                 filters: [{ namePrefix: "NPG" }],
                 optionalServices: [SERVICE_UUID],
             });
+
+            // Update configuration based on device name
+            updateDeviceConfiguration(device.name || "");
+
             const server = await device.gatt?.connect();
             if (!server) {
+                setIsLoading(false);
                 return;
             }
+
             connectedDeviceRef.current = device;
             const service = await server.getPrimaryService(SERVICE_UUID);
             const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
             const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+
+            // Try to get battery characteristic if device supports it
+            if (deviceConfigRef.current.hasBattery) {
+                try {
+                    const batteryChar = await service.getCharacteristic(BATTERY_CHAR_UUID);
+                    batteryCharacteristicRef.current = batteryChar;
+                    await batteryChar.startNotifications();
+
+                    batteryChar.addEventListener("characteristicvaluechanged", (event: any) => {
+                        const target = event.target as BluetoothRemoteGATTCharacteristicExtended;
+                        if (target.value && target.value.byteLength === 1) {
+                            const batteryValue = target.value.getUint8(0);
+                            setBatteryLevel(batteryValue);
+                        }
+                    });
+                } catch (error) {
+                    console.log("Battery characteristic not available:", error);
+                }
+            }
+
             const encoder = new TextEncoder();
             await controlChar.writeValue(encoder.encode("START"));
             await dataChar.startNotifications();
             dataChar.addEventListener("characteristicvaluechanged", handleNotification);
             setIsConnected(true);
-            setInterval(() => {
+            setIsLoading(false);
+
+            // Clear any existing interval first
+            if (disconnectIntervalRef.current) {
+                clearInterval(disconnectIntervalRef.current);
+                disconnectIntervalRef.current = null;
+            }
+
+            // Create new interval for monitoring samples
+            disconnectIntervalRef.current = setInterval(() => {
                 if (samplesReceivedRef.current === 0) {
+                    console.log("No samples received in 1 second, disconnecting...");
+                    // Clear the interval before calling disconnect
+                    if (disconnectIntervalRef.current) {
+                        clearInterval(disconnectIntervalRef.current);
+                        disconnectIntervalRef.current = null;
+                    }
                     disconnect();
-                    window.location.reload();
                 }
                 samplesReceivedRef.current = 0;
             }, 1000);
         } catch (error) {
             console.log("Error: " + (error instanceof Error ? error.message : error));
             setIsLoading(false);
-
         }
     }
 
+
     async function disconnect(): Promise<void> {
         try {
+            setIsLoading(true); // Show loading while disconnecting
+            if (disconnectIntervalRef.current) {
+                clearInterval(disconnectIntervalRef.current);
+                disconnectIntervalRef.current = null;
+            }
+
+            // Clear any existing timeouts/intervals
+            if (samplesReceivedRef.current > 0) {
+                // Clear the interval that checks for samples
+                const checkInterval = setInterval(() => { });
+                clearInterval(checkInterval);
+            }
+
             if (!connectedDeviceRef.current) {
                 console.log("No connected device to disconnect.");
+                setIsLoading(false);
                 return;
             }
 
             const server = connectedDeviceRef.current.gatt;
             if (!server) {
+                setIsLoading(false);
                 return;
             }
 
+            try {
+                // Only try to stop notifications if server is connected
+                if (server.connected) {
+                    const service = await server.getPrimaryService(SERVICE_UUID);
 
-            if (!server.connected) {
+                    // Stop data notifications
+                    try {
+                        const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+                        await dataChar.stopNotifications();
+                        dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
+                    } catch (error) {
+                        console.log("Error stopping data notifications:", error);
+                    }
+
+                    // Send stop command if control characteristic exists
+                    try {
+                        const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
+                        const encoder = new TextEncoder();
+                        await controlChar.writeValue(encoder.encode("STOP"));
+                    } catch (error) {
+                        console.log("Error sending STOP command:", error);
+                    }
+
+                    // Disconnect from device
+                    server.disconnect();
+                }
+            } catch (error) {
+                console.log("Error during cleanup:", error);
+            } finally {
+                // Reset all states and refs
                 connectedDeviceRef.current = null;
                 setIsConnected(false);
-                return;
+                setBatteryLevel(null);
+                setDeviceName("");
+
+                // Reset device configuration to defaults
+                deviceConfigRef.current = defaultConfig;
+                setDeviceConfig(defaultConfig);
+
+                // Reset sample tracking
+                prevSampleCounter = null;
+                channelData = [];
+                samplesReceivedRef.current = 0;
+
+                // Reset recording state
+                isRecordingRef.current = false;
+                setIsrecord(true);
+                setRecordingElapsedTime(0);
+
+                // Reset UI states
+                setIsDisplay(true);
+                pauseRef.current = true;
+
+                // Clear buffers
+                recordingBuffers.forEach(buffer => buffer.length = 0);
+                activeBufferIndex = 0;
+                fillingindex.current = 0;
+
+                // Clear lines and sweep positions
+                linesRef.current = [];
+                sweepPositions.current = new Array(6).fill(0);
+                currentSweepPos.current = new Array(6).fill(0);
+
+                // Force re-render
+                setRefreshKey(prev => prev + 1);
+
+                setIsLoading(false);
             }
-
-            const service = await server.getPrimaryService(SERVICE_UUID);
-            const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
-            await dataChar.stopNotifications();
-            dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
-
-            server.disconnect(); // Disconnect the device
-
-            connectedDeviceRef.current = null; // Clear the global reference
-            setIsConnected(false);
         } catch (error) {
             console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
+            setIsLoading(false);
         }
     }
 
@@ -526,10 +755,6 @@ const NPG_Ble = () => {
             });
         }
     };
-
-    useEffect(() => {
-        canvasElementCountRef.current = selectedChannels.length;
-    }, [selectedChannels]);
 
     const setSelectedChannelsInWorker = (selectedChannels: number[]) => {
         if (!workerRef.current) {
@@ -704,6 +929,7 @@ const NPG_Ble = () => {
             currentFileNameRef.current = filename;
         }
     };
+
     const stopRecording = async () => {
         if (!recordingStartTimeRef.current) {
             toast.error("Recording start time was not captured.");
@@ -723,6 +949,7 @@ const NPG_Ble = () => {
         // Call fetchData after stopping the recording
         fetchData();
     };
+
     const getFileCountFromIndexedDB = async (): Promise<any[]> => {
         if (!workerRef.current) {
             initializeWorker();
@@ -767,6 +994,7 @@ const NPG_Ble = () => {
         // Clear the input field after handling
         setCustomTimeInput("");
     };
+
     const formatTime = (milliseconds: number): string => {
         const date = new Date(milliseconds);
         const hours = String(date.getUTCHours()).padStart(2, '0');
@@ -777,7 +1005,7 @@ const NPG_Ble = () => {
 
 
     useEffect(() => {
-        const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
+        const enabledChannels = Array.from({ length: deviceConfig.maxChannels }, (_, i) => i + 1);
 
         const allSelected = selectedChannels.length === enabledChannels.length;
         const onlyOneLeft = selectedChannels.length === enabledChannels.length - 1;
@@ -786,10 +1014,11 @@ const NPG_Ble = () => {
 
         // Update the "Select All" button state
         setIsAllEnabledChannelSelected(allSelected);
-    }, [selectedChannels, maxCanvasElementCountRef.current, manuallySelected]);
+    }, [selectedChannels, deviceConfig.maxChannels, manuallySelected, refreshKey]);
 
     const toggleChannel = (channelIndex: number) => {
         setSelectedChannels((prevSelected) => {
+            setManuallySelected(true);
             const updatedChannels = prevSelected.includes(channelIndex)
                 ? prevSelected.filter((ch) => ch !== channelIndex)
                 : [...prevSelected, channelIndex];
@@ -802,11 +1031,7 @@ const NPG_Ble = () => {
 
             return sortedChannels;
         });
-
-        setManuallySelected(true);
     };
-
-
 
     const updatePlots = useCallback(
         (data: number[], Zoom: number) => {
@@ -829,6 +1054,7 @@ const NPG_Ble = () => {
                     console.warn(`WebglPlot instance at index ${index} is undefined.`);
                 }
             });
+
             linesRef.current.forEach((line, i) => {
                 if (!line) {
                     console.warn(`Line at index ${i} is undefined.`);
@@ -843,7 +1069,6 @@ const NPG_Ble = () => {
                 }
 
                 const channelData = data[channelNumber];
-
 
                 // Ensure sweepPositions.current[i] is initialized
                 if (sweepPositions.current[i] === undefined) {
@@ -904,14 +1129,69 @@ const NPG_Ble = () => {
 
     }, [animate, Zoom]);
 
+    // Function to get battery icon based on level
+    const getBatteryIcon = (level: number | null) => {
+        if (level === null) return <BatteryWarning size={30} />;
 
+        if (level <=  10) return <Battery
+            size={30}
+            className="text-red-500 animate-blink" // or animate-pulse-fast
+        />;
+        if (level <= 20.0 && level > 10.0) return <BatteryLow size={30} />;
+        if (level <= 70.0 && level > 20.0) return <BatteryMedium size={30} />;
+        if (level > 70) return <BatteryFull size={30} />;
+        return <BatteryFull size={30} />;
+    };
+
+    useEffect(() => {
+        if (batteryLevel === null) return;
+
+        let intervalId: number | undefined;
+
+        // Handle battery level checks
+        if (batteryLevel <= 10) {
+            // Show immediate notification
+            toast.error("Very low battery! Please recharge immediately.");
+
+            // Set up interval to show notification every minute
+            intervalId = window.setInterval(() => {
+                toast.error("Very low battery! Please recharge immediately.");
+            }, 60000); // 60000ms = 1 minute
+
+        } else if (batteryLevel === 20) {
+            toast.warning("Battery is low at " + batteryLevel + "%. Consider recharging soon.");
+        } else if (batteryLevel === 70) {
+            toast.success("Battery level is " + batteryLevel + "%.");
+        } else if (batteryLevel === 99) {
+            toast.success("Battery fully charged.");
+        }
+
+        // Cleanup function to clear interval when batteryLevel changes or component unmounts
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+
+    }, [batteryLevel]);
+
+    // Function to get battery color based on level
+    const getBatteryColor = (level: number | null) => {
+        if (level === null) return "text-red-500";
+
+        if (level <= 20.0 && level > 10.0) return "text-red-500";
+        if (level <= 70.0 && level > 20.0) return "text-orange-500";
+        if (level > 70) return "text-green-500";
+        return "text-green-500";
+    };
 
     return (
         <div className="flex flex-col h-screen m-0 p-0 bg-g ">
 
             <div className="bg-highlight">
                 <Navbar isDisplay={true} />
-            </div>            <main className=" flex flex-col flex-[1_1_0%] min-h-80 bg-highlight  rounded-2xl m-4 relative"
+            </div>
+            <main className=" flex flex-col flex-[1_1_0%] min-h-80 bg-highlight  rounded-2xl m-4 relative"
                 ref={canvasContainerRef}
             >
             </main>
@@ -989,6 +1269,8 @@ const NPG_Ble = () => {
                             </div>
                         </div>
                     )}
+
+
                 </div>
 
                 {/* Center-aligned buttons */}
@@ -1029,6 +1311,7 @@ const NPG_Ble = () => {
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
+
                     <div className="flex items-center gap-0.5 mx-0 px-0">
 
                         <TooltipProvider>
@@ -1172,7 +1455,7 @@ const NPG_Ble = () => {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => removeEXGFilterFromAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i))}
+                                                onClick={() => removeEXGFilterFromAllChannels(Array.from({ length: deviceConfig.maxChannels }, (_, i) => i))}
                                                 className={`rounded-xl rounded-r-none border-0
                         ${Object.keys(appliedEXGFiltersRef.current).length === 0
                                                         ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
@@ -1184,9 +1467,9 @@ const NPG_Ble = () => {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 4)}
+                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: deviceConfig.maxChannels }, (_, i) => i), 4)}
                                                 className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === deviceConfig.maxChannels && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                         : "bg-white-500" // Active background
                                                     }`}
@@ -1195,9 +1478,9 @@ const NPG_Ble = () => {
                                             </Button> <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 3)}
+                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: deviceConfig.maxChannels }, (_, i) => i), 3)}
                                                 className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === deviceConfig.maxChannels && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                         : "bg-white-500" // Active background
                                                     }`}
@@ -1206,9 +1489,9 @@ const NPG_Ble = () => {
                                             </Button> <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 1)}
+                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: deviceConfig.maxChannels }, (_, i) => i), 1)}
                                                 className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === deviceConfig.maxChannels && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                         : "bg-white-500" // Active background
                                                     }`}
@@ -1217,9 +1500,9 @@ const NPG_Ble = () => {
                                             </Button> <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 2)}
+                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: deviceConfig.maxChannels }, (_, i) => i), 2)}
                                                 className={`rounded-xl rounded-l-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
+                        ${Object.keys(appliedEXGFiltersRef.current).length === deviceConfig.maxChannels && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                         : "bg-white-500" // Active background
                                                     }`}
@@ -1231,7 +1514,7 @@ const NPG_Ble = () => {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => removeNotchFromAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i))}
+                                                onClick={() => removeNotchFromAllChannels(Array.from({ length: deviceConfig.maxChannels }, (_, i) => i))}
                                                 className={`rounded-xl rounded-r-none border-0
                           ${Object.keys(appliedFiltersRef.current).length === 0
                                                         ? "bg-red-700 hover:bg-white-500 hover:text-white text-white" // Disabled background
@@ -1243,9 +1526,9 @@ const NPG_Ble = () => {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 1)}
+                                                onClick={() => applyFilterToAllChannels(Array.from({ length: deviceConfig.maxChannels }, (_, i) => i), 1)}
                                                 className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 1)
+                          ${Object.keys(appliedFiltersRef.current).length === deviceConfig.maxChannels && Object.values(appliedFiltersRef.current).every((value) => value === 1)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                         : "bg-white-500" // Active background
                                                     }`}
@@ -1255,9 +1538,9 @@ const NPG_Ble = () => {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => applyFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 2)}
+                                                onClick={() => applyFilterToAllChannels(Array.from({ length: deviceConfig.maxChannels }, (_, i) => i), 2)}
                                                 className={`rounded-xl rounded-l-none border-0
-                          ${Object.keys(appliedFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedFiltersRef.current).every((value) => value === 2)
+                          ${Object.keys(appliedFiltersRef.current).length === deviceConfig.maxChannels && Object.values(appliedFiltersRef.current).every((value) => value === 2)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                         : "bg-white-500" // Active background
                                                     }`}
@@ -1384,11 +1667,11 @@ const NPG_Ble = () => {
                     </Popover>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-lg">
+                            <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-xl">
                                 <Settings size={16} />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm">
+                        <PopoverContent className="w-[30rem] p-4 mx-4 mb-2 rounded-md shadow-md text-sm">
                             <TooltipProvider>
                                 <div className={`space-y-6 ${!isDisplay ? "flex justify-center" : ""}`}>
                                     {/* Channel Selection */}
@@ -1403,7 +1686,7 @@ const NPG_Ble = () => {
                                                             <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                                                         </h3>
                                                         {
-                                                            !(selectedChannels.length === maxCanvasElementCountRef.current && manuallySelected) && (
+                                                            !(selectedChannels.length === deviceConfig.maxChannels && manuallySelected) && (
                                                                 <button
                                                                     onClick={handleSelectAllToggle}
                                                                     className={`px-4 py-1 text-xs font-light rounded-lg transition ${isSelectAllDisabled
@@ -1421,9 +1704,9 @@ const NPG_Ble = () => {
                                                     <div id="button-container" className="relative space-y-2 rounded-lg">
                                                         {Array.from({ length: 1 }).map((_, container) => (
                                                             <div key={container} className="grid grid-cols-8 gap-2">
-                                                                {Array.from({ length: 3 }).map((_, col) => {
+                                                                {Array.from({ length: deviceConfig.maxChannels }).map((_, col) => {
                                                                     const index = container * 8 + col;
-                                                                    const isChannelDisabled = index >= maxCanvasElementCountRef.current;
+                                                                    const isChannelDisabled = index >= deviceConfig.maxChannels;
                                                                     const isSelected = selectedChannels.includes(index + 1);
 
                                                                     // For selected channels, use the shared custom color.
@@ -1514,7 +1797,6 @@ const NPG_Ble = () => {
                                             <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
                                                 {/* Button for setting Time Base to 1 */}
                                                 <button
-                                                    type="button"
                                                     className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
                                                     onClick={() => setTimeBase(1)}
                                                 >
@@ -1533,7 +1815,6 @@ const NPG_Ble = () => {
                                                 />
                                                 {/* Button for setting Time Base to 10 */}
                                                 <button
-                                                    type="button"
                                                     className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
                                                     onClick={() => setTimeBase(10)}
                                                 >
@@ -1548,6 +1829,73 @@ const NPG_Ble = () => {
                             </TooltipProvider>
                         </PopoverContent>
                     </Popover>
+                    {/* Battery display when connected and has battery */}
+                    <Popover>
+
+                        <PopoverTrigger asChild>
+                            <Button
+                                className={
+                                    `flex items-center justify-center select-none whitespace-nowrap rounded-lg ${getBatteryColor(batteryLevel)}`
+                                }
+                            >
+                                {getBatteryIcon(batteryLevel)}
+
+                            </Button>
+
+                        </PopoverTrigger>
+                        <PopoverContent className="w-fit p-2 mb-2 rounded-md shadow-md text-sm">
+
+                            {!isConnected ? (
+                                <div className=" ">
+                                    <p className="text-lg font-semibold">Device Not Connected!</p>
+                                    <p className="text-sm">Please connect your device to view battery status.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {isOldfirmwareRef.current ? (
+                                        <div className="mb-2 p-2">
+                                            <p className="text-lg font-semibold">Old Firmware Detected</p>
+
+                                            <p className="text-sm">
+                                                Update firmware using <a
+                                                    className="font-semibold text-blue-600 hover:underline"
+                                                    href="https://github.com/upsidedownlabs/NPG-Lite-Arduino-Firmware"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    NPG Lite Flasher
+                                                </a>.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {batteryLevel === null ? (
+                                                <div className="p-1">
+                                                    <p className="text-sm font-semibold">Calibrating...</p>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col space-y-2">
+                                                    <div className="flex items-center space-x-2">
+                                                        {getBatteryIcon(batteryLevel)}
+                                                        <span className="font-semibold">{batteryLevel}%</span>
+                                                    </div>
+
+                                                    {batteryLevel < 10 && (
+                                                        <span className="text-sm text-red-500 animate-blink">
+                                                            Low Battery
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </>
+                            )}
+
+
+                        </PopoverContent>
+                    </Popover>
+
                 </div>
             </div>
         </div>
