@@ -47,7 +47,8 @@ import {
     BatteryLow,
     BatteryMedium,
     BatteryFull,
-    BatteryWarning
+    BatteryWarning,
+    Loader2
 } from "lucide-react";
 import { lightThemeColors, darkThemeColors, getCustomColor } from '@/components/Colors';
 import { useTheme } from "next-themes";
@@ -103,6 +104,13 @@ const NPG_Ble = () => {
     const [batteryLevel, setBatteryLevel] = useState<number | null>(null); // Battery level percentage for UI
     const [deviceName, setDeviceName] = useState<string>(""); // Store device name for UI
     const [refreshKey, setRefreshKey] = useState(0); // Force re-render when config changes
+
+    // Loading states for various operations
+    const [isProcessingRecording, setIsProcessingRecording] = useState(false);
+    const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+    const [isDownloadingFile, setIsDownloadingFile] = useState<{ [key: string]: boolean }>({});
+    const [isDeletingFile, setIsDeletingFile] = useState<{ [key: string]: boolean }>({});
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
 
     // Derive channel names from device config
     const channelNames = useMemo(() =>
@@ -198,7 +206,6 @@ const NPG_Ble = () => {
         }
         container.appendChild(canvasWrapper);
 
-
         // Create canvasElements for each selected channel
         selectedChannels.forEach((channelNumber) => {
             const canvasWrapper = document.createElement("div");
@@ -222,7 +229,6 @@ const NPG_Ble = () => {
             const wglp = new WebglPlot(canvas);
             newWglPlots.push(wglp);
             wglp.gScaleY = Zoom;
-
 
             const line = new WebglLine(getLineColor(channelNumber, theme), dataPointCountRef.current);
             wglp.gOffsetY = 0;
@@ -252,7 +258,6 @@ const NPG_Ble = () => {
         return new ColorRGBA(r, g, b, alpha);
     };
 
-
     const handleSelectAllToggle = () => {
         const enabledChannels = Array.from({ length: deviceConfig.maxChannels }, (_, i) => i + 1);
 
@@ -277,7 +282,6 @@ const NPG_Ble = () => {
     };
 
     const [refresh, setRefresh] = useState(0);
-
 
     useEffect(() => {
         createCanvasElements();
@@ -483,7 +487,6 @@ const NPG_Ble = () => {
         channelData.push(sampleCounter);
 
         // Process the correct number of channels based on device configuration
-
         for (let channel = 0; channel < config.maxChannels; channel++) {
             const sample = dataView.getInt16(1 + (channel * 2), false);
             channelData.push(
@@ -618,7 +621,7 @@ const NPG_Ble = () => {
             dataChar.addEventListener("characteristicvaluechanged", handleNotification);
             setIsConnected(true);
             setIsLoading(false);
-
+            getFileCountFromIndexedDB();
             // Clear any existing interval first
             if (disconnectIntervalRef.current) {
                 clearInterval(disconnectIntervalRef.current);
@@ -643,7 +646,6 @@ const NPG_Ble = () => {
             setIsLoading(false);
         }
     }
-
 
     async function disconnect(): Promise<void> {
         try {
@@ -706,6 +708,7 @@ const NPG_Ble = () => {
                 setIsConnected(false);
                 setBatteryLevel(null);
                 setDeviceName("");
+                getFileCountFromIndexedDB();
 
                 // Reset device configuration to defaults
                 deviceConfigRef.current = defaultConfig;
@@ -753,6 +756,64 @@ const NPG_Ble = () => {
             workerRef.current = new Worker(new URL('../../../workers/indexedDBWorker.ts', import.meta.url), {
                 type: 'module',
             });
+
+            // Set up worker message handler
+            workerRef.current.onmessage = (event) => {
+                const { action, filename, success, blob, error, allData } = event.data;
+
+                switch (action) {
+                    case 'writeComplete':
+                        console.log(`Write completed for ${filename}: ${success}`);
+                        break;
+
+                    case 'getFileCountFromIndexedDB':
+                        if (allData) {
+                            setDatasets(allData);
+                        }
+                        break;
+
+                    case 'saveDataByFilename':
+                        if (blob) {
+                            saveAs(blob, filename);
+                            toast.success(`File "${filename}" downloaded successfully.`);
+                            setIsDownloadingFile(prev => ({ ...prev, [filename]: false }));
+                        } else if (error) {
+                            console.error("Download error:", error);
+                            toast.error(`Error downloading file: ${error}`);
+                            setIsDownloadingFile(prev => ({ ...prev, [filename]: false }));
+                        }
+                        break;
+
+                    case 'saveAsZip':
+                        if (blob) {
+                            saveAs(blob, 'ChordsWeb.zip');
+                            toast.success("All files downloaded successfully as ZIP.");
+                            setIsDownloadingAll(false);
+                        } else if (error) {
+                            console.error("ZIP creation error:", error);
+                            toast.error(`Error creating ZIP file: ${error}`);
+                            setIsDownloadingAll(false);
+                        }
+                        break;
+
+                    case 'deleteFile':
+                        if (success) {
+                            toast.success(`File '${filename}' deleted successfully.`);
+                            setIsDeletingFile(prev => ({ ...prev, [filename]: false }));
+                            // Refresh datasets after deletion
+                            getFileCountFromIndexedDB();
+                        }
+                        break;
+
+                    case 'deleteAll':
+                        if (success) {
+                            toast.success(`All files deleted successfully.`);
+                            setIsDeletingAll(false);
+                            setDatasets([]);
+                        }
+                        break;
+                }
+            };
         }
     };
 
@@ -766,131 +827,95 @@ const NPG_Ble = () => {
             action: 'setSelectedChannels',
             selectedChannels: selectedChannels,
         });
-
     };
 
     useEffect(() => {
         setSelectedChannelsInWorker(selectedChannels);
     }, [selectedChannels]);
 
-    const processBuffer = async (bufferIndex: number, canvasCount: number, selectChannel: number[]) => {
-        if (!workerRef.current) {
-            initializeWorker();
-        }
+    const processBuffer = async (bufferIndex: number, canvasCount: number, selectChannel: number[]): Promise<void> => {
+        return new Promise((resolve) => {
+            if (!workerRef.current) {
+                initializeWorker();
+            }
 
-        // If the buffer is empty, return early
-        if (recordingBuffers[bufferIndex].length === 0) return;
+            // If the buffer is empty, return early
+            if (recordingBuffers[bufferIndex].length === 0) {
+                resolve();
+                return;
+            }
 
-        const data = recordingBuffers[bufferIndex];
-        const filename = currentFileNameRef.current;
+            const data = recordingBuffers[bufferIndex];
+            const filename = currentFileNameRef.current;
 
-        if (filename) {
-            // Check if the record already exists
-            workerRef.current?.postMessage({ action: 'checkExistence', filename, canvasCount, selectChannel });
-            writeToIndexedDB(data, filename, canvasCount, selectChannel);
-        }
-    };
+            if (filename) {
+                const handleMessage = (event: MessageEvent) => {
+                    const { action: msgAction, success: msgSuccess, filename: completedFilename } = event.data;
+                    if (msgAction === 'writeComplete' && completedFilename === filename) {
+                        workerRef.current?.removeEventListener('message', handleMessage);
+                        resolve();
+                    }
+                };
 
-    const writeToIndexedDB = (data: number[][], filename: string, canvasCount: number, selectChannel: number[]) => {
-        workerRef.current?.postMessage({ action: 'write', data, filename, canvasCount, selectChannel });
+                workerRef.current?.addEventListener('message', handleMessage);
+                workerRef.current?.postMessage({
+                    action: 'write',
+                    data,
+                    filename,
+                    canvasCount,
+                    selectChannel
+                });
+            } else {
+                resolve();
+            }
+        });
     };
 
     const saveAllDataAsZip = async () => {
         try {
+            setIsDownloadingAll(true);
             if (workerRef.current) {
                 workerRef.current.postMessage({
                     action: 'saveAsZip',
-                    canvasElementCount: canvasElementCountRef.current, // Assign with a key
+                    canvasElementCount: canvasElementCountRef.current,
                     selectedChannels
                 });
-
-                workerRef.current.onmessage = async (event) => {
-                    const { zipBlob, error } = event.data;
-
-                    if (zipBlob) {
-                        saveAs(zipBlob, 'ChordsWeb.zip');
-                    } else if (error) {
-                        console.error(error);
-                    }
-                };
             }
         } catch (error) {
             console.error('Error while saving ZIP file:', error);
+            toast.error('Error creating ZIP file');
+            setIsDownloadingAll(false);
         }
     };
 
     // Function to handle saving data by filename
     const saveDataByFilename = async (filename: string, canvasCount: number, selectChannel: number[]) => {
         if (workerRef.current) {
-            workerRef.current.postMessage({ action: "saveDataByFilename", filename, canvasCount, selectChannel });
-            workerRef.current.onmessage = (event) => {
-                const { blob, error } = event.data;
-
-                if (blob) {
-                    saveAs(blob, filename); // FileSaver.js
-                    toast.success("File downloaded successfully.");
-                } else (error: any) => {
-                    console.error("Worker error:", error);
-                    toast.error(`Error during file download: ${error.message}`);
-                }
-            };
-
-            workerRef.current.onerror = (error) => {
-                console.error("Worker error:", error);
-                toast.error("An unexpected worker error occurred.");
-            };
+            setIsDownloadingFile(prev => ({ ...prev, [filename]: true }));
+            workerRef.current.postMessage({
+                action: "saveDataByFilename",
+                filename,
+                canvasCount,
+                selectChannel
+            });
         } else {
             console.error("Worker reference is null.");
             toast.error("Worker is not available.");
         }
-
     };
 
     const deleteFileByFilename = async (filename: string) => {
         if (!workerRef.current) initializeWorker();
 
-        return new Promise<void>((resolve, reject) => {
-            workerRef.current?.postMessage({ action: 'deleteFile', filename });
-
-            workerRef.current!.onmessage = (event) => {
-                const { success, action, error } = event.data;
-
-                if (action === 'deleteFile') {
-                    if (success) {
-                        toast.success(`File '${filename}' deleted successfully.`);
-
-                        setDatasets((prev) => prev.filter((file) => file !== filename)); // Update datasets
-                        resolve();
-                    } else {
-                        console.error(`Failed to delete file '${filename}': ${error}`);
-                        reject(new Error(error));
-                    }
-                }
-            };
-        });
+        setIsDeletingFile(prev => ({ ...prev, [filename]: true }));
+        workerRef.current?.postMessage({ action: 'deleteFile', filename });
     };
 
     const deleteAllDataFromIndexedDB = async () => {
         if (!workerRef.current) initializeWorker();
 
-        return new Promise<void>((resolve, reject) => {
-            workerRef.current?.postMessage({ action: 'deleteAll' });
-
-            workerRef.current!.onmessage = (event) => {
-                const { success, action, error } = event.data;
-
-                if (action === 'deleteAll') {
-                    if (success) {
-                        toast.success(`All files deleted successfully.`);
-                        setDatasets([]); // Clear all datasets from state
-                        resolve();
-                    } else {
-                        console.error('Failed to delete all files:', error);
-                        reject(new Error(error));
-                    }
-                }
-            };
-        });
+        setIsDeletingAll(true);
+        workerRef.current?.postMessage({ action: 'deleteAll' });
     };
 
     const handleTimeSelection = (minutes: number | null) => {
@@ -914,8 +939,7 @@ const NPG_Ble = () => {
     const handleRecord = async () => {
         if (isRecordingRef.current) {
             // Stop the recording if it is currently active
-            stopRecording();
-
+            await stopRecording();
         } else {
             // Start a new recording session
             isRecordingRef.current = true;
@@ -935,46 +959,49 @@ const NPG_Ble = () => {
             toast.error("Recording start time was not captured.");
             return;
         }
+
         isRecordingRef.current = false;
         setRecordingElapsedTime(0);
         setIsrecord(true);
+        setIsProcessingRecording(true);
 
         recordingStartTimeRef.current = 0;
         existingRecordRef.current = undefined;
-        // Re-fetch datasets from IndexedDB after recording stops
-        const fetchData = async () => {
-            const data = await getFileCountFromIndexedDB();
-            setDatasets(data); // Update datasets with the latest data
-        };
-        // Call fetchData after stopping the recording
-        fetchData();
+
+        // Process any remaining data in the buffer
+        if (fillingindex.current > 0) {
+            // Create a copy of the current buffer data
+            const remainingData = recordingBuffers[activeBufferIndex].slice(0, fillingindex.current);
+            recordingBuffers[activeBufferIndex] = remainingData;
+
+            // Process the remaining buffer
+            await processBuffer(activeBufferIndex, canvasElementCountRef.current, selectedChannels);
+        }
+
+        // Clear buffers after processing
+        recordingBuffers.forEach(buffer => buffer.length = 0);
+        activeBufferIndex = 0;
+        fillingindex.current = 0;
+
+        // Fetch updated datasets
+        await getFileCountFromIndexedDB();
+
+        setIsProcessingRecording(false);
+        toast.success("Recording saved successfully!");
     };
 
-    const getFileCountFromIndexedDB = async (): Promise<any[]> => {
+    const getFileCountFromIndexedDB = async (): Promise<void> => {
         if (!workerRef.current) {
             initializeWorker();
         }
 
-        return new Promise((resolve, reject) => {
-            if (workerRef.current) {
-                workerRef.current.postMessage({ action: 'getFileCountFromIndexedDB' });
-
-                workerRef.current.onmessage = (event) => {
-                    if (event.data.allData) {
-                        resolve(event.data.allData);
-                    } else if (event.data.error) {
-                        reject(event.data.error);
-                    }
-                };
-
-                workerRef.current.onerror = (error) => {
-                    reject(`Error in worker: ${error.message}`);
-                };
-            } else {
-                reject('Worker is not initialized');
-            }
-        });
+        workerRef.current?.postMessage({ action: 'getFileCountFromIndexedDB' });
     };
+
+    // Initial load of datasets
+    useEffect(() => {
+        getFileCountFromIndexedDB();
+    }, []);
 
     const handlecustomTimeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         // Update custom time input with only numeric values
@@ -1002,7 +1029,6 @@ const NPG_Ble = () => {
         const seconds = String(date.getUTCSeconds()).padStart(2, '0');
         return `${hours}:${minutes}:${seconds}`;
     };
-
 
     useEffect(() => {
         const enabledChannels = Array.from({ length: deviceConfig.maxChannels }, (_, i) => i + 1);
@@ -1123,19 +1149,17 @@ const NPG_Ble = () => {
         }
     }, [wglPlots, pauseRef.current]);
 
-
     useEffect(() => {
         requestAnimationFrame(animate);
-
     }, [animate, Zoom]);
 
     // Function to get battery icon based on level
     const getBatteryIcon = (level: number | null) => {
         if (level === null) return <BatteryWarning size={30} />;
 
-        if (level <=  10) return <Battery
+        if (level <= 10) return <Battery
             size={30}
-            className="text-red-500 animate-blink" // or animate-pulse-fast
+            className="text-red-500 animate-blink"
         />;
         if (level <= 20.0 && level > 10.0) return <BatteryLow size={30} />;
         if (level <= 70.0 && level > 20.0) return <BatteryMedium size={30} />;
@@ -1172,7 +1196,6 @@ const NPG_Ble = () => {
                 clearInterval(intervalId);
             }
         };
-
     }, [batteryLevel]);
 
     // Function to get battery color based on level
@@ -1187,7 +1210,6 @@ const NPG_Ble = () => {
 
     return (
         <div className="flex flex-col h-screen m-0 p-0 bg-g ">
-
             <div className="bg-highlight">
                 <Navbar isDisplay={true} />
             </div>
@@ -1269,8 +1291,6 @@ const NPG_Ble = () => {
                             </div>
                         </div>
                     )}
-
-
                 </div>
 
                 {/* Center-aligned buttons */}
@@ -1303,7 +1323,6 @@ const NPG_Ble = () => {
                                             )}
                                         </Button>
                                     </PopoverTrigger>
-
                                 </Popover>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1313,7 +1332,6 @@ const NPG_Ble = () => {
                     </TooltipProvider>
 
                     <div className="flex items-center gap-0.5 mx-0 px-0">
-
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1333,7 +1351,6 @@ const NPG_Ble = () => {
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
-
                     </div>
 
                     {/* Record button with tooltip */}
@@ -1343,10 +1360,11 @@ const NPG_Ble = () => {
                                 <Button
                                     className="rounded-xl"
                                     onClick={handleRecord}
-                                    disabled={isConnected == false || !isDisplay}
-
+                                    disabled={isConnected == false || !isDisplay || isProcessingRecording}
                                 >
-                                    {isRecordingRef.current ? (
+                                    {isProcessingRecording ? (
+                                        <Loader2 className="animate-spin" />
+                                    ) : isRecordingRef.current ? (
                                         <CircleStop />
                                     ) : (
                                         <Circle fill="red" />
@@ -1355,9 +1373,11 @@ const NPG_Ble = () => {
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>
-                                    {!isRecordingRef.current
-                                        ? "Start Recording"
-                                        : "Stop Recording"}
+                                    {isProcessingRecording
+                                        ? "Saving recording..."
+                                        : !isRecordingRef.current
+                                            ? "Start Recording"
+                                            : "Stop Recording"}
                                 </p>
                             </TooltipContent>
                         </Tooltip>
@@ -1368,19 +1388,25 @@ const NPG_Ble = () => {
                         <div className="flex">
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button className="rounded-xl p-4" disabled={isConnected == false}
-                                    >
+                                    <Button className="rounded-xl p-4">
                                         <FileArchive size={16} />
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="p-4 text-base shadow-lg rounded-xl w-full">
                                     <div className="space-y-4">
+                                        {/* Processing indicator for recording */}
+                                        {isProcessingRecording && (
+                                            <div className="flex items-center justify-center space-x-2 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                                                <Loader2 className="animate-spin h-4 w-4" />
+                                                <span className="text-sm">Saving recording...</span>
+                                            </div>
+                                        )}
+
                                         {/* List each file with download and delete actions */}
                                         {datasets.length > 0 ? (
                                             datasets.map((dataset) => (
                                                 <div key={dataset} className="flex justify-between items-center">
-                                                    {/* Display the filename directly */}
-                                                    <span className=" mr-4">
+                                                    <span className="mr-4" title={dataset}>
                                                         {dataset}
                                                     </span>
 
@@ -1389,40 +1415,74 @@ const NPG_Ble = () => {
                                                         <Button
                                                             onClick={() => saveDataByFilename(dataset, canvasElementCountRef.current, selectedChannels)}
                                                             className="rounded-xl px-4"
+                                                            disabled={isDownloadingFile[dataset]}
+                                                            size="sm"
                                                         >
-                                                            <Download size={16} />
+                                                            {isDownloadingFile[dataset] ? (
+                                                                <Loader2 className="animate-spin h-4 w-4" />
+                                                            ) : (
+                                                                <Download size={16} />
+                                                            )}
                                                         </Button>
 
                                                         {/* Delete file by filename */}
                                                         <Button
-                                                            onClick={() => {
-                                                                deleteFileByFilename(dataset);
-                                                            }}
+                                                            onClick={() => deleteFileByFilename(dataset)}
                                                             className="rounded-xl px-4"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </Button>
+                                                            disabled={isDeletingFile[dataset]}
 
+                                                        >
+                                                            {isDeletingFile[dataset] ? (
+                                                                <Loader2 className="animate-spin h-4 w-4" />
+                                                            ) : (
+                                                                <Trash2 size={16} />
+                                                            )}
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             ))
                                         ) : (
-                                            <p className="text-base ">No datasets available</p>
+                                            <p className="text-base">No datasets available</p>
                                         )}
+
                                         {/* Download all as ZIP and delete all options */}
                                         {datasets.length > 0 && (
                                             <div className="flex justify-between mt-4">
                                                 <Button
                                                     onClick={saveAllDataAsZip}
                                                     className="rounded-xl p-2 w-full mr-2"
+                                                    disabled={isDownloadingAll || isDeletingAll}
+                                                    size="sm"
                                                 >
-                                                    Download All as Zip
+                                                    {isDownloadingAll ? (
+                                                        <>
+                                                            <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                                                            Creating ZIP...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Download size={16} className="mr-2" />
+                                                            Download All as Zip
+                                                        </>
+                                                    )}
                                                 </Button>
                                                 <Button
                                                     onClick={deleteAllDataFromIndexedDB}
                                                     className="rounded-xl p-2 w-full"
+                                                    disabled={isDeletingAll || isDownloadingAll}
+
                                                 >
-                                                    Delete All
+                                                    {isDeletingAll ? (
+                                                        <>
+                                                            <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                                                            Deleting...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Trash2 size={16} className="mr-2" />
+                                                            Delete All
+                                                        </>
+                                                    )}
                                                 </Button>
                                             </div>
                                         )}
@@ -1431,6 +1491,7 @@ const NPG_Ble = () => {
                             </Popover>
                         </div>
                     </TooltipProvider>
+
                     {/* filters */}
                     <Popover
                         open={isFilterPopoverOpen}
@@ -1831,7 +1892,6 @@ const NPG_Ble = () => {
                     </Popover>
                     {/* Battery display when connected and has battery */}
                     <Popover>
-
                         <PopoverTrigger asChild>
                             <Button
                                 className={
@@ -1839,12 +1899,9 @@ const NPG_Ble = () => {
                                 }
                             >
                                 {getBatteryIcon(batteryLevel)}
-
                             </Button>
-
                         </PopoverTrigger>
                         <PopoverContent className="w-fit p-2 mb-2 rounded-md shadow-md text-sm">
-
                             {!isConnected ? (
                                 <div className=" ">
                                     <p className="text-lg font-semibold">Device Not Connected!</p>
@@ -1855,11 +1912,10 @@ const NPG_Ble = () => {
                                     {isOldfirmwareRef.current ? (
                                         <div className="mb-2 p-2">
                                             <p className="text-lg font-semibold">Old Firmware Detected</p>
-
                                             <p className="text-sm">
                                                 Update firmware using <a
                                                     className="font-semibold text-blue-600 hover:underline"
-                                                    href="https://github.com/upsidedownlabs/NPG-Lite-Arduino-Firmware"
+                                                    href="https://upsidedownlabs.github.io/NPG-Lite-Flasher-Web"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                 >
@@ -1891,16 +1947,12 @@ const NPG_Ble = () => {
                                     )}
                                 </>
                             )}
-
-
                         </PopoverContent>
                     </Popover>
-
                 </div>
             </div>
         </div>
     );
-
 }
 
 export default NPG_Ble;
