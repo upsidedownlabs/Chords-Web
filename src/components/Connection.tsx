@@ -26,8 +26,14 @@ import {
     ArrowRightToLine,
     ArrowLeftToLine,
     Settings,
-    Loader
+    Loader,
+    Battery,
+    BatteryLow,
+    BatteryMedium,
+    BatteryFull,
+    BatteryWarning
 } from "lucide-react";
+
 import { BoardsList } from "./boards";
 import { toast } from "sonner";
 import { saveAs } from "file-saver";
@@ -104,6 +110,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const [FFTDeviceConnected, setFFTDeviceConnected] = useState<boolean>(false); // Track if the device is connected
     const isDeviceConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
     const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
+    const isOldfirmwareRef = useRef<boolean>(false); // Ref to track if the device has old firmware
 
     // UI States for Popovers and Buttons
     const [isEndTimePopoverOpen, setIsEndTimePopoverOpen] = useState(false);
@@ -128,7 +135,6 @@ const Connection: React.FC<ConnectionProps> = ({
     const [open, setOpen] = useState(false);
     const [openfft, setOpenfft] = useState(false);
     const [isPauseState, setIsPauseState] = useState(false);
-
     // UI Themes & Modes
     const { theme } = useTheme(); // Current theme of the app
     const isDarkModeEnabled = theme === "dark"; // Boolean to check if dark mode is enabled
@@ -151,7 +157,8 @@ const Connection: React.FC<ConnectionProps> = ({
     // Canvas Settings & Channels
     const canvasElementCountRef = useRef<number>(1);
     const maxCanvasElementCountRef = useRef<number>(1);
-    const channelNames = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => `CH${i + 1}`);
+    const [channelNames, setChannelNames] = useState<string[]>([]);
+
     const currentFileNameRef = useRef<string>("");
     const initialSelectedChannelsRef = useRef<any[]>([1]);
 
@@ -168,7 +175,79 @@ const Connection: React.FC<ConnectionProps> = ({
     const [isLoading, setIsLoading] = useState(false); // Track loading state for asynchronous operations
     const [isfftLoading, setIsfftLoading] = useState(false); // Track loading state for asynchronous operations
 
+    // Add these interfaces and refs at the top of your component (with other useRef declarations)
+    interface DeviceConfig {
+        maxChannels: number;
+        sampleLength: number;
+        hasBattery: boolean;
+        name: string;
+    }
 
+    const defaultConfig: DeviceConfig = {
+        maxChannels: 3,
+        sampleLength: 7, // 3 channels * 2 bytes + 1 byte counter = 7 bytes
+        hasBattery: true,
+        name: ""
+    };
+
+    // Add these refs and states with your other useRef declarations
+    const deviceConfigRef = useRef<DeviceConfig>(defaultConfig);
+    const batteryCharacteristicRef = useRef<any | null>(null); // Ref for battery characteristic
+    const [batteryLevel, setBatteryLevel] = useState<number | null>(null); // Battery level percentage for UI
+    const [deviceConfig, setDeviceConfig] = useState<DeviceConfig>(defaultConfig);
+    const disconnectIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Add this function to update device configuration based on name
+    const updateDeviceConfiguration = (name: string) => {
+        let newConfig: DeviceConfig;
+
+        if (name.includes("3CH")) {
+            newConfig = {
+                maxChannels: 3,
+                sampleLength: 7, // 3 channels * 2 bytes + 1 byte counter = 7 bytes
+                hasBattery: true,
+                name
+            };
+            isOldfirmwareRef.current = false; // Mark as new firmware if 3CH device is detected
+
+        } else if (name.includes("6CH")) {
+            newConfig = {
+                maxChannels: 6,
+                sampleLength: 13, // 6 channels * 2 bytes + 1 byte counter = 13 bytes
+                hasBattery: true,
+                name
+            };
+            isOldfirmwareRef.current = false; // Mark as new firmware if 3CH device is detected
+
+        } else {
+            newConfig = {
+                maxChannels: 3,
+                sampleLength: 7,
+                hasBattery: false,
+                name
+            };
+            isOldfirmwareRef.current = true; // Mark as old firmware if device name doesn't match known patterns
+
+        }
+
+        // Update both ref and state
+        deviceConfigRef.current = newConfig;
+        setDeviceConfig(newConfig);
+
+        // Update maxCanvasElementCountRef
+        maxCanvasElementCountRef.current = newConfig.maxChannels;
+
+        // Update selected channels
+        const newChannels = Array.from({ length: newConfig.maxChannels }, (_, i) => i + 1);
+        setSelectedChannels(newChannels);
+
+        // Update channel names for UI
+        setChannelNames(Array.from({ length: newConfig.maxChannels }, (_, i) => `CH${i + 1}`));
+
+        setBatteryLevel(null);
+
+        console.log("Device config updated:", newConfig);
+    };
     let activeBufferIndex = 0;
     const togglePause = () => {
         const newPauseState = !isDisplay;
@@ -241,7 +320,9 @@ const Connection: React.FC<ConnectionProps> = ({
         // Update the "Select All" button state
         setIsAllEnabledChannelSelected(allSelected);
     }, [selectedChannels, maxCanvasElementCountRef.current, manuallySelected]);
-
+    useEffect(() => {
+        setChannelNames(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => `CH${i + 1}`));
+    }, [maxCanvasElementCountRef.current]);
     const handleSelectAllToggle = () => {
         const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
 
@@ -1043,10 +1124,13 @@ const Connection: React.FC<ConnectionProps> = ({
     //     }
     // }, [maxCanvasElementCountRef.current]);
     const processSample = useCallback((dataView: DataView): void => {
-        if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
+        const config = deviceConfigRef.current;
+
+        if (dataView.byteLength !== config.sampleLength) {
             console.log("Unexpected sample length: " + dataView.byteLength);
             return;
         }
+
         const sampleCounter = dataView.getUint8(0);
 
         if (prevSampleCounter === null) {
@@ -1061,7 +1145,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
         channelData.push(sampleCounter);
 
-        for (let channel = 0; channel < maxCanvasElementCountRef.current; channel++) {
+        for (let channel = 0; channel < config.maxChannels; channel++) {
             const sample = dataView.getInt16(1 + (channel * 2), false);
             channelData.push(
                 notchFiltersRef.current[channel].process(
@@ -1073,17 +1157,19 @@ const Connection: React.FC<ConnectionProps> = ({
                 )
             );
         }
+
         datastream(channelData);
+
         if (isRecordingRef.current) {
             const channeldatavalues = channelData
-                .slice(0, canvasElementCountRef.current + 1)
+                .slice(0, config.maxChannels + 1)
                 .map((value) => (value !== undefined ? value : null))
                 .filter((value): value is number => value !== null);
 
             recordingBuffers[activeBufferIndex][fillingindex.current] = channeldatavalues;
 
             if (fillingindex.current >= MAX_BUFFER_SIZE - 1) {
-                processBuffer(activeBufferIndex, canvasElementCountRef.current, selectedChannels);
+                processBuffer(activeBufferIndex, config.maxChannels, selectedChannels);
                 activeBufferIndex = (activeBufferIndex + 1) % NUM_BUFFERS;
             }
 
@@ -1111,53 +1197,129 @@ const Connection: React.FC<ConnectionProps> = ({
             return;
         }
 
+        const config = deviceConfigRef.current;
         const value = target.value;
-        if (value.byteLength === NEW_PACKET_LEN) {
-            for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
-                const sampleBuffer = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
+        const newPacketLen = config.sampleLength * BLOCK_COUNT;
+
+        if (value.byteLength === newPacketLen) {
+            for (let i = 0; i < newPacketLen; i += config.sampleLength) {
+                const sampleBuffer = value.buffer.slice(i, i + config.sampleLength);
                 const sampleDataView = new DataView(sampleBuffer);
                 processSample(sampleDataView);
             }
-        } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
+        } else if (value.byteLength === config.sampleLength) {
             processSample(new DataView(value.buffer));
         } else {
             console.log("Unexpected packet length: " + value.byteLength);
         }
     }
+    // Function to get battery icon based on level
+    const getBatteryIcon = (level: number | null) => {
+        if (level === null) return <BatteryWarning size={30} />;
+
+        if (level <= 10) return <Battery
+            size={30}
+            className="text-red-500 animate-blink"
+        />;
+        if (level <= 20.0 && level > 10.0) return <BatteryLow size={30} />;
+        if (level <= 70.0 && level > 20.0) return <BatteryMedium size={30} />;
+        if (level > 70) return <BatteryFull size={30} />;
+        return <BatteryFull size={30} />;
+    };
+
+    // Function to get battery color based on level
+    const getBatteryColor = (level: number | null) => {
+        if (level === null) return "text-red-500";
+
+        if (level <= 20.0 && level > 10.0) return "text-red-500";
+        if (level <= 70.0 && level > 20.0) return "text-orange-500";
+        if (level > 70) return "text-green-500";
+        return "text-green-500";
+    };
+
     async function connectBLE(): Promise<void> {
         try {
-
             setIsfftLoading(true);
             const nav = navigator as any;
             if (!nav.bluetooth) {
                 console.log("Web Bluetooth API is not available in this browser.");
+                setIsfftLoading(false);
                 return;
             }
+
             const device = await nav.bluetooth.requestDevice({
                 filters: [{ namePrefix: "NPG" }],
-                optionalServices: [SERVICE_UUID],
+                optionalServices: [SERVICE_UUID, BATTERY_CHAR_UUID ? BATTERY_CHAR_UUID : ""].filter(Boolean),
             });
+
+            // Update configuration based on device name
+            updateDeviceConfiguration(device.name || "");
+
             const server = await device.gatt?.connect();
             if (!server) {
                 setIsfftLoading(false);
-
+                return;
             }
+
             connectedDeviceRef.current = device;
-            // Initialize filters
-            notchFiltersRef.current = Array.from({ length: 3 }, () => new Notch());
-            EXGFiltersRef.current = Array.from({ length: 3 }, () => new EXGFilter());
-            onehighRef.current = Array.from({ length: 3 }, () => new HighPassFilter());
+
+            // IMPORTANT: Wait for state updates to complete
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Initialize filters with new channel count - use the updated value
+            const channelCount = deviceConfigRef.current.maxChannels;
+            console.log("Initializing filters for", channelCount, "channels");
+
+            notchFiltersRef.current = Array.from({ length: channelCount }, () => new Notch());
+            EXGFiltersRef.current = Array.from({ length: channelCount }, () => new EXGFilter());
+            onehighRef.current = Array.from({ length: channelCount }, () => new HighPassFilter());
+
+            // Set filter parameters
             onehighRef.current.forEach(filter => filter.setSamplingRate(500));
             notchFiltersRef.current.forEach(filter => filter.setbits(500));
             EXGFiltersRef.current.forEach(filter => filter.setbits("12", 500));
+
             const service = await server.getPrimaryService(SERVICE_UUID);
             const controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
             const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+
+            // Try to get battery characteristic if device supports it
+            if (deviceConfigRef.current.hasBattery && BATTERY_CHAR_UUID) {
+                try {
+                    const batteryChar = await service.getCharacteristic(BATTERY_CHAR_UUID);
+                    batteryCharacteristicRef.current = batteryChar;
+                    await batteryChar.startNotifications();
+
+                    batteryChar.addEventListener("characteristicvaluechanged", (event: any) => {
+                        const target = event.target as BluetoothRemoteGATTCharacteristicExtended;
+                        if (target.value && target.value.byteLength === 1) {
+                            const batteryValue = target.value.getUint8(0);
+                            setBatteryLevel(batteryValue);
+
+                            // Show battery notifications based on level
+                            if (batteryValue <= 10) {
+                                toast.error("Very low battery! Please recharge immediately.");
+                            } else if (batteryValue === 20) {
+                                toast.warning(`Battery is low at ${batteryValue}%. Consider recharging soon.`);
+                            } else if (batteryValue === 99) {
+                                toast.success("Battery fully charged.");
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.log("Battery characteristic not available:", error);
+                }
+            }
+
             const encoder = new TextEncoder();
             await controlChar.writeValue(encoder.encode("START"));
             await dataChar.startNotifications();
             dataChar.addEventListener("characteristicvaluechanged", handleNotification);
-            setSelectedChannels(initialSelectedChannelsRef.current);
+
+            // Update all relevant state with the new channel count
+            setSelectedChannels(Array.from({ length: channelCount }, (_, i) => i + 1));
+            maxCanvasElementCountRef.current = channelCount;
+
             FFT(true);
             setIsDeviceConnected(true);
             setFFTDeviceConnected(true);
@@ -1168,62 +1330,112 @@ const Connection: React.FC<ConnectionProps> = ({
             setSelectedBitsValue(12);
             setSelectedBits(12);
             detectedBitsRef.current = 12;
-            maxCanvasElementCountRef.current = 3;
             setSelectedChannel(1);
             setCurrentSamplingRate(500);
             samplingrateref.current = 500;
-            setInterval(() => {
+
+            // Clear any existing interval
+            if (disconnectIntervalRef.current) {
+                clearInterval(disconnectIntervalRef.current);
+                disconnectIntervalRef.current = null;
+            }
+            // Create new interval for monitoring samples
+            disconnectIntervalRef.current = setInterval(() => {
                 if (samplesReceivedRef.current === 0) {
+                    console.log("No samples received in 1 second, disconnecting...");
                     disconnect();
-                    window.location.reload();
+                    // Clear the interval before calling disconnect
+                    if (disconnectIntervalRef.current) {
+                        clearInterval(disconnectIntervalRef.current);
+                        disconnectIntervalRef.current = null;
+                    }
                 }
                 samplesReceivedRef.current = 0;
             }, 1000);
+
+            console.log("Connected with", channelCount, "channels");
+
         } catch (error) {
             console.log("Error: " + (error instanceof Error ? error.message : error));
             setIsfftLoading(false);
-
         }
     }
 
+    // Add the BATTERY_CHAR_UUID constant with your other UUIDs
+    const BATTERY_CHAR_UUID = "f633d0ec-46b4-43c1-a39f-1ca06d0602e1"; // Battery characteristic UUID
+
+    // Update the disconnect function to handle battery characteristic
     async function disconnect(): Promise<void> {
         try {
-            if (!connectedDeviceRef.current) {
-                console.log("No connected device to disconnect.");
-                return;
+            console.log("helo");
+            setIsDeviceConnected(false); // Update connection state
+            setFFTDeviceConnected(false);
+            FFT(false);
+
+            // Reset battery state
+            setBatteryLevel(null);
+            // Reset device configuration
+            deviceConfigRef.current = defaultConfig;
+            maxCanvasElementCountRef.current = 1;
+            setChannelNames([]);
+            setSelectedChannels([1]);
+
+            // Clear the sample monitoring interval
+            if (disconnectIntervalRef.current) {
+                clearInterval(disconnectIntervalRef.current);
+                disconnectIntervalRef.current = null;
             }
 
             const server = connectedDeviceRef.current.gatt;
-            if (!server) {
-                return;
-            }
-
-
-            if (!server.connected) {
+            if (!server || !server.connected) {
                 connectedDeviceRef.current = null;
                 return;
             }
 
             const service = await server.getPrimaryService(SERVICE_UUID);
+
+            // Stop data notifications
             const dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
             await dataChar.stopNotifications();
             dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
 
+            // Stop battery notifications if they exist
+            if (batteryCharacteristicRef.current) {
+                try {
+                    await batteryCharacteristicRef.current.stopNotifications();
+                    batteryCharacteristicRef.current = null;
+                } catch (error) {
+                    console.log("Error stopping battery notifications:", error);
+                }
+            }
+
             server.disconnect(); // Disconnect the device
-            setIsDeviceConnected(false); // Update connection state
-            setFFTDeviceConnected(false);
-            FFT(false);
             toast("Disconnected from device", {
                 action: {
                     label: "Reconnect",
                     onClick: () => connectBLE(),
                 },
             });
+
+
             connectedDeviceRef.current = null; // Clear the global reference
         } catch (error) {
             console.log("Error during disconnection: " + (error instanceof Error ? error.message : error));
         }
     }
+
+    // Add cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (disconnectIntervalRef.current) {
+                clearInterval(disconnectIntervalRef.current);
+                disconnectIntervalRef.current = null;
+            }
+            if (connectedDeviceRef.current) {
+                disconnect();
+            }
+        };
+    }, []);
 
 
     const appliedFiltersRef = React.useRef<{ [key: number]: number }>({});
@@ -2203,7 +2415,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 )}
 
                 {FFTDeviceConnected && (
-                    <Popover open={open} onOpenChange={setOpen}>
+                    <Popover>
                         <PopoverTrigger asChild>
                             <Button
                                 className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
@@ -2415,7 +2627,68 @@ const Connection: React.FC<ConnectionProps> = ({
                         </PopoverContent>
                     </Popover>
                 )}
+                {FFTDeviceConnected && (
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                className={
+                                    `flex items-center justify-center select-none whitespace-nowrap rounded-lg ${getBatteryColor(batteryLevel)}`
+                                }
+                            >
+                                {getBatteryIcon(batteryLevel)}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-fit p-2 mb-2 rounded-md shadow-md text-sm">
+                            {!isDeviceConnected ? (
+                                <div className=" ">
+                                    <p className="text-lg font-semibold">Device Not Connected!</p>
+                                    <p className="text-sm">Please connect your device to view battery status.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {isOldfirmwareRef.current ? (
+                                        <div className="mb-2 p-2">
+                                            <p className="text-lg font-semibold">Old Firmware Detected</p>
+                                            <p className="text-sm">
+                                                Update firmware using <a
+                                                    className="font-semibold text-blue-600 hover:underline"
+                                                    href="https://upsidedownlabs.github.io/NPG-Lite-Flasher-Web"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    NPG Lite Flasher
+                                                </a>.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {batteryLevel === null ? (
+                                                <div className="p-1">
+                                                    <p className="text-sm font-semibold">Calibrating...</p>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col space-y-2">
+                                                    <div className="flex items-center space-x-2">
+                                                        {getBatteryIcon(batteryLevel)}
+                                                        <span className="font-semibold">{batteryLevel}%</span>
+                                                    </div>
+
+                                                    {batteryLevel < 10 && (
+                                                        <span className="text-sm text-red-500 animate-blink">
+                                                            Low Battery
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </PopoverContent>
+                    </Popover>
+                )}
             </div>
+
         </div>
     );
 };
