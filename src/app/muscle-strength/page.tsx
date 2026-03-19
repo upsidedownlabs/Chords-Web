@@ -49,7 +49,7 @@ interface DeviceConfig {
 
 const defaultConfig: DeviceConfig = {
     maxChannels: 3,
-    sampleLength: 7, 
+    sampleLength: 7,
     hasBattery: true,
     name: ""
 };
@@ -280,12 +280,6 @@ const MuscleStrength = () => {
         if (!containerRef.current) return;
         const ro = new ResizeObserver(() => {
             createCanvasElements();
-            rebuildInfoBoxes();   // <-- whatever your right-hand sizing fn is
-
-            function rebuildInfoBoxes() {
-                console.log("Rebuilding info boxes...");
-                // Add your logic here
-            }
         });
         ro.observe(containerRef.current);
         return () => ro.disconnect();
@@ -777,7 +771,7 @@ const MuscleStrength = () => {
             }
             prevSampleCounter = sampleCounter;
         }
-        channelData.push(sampleCounter); 
+        channelData.push(sampleCounter);
 
         // Process all channels based on device configuration
         for (let channel = 0; channel < config.maxChannels; channel++) {
@@ -962,7 +956,6 @@ const MuscleStrength = () => {
         }
     }
 
-
     async function disconnect(): Promise<void> {
         try {
             setIsLoading(true); // Show loading while disconnecting
@@ -1036,6 +1029,9 @@ const MuscleStrength = () => {
             deviceConfigRef.current = defaultConfig;
             setDeviceConfig(defaultConfig);
 
+            // IMPORTANT: Reset selectedChannels to default 3 channels
+            setSelectedChannels([0, 1, 2]);
+
             // Reset sample tracking
             prevSampleCounter = null;
             channelData = [];
@@ -1044,8 +1040,8 @@ const MuscleStrength = () => {
 
             // Clear lines and sweep positions
             linesRefs.current = [];
-            sweepPositions.current = new Array(deviceConfig.maxChannels).fill(0);
-            currentSweepPos.current = new Array(deviceConfig.maxChannels).fill(0);
+            sweepPositions.current = new Array(3).fill(0); // Hardcode to 3 for default
+            currentSweepPos.current = new Array(3).fill(0);
 
             // Reset envelope filters
             envelopeFilters.current = [];
@@ -1068,7 +1064,7 @@ const MuscleStrength = () => {
             }
 
             // Reset band power data
-            const emptyBandData = Array(deviceConfig.maxChannels).fill(0);
+            const emptyBandData = Array(3).fill(0); // Hardcode to 3 for default
             setBandPowerData(emptyBandData);
             prevBandPowerData.current = emptyBandData;
 
@@ -1077,6 +1073,12 @@ const MuscleStrength = () => {
 
             // Force re-render
             setRefreshKey(prev => prev + 1);
+
+            // CRITICAL FIX: Recreate canvas elements with default 3 channels
+            // Use setTimeout to ensure state updates have completed
+            setTimeout(() => {
+                createCanvasElements();
+            }, 0);
 
             setIsLoading(false);
 
@@ -1090,6 +1092,17 @@ const MuscleStrength = () => {
             setIsConnected(false);
             connectedDeviceRef.current = null;
             batteryCharacteristicRef.current = null;
+
+            // Still reset to default config
+            deviceConfigRef.current = defaultConfig;
+            setDeviceConfig(defaultConfig);
+            setSelectedChannels([0, 1, 2]);
+
+            // Recreate canvas elements
+            setTimeout(() => {
+                createCanvasElements();
+            }, 0);
+
             setIsLoading(false);
 
             toast.error("Error during disconnection");
