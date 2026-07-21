@@ -34,7 +34,7 @@
     "@types/p5": "^1.7.6",
     "@types/w3c-web-serial": "^1.0.6",
     "ajv": "^8.20.0",
-    "brace-expansion": "^5.0.6",
+    "brace-expansion": "^5.0.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.1.5",
