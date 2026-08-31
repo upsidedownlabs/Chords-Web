@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "ts-node scripts/generateManifest.mjs",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "export": "next export",
     "distDir": "out",
     "generate-manifest": "ts-node scripts/generateManifest.mjs"
