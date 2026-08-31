@@ -17,16 +17,16 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    "types": ["node", "w3c-web-serial"],
     "plugins": [
       {
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "src/*",
-        "workers/*"
+        "./src/*",
+        "./workers/*"
       ]
     }
   },
