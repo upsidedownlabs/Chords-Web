@@ -10,7 +10,7 @@ import { Badge } from "./ui/badge";
 import { useTheme } from "next-themes";
 import packageJson from "../../package.json";
 
-const Navbar = ({ isDisplay }: { isDisplay: boolean }) => {
+const Navbar = () => {
   const { theme, setTheme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -44,7 +44,7 @@ const Navbar = ({ isDisplay }: { isDisplay: boolean }) => {
             </Badge>
           </div>
           <div className="flex gap-0 md:gap-2 items-center">
-            <ModeToggle disabled={!isDisplay} />
+            <ModeToggle />
             <Link
               href="https://github.com/upsidedownlabs/Chords-Web"
               target="__blank"

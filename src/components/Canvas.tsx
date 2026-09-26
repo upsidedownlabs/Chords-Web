@@ -6,6 +6,7 @@ import React, {
     useImperativeHandle,
     forwardRef,
 } from "react";
+import { captureLines, restoreLines, type FrozenLines } from "./frozenPlot";
 import { useTheme } from "next-themes";
 import { BitSelection } from "./DataPass";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
@@ -53,6 +54,7 @@ const Canvas = forwardRef(
         const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
         const [lines, setLines] = useState<WebglLine[]>([]);
         const linesRef = useRef<WebglLine[]>([]);
+        const frozenLinesRef = useRef<FrozenLines | null>(null); // screen at the moment of pausing
         const [samplingRate, setSamplingRate] = useState<number>(500);
         const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
         const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
@@ -154,14 +156,15 @@ const Canvas = forwardRef(
             // Reset when timeBase changes
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
-        }, [timeBase, theme]);
+        }, [timeBase, theme, selectedChannels]); // plots are rebuilt: restart the sweep from the left
 
         useImperativeHandle(
             ref,
             () => ({
                 updateData(data: number[]) {
                     // Reset the sweep positions if the number of channels has changed
-                    if (currentSweepPos.current.length !== numChannels || !pauseRef.current) {
+                    // (not on pause: resuming continues from the frozen cursor)
+                    if (currentSweepPos.current.length !== numChannels) {
                         currentSweepPos.current = new Array(numChannels).fill(0);
                         sweepPositions.current = new Array(numChannels).fill(0);
                     }
@@ -379,10 +382,25 @@ const Canvas = forwardRef(
 
         const animate = useCallback(() => {
             if (!pauseRef.current) {
-                // If paused, show the buffered data (this part runs when paused)
-                updatePlotSnapshot(currentSnapshot);
+                // Paused: snapshot 0 is the screen as it was when pausing;
+                // 1+ step back through the buffered complete windows.
+                if (!frozenLinesRef.current) frozenLinesRef.current = captureLines(linesRef.current);
+                if (currentSnapshot === 0) {
+                    restoreLines(linesRef.current, frozenLinesRef.current);
+                    wglPlots.forEach((wglp) => {
+                        wglp.gScaleY = Zoom;
+                        wglp.update();
+                    });
+                } else {
+                    updatePlotSnapshot(currentSnapshot - 1);
+                }
             } else {
-                // If not paused, continue with normal updates (e.g., real-time plotting)
+                // Resumed: put the paused screen back so the sweep continues
+                // from where it stopped.
+                if (frozenLinesRef.current) {
+                    restoreLines(linesRef.current, frozenLinesRef.current);
+                    frozenLinesRef.current = null;
+                }
                 wglPlots.forEach((wglp) => wglp.update());
                 requestAnimationFrame(animate); // Continue the animation loop
             }

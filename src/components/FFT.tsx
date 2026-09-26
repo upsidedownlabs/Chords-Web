@@ -1,4 +1,5 @@
 'use client';
+import { captureLines, restoreLines, type FrozenLines } from "./frozenPlot";
 import React, {
     useEffect,
     useRef,
@@ -421,8 +422,31 @@ const FFT = forwardRef(
         }, [linesRef, wglPlotsref.current[0], dataPointCountRef, sweepPositions]);
 
         useEffect(() => {
+            // The waveform shows `timeBase` seconds, like the main Canvas
+            // (it used to be a fixed 2000 points = 8 s at 250 Hz).
+            dataPointCountRef.current = Math.max(1, Math.round(currentSamplingRate * timeBase));
+            sweepPositions.current[0] = 0;
+
+            // Buffered snapshots were sized for the old window length.
+            rawBufferRef.current = Array.from({ length: NUM_SNAPSHOT_BUFFERS }, () => []);
+            fftSnapshotBufferRef.current = Array.from({ length: NUM_SNAPSHOT_BUFFERS }, () => []);
+            activeBufferIndexRef.current = 0;
+            dataIndicesRef.current = [];
+            snapShotRef.current = Array(NUM_SNAPSHOT_BUFFERS).fill(false);
+        }, [timeBase, currentSamplingRate]);
+
+        // Redraws the selected snapshot; set once updateSnapshot exists (below).
+        const redrawPausedRef = useRef<() => void>(() => { });
+
+        useEffect(() => {
+            // Rebuilt plot restarts its sweep from the left (same as the
+            // Chords visualizer on a theme / channel change).
+            sweepPositions.current[0] = 0;
             createCanvasElement();
-        }, [theme, timeBase]);
+            // The new line is empty; while paused nothing refills it, so
+            // redraw the snapshot being viewed (e.g. after a theme change).
+            if (!pauseRef.current) redrawPausedRef.current();
+        }, [theme, timeBase, currentSamplingRate, selectedChannel]);
 
         // Renders whichever buffered snapshot is selected while paused, replaying
         // both the raw waveform and its matching FFT magnitudes (mirrors Canvas).
@@ -457,14 +481,52 @@ const FFT = forwardRef(
             wglPlotsref.current[0]?.update();
         }, []);
 
+        // Screen at the moment of pausing: waveform line + spectrum.
+        const frozenRef = useRef<{ lines: FrozenLines; fft: number[][] } | null>(null);
+        const fftDataRef = useRef(fftData);
+        useEffect(() => {
+            fftDataRef.current = fftData;
+        }, [fftData]);
+
+        const restoreFrozen = useCallback(() => {
+            const frozen = frozenRef.current;
+            if (!frozen) return;
+            restoreLines(linesRef.current, frozen.lines);
+            setFftData(frozen.fft);
+            const wglp = wglPlotsref.current[0];
+            if (wglp) {
+                wglp.gScaleY = Zoom;
+                wglp.update();
+            }
+        }, [Zoom]);
+
+        // Snapshot 0 is the frozen screen; 1+ step back through complete windows.
+        const drawPaused = useCallback((snapshot: number) => {
+            if (!frozenRef.current) {
+                frozenRef.current = { lines: captureLines(linesRef.current), fft: fftDataRef.current };
+            }
+            if (snapshot === 0) restoreFrozen();
+            else updateSnapshot(snapshot - 1);
+        }, [restoreFrozen, updateSnapshot]);
+
+        useEffect(() => {
+            redrawPausedRef.current = () => drawPaused(currentSnapshot);
+        }, [drawPaused, currentSnapshot]);
+
         const animate = useCallback(() => {
             if (!pauseRef.current) {
-                updateSnapshot(currentSnapshot);
+                drawPaused(currentSnapshot);
             } else {
+                // Resumed: put the paused screen back so the sweep continues
+                // from where it stopped.
+                if (frozenRef.current) {
+                    restoreFrozen();
+                    frozenRef.current = null;
+                }
                 wglPlotsref.current[0]?.update();
                 requestAnimationFrame(animate);
             }
-        }, [wglPlotsref, Zoom, pauseRef.current, currentSnapshot, updateSnapshot]);
+        }, [wglPlotsref, Zoom, pauseRef.current, currentSnapshot, drawPaused, restoreFrozen]);
 
         useEffect(() => {
             requestAnimationFrame(animate);
@@ -613,7 +675,7 @@ const FFT = forwardRef(
                             <button
                                 onClick={() => setActiveBandPowerView('fullcandle')}
                                 className="
-          absolute top-2 right-2 
+          absolute top-2 right-2 z-10
           p-2 bg-transparent 
           text-gray-500 hover:text-gray-700 
           transition-all duration-300
@@ -623,7 +685,8 @@ const FFT = forwardRef(
                             </button>
                         )}
 
-                        <div className="flex justify-center space-x-2 pt-2 rounded-t-xl">
+                        {/* z-10: the candle view overflows upward and must never cover these */}
+                        <div className="relative z-10 flex justify-center space-x-2 pt-2 rounded-t-xl">
                             <button
                                 onClick={() => setActiveBandPowerView('bandpower')}
                                 className={buttonStyles('bandpower')}

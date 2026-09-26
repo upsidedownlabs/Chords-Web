@@ -44,7 +44,9 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
     };
 
     return (
-        <div className="w-full h-full flex items-end justify-center min-h-0 min-w-0">
+        // pointer-events-none: purely visual, and the flame + candle (80% + 80%
+        // of the height) overflow upward over the view's buttons.
+        <div className="w-full h-full flex items-end justify-center min-h-0 min-w-0 pointer-events-none">
             <div className={`relative ${isFullPage
                 ? 'w-1/4 h-3/4 sm:w-1/4 sm:h-3/4 md:w-1/4 md:h-3/4 lg:w-1/4 lg:h-3/4 xl:w-2/5 xl:h-3/4 2xl:w-2/9 2xl:h-3/4'
                 : 'w-1/4 h-4/5 sm:w-1/5 sm:h-4/5 md:w-1/6 md:h-5/6 lg:w-1/6 lg:h-5/6 xl:w-1/6 xl:h-5/6'

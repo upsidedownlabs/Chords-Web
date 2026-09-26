@@ -177,3 +177,14 @@
 .animate-wickFlicker {
   animation: wickFlicker 0.5s infinite;
 }
+
+/* Thumb of the Zoom / Time Base sliders in the settings popovers */
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  background-color: rgb(101, 136, 205);
+  border-radius: 50%;
+  cursor: pointer;
+}

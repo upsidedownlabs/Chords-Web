@@ -85,6 +85,8 @@ interface ConnectionProps {
     snapShotRef: React.RefObject<boolean[]>;
 }
 
+const MAX_RECORDING_MS = 24 * 60 * 60 * 1000; // recordings stop after 24 h at the latest
+
 const Connection: React.FC<ConnectionProps> = ({
     onPauseChange,
     datastream,
@@ -278,7 +280,9 @@ const Connection: React.FC<ConnectionProps> = ({
     };
 
 
-    const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
+    // Snapshot 0 is the screen frozen at pause; each complete buffered window
+    // (up to 5) is one more step back.
+    const enabledClicks = snapShotRef.current?.filter(Boolean).length ?? 0;
 
     // Enable/Disable left arrow button
     const handlePrevSnapshot = () => {
@@ -286,7 +290,7 @@ const Connection: React.FC<ConnectionProps> = ({
             setLeftArrowClickCount((prevCount) => prevCount + 1); // Use functional update
         }
 
-        if (currentSnapshot < 4) {
+        if (currentSnapshot < enabledClicks) {
             SetCurrentSnapshot((prevSnapshot) => prevSnapshot + 1); // Use functional update
         }
     };
@@ -447,11 +451,13 @@ const Connection: React.FC<ConnectionProps> = ({
         // Function to handle the time selection
         if (minutes === null) {
             endTimeRef.current = null;
-            toast.success("Recording set to no time limit");
+            toast.success("Recording set to the maximum of 24 hours");
         } else {
             // If the time is not null, set the end time
             const newEndTimeSeconds = minutes * 60 * 1000;
-            if (newEndTimeSeconds <= recordingElapsedTime) {
+            if (newEndTimeSeconds > MAX_RECORDING_MS) {
+                toast.error("Recording can be at most 24 hours (1440 minutes)");
+            } else if (newEndTimeSeconds <= recordingElapsedTime) {
                 // Check if the end time is greater than the current elapsed time
                 toast.error("End time must be greater than the current elapsed time");
             } else {
@@ -1081,13 +1087,7 @@ const Connection: React.FC<ConnectionProps> = ({
             fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
 
             const elapsedTime = Date.now() - recordingStartTimeRef.current;
-            setRecordingElapsedTime((prev) => {
-                if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
-                    stopRecording();
-                    return endTimeRef.current;
-                }
-                return elapsedTime;
-            });
+            setRecordingElapsedTime(() => checkRecordingLimit(elapsedTime));
         }
 
         channelData = [];
@@ -1524,13 +1524,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                 }
                                 fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
                                 const elapsedTime = Date.now() - recordingStartTimeRef.current;
-                                setRecordingElapsedTime((prev) => {
-                                    if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
-                                        stopRecording();
-                                        return endTimeRef.current;
-                                    }
-                                    return elapsedTime;
-                                });
+                                setRecordingElapsedTime(() => checkRecordingLimit(elapsedTime));
 
                             }
 
@@ -1572,6 +1566,7 @@ const Connection: React.FC<ConnectionProps> = ({
             isRecordingRef.current = true;
             const now = new Date();
             recordingStartTimeRef.current = Date.now();
+            recordingStoppedRef.current = false;
             setRecordingElapsedTime(Date.now());
             setIsRecordButtonDisabled(true);
 
@@ -1580,6 +1575,19 @@ const Connection: React.FC<ConnectionProps> = ({
 
             currentFileNameRef.current = filename;
         }
+    };
+
+    // Stops the recording at the chosen end time, or at 24 h at the latest.
+    const recordingStoppedRef = useRef(false);
+    const checkRecordingLimit = (elapsedTime: number): number => {
+        const limit = endTimeRef.current ?? MAX_RECORDING_MS;
+        if (elapsedTime < limit) return elapsedTime;
+        if (!recordingStoppedRef.current) {
+            recordingStoppedRef.current = true;
+            if (endTimeRef.current === null) toast.warning("Recording stopped: the maximum recording time is 24 hours.");
+            stopRecording();
+        }
+        return limit;
     };
 
     const stopRecording = async () => {
@@ -1605,10 +1613,11 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // Function to format time from seconds into a "MM:SS" string format
     const formatTime = (milliseconds: number): string => {
-        const date = new Date(milliseconds);
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+        // Not via Date: its UTC hours wrap to 00 at 24 h (the recording maximum).
+        const totalSeconds = Math.floor(milliseconds / 1000);
+        const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+        const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+        const seconds = String(totalSeconds % 60).padStart(2, '0');
         return `${hours}:${minutes}:${seconds}`;
     };
 
@@ -1644,6 +1653,83 @@ const Connection: React.FC<ConnectionProps> = ({
         }
     };
 
+
+    // Zoom + time base, shared by the settings popover of every visualizer.
+    const viewControls = (
+        <>
+            {/* Zoom Controls */}
+            <div className={`relative w-full flex flex-col ${!isDisplay ? "" : "items-start"} text-sm`}>
+                {/* Zoom Level label positioned at top left with margin/padding */}
+                <p className="text-xs justify-start font-semibold text-gray-500 ">
+                    <span className="font-bold text-gray-600">Zoom Level:</span> {Zoom}x
+                </p>
+                <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600 mb-4">
+                    {/* Button for setting Zoom to 1 */}
+                    <button
+                        className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                        onClick={() => SetZoom(1)}
+                    >
+                        1
+                    </button>
+
+                    <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={Zoom}
+                        onChange={(e) => SetZoom(Number(e.target.value))}
+                        style={{
+                            background: `linear-gradient(to right, rgb(101, 136, 205) ${((Zoom - 1) / 9) * 100}%, rgb(165, 165, 165) ${((Zoom - 1) / 9) * 11}%)`,
+                        }}
+                        className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-800 focus:outline-none focus:ring-0 slider-input"
+                    />
+
+                    {/* Button for setting Zoom to 10 */}
+                    <button
+                        className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                        onClick={() => SetZoom(10)}
+                    >
+                        10
+                    </button>
+                </div>
+            </div>
+
+            {/* Time-Base Selection */}
+            {isDisplay && (
+                <div className="relative w-full flex flex-col items-start  text-sm">
+                    <p className="text-xs font-semibold text-gray-500 ">
+                        <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
+                    </p>
+                    <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
+                        {/* Buttons & Slider */}
+                        <button
+                            className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                            onClick={() => setTimeBase(1)}
+                        >
+                            1
+                        </button>
+                        <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={timeBase}
+                            onChange={(e) => setTimeBase(Number(e.target.value))}
+                            style={{
+                                background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
+                            }}
+                            className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
+                        />
+                        <button
+                            className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                            onClick={() => setTimeBase(10)}
+                        >
+                            10
+                        </button>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 
     return (
         <div className="flex-none items-center justify-center pb-4 bg-g min-w-0">
@@ -2417,7 +2503,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                     <PopoverTrigger asChild>
                                         <Button
                                             className="flex items-center justify-center select-none whitespace-nowrap rounded-lg"
-                                            disabled={isfftLoading || isPauseState || isRecordingRef.current}
+                                            disabled={isfftLoading}
                                         >
                                             <Settings size={16} />
                                         </Button>
@@ -2429,46 +2515,61 @@ const Connection: React.FC<ConnectionProps> = ({
                             </Tooltip>
                         </TooltipProvider>
 
-                        <PopoverContent className="w-full p-3 space-y-2 mx-4 mb-2">
-                            <div id="button-container" className="relative space-y-2 rounded-lg">
-                                {Array.from({ length: 2 }).map((_, container) => (
-                                    <div key={container} className="grid grid-cols-8 gap-2">
-                                        {Array.from({ length: 8 }).map((_, col) => {
-                                            const index = container * 8 + col;
-                                            const isChannelDisabled = index >= maxCanvasElementCountRef.current;
-                                            const isSelected = selectedChannel === index + 1; // Changed to check against single selected channel
-                                            const buttonStyle = isChannelDisabled
-                                                ? isDarkModeEnabled
-                                                    ? { backgroundColor: "#030c21", color: "gray" }
-                                                    : { backgroundColor: "#e2e8f0", color: "gray" }
-                                                : isSelected
-                                                    ? { backgroundColor: getCustomColor(index, activeTheme), color: "white" }
-                                                    : { backgroundColor: "white", color: "black" };
-                                            const isFirstInRow = col === 0;
-                                            const isLastInRow = col === 7;
-                                            const isFirstContainer = container === 0;
-                                            const isLastContainer = container === 1;
-                                            const roundedClass = `
-                    ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""}
-                    ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""}
-                    ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""}
-                    ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
-                `;
-
-                                            return (
-                                                <button
-                                                    key={index}
-                                                    onClick={() => !isChannelDisabled && setSelectedChannel(index + 1)} // Toggle single channel
-                                                    disabled={isChannelDisabled}
-                                                    style={buttonStyle}
-                                                    className={`w-full h-8 text-xs font-medium py-1 border border-gray-300 dark:border-gray-600 transition-colors duration-200 ${roundedClass}`}
-                                                >
-                                                    {`CH${index + 1}`}
-                                                </button>
-                                            );
-                                        })}
+                        {/* Same layout as the other visualizers' settings popover */}
+                        <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm mx-4 mb-2">
+                            <div className={`space-y-6 ${!isDisplay ? "flex justify-center" : ""}`}>
+                                {/* Channel selection hidden while paused / recording, like the other visualizers */}
+                                {isDisplay && !isRecordingRef.current && (
+                                <div className="w-full">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xs font-semibold text-gray-500 m-2 ml-0">
+                                            <span className="font-bold text-gray-600">Channel:</span> CH{selectedChannel}
+                                        </h3>
                                     </div>
-                                ))}
+                                    <div id="button-container" className="relative space-y-2 rounded-lg">
+                                        {Array.from({ length: 2 }).map((_, container) => (
+                                            <div key={container} className="grid grid-cols-8 gap-2">
+                                                {Array.from({ length: 8 }).map((_, col) => {
+                                                    const index = container * 8 + col;
+                                                    const isChannelDisabled = index >= maxCanvasElementCountRef.current;
+                                                    const isSelected = selectedChannel === index + 1; // Changed to check against single selected channel
+                                                    const buttonStyle = isChannelDisabled
+                                                        ? isDarkModeEnabled
+                                                            ? { backgroundColor: "#030c21", color: "gray" }
+                                                            : { backgroundColor: "#e2e8f0", color: "gray" }
+                                                        : isSelected
+                                                            ? { backgroundColor: getCustomColor(index, activeTheme), color: "white" }
+                                                            : { backgroundColor: "white", color: "black" };
+                                                    const isFirstInRow = col === 0;
+                                                    const isLastInRow = col === 7;
+                                                    const isFirstContainer = container === 0;
+                                                    const isLastContainer = container === 1;
+                                                    const roundedClass = `
+                            ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""}
+                            ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""}
+                            ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""}
+                            ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
+                        `;
+
+                                                    return (
+                                                        <button
+                                                            key={index}
+                                                            onClick={() => !isChannelDisabled && setSelectedChannel(index + 1)} // Toggle single channel
+                                                            disabled={isChannelDisabled}
+                                                            style={buttonStyle}
+                                                            className={`w-full h-8 text-xs font-medium py-1 border border-gray-300 dark:border-gray-600 transition-colors duration-200 ${roundedClass}`}
+                                                        >
+                                                            {`CH${index + 1}`}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                )}
+
+                                {viewControls}
                             </div>
                         </PopoverContent>
                     </Popover>
@@ -2553,81 +2654,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                         </div>
                                     )}
 
-                                    {/* Zoom Controls */}
-                                    <div className={`relative w-full flex flex-col ${!isDisplay ? "" : "items-start"} text-sm`}>
-                                        {/* Zoom Level label positioned at top left with margin/padding */}
-                                        <p className="text-xs justify-start font-semibold text-gray-500 ">
-                                            <span className="font-bold text-gray-600">Zoom Level:</span> {Zoom}x
-                                        </p>
-                                        <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600 mb-4">
-                                            {/* Button for setting Zoom to 1 */}
-                                            <button
-                                                className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                onClick={() => SetZoom(1)}
-                                            >
-                                                1
-                                            </button>
-
-                                            <input
-                                                type="range"
-                                                min="1"
-                                                max="10"
-                                                value={Zoom}
-                                                onChange={(e) => SetZoom(Number(e.target.value))}
-                                                style={{
-                                                    background: `linear-gradient(to right, rgb(101, 136, 205) ${((Zoom - 1) / 9) * 100}%, rgb(165, 165, 165) ${((Zoom - 1) / 9) * 11}%)`,
-                                                }}
-                                                className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-800 focus:outline-none focus:ring-0 slider-input"
-                                            />
-
-                                            {/* Button for setting Zoom to 10 */}
-                                            <button
-                                                className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                onClick={() => SetZoom(10)}
-                                            >
-                                                10
-                                            </button>
-                                            <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px;
-                                            background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; } `}</style>
-                                        </div>
-                                    </div>
-
-                                    {/* Time-Base Selection */}
-                                    {isDisplay && (
-                                        <div className="relative w-full flex flex-col items-start  text-sm">
-                                            <p className="text-xs font-semibold text-gray-500 ">
-                                                <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
-                                            </p>
-                                            <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
-                                                {/* Buttons & Slider */}
-                                                <button
-                                                    className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                    onClick={() => setTimeBase(1)}
-                                                >
-                                                    1
-                                                </button>
-                                                <input
-                                                    type="range"
-                                                    min="1"
-                                                    max="10"
-                                                    value={timeBase}
-                                                    onChange={(e) => setTimeBase(Number(e.target.value))}
-                                                    style={{
-                                                        background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
-                                                    }}
-                                                    className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
-                                                />
-                                                <button
-                                                    className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                    onClick={() => setTimeBase(10)}
-                                                >
-                                                    10
-                                                </button>
-                                                <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;appearance: none; width: 15px; height: 15px;
-                                                background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {viewControls}
                                 </div>
                             </TooltipProvider>
                         </PopoverContent>

@@ -50,7 +50,7 @@ const DataPass = () => {
   return (
     <div className="flex flex-col h-screen m-0 p-0 bg-g ">
       <div className="bg-highlight">
-        <Navbar isDisplay={isDisplay} />
+        <Navbar />
       </div>
       {isConnected ? (
         <Canvas

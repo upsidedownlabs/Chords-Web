@@ -1,4 +1,5 @@
 'use client';
+import { captureLines, restoreLines, type FrozenLines } from "./frozenPlot";
 import React, {
     useEffect,
     useRef,
@@ -155,12 +156,11 @@ const RepForge = forwardRef(
         useEffect(() => {
             // Carry state over for channels that stay selected (matched by
             // channel number, not array index) instead of wiping everything —
-            // an unrelated channel's envelope/sweep/band-power shouldn't
-            // jump or reset just because another channel was toggled.
+            // an unrelated channel's envelope/band-power shouldn't jump or
+            // reset just because another channel was toggled.
             const prevChannels = selectedChannelsRef.current;
             const prevEnvelopeFilters = envelopeFilters.current;
             const prevPowerBuffer = powerBuffer.current;
-            const prevSweepPositions = sweepPositions.current;
             const prevBandData = prevBandPowerData.current;
 
             const remapByChannel = <T,>(arr: T[], fallback: () => T): T[] =>
@@ -171,7 +171,9 @@ const RepForge = forwardRef(
 
             envelopeFilters.current = remapByChannel(prevEnvelopeFilters, () => new EnvelopeFilter(64));
             powerBuffer.current = remapByChannel(prevPowerBuffer, () => []);
-            sweepPositions.current = remapByChannel(prevSweepPositions, () => 0);
+            // Every trace restarts from the left on a channel change, same as
+            // the Chords visualizer (reconcileChannels clears the kept lines).
+            sweepPositions.current = selectedChannels.map(() => 0);
             const remappedBandData = remapByChannel(prevBandData, () => 0);
 
             selectedChannelsRef.current = selectedChannels;
@@ -298,6 +300,9 @@ const RepForge = forwardRef(
             sweepPositions.current = channels.map(() => 0);
         }, [theme, buildChannelEntry]);
 
+        // Redraws the selected snapshot; set once updateSnapshot exists (below).
+        const redrawPausedRef = useRef<() => void>(() => { });
+
         useEffect(() => {
             rebuildAll();
             // timeBase/currentSamplingRate aren't read directly in rebuildAll,
@@ -305,6 +310,10 @@ const RepForge = forwardRef(
             // above, which runs first) — a full rebuild is required whenever
             // that changes since WebglLine's point count can't be resized in
             // place.
+
+            // The rebuilt lines are empty; while paused nothing refills them,
+            // so redraw the snapshot being viewed (e.g. after a theme change).
+            if (!pauseRef.current) redrawPausedRef.current();
         }, [rebuildAll, timeBase, currentSamplingRate]);
 
         // Resizes existing canvases in place (canvas width/height + GL
@@ -327,9 +336,8 @@ const RepForge = forwardRef(
         }, []);
 
         // Adds/removes only the canvases for channels that were actually
-        // toggled, keeping every other channel's WebGL context, lines and
-        // in-progress sweep untouched — this is what makes toggling a
-        // channel smooth instead of flashing every trace on screen.
+        // toggled, keeping every other channel's WebGL context (avoids the
+        // flash of a full teardown); all traces then restart from the left.
         const reconcileChannels = useCallback(() => {
             const container = canvasContainerRef.current;
             if (!container) return;
@@ -367,6 +375,15 @@ const RepForge = forwardRef(
                 wglpRefs.current[index] = entry.wglp;
                 linesRefs.current[index] = entry.lines;
             });
+
+            // Restart the kept channels' traces too (new canvases are already
+            // empty), without tearing down their WebGL contexts.
+            linesRefs.current.forEach((lines) =>
+                lines?.forEach((line) => {
+                    for (let p = 0; p < line.numPoints; p++) line.setY(p, 0);
+                })
+            );
+            wglpRefs.current.forEach((wglp) => wglp?.update());
 
             resizeCanvases();
             prevSelectedChannelsRef.current = nextChannels;
@@ -439,14 +456,55 @@ const RepForge = forwardRef(
             });
         }, [Zoom]);
 
+        // Screen at the moment of pausing: raw + envelope lines and bar values.
+        const frozenRef = useRef<{ lines: FrozenLines; bands: number[] } | null>(null);
+        const bandPowerDataRef = useRef(bandPowerData);
+        useEffect(() => {
+            bandPowerDataRef.current = bandPowerData;
+        }, [bandPowerData]);
+
+        const restoreFrozen = useCallback(() => {
+            const frozen = frozenRef.current;
+            if (!frozen) return;
+            restoreLines(linesRefs.current.flat(), frozen.lines);
+            setBandPowerData(frozen.bands);
+            wglpRefs.current.forEach((wglp) => {
+                if (!wglp) return;
+                wglp.gScaleY = Zoom;
+                wglp.update();
+            });
+        }, [Zoom]);
+
+        // Snapshot 0 is the frozen screen; 1+ step back through complete windows.
+        const drawPaused = useCallback((snapshot: number) => {
+            if (!frozenRef.current) {
+                frozenRef.current = {
+                    lines: captureLines(linesRefs.current.flat()),
+                    bands: bandPowerDataRef.current,
+                };
+            }
+            if (snapshot === 0) restoreFrozen();
+            else updateSnapshot(snapshot - 1);
+        }, [restoreFrozen, updateSnapshot]);
+
+        useEffect(() => {
+            redrawPausedRef.current = () => drawPaused(currentSnapshot);
+        }, [drawPaused, currentSnapshot]);
+
         const animate = useCallback(() => {
             if (!pauseRef.current) {
-                updateSnapshot(currentSnapshot);
+                drawPaused(currentSnapshot);
             } else {
+                // Resumed: put the paused screen back so the sweep continues
+                // from where it stopped.
+                if (frozenRef.current) {
+                    restoreFrozen();
+                    frozenRef.current = null;
+                }
                 wglpRefs.current.forEach((wglp) => wglp && wglp.update());
                 requestAnimationFrame(animate);
             }
-        }, [pauseRef.current, currentSnapshot, updateSnapshot]);
+        }, [pauseRef.current, currentSnapshot, drawPaused, restoreFrozen]);
 
         useEffect(() => {
             const frame = requestAnimationFrame(animate);
@@ -586,10 +644,11 @@ const RepForge = forwardRef(
                     ctx.strokeStyle = axisColor;
                     ctx.lineWidth = 1;
 
-                    ctx.beginPath();
-                    ctx.roundRect(x0, barY, barActW, barAreaH, [radius, radius, 0, 0]);
-                    ctx.fill();
-                    ctx.stroke();
+                    // Frame: filled here, outlined after the bar so a full
+                    // bar can't paint over its border.
+                    const framePath = new Path2D();
+                    framePath.roundRect(x0, barY, barActW, barAreaH, [radius, radius, 0, 0]);
+                    ctx.fill(framePath);
 
                     const max = Math.max(...(powerBuffer.current[i] || [1]), 1);
                     const bh = (v / max) * barAreaH;
@@ -612,10 +671,17 @@ const RepForge = forwardRef(
                         grad.addColorStop(1, "red");
                     }
 
+                    // Clip the bar to the frame's rounded shape so a full bar
+                    // follows the rounded top corners instead of squaring them off.
+                    ctx.save();
+                    ctx.clip(framePath);
                     ctx.fillStyle = grad;
-                    ctx.beginPath();
-                    ctx.roundRect(x0, barTopY, barActW, bh);
-                    ctx.fill();
+                    ctx.fillRect(x0, barTopY, barActW, bh);
+                    ctx.restore();
+
+                    ctx.strokeStyle = axisColor;
+                    ctx.lineWidth = 1;
+                    ctx.stroke(framePath);
                     ctx.globalAlpha = 1;
                 });
 
