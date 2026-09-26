@@ -52,8 +52,8 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
             >
                 {/* Container wrapper with relative positioning */}
                 <div className="relative w-full h-full flex flex-col">
-                    {/* Flame should take up approximately 60% of the total height */}
-                    <div style={{ height: '60%' }} className="relative w-full">
+                    {/* Flame should take up approximately 80% of the total height */}
+                    <div style={{ height: '80%' }} className="relative w-full">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 200 300"
@@ -95,8 +95,8 @@ const BrightCandleView: React.FC<BrightCandleViewProps> = ({ fftData = [], betaP
                         </svg>
                     </div>
 
-                    {/* Candle should take up approximately 40% of the total height */}
-                    <div style={{ height: '40%' }} className="w-full bg-gradient-to-b from-gray-100 to-gray-200 dark:from-stone-600 dark:to-stone-700 rounded-t-md backdrop-blur-md shadow-xl relative">
+                    {/* Candle should take up approximately 80% of the total height */}
+                    <div style={{ height: '80%' }} className="w-full bg-gradient-to-b from-gray-100 to-gray-200 dark:from-stone-600 dark:to-stone-700 rounded-t-md backdrop-blur-md shadow-xl relative">
                         <div className="absolute inset-0 overflow-hidden rounded-t-md bg-gradient-to-b from-cyan-300 via-blue-400 to-gray-900">
                             <div className={`absolute inset-0 ${isFullPage
                                 ? 'flex justify-center items-start pt-4'

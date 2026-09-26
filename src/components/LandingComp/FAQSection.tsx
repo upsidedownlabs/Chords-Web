@@ -124,7 +124,7 @@ const FAQSection = () => {
       question: "Which microcontrollers are supported by Chords?",
       answer: (
         <>
-          Arduino Uno, Arduino Nano, Arduino Mega 2560, Arduino Uno R4,
+          Arduino Uno R3, Arduino Nano, Arduino Mega 2560, Arduino Uno R4,
           Arduino GIGA R1, Maker Uno, Raspberry Pi Pico, ESP32-S3,
           NPG-Lite, STM32G4 & STM32F4 based boards are tested and supported
           by <Chords />.
