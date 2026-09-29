@@ -670,35 +670,35 @@ const FFT = forwardRef(
      bg-highlight rounded-2xl
     "
                     >
-                        {/* only show when we’re on the Beta Candle view */}
-                        {activeBandPowerView === 'brightcandle' && (
-                            <button
-                                onClick={() => setActiveBandPowerView('fullcandle')}
-                                className="
-          absolute top-2 right-2 z-10
-          p-2 bg-transparent 
-          text-gray-500 hover:text-gray-700 
-          transition-all duration-300
-        "
-                            >
-                                <Expand />
-                            </button>
-                        )}
-
-                        {/* z-10: the candle view overflows upward and must never cover these */}
-                        <div className="relative z-10 flex justify-center space-x-2 pt-2 rounded-t-xl">
-                            <button
-                                onClick={() => setActiveBandPowerView('bandpower')}
-                                className={buttonStyles('bandpower')}
-                            >
-                                Band Power
-                            </button>
-                            <button
-                                onClick={() => setActiveBandPowerView('brightcandle')}
-                                className={buttonStyles('brightcandle')}
-                            >
-                                Beta Candle
-                            </button>
+                         {/* Tabs centred, fullscreen button in its own column on the
+                            right: both side columns reserve room for the button, so
+                            the tabs stay centred and the two can never overlap.
+                            z-10: the candle view overflows upward and must never cover these. */}
+                        <div className="relative z-10 grid grid-cols-[minmax(2.5rem,1fr)_auto_minmax(2.5rem,1fr)] items-center gap-2 px-2 pt-2 rounded-t-xl">
+                            <div className="col-start-2 flex justify-center space-x-2">
+                                <button
+                                    onClick={() => setActiveBandPowerView('bandpower')}
+                                    className={buttonStyles('bandpower')}
+                                >
+                                    Band Power
+                                </button>
+                                <button
+                                    onClick={() => setActiveBandPowerView('brightcandle')}
+                                    className={buttonStyles('brightcandle')}
+                                >
+                                    Beta Candle
+                                </button>
+                            </div>
+                            {/* only show when we’re on the Beta Candle view */}
+                            {activeBandPowerView === 'brightcandle' && (
+                                <button
+                                    onClick={() => setActiveBandPowerView('fullcandle')}
+                                    className="col-start-3 justify-self-end p-2 bg-transparent text-gray-500 hover:text-gray-700 transition-all duration-300"
+                                    aria-label="Fullscreen"
+                                >
+                                    <Expand />
+                                </button>
+                            )}
                         </div>
 
                         {renderBandPowerView()}
