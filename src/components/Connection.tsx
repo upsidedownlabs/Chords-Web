@@ -3,11 +3,13 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { EXGFilter, Notch, HighPassFilter } from './filters';
+import { MAX_REPFORGE_CHANNELS } from './RepForge';
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation"; // Import useRouter
 import { getCustomColor, lightThemeColors } from './Colors';
 import {
     Cable,
+    Bluetooth,
     Circle,
     CircleStop,
     CircleX,
@@ -19,8 +21,8 @@ import {
     Play,
     CircleOff,
     ReplaceAll,
-    Heart,
     Brain,
+    Heart,
     Eye,
     BicepsFlexed,
     ArrowRightToLine,
@@ -31,7 +33,11 @@ import {
     BatteryLow,
     BatteryMedium,
     BatteryFull,
-    BatteryWarning
+    BatteryWarning,
+    Activity,
+    AudioLines,
+    Wand2,
+    Filter as FilterIcon
 } from "lucide-react";
 
 import { BoardsList } from "./boards";
@@ -56,6 +62,7 @@ interface ConnectionProps {
     datastream: (data: number[]) => void;
     Connection: (isDeviceConnected: boolean) => void;
     FFT: (isDeviceConnected: boolean) => void;
+    RepForge: (isDeviceConnected: boolean) => void;
     selectedBits?: BitSelection; // Add `?` if it's optional
     setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
     isDisplay: boolean;
@@ -78,11 +85,14 @@ interface ConnectionProps {
     snapShotRef: React.RefObject<boolean[]>;
 }
 
+const MAX_RECORDING_MS = 24 * 60 * 60 * 1000; // recordings stop after 24 h at the latest
+
 const Connection: React.FC<ConnectionProps> = ({
     onPauseChange,
     datastream,
     Connection,
     FFT,
+    RepForge,
     setSelectedBits,
     isDisplay,
     setIsDisplay,
@@ -108,6 +118,7 @@ const Connection: React.FC<ConnectionProps> = ({
     const [isSerial, setIsSerial] = useState(false); // Track if the device is connected
 
     const [FFTDeviceConnected, setFFTDeviceConnected] = useState<boolean>(false); // Track if the device is connected
+    const [RepForgeDeviceConnected, setRepForgeDeviceConnected] = useState<boolean>(false); // Track if RepForge view is active
     const isDeviceConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
     const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
     const isOldfirmwareRef = useRef<boolean>(false); // Ref to track if the device has old firmware
@@ -132,11 +143,13 @@ const Connection: React.FC<ConnectionProps> = ({
     const devicenameref = useRef<string>("");
     const [deviceReady, setDeviceReady] = useState(false);
     const samplingrateref = useRef<number>(0);
-    const [open, setOpen] = useState(false);
-    const [openfft, setOpenfft] = useState(false);
     const [isPauseState, setIsPauseState] = useState(false);
     // UI Themes & Modes
-    const { theme } = useTheme(); // Current theme of the app
+    // Use resolvedTheme, not theme: the app defaults to the "system" theme
+    // setting, so `theme` stays the literal string "system" until the user
+    // manually picks light/dark, making `theme === "dark"` false even on a
+    // dark system and leaving these elements styled for light mode.
+    const { resolvedTheme: theme } = useTheme(); // Current theme of the app
     const isDarkModeEnabled = theme === "dark"; // Boolean to check if dark mode is enabled
     const router = useRouter(); // Use Next.js router for navigation
     // Determine the current theme without redeclaring 'theme'
@@ -158,6 +171,14 @@ const Connection: React.FC<ConnectionProps> = ({
     const canvasElementCountRef = useRef<number>(1);
     const maxCanvasElementCountRef = useRef<number>(1);
     const [channelNames, setChannelNames] = useState<string[]>([]);
+
+    // Rep-Forge only ever displays up to MAX_REPFORGE_CHANNELS channels, even
+    // if the connected device supports more (some boards have up to 16).
+    const getMaxSelectableChannels = () => (
+        RepForgeDeviceConnected
+            ? Math.min(maxCanvasElementCountRef.current, MAX_REPFORGE_CHANNELS)
+            : maxCanvasElementCountRef.current
+    );
 
     const currentFileNameRef = useRef<string>("");
     const initialSelectedChannelsRef = useRef<any[]>([1]);
@@ -259,7 +280,9 @@ const Connection: React.FC<ConnectionProps> = ({
     };
 
 
-    const enabledClicks = (snapShotRef.current?.filter(Boolean).length ?? 0) - 1;
+    // Snapshot 0 is the screen frozen at pause; each complete buffered window
+    // (up to 5) is one more step back.
+    const enabledClicks = snapShotRef.current?.filter(Boolean).length ?? 0;
 
     // Enable/Disable left arrow button
     const handlePrevSnapshot = () => {
@@ -267,7 +290,7 @@ const Connection: React.FC<ConnectionProps> = ({
             setLeftArrowClickCount((prevCount) => prevCount + 1); // Use functional update
         }
 
-        if (currentSnapshot < 4) {
+        if (currentSnapshot < enabledClicks) {
             SetCurrentSnapshot((prevSnapshot) => prevSnapshot + 1); // Use functional update
         }
     };
@@ -310,7 +333,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
 
     useEffect(() => {
-        const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
+        const enabledChannels = Array.from({ length: getMaxSelectableChannels() }, (_, i) => i + 1);
 
         const allSelected = selectedChannels.length === enabledChannels.length;
         const onlyOneLeft = selectedChannels.length === enabledChannels.length - 1;
@@ -319,12 +342,12 @@ const Connection: React.FC<ConnectionProps> = ({
 
         // Update the "Select All" button state
         setIsAllEnabledChannelSelected(allSelected);
-    }, [selectedChannels, maxCanvasElementCountRef.current, manuallySelected]);
+    }, [selectedChannels, maxCanvasElementCountRef.current, RepForgeDeviceConnected, manuallySelected]);
     useEffect(() => {
         setChannelNames(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => `CH${i + 1}`));
     }, [maxCanvasElementCountRef.current]);
     const handleSelectAllToggle = () => {
-        const enabledChannels = Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i + 1);
+        const enabledChannels = Array.from({ length: getMaxSelectableChannels() }, (_, i) => i + 1);
 
         if (!isAllEnabledChannelSelected) {
             // Programmatic selection of all channels
@@ -334,7 +357,7 @@ const Connection: React.FC<ConnectionProps> = ({
             // RESET functionality
             const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
             const portInfo = portRef.current?.getInfo();
-            let initialSelectedChannelsRefs: number[] = []; // Default to channel 1 if no saved channels are found
+            let initialSelectedChannelsRefs: number[] = [1]; // Default to channel 1 if no saved channels are found
 
             if (portInfo) {
 
@@ -347,12 +370,16 @@ const Connection: React.FC<ConnectionProps> = ({
                 if (deviceIndex !== -1) {
                     // Get the saved channels for the device
                     const savedChannels = savedPorts[deviceIndex].selectedChannels;
-                    initialSelectedChannelsRefs = savedChannels.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
+                    initialSelectedChannelsRefs = savedChannels?.length > 0 ? savedChannels : [1]; // Load saved channels or default to [1]
                 }
             }
 
-            // Set the channels back to saved values
-            setSelectedChannels(initialSelectedChannelsRefs); // Reset to saved channels
+            // Set the channels back to saved values (capped for Rep-Forge)
+            setSelectedChannels(
+                RepForgeDeviceConnected
+                    ? initialSelectedChannelsRefs.slice(0, MAX_REPFORGE_CHANNELS)
+                    : initialSelectedChannelsRefs
+            );
         }
 
         // Toggle the "Select All" button state
@@ -363,7 +390,13 @@ const Connection: React.FC<ConnectionProps> = ({
     const toggleChannel = (channelIndex: number) => {
         // Mark as manually selected and update selectedChannels
         setSelectedChannels((prevSelected) => {
-            const updatedChannels = prevSelected.includes(channelIndex)
+            const isRemoving = prevSelected.includes(channelIndex);
+            if (!isRemoving && RepForgeDeviceConnected && prevSelected.length >= MAX_REPFORGE_CHANNELS) {
+                toast.error(`Rep-Forge supports up to ${MAX_REPFORGE_CHANNELS} channels at a time.`);
+                return prevSelected;
+            }
+
+            const updatedChannels = isRemoving
                 ? prevSelected.filter((ch) => ch !== channelIndex)
                 : [...prevSelected, channelIndex];
 
@@ -418,11 +451,13 @@ const Connection: React.FC<ConnectionProps> = ({
         // Function to handle the time selection
         if (minutes === null) {
             endTimeRef.current = null;
-            toast.success("Recording set to no time limit");
+            toast.success("Recording set to the maximum of 24 hours");
         } else {
             // If the time is not null, set the end time
             const newEndTimeSeconds = minutes * 60 * 1000;
-            if (newEndTimeSeconds <= recordingElapsedTime) {
+            if (newEndTimeSeconds > MAX_RECORDING_MS) {
+                toast.error("Recording can be at most 24 hours (1440 minutes)");
+            } else if (newEndTimeSeconds <= recordingElapsedTime) {
                 // Check if the end time is greater than the current elapsed time
                 toast.error("End time must be greater than the current elapsed time");
             } else {
@@ -757,7 +792,16 @@ const Connection: React.FC<ConnectionProps> = ({
                 if (writer) {
                     writerRef.current = writer;
                     const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-                    setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
+                    setTimeout(() => {
+                        writer.write(whoAreYouMessage).catch((error) => {
+                            // The writer can already be released by the time this
+                            // fires (e.g. the user disconnected before the delay
+                            // elapsed) — surface it as a toast instead of an
+                            // unhandled rejection/error overlay.
+                            console.warn("Failed to send device handshake:", error);
+                            toast.error("Could not communicate with the device. Please try reconnecting.");
+                        });
+                    }, serialTimeout);
                     let buffer = "";
                     while (true) {
                         const { value, done } = await reader.read();
@@ -820,7 +864,15 @@ const Connection: React.FC<ConnectionProps> = ({
                     });
 
                     const startMessage = new TextEncoder().encode("START\n");
-                    setTimeout(() => writer.write(startMessage), 2000);
+                    setTimeout(() => {
+                        writer.write(startMessage).catch((error) => {
+                            // Same as above: the writer may already be released
+                            // by the time this fires, so catch it instead of
+                            // letting it surface as an unhandled rejection.
+                            console.warn("Failed to send START command:", error);
+                            toast.error("Could not start the data stream. Please try reconnecting.");
+                        });
+                    }, 2000);
                 } else {
                     console.warn("Writable stream not available");
                 }
@@ -830,6 +882,10 @@ const Connection: React.FC<ConnectionProps> = ({
             setIsSerial(true);
 
             setSelectedChannels(initialSelectedChannelsRef.current);
+            FFT(false);
+            RepForge(false);
+            setFFTDeviceConnected(false);
+            setRepForgeDeviceConnected(false);
             Connection(true);
             setIsDeviceConnected(true);
             onPauseChange(true);
@@ -852,162 +908,6 @@ const Connection: React.FC<ConnectionProps> = ({
         }
         setIsLoading(false);
     };
-
-    const connectToDevicefft = async () => {
-        try {
-            if (portRef.current && portRef.current.readable) {
-                await disconnectDevice();
-            }
-
-            const savedPorts = JSON.parse(localStorage.getItem('savedDevices') || '[]');
-            let port = null;
-            const ports = await navigator.serial.getPorts();
-            setIsSerial(true);
-            if (savedPorts.length > 0) {
-                port = ports.find((p) => {
-                    const info = p.getInfo();
-                    return savedPorts.some(
-                        (saved: SavedDevice) => saved.usbProductId === info.usbProductId
-                    );
-                }) || null;
-            }
-            handleFrequencySelectionEXG(0, 3);
-            let baudRate;
-            let serialTimeout;
-            setSelectedChannel(1);
-            if (!port) {
-                port = await navigator.serial.requestPort();
-                const newPortInfo = await port.getInfo();
-                const usbProductId = newPortInfo.usbProductId ?? 0;
-
-                const board = BoardsList.find((b) => b.field_pid === usbProductId);
-                baudRate = board ? board.baud_Rate : 0;
-                serialTimeout = board ? board.serial_timeout : 0;
-                await port.open({ baudRate });
-                setIsfftLoading(true);
-            } else {
-                setIsfftLoading(true);
-                const info = port.getInfo();
-                const savedDevice = savedPorts.find(
-                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
-                );
-
-                const deviceIndex = savedPorts.findIndex(
-                    (saved: SavedDevice) => saved.usbProductId === info.usbProductId
-                );
-
-                if (deviceIndex !== -1) {
-                    const savedChannels = savedPorts[deviceIndex].selectedChannels;
-                }
-
-                baudRate = savedDevice?.baudRate || 230400;
-                serialTimeout = savedDevice?.serialTimeout || 2000;
-
-                await port.open({ baudRate });
-            }
-
-            if (port.readable) {
-                const reader = port.readable.getReader();
-                readerRef.current = reader;
-                const writer = port.writable?.getWriter();
-                if (writer) {
-                    writerRef.current = writer;
-                    const whoAreYouMessage = new TextEncoder().encode("WHORU\n");
-                    setTimeout(() => writer.write(whoAreYouMessage), serialTimeout);
-                    let buffer = "";
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        if (value) {
-                            buffer += new TextDecoder().decode(value);
-                            if (buffer.includes("\n")) break;
-                        }
-                    }
-                    const response = buffer.trim().split("\n").pop();
-                    const extractedName = response?.match(/[A-Za-z0-9\-_\s]+$/)?.[0]?.trim() || "Unknown Device";
-                    devicenameref.current = extractedName;
-                    const currentPortInfo = port.getInfo();
-                    const usbProductId = currentPortInfo.usbProductId ?? 0;
-
-                    const existingDeviceIndex = savedPorts.findIndex(
-                        (saved: SavedDevice) => saved.deviceName === extractedName
-                    );
-
-                    if (existingDeviceIndex !== -1) {
-                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
-                        setSelectedChannels(lastSelectedChannels);
-                    } else {
-                        savedPorts.push({
-                            deviceName: extractedName,
-                            usbProductId: currentPortInfo.usbProductId ?? 0,
-                            baudRate,
-                            serialTimeout,
-                            selectedChannels,
-                        });
-                        const lastSelectedChannels = savedPorts?.selectedChannels || [1];
-                        setSelectedChannels(lastSelectedChannels);
-                    }
-
-                    localStorage.setItem('savedDevices', JSON.stringify(savedPorts));
-
-                    const { formattedInfo, adcResolution, channelCount, baudRate: extractedBaudRate, serialTimeout: extractedSerialTimeout } = formatPortInfo(currentPortInfo, extractedName, usbProductId);
-
-                    // Update maxCanvasElementCountRef when connecting a new device
-                    if (channelCount) {
-                        maxCanvasElementCountRef.current = channelCount; // Ensure the new device’s channel count is applied
-                    }
-
-                    const allSelected = initialSelectedChannelsRef.current.length == channelCount;
-                    setIsAllEnabledChannelSelected(!allSelected);
-
-                    baudRate = extractedBaudRate ?? baudRate;
-                    serialTimeout = extractedSerialTimeout ?? serialTimeout;
-
-                    toast.success("Connection Successful", {
-                        description: (
-                            <div className="mt-2 flex flex-col space-y-1">
-                                <p>Device: {formattedInfo}</p>
-                                <p>Product ID: {usbProductId}</p>
-                                <p>Baud Rate: {baudRate}</p>
-                                {adcResolution && <p>Resolution: {adcResolution} bits</p>}
-                                {channelCount && <p>Channel: {channelCount}</p>}
-                            </div>
-                        ),
-                    });
-
-                    const startMessage = new TextEncoder().encode("START\n");
-                    setTimeout(() => writer.write(startMessage), 2000);
-                } else {
-                    console.warn("Writable stream not available");
-                }
-            } else {
-                console.warn("Readable stream not available");
-            }
-
-            setSelectedChannels(initialSelectedChannelsRef.current);
-            FFT(true);
-            setIsDeviceConnected(true);
-            setFFTDeviceConnected(true);
-            setIsDisplay(true);
-            setCanvasCount(1);
-            isDeviceConnectedRef.current = true;
-            portRef.current = port;
-
-            const data = await getFileCountFromIndexedDB();
-            setDatasets(data);
-            readData();
-
-            await navigator.wakeLock.request("screen");
-
-        } catch (error) {
-            await disconnectDevice();
-            console.warn("Error connecting to device:", error);
-            toast.error("Failed to connect to device.");
-        }
-        setIsfftLoading(false);
-
-    };
-
 
     const getFileCountFromIndexedDB = async (): Promise<any[]> => {
         if (!workerRef.current) {
@@ -1072,7 +972,9 @@ const Connection: React.FC<ConnectionProps> = ({
                 portRef.current = null;
                 setIsDeviceConnected(false); // Update connection state
                 setFFTDeviceConnected(false);
+                setRepForgeDeviceConnected(false);
                 FFT(false);
+                RepForge(false);
                 toast("Disconnected from device", {
                     action: {
                         label: "Reconnect",
@@ -1086,6 +988,15 @@ const Connection: React.FC<ConnectionProps> = ({
             setIsDeviceConnected(false);
             isDeviceConnectedRef.current = false;
             isRecordingRef.current = false;
+            // Reset pause/rewind state too — this runs whether the user
+            // clicked Disconnect or the device dropped out physically, and
+            // either way stale pause state shouldn't carry into the next
+            // connection.
+            setIsDisplay(true);
+            onPauseChange(true);
+            setIsPauseState(false);
+            setLeftArrowClickCount(0);
+            SetCurrentSnapshot(0);
             Connection(false);
         }
 
@@ -1176,13 +1087,7 @@ const Connection: React.FC<ConnectionProps> = ({
             fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
 
             const elapsedTime = Date.now() - recordingStartTimeRef.current;
-            setRecordingElapsedTime((prev) => {
-                if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
-                    stopRecording();
-                    return endTimeRef.current;
-                }
-                return elapsedTime;
-            });
+            setRecordingElapsedTime(() => checkRecordingLimit(elapsedTime));
         }
 
         channelData = [];
@@ -1320,9 +1225,12 @@ const Connection: React.FC<ConnectionProps> = ({
             setSelectedChannels(Array.from({ length: channelCount }, (_, i) => i + 1));
             maxCanvasElementCountRef.current = channelCount;
 
-            FFT(true);
+            FFT(false);
+            RepForge(false);
+            setFFTDeviceConnected(false);
+            setRepForgeDeviceConnected(false);
+            Connection(true);
             setIsDeviceConnected(true);
-            setFFTDeviceConnected(true);
             setIsDisplay(true);
             setCanvasCount(1);
             isDeviceConnectedRef.current = true;
@@ -1370,7 +1278,21 @@ const Connection: React.FC<ConnectionProps> = ({
             console.log("helo");
             setIsDeviceConnected(false); // Update connection state
             setFFTDeviceConnected(false);
+            setRepForgeDeviceConnected(false);
             FFT(false);
+            RepForge(false);
+            Connection(false);
+
+            // Reset recording and pause/rewind state — this runs whether the
+            // user clicked Disconnect or the device dropped out physically
+            // (detected via the no-samples-received watchdog), and either
+            // way stale state shouldn't carry into the next connection.
+            isRecordingRef.current = false;
+            setIsDisplay(true);
+            onPauseChange(true);
+            setIsPauseState(false);
+            setLeftArrowClickCount(0);
+            SetCurrentSnapshot(0);
 
             // Reset battery state
             setBatteryLevel(null);
@@ -1582,8 +1504,15 @@ const Connection: React.FC<ConnectionProps> = ({
                             }
                             datastream(channelData); // Pass the channel data to the LineData function for further processing
                             if (isRecordingRef.current) {
+                                // Keep every device channel in the recorded row (counter +
+                                // NUM_CHANNELS), not just the first `canvasElementCountRef.current`
+                                // (= number of *selected* channels) — slicing by selection count
+                                // silently dropped any selected channel whose number is higher
+                                // than how many are selected (e.g. channel 5 with only 3
+                                // selected). Column filtering by the actual selected channel
+                                // numbers happens later, at export time.
                                 const channeldatavalues = channelData
-                                    .slice(0, canvasElementCountRef.current + 1)
+                                    .slice(0, NUM_CHANNELS + 1)
                                     .map((value) => (value !== undefined ? value : null))
                                     .filter((value): value is number => value !== null); // Filter out null values
                                 // Check if recording is enabled
@@ -1595,13 +1524,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                 }
                                 fillingindex.current = (fillingindex.current + 1) % MAX_BUFFER_SIZE;
                                 const elapsedTime = Date.now() - recordingStartTimeRef.current;
-                                setRecordingElapsedTime((prev) => {
-                                    if (endTimeRef.current !== null && elapsedTime >= endTimeRef.current) {
-                                        stopRecording();
-                                        return endTimeRef.current;
-                                    }
-                                    return elapsedTime;
-                                });
+                                setRecordingElapsedTime(() => checkRecordingLimit(elapsedTime));
 
                             }
 
@@ -1643,6 +1566,7 @@ const Connection: React.FC<ConnectionProps> = ({
             isRecordingRef.current = true;
             const now = new Date();
             recordingStartTimeRef.current = Date.now();
+            recordingStoppedRef.current = false;
             setRecordingElapsedTime(Date.now());
             setIsRecordButtonDisabled(true);
 
@@ -1651,6 +1575,19 @@ const Connection: React.FC<ConnectionProps> = ({
 
             currentFileNameRef.current = filename;
         }
+    };
+
+    // Stops the recording at the chosen end time, or at 24 h at the latest.
+    const recordingStoppedRef = useRef(false);
+    const checkRecordingLimit = (elapsedTime: number): number => {
+        const limit = endTimeRef.current ?? MAX_RECORDING_MS;
+        if (elapsedTime < limit) return elapsedTime;
+        if (!recordingStoppedRef.current) {
+            recordingStoppedRef.current = true;
+            if (endTimeRef.current === null) toast.warning("Recording stopped: the maximum recording time is 24 hours.");
+            stopRecording();
+        }
+        return limit;
     };
 
     const stopRecording = async () => {
@@ -1676,16 +1613,126 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // Function to format time from seconds into a "MM:SS" string format
     const formatTime = (milliseconds: number): string => {
-        const date = new Date(milliseconds);
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+        // Not via Date: its UTC hours wrap to 00 at 24 h (the recording maximum).
+        const totalSeconds = Math.floor(milliseconds / 1000);
+        const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+        const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+        const seconds = String(totalSeconds % 60).padStart(2, '0');
         return `${hours}:${minutes}:${seconds}`;
     };
 
+    // Switch which application view is shown for the already-connected device,
+    // without tearing down and re-establishing the Serial/BLE connection.
+    const switchToView = (view: 'chords' | 'fft' | 'repforge') => {
+        if (!isDeviceConnected) return;
+
+        Connection(view === 'chords');
+        FFT(view === 'fft');
+        RepForge(view === 'repforge');
+        setFFTDeviceConnected(view === 'fft');
+        setRepForgeDeviceConnected(view === 'repforge');
+
+        // Filters are view-specific — reset them on every app switch so a
+        // filter chosen in one view doesn't silently keep applying in another.
+        appliedFiltersRef.current = {};
+        appliedEXGFiltersRef.current = {};
+        forceUpdate();
+        forceEXGUpdate();
+
+        if (view === 'fft') {
+            setSelectedChannel(1);
+            handleFrequencySelectionEXG(0, 3);
+        }
+
+        if (view === 'repforge') {
+            // Rep-Forge only supports up to MAX_REPFORGE_CHANNELS at a time,
+            // even if more are selected coming from the other views.
+            setSelectedChannels((prev) =>
+                prev.length > MAX_REPFORGE_CHANNELS ? prev.slice(0, MAX_REPFORGE_CHANNELS) : prev
+            );
+        }
+    };
+
+
+    // Zoom + time base, shared by the settings popover of every visualizer.
+    const viewControls = (
+        <>
+            {/* Zoom Controls */}
+            <div className={`relative w-full flex flex-col ${!isDisplay ? "" : "items-start"} text-sm`}>
+                {/* Zoom Level label positioned at top left with margin/padding */}
+                <p className="text-xs justify-start font-semibold text-gray-500 ">
+                    <span className="font-bold text-gray-600">Zoom Level:</span> {Zoom}x
+                </p>
+                <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600 mb-4">
+                    {/* Button for setting Zoom to 1 */}
+                    <button
+                        className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                        onClick={() => SetZoom(1)}
+                    >
+                        1
+                    </button>
+
+                    <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={Zoom}
+                        onChange={(e) => SetZoom(Number(e.target.value))}
+                        style={{
+                            background: `linear-gradient(to right, rgb(101, 136, 205) ${((Zoom - 1) / 9) * 100}%, rgb(165, 165, 165) ${((Zoom - 1) / 9) * 11}%)`,
+                        }}
+                        className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-800 focus:outline-none focus:ring-0 slider-input"
+                    />
+
+                    {/* Button for setting Zoom to 10 */}
+                    <button
+                        className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                        onClick={() => SetZoom(10)}
+                    >
+                        10
+                    </button>
+                </div>
+            </div>
+
+            {/* Time-Base Selection */}
+            {isDisplay && (
+                <div className="relative w-full flex flex-col items-start  text-sm">
+                    <p className="text-xs font-semibold text-gray-500 ">
+                        <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
+                    </p>
+                    <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
+                        {/* Buttons & Slider */}
+                        <button
+                            className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                            onClick={() => setTimeBase(1)}
+                        >
+                            1
+                        </button>
+                        <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={timeBase}
+                            onChange={(e) => setTimeBase(Number(e.target.value))}
+                            style={{
+                                background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
+                            }}
+                            className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
+                        />
+                        <button
+                            className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                            onClick={() => setTimeBase(10)}
+                        >
+                            10
+                        </button>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 
     return (
-        <div className="flex-none items-center justify-center pb-4 bg-g">
+        <div className="flex-none items-center justify-center pb-4 bg-g min-w-0">
             {/* Left-aligned section */}
             <div className="absolute left-4 flex items-center mx-0 px-0 space-x-1">
                 {isRecordingRef.current && (
@@ -1762,129 +1809,139 @@ const Connection: React.FC<ConnectionProps> = ({
             </div>
 
             {/* Center-aligned buttons */}
-            <div className="flex gap-3 items-center justify-center">
-                {/* Connection button with tooltip */}
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Popover open={open} onOpenChange={setOpen}>
-                                <PopoverTrigger asChild>
+            <div className="flex flex-wrap gap-3 items-center justify-center min-w-0 px-4">
+                {/* Connection controls */}
+                {isDeviceConnected || isLoading || isfftLoading ? (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                                    onClick={() => (isDeviceConnected ? (isSerial ? disconnectDevice() : disconnect()) : undefined)}
+                                    disabled={isLoading || isfftLoading || isRecordingRef.current}
+                                >
+                                    {isLoading || isfftLoading ? (
+                                        <>
+                                            <Loader size={17} className="animate-spin min-[1230px]:hidden" />
+                                            <span className="hidden min-[1230px]:inline">Connecting...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="hidden min-[1230px]:inline">Disconnect</span>
+                                            <CircleX size={17} className="min-[1230px]:hidden" />
+                                        </>
+                                    )}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Disconnect Device</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                ) : (
+                    <div className="flex items-center h-10 rounded-xl overflow-hidden text-primary-foreground font-semibold">
+                        <div className="hidden min-[1230px]:flex items-center h-full px-3 text-sm border-r bg-primary border-primary-foreground/20">
+                            Connect
+                        </div>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
                                     <Button
-                                        className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => (isDeviceConnected ? isSerial ? disconnectDevice() : disconnect() : connectToDevice())}
-                                        disabled={isLoading}
+                                        className="h-full rounded-none border-r border-primary-foreground/20 gap-1 hover:text-primary-foreground px-3 bg-[#0A3B8C] text-white"
+                                        onClick={connectBLE}
+                                        disabled={isRecordingRef.current}
                                     >
-                                        {isLoading ? (
-                                            <>
-                                                <Loader size={17} className="animate-spin" />
-                                                Connecting...
-                                            </>
-                                        ) : isDeviceConnected ? (
-                                            <>
-                                                Disconnect
-                                                <CircleX size={17} />
-                                            </>
-                                        ) : (
-                                            <>
-                                                Chords Visualizer
-                                                <Cable size={17} />
-                                            </>
-                                        )}
+                                        <span className="hidden min-[1230px]:inline ">BLE</span> <Bluetooth size={17}/>
                                     </Button>
-                                </PopoverTrigger>
-                                {!isDeviceConnected && (
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Connect via Bluetooth</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
                                     <Button
-                                        className="py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => {
-                                            localStorage.setItem("autoConnectSerial", "true"); // Auto-connect flag
-                                            router.push("/serial-plotter");
-                                        }}
+                                        className="h-full rounded-none gap-1 px-3 bg-[#9E4586] hover:bg-primary/80 hover:text-primary-foreground text-white"
+                                        onClick={connectToDevice}
+                                        disabled={isRecordingRef.current}
                                     >
-                                        Serial Wizard
+                                        <span className="hidden min-[1230px]:inline">Serial</span> <Cable size={17} />
                                     </Button>
-                                )}
-                                {!isDeviceConnected && (
-                                    <Popover open={openfft} onOpenChange={setOpenfft}>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                                disabled={isfftLoading || isPauseState}
-                                            >
-                                                {isfftLoading ? (
-                                                    <>
-                                                        <Loader size={17} className="animate-spin" />
-                                                        Connecting...
-                                                    </>
-                                                ) : isDeviceConnected ? (
-                                                    <>
-                                                        Disconnect
-                                                        <CircleX size={17} />
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        FFT Visualizer
-                                                        <Cable size={17} />
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </PopoverTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Connect via Serial</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+                )}
 
-                                        {!isDeviceConnected && (
-                                            <PopoverContent className="w-40 p-3 space-y-2 mx-4 mb-2">
-                                                <Button
-                                                    className="w-full"
-                                                    onClick={() => connectToDevicefft()}
-                                                >
-                                                    Serial
-                                                </Button>
-                                                <Button
-                                                    className="w-full"
-                                                    onClick={() => { connectBLE() }}
-                                                >
-                                                    Bluetooth
-                                                </Button>
-                                            </PopoverContent>
-                                        )}
-                                    </Popover>
-                                )}
-                                {!isDeviceConnected && (
-                                    <Button
-                                        className="py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => {
-                                            router.push("/npg-lite");
-                                        }}
-                                    >
-                                        NPG-Lite
-                                    </Button>
-                                )}
-                                {!isDeviceConnected && (
-                                    <Button
-                                        className="py-2 px-4 rounded-xl font-semibold"
-                                        onClick={() => {
-                                            router.push("/muscle-strength");
-                                        }}
-                                    >
-                                        Rep-Forge
-                                    </Button>
-                                )}
-                            </Popover>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>{isDeviceConnected ? "Disconnect Device" : "Connect Device"}</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-                {/* Display (Play/Pause) button with tooltip */}
-                {isDeviceConnected && !FFTDeviceConnected && (
+                {!isDeviceConnected && (
+                    <Button
+                        className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
+                        onClick={() => {
+                            localStorage.setItem("autoConnectSerial", "true"); // Auto-connect flag
+                            router.push("/serial-plotter");
+                        }}
+                    >
+                        <span className="hidden min-[1230px]:inline">Serial Wizard</span>
+                        <Wand2 size={17} className="min-[1230px]:hidden" />
+                    </Button>
+                )}
+
+                {/* App switcher: open any application on the already-connected device */}
+                {isDeviceConnected && (
                     <div className="flex items-center gap-0.5 mx-0 px-0">
                         <Button
-                            className="rounded-xl rounded-r-none"
-                            onClick={handlePrevSnapshot}
-                            disabled={isDisplay || leftArrowClickCount >= enabledClicks}
-
+                            variant={!FFTDeviceConnected && !RepForgeDeviceConnected ? "default" : "outline"}
+                            className="flex items-center gap-1 rounded-xl rounded-r-none"
+                            onClick={() => switchToView('chords')}
+                            disabled={isRecordingRef.current || isPauseState}
                         >
-                            <ArrowLeftToLine size={16} />
+                            <Activity size={17} className="min-[1230px]:hidden" />
+                            <span className="hidden min-[1230px]:inline">Chords Visualizer</span>
                         </Button>
+                        <Button
+                            variant={FFTDeviceConnected ? "default" : "outline"}
+                            className="flex items-center gap-1 rounded-none"
+                            onClick={() => switchToView('fft')}
+                            disabled={isRecordingRef.current || isPauseState}
+                        >
+                            <AudioLines size={17} className="min-[1230px]:hidden" />
+                            <span className="hidden min-[1230px]:inline">FFT Visualizer</span>
+                        </Button>
+                        <Button
+                            variant={RepForgeDeviceConnected ? "default" : "outline"}
+                            className="flex items-center gap-1 rounded-xl rounded-l-none"
+                            onClick={() => switchToView('repforge')}
+                            disabled={isRecordingRef.current || isPauseState}
+                        >
+                            <BicepsFlexed size={17} className="min-[1230px]:hidden" />
+                            <span className="hidden min-[1230px]:inline">Rep-Forge</span>
+                        </Button>
+                    </div>
+                )}
+                {/* Display (Play/Pause) button with tooltip */}
+                {isDeviceConnected && (
+                    <div className="flex items-center gap-0.5 mx-0 px-0">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        className="rounded-xl rounded-r-none"
+                                        onClick={handlePrevSnapshot}
+                                        disabled={isDisplay || leftArrowClickCount >= enabledClicks}
+                                    >
+                                        <ArrowLeftToLine size={16} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>View Previous Data Window</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1903,13 +1960,22 @@ const Connection: React.FC<ConnectionProps> = ({
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
-                        <Button
-                            className="rounded-xl rounded-l-none"
-                            onClick={handleNextSnapshot}
-                            disabled={isDisplay || leftArrowClickCount == 0}
-                        >
-                            <ArrowRightToLine size={16} />
-                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        className="rounded-xl rounded-l-none"
+                                        onClick={handleNextSnapshot}
+                                        disabled={isDisplay || leftArrowClickCount == 0}
+                                    >
+                                        <ArrowRightToLine size={16} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>View Next Data Window</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 )}
 
@@ -1951,7 +2017,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                         <FileArchive size={16} />
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="p-4 text-base shadow-lg rounded-xl w-full">
+                                <PopoverContent className="p-4 text-base shadow-lg rounded-xl w-full mx-4 mb-2">
                                     <div className="space-y-4">
                                         {/* List each file with download and delete actions */}
                                         {datasets.length > 0 ? (
@@ -2017,10 +2083,11 @@ const Connection: React.FC<ConnectionProps> = ({
                     >
                         <PopoverTrigger asChild>
                             <Button
-                                className="flex items-center justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
-                                disabled={isPauseState}
+                                className="flex items-center gap-1 justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
+                                disabled={isPauseState || isRecordingRef.current}
                             >
-                                Filter
+                                <FilterIcon size={17} className="min-[1230px]:hidden" />
+                                <span className="hidden min-[1230px]:inline">Filter</span>
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-50 p-4 mx-4 mb-2">
@@ -2047,47 +2114,55 @@ const Connection: React.FC<ConnectionProps> = ({
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 4)}
-                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                className={`flex items-center justify-center px-3 py-2 select-none border-0 ${RepForgeDeviceConnected ? "rounded-xl rounded-l-none" : "rounded-none"}
                         ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 4)
                                                         ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                         : "bg-white-500" // Active background
                                                     }`}
                                             >
                                                 <BicepsFlexed size={17} />
-                                            </Button> <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 3)}
-                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <Brain size={17} />
-                                            </Button> <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 1)}
-                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <Heart size={17} />
-                                            </Button> <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 2)}
-                                                className={`rounded-xl rounded-l-none border-0
-                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
-                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                        : "bg-white-500" // Active background
-                                                    }`}
-                                            >
-                                                <Eye size={17} />
                                             </Button>
+                                            {/* Rep-Forge only offers the muscle (EMG) filter */}
+                                            {!RepForgeDeviceConnected && (
+                                                <>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 3)}
+                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 3)
+                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                                : "bg-white-500" // Active background
+                                                            }`}
+                                                    >
+                                                        <Brain size={17} />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 1)}
+                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 1)
+                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                                : "bg-white-500" // Active background
+                                                            }`}
+                                                    >
+                                                        <Heart size={17} />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 2)}
+                                                        className={`rounded-xl rounded-l-none border-0
+                        ${Object.keys(appliedEXGFiltersRef.current).length === maxCanvasElementCountRef.current && Object.values(appliedEXGFiltersRef.current).every((value) => value === 2)
+                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                                : "bg-white-500" // Active background
+                                                            }`}
+                                                    >
+                                                        <Eye size={17} />
+                                                    </Button>
+                                                </>
+                                            )}
                                         </div>
                                         <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                                             <Button
@@ -2153,7 +2228,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() => handleFrequencySelectionEXG(index, 4)}
-                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                        className={`flex items-center justify-center px-3 py-2 select-none border-0 ${RepForgeDeviceConnected ? "rounded-xl rounded-l-none" : "rounded-none"}
                                                         ${appliedEXGFiltersRef.current[index] === 4
                                                                 ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
                                                                 : "bg-white-500" // Active background
@@ -2161,42 +2236,47 @@ const Connection: React.FC<ConnectionProps> = ({
                                                     >
                                                         <BicepsFlexed size={17} />
                                                     </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleFrequencySelectionEXG(index, 3)}
-                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                    {/* Rep-Forge only offers the muscle (EMG) filter */}
+                                                    {!RepForgeDeviceConnected && (
+                                                        <>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleFrequencySelectionEXG(index, 3)}
+                                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                                                       ${appliedEXGFiltersRef.current[index] === 3
-                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                                : "bg-white-500" // Active background
-                                                            }`}
-                                                    >
-                                                        <Brain size={17} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleFrequencySelectionEXG(index, 1)}
-                                                        className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
+                                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                                        : "bg-white-500" // Active background
+                                                                    }`}
+                                                            >
+                                                                <Brain size={17} />
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleFrequencySelectionEXG(index, 1)}
+                                                                className={`flex items-center justify-center px-3 py-2 rounded-none select-none border-0
                                                         ${appliedEXGFiltersRef.current[index] === 1
-                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                                : "bg-white-500" // Active background
-                                                            }`}
-                                                    >
-                                                        <Heart size={17} />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleFrequencySelectionEXG(index, 2)}
-                                                        className={`rounded-xl rounded-l-none border-0
+                                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                                        : "bg-white-500" // Active background
+                                                                    }`}
+                                                            >
+                                                                <Heart size={17} />
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleFrequencySelectionEXG(index, 2)}
+                                                                className={`rounded-xl rounded-l-none border-0
                                                         ${appliedEXGFiltersRef.current[index] === 2
-                                                                ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
-                                                                : "bg-white-500" // Active background
-                                                            }`}
-                                                    >
-                                                        <Eye size={17} />
-                                                    </Button>
+                                                                        ? "bg-green-700 hover:bg-white-500 text-white hover:text-white" // Disabled background
+                                                                        : "bg-white-500" // Active background
+                                                                    }`}
+                                                            >
+                                                                <Eye size={17} />
+                                                            </Button>
+                                                        </>
+                                                    )}
                                                 </div>
                                                 <div className="flex border border-input rounded-xl items-center mx-0 px-0">
                                                     <Button
@@ -2250,10 +2330,11 @@ const Connection: React.FC<ConnectionProps> = ({
                     <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
                         <PopoverTrigger asChild>
                             <Button
-                                className="flex items-center justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
-                                disabled={!isDisplay}
+                                className="flex items-center gap-1 justify-center px-3 py-2 select-none min-w-12 whitespace-nowrap rounded-xl"
+                                disabled={!isDisplay || isRecordingRef.current}
                             >
-                                Filter
+                                <FilterIcon size={17} className="min-[1230px]:hidden" />
+                                <span className="hidden min-[1230px]:inline">Filter</span>
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-50 p-4 mx-4 mb-2">
@@ -2416,55 +2497,79 @@ const Connection: React.FC<ConnectionProps> = ({
 
                 {FFTDeviceConnected && (
                     <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                className="flex items-center gap-1 py-2 px-4 rounded-xl font-semibold"
-                                disabled={isfftLoading || isPauseState}
-                            >
-                                Channels
-                            </Button>
-                        </PopoverTrigger>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            className="flex items-center justify-center select-none whitespace-nowrap rounded-lg"
+                                            disabled={isfftLoading}
+                                        >
+                                            <Settings size={16} />
+                                        </Button>
+                                    </PopoverTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Channel Settings</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
 
-                        <PopoverContent className="w-full p-3 space-y-2 mx-4 mb-2">
-                            <div id="button-container" className="relative space-y-2 rounded-lg">
-                                {Array.from({ length: 2 }).map((_, container) => (
-                                    <div key={container} className="grid grid-cols-8 gap-2">
-                                        {Array.from({ length: 8 }).map((_, col) => {
-                                            const index = container * 8 + col;
-                                            const isChannelDisabled = index >= maxCanvasElementCountRef.current;
-                                            const isSelected = selectedChannel === index + 1; // Changed to check against single selected channel
-                                            const buttonStyle = isChannelDisabled
-                                                ? isDarkModeEnabled
-                                                    ? { backgroundColor: "#030c21", color: "gray" }
-                                                    : { backgroundColor: "#e2e8f0", color: "gray" }
-                                                : isSelected
-                                                    ? { backgroundColor: getCustomColor(index, activeTheme), color: "white" }
-                                                    : { backgroundColor: "white", color: "black" };
-                                            const isFirstInRow = col === 0;
-                                            const isLastInRow = col === 7;
-                                            const isFirstContainer = container === 0;
-                                            const isLastContainer = container === 1;
-                                            const roundedClass = `
-                    ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""}
-                    ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""}
-                    ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""}
-                    ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
-                `;
-
-                                            return (
-                                                <button
-                                                    key={index}
-                                                    onClick={() => !isChannelDisabled && setSelectedChannel(index + 1)} // Toggle single channel
-                                                    disabled={isChannelDisabled}
-                                                    style={buttonStyle}
-                                                    className={`w-full h-8 text-xs font-medium py-1 border border-gray-300 dark:border-gray-600 transition-colors duration-200 ${roundedClass}`}
-                                                >
-                                                    {`CH${index + 1}`}
-                                                </button>
-                                            );
-                                        })}
+                        {/* Same layout as the other visualizers' settings popover */}
+                        <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm mx-4 mb-2">
+                            <div className={`space-y-6 ${!isDisplay ? "flex justify-center" : ""}`}>
+                                {/* Channel selection hidden while paused / recording, like the other visualizers */}
+                                {isDisplay && !isRecordingRef.current && (
+                                <div className="w-full">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xs font-semibold text-gray-500 m-2 ml-0">
+                                            <span className="font-bold text-gray-600">Channel:</span> CH{selectedChannel}
+                                        </h3>
                                     </div>
-                                ))}
+                                    <div id="button-container" className="relative space-y-2 rounded-lg">
+                                        {Array.from({ length: 2 }).map((_, container) => (
+                                            <div key={container} className="grid grid-cols-8 gap-2">
+                                                {Array.from({ length: 8 }).map((_, col) => {
+                                                    const index = container * 8 + col;
+                                                    const isChannelDisabled = index >= maxCanvasElementCountRef.current;
+                                                    const isSelected = selectedChannel === index + 1; // Changed to check against single selected channel
+                                                    const buttonStyle = isChannelDisabled
+                                                        ? isDarkModeEnabled
+                                                            ? { backgroundColor: "#030c21", color: "gray" }
+                                                            : { backgroundColor: "#e2e8f0", color: "gray" }
+                                                        : isSelected
+                                                            ? { backgroundColor: getCustomColor(index, activeTheme), color: "white" }
+                                                            : { backgroundColor: "white", color: "black" };
+                                                    const isFirstInRow = col === 0;
+                                                    const isLastInRow = col === 7;
+                                                    const isFirstContainer = container === 0;
+                                                    const isLastContainer = container === 1;
+                                                    const roundedClass = `
+                            ${isFirstInRow && isFirstContainer ? "rounded-tl-lg" : ""}
+                            ${isLastInRow && isFirstContainer ? "rounded-tr-lg" : ""}
+                            ${isFirstInRow && isLastContainer ? "rounded-bl-lg" : ""}
+                            ${isLastInRow && isLastContainer ? "rounded-br-lg" : ""}
+                        `;
+
+                                                    return (
+                                                        <button
+                                                            key={index}
+                                                            onClick={() => !isChannelDisabled && setSelectedChannel(index + 1)} // Toggle single channel
+                                                            disabled={isChannelDisabled}
+                                                            style={buttonStyle}
+                                                            className={`w-full h-8 text-xs font-medium py-1 border border-gray-300 dark:border-gray-600 transition-colors duration-200 ${roundedClass}`}
+                                                        >
+                                                            {`CH${index + 1}`}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                )}
+
+                                {viewControls}
                             </div>
                         </PopoverContent>
                     </Popover>
@@ -2477,7 +2582,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                 <Settings size={16} />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm">
+                        <PopoverContent className="w-[30rem] p-4 rounded-md shadow-md text-sm mx-4 mb-2">
                             <TooltipProvider>
                                 <div className={`space-y-6 ${!isDisplay ? "flex justify-center" : ""}`}>
                                     {/* Channel Selection */}
@@ -2489,7 +2594,7 @@ const Connection: React.FC<ConnectionProps> = ({
                                                     <h3 className="text-xs font-semibold text-gray-500">
                                                         <span className="font-bold text-gray-600">Channels Count:</span> {selectedChannels.length}
                                                     </h3>
-                                                    {!(selectedChannels.length === maxCanvasElementCountRef.current && manuallySelected) && (
+                                                    {!(selectedChannels.length === getMaxSelectableChannels() && manuallySelected) && (
                                                         <button
                                                             onClick={handleSelectAllToggle}
                                                             className={`px-4 py-1 text-xs font-light rounded-lg transition m-2 ${isSelectAllDisabled
@@ -2508,8 +2613,10 @@ const Connection: React.FC<ConnectionProps> = ({
                                                         <div key={container} className="grid grid-cols-8 gap-2">
                                                             {Array.from({ length: 8 }).map((_, col) => {
                                                                 const index = container * 8 + col;
-                                                                const isChannelDisabled = index >= maxCanvasElementCountRef.current;
                                                                 const isSelected = selectedChannels.includes(index + 1);
+                                                                const isBeyondDeviceChannels = index >= maxCanvasElementCountRef.current;
+                                                                const isAtRepForgeCap = RepForgeDeviceConnected && !isSelected && selectedChannels.length >= MAX_REPFORGE_CHANNELS;
+                                                                const isChannelDisabled = isBeyondDeviceChannels || isAtRepForgeCap;
                                                                 const buttonStyle = isChannelDisabled
                                                                     ? isDarkModeEnabled
                                                                         ? { backgroundColor: "#030c21", color: "gray" }
@@ -2547,87 +2654,13 @@ const Connection: React.FC<ConnectionProps> = ({
                                         </div>
                                     )}
 
-                                    {/* Zoom Controls */}
-                                    <div className={`relative w-full flex flex-col ${!isDisplay ? "" : "items-start"} text-sm`}>
-                                        {/* Zoom Level label positioned at top left with margin/padding */}
-                                        <p className="text-xs justify-start font-semibold text-gray-500 ">
-                                            <span className="font-bold text-gray-600">Zoom Level:</span> {Zoom}x
-                                        </p>
-                                        <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600 mb-4">
-                                            {/* Button for setting Zoom to 1 */}
-                                            <button
-                                                className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                onClick={() => SetZoom(1)}
-                                            >
-                                                1
-                                            </button>
-
-                                            <input
-                                                type="range"
-                                                min="1"
-                                                max="10"
-                                                value={Zoom}
-                                                onChange={(e) => SetZoom(Number(e.target.value))}
-                                                style={{
-                                                    background: `linear-gradient(to right, rgb(101, 136, 205) ${((Zoom - 1) / 9) * 100}%, rgb(165, 165, 165) ${((Zoom - 1) / 9) * 11}%)`,
-                                                }}
-                                                className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-800 focus:outline-none focus:ring-0 slider-input"
-                                            />
-
-                                            {/* Button for setting Zoom to 10 */}
-                                            <button
-                                                className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                onClick={() => SetZoom(10)}
-                                            >
-                                                10
-                                            </button>
-                                            <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px;
-                                            background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; } `}</style>
-                                        </div>
-                                    </div>
-
-                                    {/* Time-Base Selection */}
-                                    {isDisplay && (
-                                        <div className="relative w-full flex flex-col items-start  text-sm">
-                                            <p className="text-xs font-semibold text-gray-500 ">
-                                                <span className="font-bold text-gray-600">Time Base:</span> {timeBase} Seconds
-                                            </p>
-                                            <div className="relative w-[28rem] flex items-center rounded-lg py-2 border border-gray-300 dark:border-gray-600">
-                                                {/* Buttons & Slider */}
-                                                <button
-                                                    className="text-gray-700 dark:text-gray-400 mx-1 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                    onClick={() => setTimeBase(1)}
-                                                >
-                                                    1
-                                                </button>
-                                                <input
-                                                    type="range"
-                                                    min="1"
-                                                    max="10"
-                                                    value={timeBase}
-                                                    onChange={(e) => setTimeBase(Number(e.target.value))}
-                                                    style={{
-                                                        background: `linear-gradient(to right, rgb(101, 136, 205) ${((timeBase - 1) / 9) * 100}%, rgb(165, 165, 165) ${((timeBase - 1) / 9) * 11}%)`,
-                                                    }}
-                                                    className="flex-1 h-[0.15rem] rounded-full appearance-none bg-gray-200 focus:outline-none focus:ring-0 slider-input"
-                                                />
-                                                <button
-                                                    className="text-gray-700 dark:text-gray-400 mx-2 px-2 py-1 border rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                    onClick={() => setTimeBase(10)}
-                                                >
-                                                    10
-                                                </button>
-                                                <style jsx>{` input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;appearance: none; width: 15px; height: 15px;
-                                                background-color: rgb(101, 136, 205); border-radius: 50%; cursor: pointer; }`}</style>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {viewControls}
                                 </div>
                             </TooltipProvider>
                         </PopoverContent>
                     </Popover>
                 )}
-                {FFTDeviceConnected && (
+                {isDeviceConnected && !isSerial && (
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button

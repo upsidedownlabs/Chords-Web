@@ -1,4 +1,5 @@
 'use client';
+import { captureLines, restoreLines, type FrozenLines } from "./frozenPlot";
 import React, {
     useEffect,
     useRef,
@@ -15,6 +16,9 @@ import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 import BrightCandleView from "./CandleLit";
 
 interface CanvasProps {
+    pauseRef: React.RefObject<boolean>;
+    snapShotRef: React.MutableRefObject<boolean[]>;
+    currentSnapshot: number;
     selectedChannel: number;
     canvasCount?: number;
     selectedChannels: number[];
@@ -26,6 +30,9 @@ interface CanvasProps {
 const FFT = forwardRef(
     (
         {
+            pauseRef,
+            snapShotRef,
+            currentSnapshot,
             selectedChannel,
             canvasCount = 6,
             timeBase = 4,
@@ -43,7 +50,8 @@ const FFT = forwardRef(
         sampleupdateref.current = currentSamplingRate / 10;
         const canvasRef = useRef<HTMLCanvasElement>(null);
         const containerRef = useRef<HTMLDivElement>(null);
-        const { theme } = useTheme();
+        // Use resolvedTheme, not theme: see the comment in Canvas.tsx.
+        const { resolvedTheme: theme } = useTheme();
         const maxFreq = 60;
         const [betaPower, setBetaPower] = useState<number>(0);
         const betaPowerRef = useRef<number>(0);
@@ -56,6 +64,18 @@ const FFT = forwardRef(
         const wglPlotsref = useRef<WebglPlot[]>([]);
         const linesRef = useRef<WebglLine[]>([]);
         const sweepPositions = useRef<number[]>(new Array(6).fill(0));
+
+        // Buffers used to remember the last few windows of data so that
+        // pausing can step back through recently seen snapshots.
+        const NUM_SNAPSHOT_BUFFERS = 6;
+        const rawBufferRef = useRef<number[][]>(
+            Array.from({ length: NUM_SNAPSHOT_BUFFERS }, () => [])
+        );
+        const fftSnapshotBufferRef = useRef<number[][]>(
+            Array.from({ length: NUM_SNAPSHOT_BUFFERS }, () => [])
+        );
+        const activeBufferIndexRef = useRef<number>(0);
+        const dataIndicesRef = useRef<number[]>([]);
 
         // Extend views to include 'fullcandle'
         const [activeBandPowerView, setActiveBandPowerView] = useState<
@@ -189,15 +209,51 @@ const FFT = forwardRef(
         const safeBufferSize = Math.max(1, Math.floor(rawBufferSize) || 1);
         const filter = new SmoothingFilter(safeBufferSize, 1);
 
+        // Reset the pause/snapshot buffers whenever the analyzed channel changes,
+        // since previously buffered data no longer corresponds to the new channel.
+        useEffect(() => {
+            rawBufferRef.current = Array.from({ length: NUM_SNAPSHOT_BUFFERS }, () => []);
+            fftSnapshotBufferRef.current = Array.from({ length: NUM_SNAPSHOT_BUFFERS }, () => []);
+            activeBufferIndexRef.current = 0;
+            dataIndicesRef.current = [];
+            snapShotRef.current = Array(NUM_SNAPSHOT_BUFFERS).fill(false);
+        }, [selectedChannel]);
+
+        // Buffers the raw sample into the currently active snapshot slot, flipping
+        // to the next slot once it's full (mirrors the Canvas component's approach).
+        const processBufferedData = useCallback((value: number) => {
+            const currentBuffer = rawBufferRef.current[activeBufferIndexRef.current];
+            currentBuffer.push(value);
+
+            if (currentBuffer.length >= dataPointCountRef.current) {
+                snapShotRef.current[activeBufferIndexRef.current] = true;
+                activeBufferIndexRef.current = (activeBufferIndexRef.current + 1) % NUM_SNAPSHOT_BUFFERS;
+                snapShotRef.current[activeBufferIndexRef.current] = false;
+                rawBufferRef.current[activeBufferIndexRef.current] = [];
+            }
+
+            // Indices of the 5 *complete* previous windows, oldest excluded and
+            // the still-filling active slot excluded — index 0 is the most
+            // recently completed window, not the one currently being written.
+            dataIndicesRef.current = Array.from(
+                { length: 5 },
+                (_, i) => (activeBufferIndexRef.current - i - 1 + NUM_SNAPSHOT_BUFFERS) % NUM_SNAPSHOT_BUFFERS
+            );
+        }, [snapShotRef]);
 
         useImperativeHandle(
             ref,
             () => ({
                 updateData(data: number[]) {
+                    // While paused, ignore incoming live data entirely; the display
+                    // is instead driven by whichever buffered snapshot is selected.
+                    if (!pauseRef.current) return;
+
                     for (let i = 0; i < 1; i++) {
                         const sensorValue = data[selectedChannel];
                         fftBufferRef.current[i].push(sensorValue);
                         updatePlot(sensorValue, Zoom);
+                        processBufferedData(sensorValue);
 
                         if (fftBufferRef.current[i].length > fftSize) {
                             fftBufferRef.current[i].shift();
@@ -215,13 +271,14 @@ const FFT = forwardRef(
                                 newData[i] = smoothedMags;
                                 return newData;
                             });
+                            fftSnapshotBufferRef.current[activeBufferIndexRef.current] = smoothedMags;
                             // prevent overflow
                             if (samplesReceivedRef.current > 1e9) samplesReceivedRef.current = 0;
                         }
                     }
                 },
             }),
-            [Zoom, timeBase, canvasCount, fftSize, currentSamplingRate, selectedChannel]
+            [Zoom, timeBase, canvasCount, fftSize, currentSamplingRate, selectedChannel, processBufferedData, pauseRef]
         );
 
         class FFT {
@@ -365,13 +422,111 @@ const FFT = forwardRef(
         }, [linesRef, wglPlotsref.current[0], dataPointCountRef, sweepPositions]);
 
         useEffect(() => {
+            // The waveform shows `timeBase` seconds, like the main Canvas
+            // (it used to be a fixed 2000 points = 8 s at 250 Hz).
+            dataPointCountRef.current = Math.max(1, Math.round(currentSamplingRate * timeBase));
+            sweepPositions.current[0] = 0;
+
+            // Buffered snapshots were sized for the old window length.
+            rawBufferRef.current = Array.from({ length: NUM_SNAPSHOT_BUFFERS }, () => []);
+            fftSnapshotBufferRef.current = Array.from({ length: NUM_SNAPSHOT_BUFFERS }, () => []);
+            activeBufferIndexRef.current = 0;
+            dataIndicesRef.current = [];
+            snapShotRef.current = Array(NUM_SNAPSHOT_BUFFERS).fill(false);
+        }, [timeBase, currentSamplingRate]);
+
+        // Redraws the selected snapshot; set once updateSnapshot exists (below).
+        const redrawPausedRef = useRef<() => void>(() => { });
+
+        useEffect(() => {
+            // Rebuilt plot restarts its sweep from the left (same as the
+            // Chords visualizer on a theme / channel change).
+            sweepPositions.current[0] = 0;
             createCanvasElement();
-        }, [theme, timeBase]);
+            // The new line is empty; while paused nothing refills it, so
+            // redraw the snapshot being viewed (e.g. after a theme change).
+            if (!pauseRef.current) redrawPausedRef.current();
+        }, [theme, timeBase, currentSamplingRate, selectedChannel]);
+
+        // Renders whichever buffered snapshot is selected while paused, replaying
+        // both the raw waveform and its matching FFT magnitudes (mirrors Canvas).
+        const updateSnapshot = useCallback((snapshotIndex: number) => {
+            const bufferIndex = dataIndicesRef.current[snapshotIndex];
+            if (bufferIndex === undefined) return;
+
+            const bufferedRaw = rawBufferRef.current[bufferIndex];
+            const line = linesRef.current[0];
+            if (bufferedRaw && bufferedRaw.length && line) {
+                try {
+                    // Write every point directly (NaN past the end of the buffer)
+                    // rather than shiftAdd, so the paused view always shows exactly
+                    // the selected snapshot instead of blending in stale live data.
+                    for (let p = 0; p < line.numPoints; p++) {
+                        line.setY(p, p < bufferedRaw.length ? bufferedRaw[p] : NaN);
+                    }
+                } catch (error) {
+                    console.warn("Error replaying buffered snapshot:", error);
+                }
+            }
+
+            const bufferedFft = fftSnapshotBufferRef.current[bufferIndex];
+            if (bufferedFft && bufferedFft.length) {
+                setFftData((prevData) => {
+                    const newData = [...prevData];
+                    newData[0] = bufferedFft;
+                    return newData;
+                });
+            }
+
+            wglPlotsref.current[0]?.update();
+        }, []);
+
+        // Screen at the moment of pausing: waveform line + spectrum.
+        const frozenRef = useRef<{ lines: FrozenLines; fft: number[][] } | null>(null);
+        const fftDataRef = useRef(fftData);
+        useEffect(() => {
+            fftDataRef.current = fftData;
+        }, [fftData]);
+
+        const restoreFrozen = useCallback(() => {
+            const frozen = frozenRef.current;
+            if (!frozen) return;
+            restoreLines(linesRef.current, frozen.lines);
+            setFftData(frozen.fft);
+            const wglp = wglPlotsref.current[0];
+            if (wglp) {
+                wglp.gScaleY = Zoom;
+                wglp.update();
+            }
+        }, [Zoom]);
+
+        // Snapshot 0 is the frozen screen; 1+ step back through complete windows.
+        const drawPaused = useCallback((snapshot: number) => {
+            if (!frozenRef.current) {
+                frozenRef.current = { lines: captureLines(linesRef.current), fft: fftDataRef.current };
+            }
+            if (snapshot === 0) restoreFrozen();
+            else updateSnapshot(snapshot - 1);
+        }, [restoreFrozen, updateSnapshot]);
+
+        useEffect(() => {
+            redrawPausedRef.current = () => drawPaused(currentSnapshot);
+        }, [drawPaused, currentSnapshot]);
 
         const animate = useCallback(() => {
-            wglPlotsref.current[0].update();
-            requestAnimationFrame(animate);
-        }, [wglPlotsref, Zoom]);
+            if (!pauseRef.current) {
+                drawPaused(currentSnapshot);
+            } else {
+                // Resumed: put the paused screen back so the sweep continues
+                // from where it stopped.
+                if (frozenRef.current) {
+                    restoreFrozen();
+                    frozenRef.current = null;
+                }
+                wglPlotsref.current[0]?.update();
+                requestAnimationFrame(animate);
+            }
+        }, [wglPlotsref, Zoom, pauseRef.current, currentSnapshot, drawPaused, restoreFrozen]);
 
         useEffect(() => {
             requestAnimationFrame(animate);
@@ -515,34 +670,35 @@ const FFT = forwardRef(
      bg-highlight rounded-2xl
     "
                     >
-                        {/* only show when we’re on the Beta Candle view */}
-                        {activeBandPowerView === 'brightcandle' && (
-                            <button
-                                onClick={() => setActiveBandPowerView('fullcandle')}
-                                className="
-          absolute top-2 right-2 
-          p-2 bg-transparent 
-          text-gray-500 hover:text-gray-700 
-          transition-all duration-300
-        "
-                            >
-                                <Expand />
-                            </button>
-                        )}
-
-                        <div className="flex justify-center space-x-2 pt-2 rounded-t-xl">
-                            <button
-                                onClick={() => setActiveBandPowerView('bandpower')}
-                                className={buttonStyles('bandpower')}
-                            >
-                                Band Power
-                            </button>
-                            <button
-                                onClick={() => setActiveBandPowerView('brightcandle')}
-                                className={buttonStyles('brightcandle')}
-                            >
-                                Beta Candle
-                            </button>
+                         {/* Tabs centred, fullscreen button in its own column on the
+                            right: both side columns reserve room for the button, so
+                            the tabs stay centred and the two can never overlap.
+                            z-10: the candle view overflows upward and must never cover these. */}
+                        <div className="relative z-10 grid grid-cols-[minmax(2.5rem,1fr)_auto_minmax(2.5rem,1fr)] items-center gap-2 px-2 pt-2 rounded-t-xl">
+                            <div className="col-start-2 flex justify-center space-x-2">
+                                <button
+                                    onClick={() => setActiveBandPowerView('bandpower')}
+                                    className={buttonStyles('bandpower')}
+                                >
+                                    Band Power
+                                </button>
+                                <button
+                                    onClick={() => setActiveBandPowerView('brightcandle')}
+                                    className={buttonStyles('brightcandle')}
+                                >
+                                    Beta Candle
+                                </button>
+                            </div>
+                            {/* only show when we’re on the Beta Candle view */}
+                            {activeBandPowerView === 'brightcandle' && (
+                                <button
+                                    onClick={() => setActiveBandPowerView('fullcandle')}
+                                    className="col-start-3 justify-self-end p-2 bg-transparent text-gray-500 hover:text-gray-700 transition-all duration-300"
+                                    aria-label="Fullscreen"
+                                >
+                                    <Expand />
+                                </button>
+                            )}
                         </div>
 
                         {renderBandPowerView()}

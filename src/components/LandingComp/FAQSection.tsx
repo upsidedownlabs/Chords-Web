@@ -14,7 +14,7 @@ const FAQSection = () => {
       question: `What is the purpose of Chords?`,
       answer: (
         <>
-          <Chords /> is made to plot biopotential signals like ECG, EMG or EOG
+          <Chords /> is made to plot biopotential signals like ECG, EMG, EEG and EOG
           in real time. It is made for educational & research purposes.
         </>
       ),
@@ -24,7 +24,7 @@ const FAQSection = () => {
       answer: (
         <>
           It collects the biopotential data from the device connected to the
-          serial port. It does not collect any private data or cookies from the
+          serial port and BLE (Bluetooth Low Energy). It does not collect any private data or cookies from the
           user.
         </>
       ),
@@ -52,7 +52,7 @@ const FAQSection = () => {
         <>
           You can collect the required hardware from{" "}
           <Link
-            href="https://linktr.ee/Upside_Down_Labs_Stores"
+            href="https://www.upsidedownlabs.in/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 hover:underline underline-offset-4"
@@ -77,7 +77,8 @@ const FAQSection = () => {
             web serial api
           </Link>{" "}
           to connect to the device port, which is only supported in chromium
-          based broswers (Google chrome, Opera, Microsoft Edge).
+          based browsers (Google Chrome, Opera, Microsoft Edge) and Firefox
+          (version 151 and above).
         </>
       ),
     },
@@ -103,9 +104,9 @@ const FAQSection = () => {
       question: "What data format does Chords support?",
       answer: (
         <>
-          Chords supports an array format: [A0, A1, ..., A5, counter], where
+          Chords supports an array format: [counter, A0, A1, ..., A5], where
           A0-A5 are raw signal values and counter is a uint8_t (0-255). Array
-          example : [468, 472, 463, 466, 465, 434, 10]. For implementation
+          example : [10, 468, 472, 463, 466, 465, 434]. For implementation
           details, see our{" "}
           <Link
             href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware"
@@ -123,8 +124,10 @@ const FAQSection = () => {
       question: "Which microcontrollers are supported by Chords?",
       answer: (
         <>
-          Arduino Uno, Arduino Nano & Maker Uno are tested and supported by{" "}
-          <Chords />.
+          Arduino Uno R3, Arduino Nano, Arduino Mega 2560, Arduino Uno R4,
+          Arduino GIGA R1, Maker Uno, Raspberry Pi Pico, ESP32-S3,
+          NPG-Lite, STM32G4 & STM32F4 based boards are tested and supported
+          by <Chords />.
         </>
       ),
     },

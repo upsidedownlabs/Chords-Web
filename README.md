@@ -1,4 +1,4 @@
-![Chords Default](public/assets/dark/HeroSignalsClean.png)
+![Chords Default](public/assets/dark/chords.png)
 
 
 Chords is an application based on Web Serial connection, you can connect [Compatible Boards](https://github.com/upsidedownlabs/Chords-Arduino-Firmware) after uploading the ArduinoFirmware.ino code to it, you'll recieve data signals from the board which can be visualized on web using Chords. Users can visualize ECG and EMG signals.
@@ -43,10 +43,6 @@ Chords is an application based on Web Serial connection, you can connect [Compat
 - [WebGl Plot](https://webgl-plot.vercel.app/): Real time charting library.
 - [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) Browser-based database for storing recorded data.
 
-## Resources
-
-- [Vendors](src/components/vendors.ts) list for board name and there vendor id are taken from [Stackblitz](https://stackblitz.com/edit/typescript-web-serial?file=vendors.ts) created by [William Grasel](https://github.com/willgm)
-
 ## Icons Used
 - [Lucide React](https://lucide.dev/guide/packages/lucide-react)
 
@@ -58,7 +54,7 @@ Chords is an application based on Web Serial connection, you can connect [Compat
 
 - **Enhance Recording Experience** : Improve reacording feature 
   - [X] **Multiple file download support** : We’re excited to enhance your options for downloading recorded data! Currently, you can record a file and choose to save or delete it. Soon, you’ll be able to download multiple files at once and have the flexibility to download or delete individual recorded files as needed.
-  - [ ] **Improve Recording Functionality** : Resolve delays in updating the canvas count to ensure the downloaded file shows accurate values instantly. Ensure smooth recording performance for durations exceeding 5 minutes without any lag or errors.
+  - [X] **Improve Recording Functionality** : Resolve delays in updating the canvas count to ensure the downloaded file shows accurate values instantly. Ensure smooth recording performance for durations exceeding 5 minutes without any lag or errors.
 
 
 - [X] **CSV compatibility with [Chords Python](https://github.com/upsidedownlabs/Chords-Python)** : we will update the CSV data format and file names for both chords-web and chords-python so that you can use csvplotter.py to easily plot the recorded data.

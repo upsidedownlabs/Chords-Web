@@ -15,6 +15,9 @@ const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => (
+  // Portal to <body> so the tooltip isn't trapped under the plots by a
+  // parent's stacking context (e.g. the navbar's backdrop-blur).
+  <TooltipPrimitive.Portal>
   <TooltipPrimitive.Content
     ref={ref}
     sideOffset={sideOffset}
@@ -24,6 +27,7 @@ const TooltipContent = React.forwardRef<
     )}
     {...props}
   />
+  </TooltipPrimitive.Portal>
 ))
 TooltipContent.displayName = TooltipPrimitive.Content.displayName
 

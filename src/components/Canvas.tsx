@@ -6,6 +6,7 @@ import React, {
     useImperativeHandle,
     forwardRef,
 } from "react";
+import { captureLines, restoreLines, type FrozenLines } from "./frozenPlot";
 import { useTheme } from "next-themes";
 import { BitSelection } from "./DataPass";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
@@ -39,7 +40,12 @@ const Canvas = forwardRef(
         }: CanvasProps,
         ref
     ) => {
-        const { theme } = useTheme();
+        // Use resolvedTheme, not theme: the app defaults to the "system"
+        // setting, so `theme` stays the literal string "system" until the
+        // user manually picks light/dark — every `theme === "dark"` check
+        // below would then be false even on a dark system, leaving the
+        // WebGL-drawn lines/grid in light colors against a dark page.
+        const { resolvedTheme: theme } = useTheme();
         const previousCounterRef = useRef<number | null>(null); // Variable to store the previous counter value for loss detection
         const canvasContainerRef = useRef<HTMLDivElement>(null);
         const [numChannels, setNumChannels] = useState<number>(selectedChannels.length);
@@ -48,6 +54,7 @@ const Canvas = forwardRef(
         const [wglPlots, setWglPlots] = useState<WebglPlot[]>([]);
         const [lines, setLines] = useState<WebglLine[]>([]);
         const linesRef = useRef<WebglLine[]>([]);
+        const frozenLinesRef = useRef<FrozenLines | null>(null); // screen at the moment of pausing
         const [samplingRate, setSamplingRate] = useState<number>(500);
         const sweepPositions = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
         const currentSweepPos = useRef<number[]>(new Array(6).fill(0)); // Array for sweep positions
@@ -75,15 +82,27 @@ const Canvas = forwardRef(
         }, []);
 
         useEffect(() => {
+            selectedChannelsRef.current = selectedChannels;
             dataPointCountRef.current = (currentSamplingRate * timeBase);
 
-        }, [timeBase]);
-
-        useEffect(() => {
-            selectedChannelsRef.current = selectedChannels;
-        }, [selectedChannels]);
-
-        const prevCanvasCountRef = useRef<number>(canvasCount);
+            // Any change to which channels are selected (not just how many),
+            // or to the window size (timeBase / sampling rate), invalidates
+            // every buffered snapshot: a slot may hold data for a channel
+            // that's no longer shown, line up with the wrong index (e.g.
+            // swapping CH1 for CH3 while keeping the count at 2), or be sized
+            // for a different window length than buffers filled afterward.
+            // Reset all 6 buffers so pause/rewind never mixes stale or
+            // mismatched-length data into the "previous windows" view.
+            for (let bufferIndex = 0; bufferIndex < 6; bufferIndex++) {
+                array3DRef.current[bufferIndex] = Array.from(
+                    { length: selectedChannels.length },
+                    () => []
+                );
+                snapShotRef.current[bufferIndex] = false;
+            }
+            activeBufferIndexRef.current = 0;
+            dataIndicesRef.current = [];
+        }, [selectedChannels, timeBase, currentSamplingRate, snapShotRef]);
 
         const processIncomingData = (incomingData: number[]) => {
             // Ensure we have valid references
@@ -91,18 +110,6 @@ const Canvas = forwardRef(
 
             const currentBuffer = array3DRef.current[activeBufferIndexRef.current];
             if (!currentBuffer) return;
-
-            // Handle canvas count changes and reset buffers
-            if (prevCanvasCountRef.current !== canvasCount) {
-                for (let bufferIndex = 0; bufferIndex < 6; bufferIndex++) {
-                    array3DRef.current[bufferIndex] = Array.from(
-                        { length: selectedChannelsRef.current.length },
-                        () => []
-                    );
-                    snapShotRef.current[bufferIndex] = false;
-                }
-                prevCanvasCountRef.current = canvasCount;
-            }
 
             // Process incoming data for each selected channel
             selectedChannelsRef.current.forEach((channelNumber, i) => {
@@ -149,14 +156,15 @@ const Canvas = forwardRef(
             // Reset when timeBase changes
             currentSweepPos.current = new Array(numChannels).fill(0);
             sweepPositions.current = new Array(numChannels).fill(0);
-        }, [timeBase, theme]);
+        }, [timeBase, theme, selectedChannels]); // plots are rebuilt: restart the sweep from the left
 
         useImperativeHandle(
             ref,
             () => ({
                 updateData(data: number[]) {
                     // Reset the sweep positions if the number of channels has changed
-                    if (currentSweepPos.current.length !== numChannels || !pauseRef.current) {
+                    // (not on pause: resuming continues from the frozen cursor)
+                    if (currentSweepPos.current.length !== numChannels) {
                         currentSweepPos.current = new Array(numChannels).fill(0);
                         sweepPositions.current = new Array(numChannels).fill(0);
                     }
@@ -374,10 +382,25 @@ const Canvas = forwardRef(
 
         const animate = useCallback(() => {
             if (!pauseRef.current) {
-                // If paused, show the buffered data (this part runs when paused)
-                updatePlotSnapshot(currentSnapshot);
+                // Paused: snapshot 0 is the screen as it was when pausing;
+                // 1+ step back through the buffered complete windows.
+                if (!frozenLinesRef.current) frozenLinesRef.current = captureLines(linesRef.current);
+                if (currentSnapshot === 0) {
+                    restoreLines(linesRef.current, frozenLinesRef.current);
+                    wglPlots.forEach((wglp) => {
+                        wglp.gScaleY = Zoom;
+                        wglp.update();
+                    });
+                } else {
+                    updatePlotSnapshot(currentSnapshot - 1);
+                }
             } else {
-                // If not paused, continue with normal updates (e.g., real-time plotting)
+                // Resumed: put the paused screen back so the sweep continues
+                // from where it stopped.
+                if (frozenLinesRef.current) {
+                    restoreLines(linesRef.current, frozenLinesRef.current);
+                    frozenLinesRef.current = null;
+                }
                 wglPlots.forEach((wglp) => wglp.update());
                 requestAnimationFrame(animate); // Continue the animation loop
             }
@@ -401,14 +424,22 @@ const Canvas = forwardRef(
                     dataIndicesRef.current &&
                     dataIndicesRef.current[currentSnapshot] !== undefined &&
                     array3DRef.current[dataIndicesRef.current[currentSnapshot]] &&
-                    array3DRef.current[dataIndicesRef.current[currentSnapshot]][i]) {
+                    array3DRef.current[dataIndicesRef.current[currentSnapshot]][i] &&
+                    array3DRef.current[dataIndicesRef.current[currentSnapshot]][i].length > 0) {
 
                     const channelData = array3DRef.current[dataIndicesRef.current[currentSnapshot]][i];
-                    const yArray = new Float32Array(channelData);
 
                     const line = linesRef.current[i];
                     if (line) {
-                        line.shiftAdd(yArray);
+                        // Write the buffered snapshot directly instead of shiftAdd:
+                        // shiftAdd only overwrites `channelData.length` points and shifts
+                        // the rest, so a short/partial buffer would leave stale, previously
+                        // displayed data mixed in. Writing every point (NaN for any the
+                        // buffer hasn't filled yet) guarantees the paused view always shows
+                        // exactly the selected snapshot, not a blend with older frames.
+                        for (let p = 0; p < line.numPoints; p++) {
+                            line.setY(p, p < channelData.length ? channelData[p] : NaN);
+                        }
                     } else {
                         console.warn(`Line at index ${i} is undefined or null.`);
                     }

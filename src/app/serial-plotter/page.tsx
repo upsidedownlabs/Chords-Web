@@ -389,7 +389,7 @@ const SerialPlotter = () => {
 
     return (
         <div className="w-full h-screen mx-auto border rounded-2xl shadow-xl flex flex-col gap- overflow-hidden px-4">
-            <Navbar isDisplay={true} />
+            <Navbar />
 
             <div className="w-full flex flex-col gap-2 flex-grow overflow-hidden">
 

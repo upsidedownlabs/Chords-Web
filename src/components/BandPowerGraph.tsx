@@ -29,7 +29,8 @@ const Graph: React.FC<GraphProps> = ({
   );
   const prevBandPowerData = useRef<number[]>(Array(5).fill(0));
   const animationRef = useRef<number>(0);
-  const { theme } = useTheme();
+  // Use resolvedTheme, not theme: see the comment in Canvas.tsx.
+  const { resolvedTheme: theme } = useTheme();
 
   // Specific color strings for canvas drawing
   const bandColors = useMemo(

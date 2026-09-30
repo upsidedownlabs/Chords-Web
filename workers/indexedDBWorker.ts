@@ -378,9 +378,15 @@ const convertToCSV = (data: any[], canvasCount: number, selectedChannels: number
         .map((item, index) => {
             const filteredRow = [
                 item[0], // Counter
+                // Each recorded row stores every device channel in order
+                // (item[1] = channel 1, item[2] = channel 2, ...), regardless
+                // of which channels were selected. Index by the actual
+                // channel number here, not by position in selectedChannels —
+                // otherwise a non-contiguous or reordered selection (e.g.
+                // channels [2, 4]) pulls data from the wrong columns.
                 ...selectedChannels.map((channel, i) => {
-                    if (channel && item[i + 1] !== undefined) {
-                        return item[i + 1];
+                    if (channel && item[channel] !== undefined) {
+                        return item[channel];
                     } else {
                         console.warn(`Missing data for channel ${channel} in item ${index}:`, item);
                         return "";
