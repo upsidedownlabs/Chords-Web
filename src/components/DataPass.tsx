@@ -7,6 +7,7 @@ import Canvas from "./Canvas";
 import Navbar from "./Navbar"; // Import the Navbar
 import FFT from "./FFT"; // Import the FFT
 import RepForge from "./RepForge"; // Import the RepForge view
+import ECG from "./ECG"; // Import the ECG (heart rate) view
 
 export type BitSelection = 10 | 12 | 14 | 16;
 
@@ -15,6 +16,7 @@ const DataPass = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
   const [FFTConnected, setFFTConnected] = useState<boolean>(false); // Connection status
   const [RepForgeConnected, setRepForgeConnected] = useState<boolean>(false); // Connection status
+  const [ECGConnected, setECGConnected] = useState<boolean>(false); // Connection status
   const [isDisplay, setIsDisplay] = useState<boolean>(true); // Display state
   const [canvasCount, setCanvasCount] = useState<number>(1); // Number of canvases
   const [timeBase, setTimeBase] = useState<number>(4); // To track the current index to show
@@ -90,6 +92,15 @@ const DataPass = () => {
         currentSamplingRate={currentSamplingRate}
         timeBase={timeBase}
         />
+      ) : ECGConnected ? (
+        <ECG
+        pauseRef={pauseRef}
+        ref={canvasRef}
+        Zoom={Zoom}
+        selectedChannel={selectedChannel}
+        currentSamplingRate={currentSamplingRate}
+        timeBase={timeBase}
+        />
       ): (
         <Steps />
       )}
@@ -100,6 +111,7 @@ const DataPass = () => {
         Connection={setIsConnected}
         FFT={setFFTConnected}
         RepForge={setRepForgeConnected}
+        ECG={setECGConnected}
         selectedChannel={selectedChannel}
         setSelectedChannel={setSelectedChannel}
         selectedBits={selectedBits}

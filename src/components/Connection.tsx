@@ -63,6 +63,7 @@ interface ConnectionProps {
     Connection: (isDeviceConnected: boolean) => void;
     FFT: (isDeviceConnected: boolean) => void;
     RepForge: (isDeviceConnected: boolean) => void;
+    ECG: (isDeviceConnected: boolean) => void;
     selectedBits?: BitSelection; // Add `?` if it's optional
     setSelectedBits: React.Dispatch<React.SetStateAction<BitSelection>>;
     isDisplay: boolean;
@@ -93,6 +94,7 @@ const Connection: React.FC<ConnectionProps> = ({
     Connection,
     FFT,
     RepForge,
+    ECG,
     setSelectedBits,
     isDisplay,
     setIsDisplay,
@@ -119,6 +121,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     const [FFTDeviceConnected, setFFTDeviceConnected] = useState<boolean>(false); // Track if the device is connected
     const [RepForgeDeviceConnected, setRepForgeDeviceConnected] = useState<boolean>(false); // Track if RepForge view is active
+    const [ECGDeviceConnected, setECGDeviceConnected] = useState<boolean>(false); // Track if ECG view is active
     const isDeviceConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
     const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
     const isOldfirmwareRef = useRef<boolean>(false); // Ref to track if the device has old firmware
@@ -506,9 +509,9 @@ const Connection: React.FC<ConnectionProps> = ({
 
     };
     useEffect(() => {
-        const channels = FFTDeviceConnected ? [selectedChannel] : selectedChannels;
+        const channels = FFTDeviceConnected || ECGDeviceConnected ? [selectedChannel] : selectedChannels;
         setSelectedChannelsInWorker(channels);
-    }, [FFTDeviceConnected, selectedChannel, selectedChannels]);
+    }, [FFTDeviceConnected, ECGDeviceConnected, selectedChannel, selectedChannels]);
 
     const processBuffer = async (bufferIndex: number, canvasCount: number, selectChannel: number[]) => {
         if (!workerRef.current) {
@@ -884,6 +887,8 @@ const Connection: React.FC<ConnectionProps> = ({
             setSelectedChannels(initialSelectedChannelsRef.current);
             FFT(false);
             RepForge(false);
+            ECG(false);
+            setECGDeviceConnected(false);
             setFFTDeviceConnected(false);
             setRepForgeDeviceConnected(false);
             Connection(true);
@@ -975,6 +980,8 @@ const Connection: React.FC<ConnectionProps> = ({
                 setRepForgeDeviceConnected(false);
                 FFT(false);
                 RepForge(false);
+                ECG(false);
+                setECGDeviceConnected(false);
                 toast("Disconnected from device", {
                     action: {
                         label: "Reconnect",
@@ -1227,6 +1234,8 @@ const Connection: React.FC<ConnectionProps> = ({
 
             FFT(false);
             RepForge(false);
+            ECG(false);
+            setECGDeviceConnected(false);
             setFFTDeviceConnected(false);
             setRepForgeDeviceConnected(false);
             Connection(true);
@@ -1281,6 +1290,8 @@ const Connection: React.FC<ConnectionProps> = ({
             setRepForgeDeviceConnected(false);
             FFT(false);
             RepForge(false);
+            ECG(false);
+            setECGDeviceConnected(false);
             Connection(false);
 
             // Reset recording and pause/rewind state — this runs whether the
@@ -1623,14 +1634,16 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // Switch which application view is shown for the already-connected device,
     // without tearing down and re-establishing the Serial/BLE connection.
-    const switchToView = (view: 'chords' | 'fft' | 'repforge') => {
+    const switchToView = (view: 'chords' | 'fft' | 'repforge' | 'ecg') => {
         if (!isDeviceConnected) return;
 
         Connection(view === 'chords');
         FFT(view === 'fft');
         RepForge(view === 'repforge');
+        ECG(view === 'ecg');
         setFFTDeviceConnected(view === 'fft');
         setRepForgeDeviceConnected(view === 'repforge');
+        setECGDeviceConnected(view === 'ecg');
 
         // Filters are view-specific — reset them on every app switch so a
         // filter chosen in one view doesn't silently keep applying in another.
@@ -1642,6 +1655,13 @@ const Connection: React.FC<ConnectionProps> = ({
         if (view === 'fft') {
             setSelectedChannel(1);
             handleFrequencySelectionEXG(0, 3);
+        }
+
+        if (view === 'ecg') {
+            // Single channel; start on CH1 with the ECG filter on every channel
+            // so switching channels keeps a clean trace.
+            setSelectedChannel(1);
+            applyEXGFilterToAllChannels(Array.from({ length: maxCanvasElementCountRef.current }, (_, i) => i), 1);
         }
 
         if (view === 'repforge') {
@@ -1895,7 +1915,7 @@ const Connection: React.FC<ConnectionProps> = ({
                 {isDeviceConnected && (
                     <div className="flex items-center gap-0.5 mx-0 px-0">
                         <Button
-                            variant={!FFTDeviceConnected && !RepForgeDeviceConnected ? "default" : "outline"}
+                            variant={!FFTDeviceConnected && !RepForgeDeviceConnected && !ECGDeviceConnected ? "default" : "outline"}
                             className="flex items-center gap-1 rounded-xl rounded-r-none"
                             onClick={() => switchToView('chords')}
                             disabled={isRecordingRef.current || isPauseState}
@@ -1914,12 +1934,21 @@ const Connection: React.FC<ConnectionProps> = ({
                         </Button>
                         <Button
                             variant={RepForgeDeviceConnected ? "default" : "outline"}
-                            className="flex items-center gap-1 rounded-xl rounded-l-none"
+                            className="flex items-center gap-1 rounded-none"
                             onClick={() => switchToView('repforge')}
                             disabled={isRecordingRef.current || isPauseState}
                         >
                             <BicepsFlexed size={17} className="min-[1230px]:hidden" />
                             <span className="hidden min-[1230px]:inline">Rep-Forge</span>
+                        </Button>
+                        <Button
+                            variant={ECGDeviceConnected ? "default" : "outline"}
+                            className="flex items-center gap-1 rounded-xl rounded-l-none"
+                            onClick={() => switchToView('ecg')}
+                            disabled={isRecordingRef.current || isPauseState}
+                        >
+                            <Heart size={17} className="min-[1230px]:hidden" />
+                            <span className="hidden min-[1230px]:inline">ECG Visualizer</span>
                         </Button>
                     </div>
                 )}
@@ -2495,7 +2524,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     </Popover>
                 )}
 
-                {FFTDeviceConnected && (
+                {(FFTDeviceConnected || ECGDeviceConnected) && (
                     <Popover>
                         <TooltipProvider>
                             <Tooltip>
@@ -2575,7 +2604,7 @@ const Connection: React.FC<ConnectionProps> = ({
                     </Popover>
                 )}
 
-                {isDeviceConnected && !FFTDeviceConnected && (
+                {isDeviceConnected && !FFTDeviceConnected && !ECGDeviceConnected && (
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button className="flex items-center justify-center select-none whitespace-nowrap rounded-lg" >
