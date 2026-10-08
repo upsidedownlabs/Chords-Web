@@ -51,24 +51,31 @@ const Graph: React.FC<GraphProps> = ({
 
   const DELTA_RANGE = [0.5, 4],
     THETA_RANGE = [4, 8],
-    ALPHA_RANGE = [8, 12],
-    BETA_RANGE = [12, 30],
+    ALPHA_RANGE = [8, 13],
+    BETA_RANGE = [13, 30],
     GAMMA_RANGE = [30, 45];
-
-  const FREQ_RESOLUTION = samplingRate / 256;
 
   const calculateBandPower = useCallback(
     (fftMagnitudes: number[], freqRange: number[]) => {
       const [startFreq, endFreq] = freqRange;
-      const startIndex = Math.max(1, Math.floor(startFreq / FREQ_RESOLUTION));
-      const endIndex = Math.min(Math.floor(endFreq / FREQ_RESOLUTION), fftMagnitudes.length - 1);
+      // computeMagnitudes() returns fftSize / 2 values
+      const fftSize = fftMagnitudes.length * 2;
+      const freqResolution = samplingRate / fftSize;
+
+      // Treat ranges as [startFreq, endFreq)
+      const startIndex = Math.max(1, Math.ceil(startFreq / freqResolution));
+
+      const endIndex = Math.min(
+        Math.ceil(endFreq / freqResolution) - 1,
+        fftMagnitudes.length - 1,
+      );
       let power = 0;
       for (let i = startIndex; i <= endIndex; i++) {
         power += fftMagnitudes[i] * fftMagnitudes[i];
       }
       return power;
     },
-    [FREQ_RESOLUTION]
+    [samplingRate],
   );
 
   useEffect(() => {
