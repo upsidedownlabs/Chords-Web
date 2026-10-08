@@ -149,7 +149,7 @@ const FFT = forwardRef(
                 const freqStep = currentSamplingRate / fftSize;
                 const startIndex = Math.max(1, Math.ceil(startFreq / freqStep));
                 const endIndex = Math.min(
-                    Math.floor(endFreq / freqStep),
+                    Math.ceil(endFreq / freqStep) - 1,
                     magnitudes.length - 1
                 );
                 let power = 0;
