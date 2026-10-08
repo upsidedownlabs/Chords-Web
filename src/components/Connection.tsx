@@ -37,6 +37,8 @@ import {
     Activity,
     AudioLines,
     Wand2,
+    Check,
+    ChevronUp,
     Filter as FilterIcon
 } from "lucide-react";
 
@@ -86,6 +88,15 @@ interface ConnectionProps {
     snapShotRef: React.RefObject<boolean[]>;
 }
 
+// Visualizers offered by the app switcher, in menu order.
+type ViewId = 'chords' | 'fft' | 'repforge' | 'ecg';
+const VIEWS: { id: ViewId; label: string; description: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
+    { id: 'chords', label: 'Chords Visualizer', description: 'Raw multi-channel waveform', icon: Activity },
+    { id: 'fft', label: 'FFT Visualizer', description: 'Spectrum and band power', icon: AudioLines },
+    { id: 'repforge', label: 'Rep-Forge', description: 'EMG envelope and reps', icon: BicepsFlexed },
+    { id: 'ecg', label: 'ECG Visualizer', description: 'Heart rate with R-peaks', icon: Heart },
+];
+
 const MAX_RECORDING_MS = 24 * 60 * 60 * 1000; // recordings stop after 24 h at the latest
 
 const Connection: React.FC<ConnectionProps> = ({
@@ -122,6 +133,8 @@ const Connection: React.FC<ConnectionProps> = ({
     const [FFTDeviceConnected, setFFTDeviceConnected] = useState<boolean>(false); // Track if the device is connected
     const [RepForgeDeviceConnected, setRepForgeDeviceConnected] = useState<boolean>(false); // Track if RepForge view is active
     const [ECGDeviceConnected, setECGDeviceConnected] = useState<boolean>(false); // Track if ECG view is active
+    const [isViewMenuOpen, setIsViewMenuOpen] = useState<boolean>(false); // App switcher popover
+    const currentView: ViewId = FFTDeviceConnected ? 'fft' : RepForgeDeviceConnected ? 'repforge' : ECGDeviceConnected ? 'ecg' : 'chords';
     const isDeviceConnectedRef = useRef<boolean>(false); // Ref to track if the device is connected
     const isRecordingRef = useRef<boolean>(false); // Ref to track if the device is recording
     const isOldfirmwareRef = useRef<boolean>(false); // Ref to track if the device has old firmware
@@ -1634,7 +1647,7 @@ const Connection: React.FC<ConnectionProps> = ({
 
     // Switch which application view is shown for the already-connected device,
     // without tearing down and re-establishing the Serial/BLE connection.
-    const switchToView = (view: 'chords' | 'fft' | 'repforge' | 'ecg') => {
+    const switchToView = (view: ViewId) => {
         if (!isDeviceConnected) return;
 
         Connection(view === 'chords');
@@ -1912,46 +1925,51 @@ const Connection: React.FC<ConnectionProps> = ({
                 )}
 
                 {/* App switcher: open any application on the already-connected device */}
-                {isDeviceConnected && (
-                    <div className="flex items-center gap-0.5 mx-0 px-0">
-                        <Button
-                            variant={!FFTDeviceConnected && !RepForgeDeviceConnected && !ECGDeviceConnected ? "default" : "outline"}
-                            className="flex items-center gap-1 rounded-xl rounded-r-none"
-                            onClick={() => switchToView('chords')}
-                            disabled={isRecordingRef.current || isPauseState}
-                        >
-                            <Activity size={17} className="min-[1230px]:hidden" />
-                            <span className="hidden min-[1230px]:inline">Chords Visualizer</span>
-                        </Button>
-                        <Button
-                            variant={FFTDeviceConnected ? "default" : "outline"}
-                            className="flex items-center gap-1 rounded-none"
-                            onClick={() => switchToView('fft')}
-                            disabled={isRecordingRef.current || isPauseState}
-                        >
-                            <AudioLines size={17} className="min-[1230px]:hidden" />
-                            <span className="hidden min-[1230px]:inline">FFT Visualizer</span>
-                        </Button>
-                        <Button
-                            variant={RepForgeDeviceConnected ? "default" : "outline"}
-                            className="flex items-center gap-1 rounded-none"
-                            onClick={() => switchToView('repforge')}
-                            disabled={isRecordingRef.current || isPauseState}
-                        >
-                            <BicepsFlexed size={17} className="min-[1230px]:hidden" />
-                            <span className="hidden min-[1230px]:inline">Rep-Forge</span>
-                        </Button>
-                        <Button
-                            variant={ECGDeviceConnected ? "default" : "outline"}
-                            className="flex items-center gap-1 rounded-xl rounded-l-none"
-                            onClick={() => switchToView('ecg')}
-                            disabled={isRecordingRef.current || isPauseState}
-                        >
-                            <Heart size={17} className="min-[1230px]:hidden" />
-                            <span className="hidden min-[1230px]:inline">ECG Visualizer</span>
-                        </Button>
-                    </div>
-                )}
+                {isDeviceConnected && (() => {
+                    const current = VIEWS.find((v) => v.id === currentView) ?? VIEWS[0];
+                    const CurrentIcon = current.icon;
+                    return (
+                        <Popover open={isViewMenuOpen} onOpenChange={setIsViewMenuOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    className="flex items-center gap-1.5 rounded-xl"
+                                    disabled={isRecordingRef.current || isPauseState}
+                                >
+                                    <CurrentIcon size={17} />
+                                    <span className="hidden min-[1230px]:inline">{current.label}</span>
+                                    <ChevronUp size={15} className="opacity-70" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-72 p-1.5 mb-2">
+                                <div className="flex flex-col gap-0.5">
+                                    {VIEWS.map((view) => {
+                                        const Icon = view.icon;
+                                        const isActive = view.id === currentView;
+                                        return (
+                                            <button
+                                                key={view.id}
+                                                onClick={() => {
+                                                    setIsViewMenuOpen(false);
+                                                    if (!isActive) switchToView(view.id);
+                                                }}
+                                                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left text-sm hover:bg-accent ${isActive ? "bg-accent" : ""}`}
+                                            >
+                                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${isActive ? "bg-primary text-primary-foreground border-transparent" : "border-input"}`}>
+                                                    <Icon size={16} />
+                                                </span>
+                                                <span className="flex flex-col flex-1 min-w-0 leading-tight">
+                                                    <span className="font-medium">{view.label}</span>
+                                                    <span className="text-xs text-muted-foreground">{view.description}</span>
+                                                </span>
+                                                {isActive && <Check size={16} className="text-primary shrink-0" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    );
+                })()}
                 {/* Display (Play/Pause) button with tooltip */}
                 {isDeviceConnected && (
                     <div className="flex items-center gap-0.5 mx-0 px-0">
