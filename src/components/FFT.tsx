@@ -45,7 +45,10 @@ const FFT = forwardRef(
         const [fftData, setFftData] = useState<number[][]>(
             Array.from({ length: 16 }, () => [])
         );
-        const fftSize = 256;
+        let fftSize = 1;
+        while (fftSize < currentSamplingRate * 2){
+          fftSize *= 2;
+        };
         const sampleupdateref = useRef<number>(50);
         sampleupdateref.current = currentSamplingRate / 10;
         const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -132,8 +135,8 @@ const FFT = forwardRef(
         useEffect(() => {
             if (fftData.length > 0 && fftData[0].length > 0) {
                 const channelData = fftData[0];
-                const beta = calculateBandPower(channelData, [13, 32]);
-                const total = calculateBandPower(channelData, [0.5, 100]);
+                const beta = calculateBandPower(channelData, [13, 30]);
+                const total = calculateBandPower(channelData, [0.5, 45]);
                 const normalizedBeta = (beta / total) * 100;
                 setBetaPower(normalizedBeta);
                 betaPowerRef.current = normalizedBeta;
@@ -144,9 +147,9 @@ const FFT = forwardRef(
             (magnitudes: number[], range: [number, number]) => {
                 const [startFreq, endFreq] = range;
                 const freqStep = currentSamplingRate / fftSize;
-                const startIndex = Math.max(1, Math.floor(startFreq / freqStep));
+                const startIndex = Math.max(1, Math.ceil(startFreq / freqStep));
                 const endIndex = Math.min(
-                    Math.floor(endFreq / freqStep),
+                    Math.ceil(endFreq / freqStep) - 1,
                     magnitudes.length - 1
                 );
                 let power = 0;
@@ -259,9 +262,18 @@ const FFT = forwardRef(
                             fftBufferRef.current[i].shift();
                         }
                         samplesReceivedRef.current++;
-                        if (samplesReceivedRef.current % sampleupdateref.current === 0) {
+                        if (
+                            fftBufferRef.current[i].length === fftSize &&
+                            samplesReceivedRef.current % sampleupdateref.current === 0
+                        ) {
                             const processedBuffer = fftBufferRef.current[i].slice(0, fftSize);
-                            const floatInput = new Float32Array(processedBuffer);
+                            const dcMean = processedBuffer.reduce(
+                                (sum, sample) => sum + sample,
+                                0
+                            ) / processedBuffer.length;
+                            const floatInput = new Float32Array(
+                                processedBuffer.map((sample) => sample - dcMean)
+                            );
                             const fftMags = fftProcessor.computeMagnitudes(floatInput);
                             const magArray = Array.from(fftMags);
                             const smoothedMags = filter.getSmoothedValues(magArray);
