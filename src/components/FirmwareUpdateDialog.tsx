@@ -93,6 +93,14 @@ export default function FirmwareUpdateDialog({
         if (pickerTimerRef.current) clearTimeout(pickerTimerRef.current);
         pickerTimerRef.current = null;
     };
+    // Fires when a USB flash shows no progress for STALL_MS (picker time not counted).
+    const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clearStallTimer = () => {
+        if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+        stallTimerRef.current = null;
+    };
+    // Why the driver steps are shown, when it isn't obvious from the log.
+    const [driverReason, setDriverReason] = useState<string | null>(null);
     const [progress, setProgress] = useState<{ pct: number; label: string } | null>(null);
     const [logs, setLogs] = useState<LogLine[]>([]);
     const logRef = useRef<HTMLDivElement>(null);
@@ -183,7 +191,31 @@ export default function FirmwareUpdateDialog({
         };
         setStatus("flashing");
         setWaitingMsg(null);
+        setDriverReason(null);
         setProgress({ pct: 0, label: "connecting" });
+
+        // Windows, USB bootloader: no progress for a while (outside the
+        // device list) usually means the driver is missing and the board
+        // never answers. Long enough for a reset into the bootloader (~9 s).
+        const STALL_MS = 15000;
+        const watchStall = isWindows && usesUsbBootloader;
+        let started = false;
+        const armStall = () => {
+            clearStallTimer();
+            if (!watchStall || started) return;
+            stallTimerRef.current = setTimeout(() => {
+                if (abort.signal.aborted) return;
+                const reason =
+                    "Flashing hasn't started after 15 seconds. This PC most likely doesn't have the USB driver for this board.";
+                setNeedsWinUsb(true);
+                setDriverReason(reason);
+                log(`${reason} Download and run the driver installer below, then press Flash again.`, "warn");
+                toast.warning("Flashing hasn't started", {
+                    description: "This PC most likely needs the USB driver. Run the driver installer from the flashing window.",
+                });
+            }, STALL_MS);
+        };
+        armStall();
 
         // Pin the download to the version shown in the dialog.
         const tag = latest?.tag ?? "latest";
@@ -247,17 +279,24 @@ export default function FirmwareUpdateDialog({
                     },
                     progress: (pct, label) => {
                         checkCancelled();
+                        if (pct > 0 && !started) {
+                            started = true;
+                            clearStallTimer();
+                        }
                         setProgress({ pct: Math.max(0, Math.min(100, pct)), label: label ?? "" });
                     },
                     // Nothing picked within 15 s usually means the board isn't
                     // listed: on Windows, its driver is missing.
                     pickerOpen: (isOpen) => {
                         clearPickerTimer();
-                        if (!isOpen) return;
+                        // Choosing in the list isn't a stall: pause, then restart after it.
+                        if (!isOpen) return armStall();
+                        clearStallTimer();
                         setProgress((p) => p && { ...p, label: "waiting for you to select the board" });
                         pickerTimerRef.current = setTimeout(() => {
                             if (abort.signal.aborted) return;
                             setNeedsWinUsb(true);
+                            setDriverReason("No board was selected within 15 seconds. If it isn't in the list, this PC needs the USB driver.");
                             log(
                                 isWindows
                                     ? "No board selected yet. If it isn't in the list, or selecting it fails, Windows needs the USB driver: follow the steps below."
@@ -303,6 +342,7 @@ export default function FirmwareUpdateDialog({
             }
         } finally {
             clearPickerTimer();
+            clearStallTimer();
             setPreferredSerialPort(null);
             if (abortRef.current === abort) abortRef.current = null;
         }
@@ -316,6 +356,7 @@ export default function FirmwareUpdateDialog({
         abort.abort();
         abortRef.current = null;
         clearPickerTimer();
+        clearStallTimer();
         // A step waiting on the device (no answer, or mid-transfer) only ends
         // when the device is closed.
         if (target?.device.usbFilters && "usb" in navigator) {
@@ -496,6 +537,7 @@ export default function FirmwareUpdateDialog({
                         {needsWinUsb && usesUsbBootloader && isWindows && (
                             <div className="flex flex-col gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                                 <p className="font-medium">Install the USB driver to flash this board (once per PC)</p>
+                                {driverReason && <p className="text-amber-700 dark:text-amber-300">{driverReason}</p>}
                                 {chordsDriverFits ? (
                                     <>
                                         {/* Main: the Chords installer. */}
