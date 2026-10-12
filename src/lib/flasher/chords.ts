@@ -58,9 +58,10 @@ const TARGETS: Record<string, TargetSpec[]> = {
  */
 export const USB_DRIVER_TOOL_URL = "https://github.com/pbatard/libwdi/releases/download/v1.5.1/zadig-2.9.exe";
 
-const isGithubActor =
-    process.env.NEXT_PUBLIC_GITHUB_ACTOR === "upsidedownlabs" || process.env.NEXT_PUBLIC_GITHUB_ACTOR === undefined;
-const basePath = isGithubActor ? "" : "/Chords-Web";
+// The basePath Next was actually built with (what next/link uses): on GitHub
+// Pages, actions/configure-pages injects "/Chords-Web" into the config at build
+// time, which an env-based guess (NEXT_PUBLIC_GITHUB_ACTOR is unset there) misses.
+const basePath = process.env.__NEXT_ROUTER_BASEPATH || "";
 export const CHORDS_DRIVER_INSTALLER_URL = `${basePath}/drivers/ChordsDriverSetup.exe`;
 
 /** Bootloaders (vendor:product) the Chords installer sets up; others need Zadig. */
