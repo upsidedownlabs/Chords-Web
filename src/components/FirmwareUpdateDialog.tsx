@@ -14,7 +14,9 @@ import { toast } from "@/lib/toast";
 import { NeedsUserGesture, flashDevice, needsApi, setPreferredSerialPort } from "@/lib/flasher";
 import { fetchFirmware } from "@/lib/flasher/firmware";
 import {
+    CHORDS_DRIVER_INSTALLER_URL,
     USB_DRIVER_TOOL_URL,
+    chordsDriverCovers,
     fetchLatestFirmware,
     firmwareUrl,
     getFlashTargetsForPid,
@@ -160,6 +162,7 @@ export default function FirmwareUpdateDialog({
             .map((n) => (n ?? 0).toString(16).toUpperCase().padStart(4, "0"))
             .join(" ")
         : "";
+    const chordsDriverFits = chordsDriverCovers(bootloaderFilter);
 
     // Download the firmware as soon as the version and board are known.
     useEffect(() => {
@@ -340,6 +343,16 @@ export default function FirmwareUpdateDialog({
                         ? "Try again"
                         : "Flash firmware";
     const kb = (n: number) => `${(n / 1024).toFixed(1)} KB`;
+    const zadigSteps = (
+        <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
+            <li>Keep the board in bootloader mode, download Zadig and open it (click <b>Yes</b>).</li>
+            <li>
+                Choose <b>Options → List All Devices</b> and pick the device with USB ID <b>{bootloaderUsbId}</b>.
+            </li>
+            <li>Make sure <b>WinUSB</b> is selected and click <b>Install Driver</b> (or <b>Replace Driver</b>).</li>
+            <li>Come back here and press Flash again.</li>
+        </ol>
+    );
 
     return (
         <Dialog
@@ -483,22 +496,52 @@ export default function FirmwareUpdateDialog({
                         {needsWinUsb && usesUsbBootloader && isWindows && (
                             <div className="flex flex-col gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                                 <p className="font-medium">Install the USB driver to flash this board (once per PC)</p>
-                                <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
-                                    <li>Keep the board in bootloader mode, download the driver tool and open it (click <b>Yes</b>).</li>
-                                    <li>
-                                        Choose <b>Options → List All Devices</b> and pick the device with USB ID{" "}
-                                        <b>{bootloaderUsbId}</b>.
-                                    </li>
-                                    <li>Make sure <b>WinUSB</b> is selected and click <b>Install Driver</b> (or <b>Replace Driver</b>).</li>
-                                    <li>Come back here and press Flash again.</li>
-                                </ol>
-                                <div>
-                                    <Button size="sm" asChild>
-                                        <a href={USB_DRIVER_TOOL_URL} target="_blank" rel="noopener noreferrer">
-                                            Download USB driver tool
-                                        </a>
-                                    </Button>
-                                </div>
+                                {chordsDriverFits ? (
+                                    <>
+                                        {/* Main: the Chords installer. */}
+                                        <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
+                                            <li>Download the installer and double-click it. The board doesn&apos;t need to be plugged in.</li>
+                                            <li>
+                                                If Windows says <b>&quot;Windows protected your PC&quot;</b>, click <b>More info → Run anyway</b>.
+                                            </li>
+                                            <li>Click <b>Yes</b> when Windows asks for permission, and wait for <b>Done!</b></li>
+                                            <li>Replug the board, then press Flash again.</li>
+                                        </ol>
+                                        <div>
+                                            <Button size="sm" asChild>
+                                                <a href={CHORDS_DRIVER_INSTALLER_URL} download="ChordsDriverSetup.exe">
+                                                    Download driver installer
+                                                </a>
+                                            </Button>
+                                        </div>
+                                        {/* Alternative: Zadig, for when the installer can't be used. */}
+                                        <div className="mt-1 flex flex-col gap-2 border-t border-amber-500/30 pt-2">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="text-muted-foreground">Or install it with Zadig:</span>
+                                                <Button size="sm" variant="outline" asChild>
+                                                    <a href={USB_DRIVER_TOOL_URL} target="_blank" rel="noopener noreferrer">
+                                                        Download Zadig
+                                                    </a>
+                                                </Button>
+                                            </div>
+                                            <details>
+                                                <summary className="cursor-pointer text-xs text-muted-foreground">Zadig steps</summary>
+                                                <div className="mt-1">{zadigSteps}</div>
+                                            </details>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        {zadigSteps}
+                                        <div>
+                                            <Button size="sm" asChild>
+                                                <a href={USB_DRIVER_TOOL_URL} target="_blank" rel="noopener noreferrer">
+                                                    Download Zadig
+                                                </a>
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 

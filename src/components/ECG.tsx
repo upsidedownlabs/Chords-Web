@@ -10,9 +10,12 @@ import { useTheme } from "next-themes";
 import { Heart } from "lucide-react";
 import { WebglPlot, ColorRGBA, WebglLine } from "webgl-plot";
 import { darkThemeColors, lightThemeColors } from "./Colors";
+import { captureLines, restoreLines, type FrozenLines } from "./frozenPlot";
 
 interface ECGProps {
     pauseRef: React.RefObject<boolean>;
+    snapShotRef: React.MutableRefObject<boolean[]>;
+    currentSnapshot: number;
     selectedChannel: number;
     currentSamplingRate: number;
     timeBase?: number;
@@ -294,10 +297,21 @@ class PanTompkinsDetector {
 // RR CV above this = noise (same gate as NPG-Lite-Cardio).
 const RR_CV_THRESHOLD = 0.25;
 
+// Complete windows kept for stepping back while paused (as in the Chords visualizer).
+const MAX_SNAPSHOTS = 5;
+const NUM_SNAPSHOT_FLAGS = 6;
+
+/** One complete sweep: the signal and its R-peak flags, by sweep position. */
+type Snapshot = { start: number; raw: Float32Array; peaks: Uint8Array };
+
 const makeState = (N: number, fs: number) => ({
     N,
     raw: new Float32Array(N),
     peaks: new Uint8Array(N),
+    // The sweep being drawn, kept whole (the live arrays are cleared just
+    // ahead of the cursor) so it can be saved as a snapshot when it completes.
+    winRaw: new Float32Array(N),
+    winPeaks: new Uint8Array(N),
     n: 0,
     detector: new PanTompkinsDetector(fs),
     lastBeat: -Infinity,
@@ -305,7 +319,7 @@ const makeState = (N: number, fs: number) => ({
 
 const ECG = forwardRef(
     (
-        { pauseRef, selectedChannel, currentSamplingRate, timeBase = DEFAULT_TIME_BASE_SECONDS, Zoom }: ECGProps,
+        { pauseRef, snapShotRef, currentSnapshot, selectedChannel, currentSamplingRate, timeBase = DEFAULT_TIME_BASE_SECONDS, Zoom }: ECGProps,
         ref
     ) => {
         // Use resolvedTheme, not theme: see the comment in Canvas.tsx.
@@ -324,6 +338,10 @@ const ECG = forwardRef(
 
         // Detector state + R-peak flags, indexed by sweep position (sample % N).
         const stateRef = useRef(makeState(Math.round(fs * timeBase), fs));
+        // Completed sweeps, newest first; the paused view shows one of them.
+        const historyRef = useRef<Snapshot[]>([]);
+        const viewRef = useRef<Snapshot | null>(null); // null = the live (frozen) screen
+        const frozenRef = useRef<FrozenLines | null>(null); // screen at the moment of pausing
 
         // Build the WebGL plot exactly like the Chords visualizer, and reset
         // detection whenever channel, sampling rate, time base or theme change.
@@ -337,6 +355,11 @@ const ECG = forwardRef(
             const N = Math.round(fs * timeBase);
             stateRef.current = makeState(N, fs);
             setBpm(null);
+            // Old sweeps don't match the new window or channel.
+            historyRef.current = [];
+            viewRef.current = null;
+            frozenRef.current = null;
+            snapShotRef.current = Array(NUM_SNAPSHOT_FLAGS).fill(false);
 
             plotCanvas.width = container.clientWidth;
             plotCanvas.height = container.clientHeight;
@@ -355,7 +378,26 @@ const ECG = forwardRef(
                 lineRef.current = null;
                 wglp.removeAllLines();
             };
-        }, [plotKey, selectedChannel, fs, timeBase, theme]);
+        }, [plotKey, selectedChannel, fs, timeBase, theme, snapShotRef]);
+
+        // Paused: snapshot 0 is the screen as it was when pausing; 1+ steps
+        // back through completed sweeps. Back to 0 (or resuming, which resets
+        // to 0) restores the frozen screen so the sweep carries on.
+        useEffect(() => {
+            const line = lineRef.current;
+            if (!line) return;
+            if (currentSnapshot === 0) {
+                if (frozenRef.current) restoreLines([line], frozenRef.current);
+                frozenRef.current = null;
+                viewRef.current = null;
+                return;
+            }
+            const snap = historyRef.current[currentSnapshot - 1];
+            if (!snap || snap.raw.length !== line.numPoints) return;
+            if (!frozenRef.current) frozenRef.current = captureLines([line]);
+            for (let p = 0; p < line.numPoints; p++) line.setY(p, snap.raw[p]);
+            viewRef.current = snap;
+        }, [currentSnapshot, plotKey]);
 
         useEffect(() => {
             if (wglpRef.current) wglpRef.current.gScaleY = Zoom;
@@ -375,6 +417,8 @@ const ECG = forwardRef(
                     const pos = s.n % s.N;
                     s.raw[pos] = value;
                     s.peaks[pos] = 0;
+                    if (pos === 0) s.winPeaks.fill(0);
+                    s.winRaw[pos] = value;
 
                     // Same sweep as the Chords visualizer.
                     line.setY(pos, value);
@@ -390,6 +434,12 @@ const ECG = forwardRef(
                     const regular = s.detector.rrCV() < RR_CV_THRESHOLD;
                     if (rTime !== null && regular && s.n - rTime < s.N) {
                         s.peaks[rTime % s.N] = 1;
+                        // The peak is found a few samples late: it may belong to
+                        // the sweep that was just saved.
+                        const windowStart = s.n - pos;
+                        const last = historyRef.current[0];
+                        if (rTime >= windowStart) s.winPeaks[rTime % s.N] = 1;
+                        else if (last && rTime >= last.start) last.peaks[rTime % s.N] = 1;
                         s.lastBeat = rTime;
                         const b = s.detector.bpm;
                         setBpm(b >= 30 && b <= 220 ? Math.round(b) : null);
@@ -401,10 +451,22 @@ const ECG = forwardRef(
                         }
                     }
 
+                    // Sweep complete: save it for stepping back while paused.
+                    if (pos === s.N - 1) {
+                        historyRef.current = [
+                            { start: s.n - pos, raw: s.winRaw.slice(), peaks: s.winPeaks.slice() },
+                            ...historyRef.current,
+                        ].slice(0, MAX_SNAPSHOTS);
+                        snapShotRef.current = Array.from(
+                            { length: NUM_SNAPSHOT_FLAGS },
+                            (_, i) => i < historyRef.current.length
+                        );
+                    }
+
                     s.n++;
                 },
             }),
-            [pauseRef, selectedChannel, fs]
+            [pauseRef, selectedChannel, fs, snapShotRef]
         );
 
         // Render loop: WebGL trace + peak markers on a transparent overlay that
@@ -440,11 +502,13 @@ const ECG = forwardRef(
 
                 const s = stateRef.current;
                 const zoom = zoomRef.current;
+                // Markers of the sweep on screen: a past one while stepping back.
+                const view = viewRef.current ?? s;
                 ctx.fillStyle = "#ef4444";
                 for (let i = 0; i < s.N; i++) {
-                    if (!s.peaks[i]) continue;
+                    if (!view.peaks[i]) continue;
                     const x = (i / s.N) * W;
-                    const y = (H / 2) * (1 - s.raw[i] * zoom);
+                    const y = (H / 2) * (1 - view.raw[i] * zoom);
                     ctx.beginPath();
                     ctx.arc(x, y, 4, 0, Math.PI * 2);
                     ctx.fill();

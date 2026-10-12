@@ -51,9 +51,26 @@ const TARGETS: Record<string, TargetSpec[]> = {
 /**
  * Windows only lets the browser see a USB bootloader (UNO R4 Minima, STM32,
  * GIGA R1, Pico) that uses the WinUSB driver, and a website can't install
- * drivers. Zadig (official libwdi release) sets WinUSB up once per PC.
+ * drivers. Two ways to set WinUSB up once per PC:
+ *  - the Chords installer (public/drivers): double-click, no board needed;
+ *    covers every board here, Zadig stays as the manual alternative;
+ *  - Zadig (official libwdi release): any board, picked by hand.
  */
 export const USB_DRIVER_TOOL_URL = "https://github.com/pbatard/libwdi/releases/download/v1.5.1/zadig-2.9.exe";
+
+const isGithubActor =
+    process.env.NEXT_PUBLIC_GITHUB_ACTOR === "upsidedownlabs" || process.env.NEXT_PUBLIC_GITHUB_ACTOR === undefined;
+const basePath = isGithubActor ? "" : "/Chords-Web";
+export const CHORDS_DRIVER_INSTALLER_URL = `${basePath}/drivers/ChordsDriverSetup.exe`;
+
+/** Bootloaders (vendor:product) the Chords installer sets up; others need Zadig. */
+const CHORDS_DRIVER_IDS = ["0483:df11", "2341:0369", "2341:0366", "2341:0466", "2e8a:0003"];
+
+export function chordsDriverCovers(filter: USBDeviceFilter | undefined) {
+    if (filter?.vendorId === undefined || filter.productId === undefined) return false;
+    const id = `${filter.vendorId.toString(16).padStart(4, "0")}:${filter.productId.toString(16).padStart(4, "0")}`;
+    return CHORDS_DRIVER_IDS.includes(id);
+}
 
 export function firmwareUrl(asset: string, tag = "latest") {
     return `${FIRMWARE_WORKER_URL}/firmware/${encodeURIComponent(tag)}/${encodeURIComponent(asset)}`;

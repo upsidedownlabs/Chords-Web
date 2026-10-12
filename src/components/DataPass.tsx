@@ -95,6 +95,8 @@ const DataPass = () => {
       ) : ECGConnected ? (
         <ECG
         pauseRef={pauseRef}
+        snapShotRef={snapShotRef}
+        currentSnapshot={currentSnapshot}
         ref={canvasRef}
         Zoom={Zoom}
         selectedChannel={selectedChannel}

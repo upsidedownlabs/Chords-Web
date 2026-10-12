@@ -1,4 +1,6 @@
+import { createElement } from "react";
 import { toast } from "sonner";
+import { TimeAgo } from "@/components/ui/time-ago";
 
 // Import `toast` from here, not from "sonner", so this runs before any toast
 // is shown.
@@ -8,6 +10,8 @@ import { toast } from "sonner";
 // Error and warning toasts also stay until the user closes them (X button or
 // swipe) so they aren't missed. A call can still pass its own `id` /
 // `duration` / `closeButton`.
+// Because they stay, they also show when they appeared ("just now", "2 min
+// ago"); a repeat of the same toast replaces it, so its time restarts.
 // (Plain `toast(...)` can't be patched: use `toast.message(...)` instead.)
 type ToastFn = typeof toast.error & { __original?: typeof toast.error };
 
@@ -18,11 +22,18 @@ for (const type of ["error", "warning", "success", "info", "message"] as const) 
     const patched: ToastFn = (message, data) => {
         const description = typeof data?.description === "string" ? data.description : "";
         const id = typeof message === "string" ? `${type}:${message}:${description}` : undefined;
-        return original(message, {
+        const opts = {
             id,
             ...(persistent ? { duration: Infinity, closeButton: true, dismissible: true } : {}),
             ...data,
-        });
+        };
+        if (persistent) {
+            const time = createElement(TimeAgo, { since: Date.now(), className: "mt-1 block text-xs opacity-70" });
+            opts.description = data?.description
+                ? createElement("div", null, typeof data.description === "function" ? data.description() : data.description, time)
+                : time;
+        }
+        return original(message, opts);
     };
     patched.__original = original;
     toast[type] = patched;
