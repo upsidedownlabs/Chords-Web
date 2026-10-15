@@ -6,7 +6,7 @@ import type { DeviceDef } from "./types";
  * Cloudflare Worker that proxies Chords-Arduino-Firmware GitHub releases with
  * CORS headers (source: cloudflare/firmware-worker.js).
  */
-export const FIRMWARE_WORKER_URL = "https://mute-union-1cca.amanmaheshwari715.workers.dev";
+export const FIRMWARE_WORKER_URL = "https://chords-arduino-firmware.myupsidedownlab.workers.dev/";
 
 /** A board that can be flashed: a flasher device + the release file for it. */
 export interface FlashTarget {
