@@ -3,8 +3,9 @@ import { DEVICES } from "./devices";
 import type { DeviceDef } from "./types";
 
 /**
- * Cloudflare Worker that proxies Chords-Arduino-Firmware GitHub releases with
- * CORS headers (source: cloudflare/firmware-worker.js).
+ * Cloudflare Worker that downloads Chords-Arduino-Firmware GitHub releases
+ * using a GitHub token stored as a Worker secret, and serves them to the
+ * browser (source: cloudflare/firmware-worker.js).
  */
 export const FIRMWARE_WORKER_URL = "https://chords-arduino-firmware.myupsidedownlab.workers.dev/";
 
