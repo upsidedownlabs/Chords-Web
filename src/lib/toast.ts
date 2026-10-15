@@ -29,9 +29,14 @@ for (const type of ["error", "warning", "success", "info", "message"] as const) 
         };
         if (persistent) {
             const time = createElement(TimeAgo, { since: Date.now(), className: "mt-1 block text-xs opacity-70" });
-            opts.description = data?.description
-                ? createElement("div", null, typeof data.description === "function" ? data.description() : data.description, time)
-                : time;
+            const given = data?.description;
+            // A function description must stay a function: Sonner calls it while
+            // rendering the toast, so it may use hooks. Wrap it lazily.
+            opts.description = !given
+                ? time
+                : typeof given === "function"
+                    ? () => createElement("div", null, given(), time)
+                    : createElement("div", null, given, time);
         }
         return original(message, opts);
     };

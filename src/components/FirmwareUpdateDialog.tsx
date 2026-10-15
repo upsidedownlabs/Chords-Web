@@ -429,7 +429,7 @@ export default function FirmwareUpdateDialog({
                         This board can&apos;t be updated from here. Please flash the firmware from{" "}
                         <a
                             className="font-semibold text-primary hover:underline"
-                            href="https://github.com/Amanmahe/Chords-Arduino-Firmware/releases/latest"
+                            href="https://github.com/upsidedownlabs/Chords-Arduino-Firmware/releases/latest"
                             target="_blank"
                             rel="noopener noreferrer"
                         >
