@@ -17,7 +17,7 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "types": ["node", "w3c-web-serial"],
+    "types": ["node", "w3c-web-serial", "w3c-web-usb"],
     "plugins": [
       {
         "name": "next"

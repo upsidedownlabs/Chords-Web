@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { WebglPlot, WebglLine, ColorRGBA } from "webgl-plot";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface DataPoint {
     time: number;
@@ -295,7 +295,7 @@ const SerialPlotter = () => {
 
             setTimeout(() => {
                 if (isConnected) {
-                    toast("Attempting to reconnect...");
+                    toast.message("Attempting to reconnect...");
                     connectToSerial();
                 }
             }, 5000);
